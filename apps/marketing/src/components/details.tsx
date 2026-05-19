@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from "motion/react";
-import { useMemo } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 
 export function Details() {
@@ -44,24 +44,24 @@ export function Details() {
             index={0}
             label="Memory"
             title="It remembers everything"
-            body="Every approved decision becomes a node. The agent's understanding of your business compounds quietly in the background."
-            visual={<MemoryViz />}
+            body="Every approved decision becomes a memory. Filter, edit, watch the agent's understanding compound over time."
+            visual={<MemoryScene />}
             accent="amber"
           />
           <DetailCard
             index={1}
             label="Personality"
             title="Pick its voice"
-            body="Five distinct personalities, each with their own voice and rhythm. Choose one. Live with it. It adapts to how you speak."
-            visual={<PersonalityViz />}
+            body="Five distinct personalities, each with their own voice and rhythm. Choose one. Live with it."
+            visual={<PersonalityScene />}
             accent="rose"
           />
           <DetailCard
             index={2}
             label="Trust gates"
             title="It asks first"
-            body="Anything irreversible — live publishing, CRM forwards, payments — waits for your explicit yes. The gate is the agent's manners."
-            visual={<TrustViz />}
+            body="Anything irreversible — live publishing, CRM forwards, payments — waits for your explicit yes."
+            visual={<TrustScene />}
             accent="emerald"
           />
         </div>
@@ -124,498 +124,471 @@ function DetailCard({
   );
 }
 
-/* -------------------- Visual: Memory — constellation -------------------- */
+function wait(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
-type Node = {
-  id: string;
-  x: number; // 0–100 (percent)
-  y: number;
-  size: number;
-  label?: string;
-  recent?: boolean;
-};
+/* ============================================================
+ * 1. Memory — dashboard with rows being added live
+ * ============================================================ */
 
-function MemoryViz() {
-  const nodes: Node[] = useMemo(
-    () => [
-      { id: "core", x: 50, y: 50, size: 14 },
-      { id: "n1", x: 22, y: 28, size: 4, label: "voice", recent: true },
-      { id: "n2", x: 78, y: 22, size: 5, label: "promo · Mar", recent: true },
-      { id: "n3", x: 16, y: 60, size: 4, label: "offers" },
-      { id: "n4", x: 85, y: 55, size: 4.5, label: "audience" },
-      { id: "n5", x: 32, y: 78, size: 3.5 },
-      { id: "n6", x: 68, y: 80, size: 4, label: "brand · less formal" },
-      { id: "n7", x: 12, y: 38, size: 3 },
-      { id: "n8", x: 90, y: 35, size: 3, recent: true },
-      { id: "n9", x: 40, y: 18, size: 3.5 },
-      { id: "n10", x: 60, y: 14, size: 3 },
-      { id: "n11", x: 50, y: 88, size: 3 },
-      { id: "n12", x: 28, y: 52, size: 2.8 },
-      { id: "n13", x: 72, y: 48, size: 2.8 },
-    ],
-    [],
-  );
+type MStep = "idle" | "row-add" | "to-row" | "filter-applied";
 
-  const links: [string, string][] = [
-    ["core", "n1"],
-    ["core", "n2"],
-    ["core", "n3"],
-    ["core", "n4"],
-    ["core", "n5"],
-    ["core", "n6"],
-    ["n1", "n7"],
-    ["n2", "n8"],
-    ["n2", "n9"],
-    ["n1", "n9"],
-    ["n4", "n13"],
-    ["n3", "n12"],
-    ["n6", "n11"],
-    ["core", "n12"],
-    ["core", "n13"],
-  ];
+const ALL_MEMORIES = [
+  { date: "Mar 14", text: "Hero copy · variant A · 12.4% CVR", tag: "won", tone: "emerald" as const },
+  { date: "Mar 12", text: "Friday latte post · scheduled", tag: "kept", tone: "ink" as const },
+  { date: "Mar 08", text: "Black Friday banner · adjusted", tag: "edited", tone: "amber" as const },
+  { date: "Feb 28", text: "Brand voice · less formal", tag: "kept", tone: "ink" as const },
+  { date: "Feb 22", text: "Hairstyle taxonomy · 18 terms", tag: "added", tone: "amber" as const },
+];
 
-  const get = (id: string) => nodes.find((n) => n.id === id)!;
+export function MemoryScene() {
+  const [step, setStep] = useState<MStep>("idle");
+  const [count, setCount] = useState(2);
+  const [activeRow, setActiveRow] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      while (!cancelled) {
+        setStep("idle"); setCount(2); setActiveRow(null);
+        await wait(700);
+        if (cancelled) return;
+        // Fill rows one by one
+        setStep("row-add");
+        for (let n = 3; n <= ALL_MEMORIES.length; n++) {
+          if (cancelled) return;
+          setCount(n);
+          await wait(420);
+        }
+        await wait(400);
+        if (cancelled) return;
+        // Highlight a row
+        setStep("to-row");
+        setActiveRow(0);
+        await wait(900);
+        if (cancelled) return;
+        // Apply a filter
+        setStep("filter-applied");
+        await wait(2200);
+        setActiveRow(null);
+      }
+    };
+    void run();
+    return () => { cancelled = true; };
+  }, []);
+
+  const cursor = (() => {
+    switch (step) {
+      case "idle": return { left: "85%", top: "85%" };
+      case "row-add": return { left: "50%", top: "55%" };
+      case "to-row": return { left: "70%", top: "32%" };
+      case "filter-applied": return { left: "22%", top: "20%" };
+    }
+  })();
 
   return (
-    <div className="absolute inset-0 overflow-hidden">
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 50%, rgba(251,191,36,0.10), transparent 60%)",
-        }}
-      />
-      <svg
-        viewBox="0 0 100 100"
-        className="absolute inset-0 size-full"
-        preserveAspectRatio="none"
-      >
-        {/* Links */}
-        {links.map(([a, b], i) => {
-          const A = get(a);
-          const B = get(b);
+    <div className="relative size-full overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse at 30% 30%, rgba(251,191,36,0.16), transparent 60%)",
+      }}/>
+      {/* Top toolbar */}
+      <div className="absolute top-0 left-0 right-0 h-7 border-b border-line bg-canvas/70 backdrop-blur-md flex items-center px-3 gap-2 z-10">
+        <span className="text-[9px] font-mono text-amber-300/80">Memory · @hannahshair</span>
+        <span className="ml-auto text-[9px] font-mono text-ink-muted tabular-nums">{count} entries</span>
+      </div>
+      {/* Filter row */}
+      <div className="absolute top-7 left-0 right-0 h-7 border-b border-line bg-panel/40 flex items-center px-3 gap-1.5">
+        {[
+          { label: "All", on: step !== "filter-applied" },
+          { label: "Won", on: step === "filter-applied" },
+          { label: "Edited", on: false },
+          { label: "Voice", on: false },
+        ].map((f, i) => (
+          <div key={i} className="relative">
+            {step === "filter-applied" && i === 1 && (
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                className="pointer-events-none absolute -inset-1 rounded-full border border-dashed border-amber-400/60"/>
+            )}
+            <span className={`text-[8px] tracking-widest uppercase font-sans h-4 px-1.5 rounded-full flex items-center ${
+              f.on ? "bg-amber-400/20 text-amber-200 border border-amber-400/40" : "border border-line text-ink-muted"
+            }`}>
+              {f.label}
+            </span>
+          </div>
+        ))}
+      </div>
+      {/* Rows */}
+      <div className="absolute top-14 bottom-9 left-0 right-0 overflow-hidden p-2 space-y-1.5">
+        {ALL_MEMORIES.map((m, i) => {
+          const visible = i < count;
+          const isFiltered = step === "filter-applied" && m.tag !== "won";
+          const isActive = activeRow === i;
           return (
-            <motion.line
-              key={`l-${i}`}
-              x1={A.x}
-              y1={A.y}
-              x2={B.x}
-              y2={B.y}
-              stroke="rgba(251,191,36,0.25)"
-              strokeWidth="0.18"
-              initial={{ pathLength: 0, opacity: 0 }}
-              whileInView={{ pathLength: 1, opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1.4, delay: 0.15 + i * 0.04 }}
-            />
-          );
-        })}
-        {/* Pulsing nodes */}
-        {nodes.map((n, i) => (
-          <g key={n.id}>
-            {n.id === "core" && (
-              <motion.circle
-                cx={n.x}
-                cy={n.y}
-                r={n.size + 4}
-                fill="rgba(251,191,36,0.1)"
-                animate={{ r: [n.size + 2, n.size + 6, n.size + 2] }}
-                transition={{
-                  duration: 3.2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              />
-            )}
-            <motion.circle
-              cx={n.x}
-              cy={n.y}
-              r={n.size / 4}
-              fill={n.id === "core" ? "#fde68a" : "rgba(251,191,36,0.85)"}
-              initial={{ opacity: 0, scale: 0 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{
-                duration: 0.5,
-                delay: 0.3 + i * 0.06,
-                type: "spring",
-                stiffness: 200,
-              }}
-            />
-            {n.recent && (
-              <motion.circle
-                cx={n.x}
-                cy={n.y}
-                r={n.size / 2}
-                fill="none"
-                stroke="rgba(251,191,36,0.6)"
-                strokeWidth="0.2"
-                animate={{
-                  r: [n.size / 4, n.size, n.size / 4],
-                  opacity: [0.6, 0, 0.6],
-                }}
-                transition={{
-                  duration: 2.4,
-                  repeat: Infinity,
-                  ease: "easeOut",
-                  delay: i * 0.3,
-                }}
-              />
-            )}
-          </g>
-        ))}
-      </svg>
-      {/* Floating labels */}
-      <div className="absolute inset-0 pointer-events-none">
-        <FloatingLabel x="78%" y="14%" delay={0.5}>
-          March promo
-        </FloatingLabel>
-        <FloatingLabel x="6%" y="56%" delay={0.7}>
-          Brand voice
-        </FloatingLabel>
-        <FloatingLabel x="62%" y="86%" delay={0.9}>
-          Less formal
-        </FloatingLabel>
-      </div>
-      {/* Footer counter */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ delay: 1.5, duration: 0.6 }}
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full bg-canvas/70 backdrop-blur border border-amber-400/30"
-      >
-        <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-        <span className="text-[9px] font-mono text-amber-200">
-          47 connections · growing
-        </span>
-      </motion.div>
-    </div>
-  );
-}
-
-function FloatingLabel({
-  x,
-  y,
-  delay,
-  children,
-}: {
-  x: string;
-  y: string;
-  delay: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ delay, duration: 0.6 }}
-      className="absolute text-[8px] tracking-[0.18em] uppercase text-amber-200/80 font-sans whitespace-nowrap"
-      style={{ left: x, top: y, transform: "translate(-50%, 0)" }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-/* -------------------- Visual: Personality — character orbs -------------- */
-
-function PersonalityViz() {
-  const personas = [
-    {
-      name: "Nova",
-      tone: "Calm · direct",
-      from: "#f9a8d4",
-      to: "#a855f7",
-      active: true,
-    },
-    {
-      name: "Echo",
-      tone: "Warm · curious",
-      from: "#fde68a",
-      to: "#f97316",
-    },
-    {
-      name: "Sage",
-      tone: "Editorial · slow",
-      from: "#bef264",
-      to: "#16a34a",
-    },
-    {
-      name: "Atlas",
-      tone: "Bold · decisive",
-      from: "#7dd3fc",
-      to: "#0284c7",
-    },
-  ];
-  return (
-    <div className="absolute inset-0 overflow-hidden">
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 40%, rgba(244,114,182,0.10), transparent 65%)",
-        }}
-      />
-      <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-3 p-5">
-        {personas.map((p, i) => (
-          <motion.div
-            key={p.name}
-            initial={{ opacity: 0, scale: 0.85 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{
-              delay: 0.15 + i * 0.1,
-              duration: 0.55,
-              ease: [0.2, 0.7, 0.2, 1],
-            }}
-            className="relative flex flex-col items-center justify-center"
-          >
-            {/* Orb */}
-            <div className="relative">
-              {p.active && (
-                <motion.div
-                  className="absolute -inset-3 rounded-full"
-                  style={{
-                    background: `radial-gradient(circle, ${p.from}33, transparent 70%)`,
-                  }}
-                  animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
-                  transition={{
-                    duration: 2.6,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-              )}
-              <motion.div
-                className={cn(
-                  "relative size-[58px] rounded-full shadow-2xl",
-                  p.active && "ring-2 ring-rose-400/60 ring-offset-2 ring-offset-canvas",
-                )}
-                style={{
-                  background: `radial-gradient(circle at 32% 30%, ${p.from}, ${p.to} 70%, rgba(0,0,0,0.5) 100%)`,
-                  boxShadow: p.active
-                    ? `0 10px 30px -10px ${p.from}aa`
-                    : "0 6px 20px -8px rgba(0,0,0,0.6)",
-                }}
-                animate={
-                  p.active
-                    ? { y: [0, -2, 0] }
-                    : undefined
-                }
-                transition={{
-                  duration: 2.4,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              >
-                {/* highlight */}
-                <span
-                  className="absolute size-2.5 rounded-full bg-white/80 top-2.5 left-2.5"
-                  style={{ filter: "blur(1.5px)" }}
-                />
-              </motion.div>
-            </div>
-            <div className="mt-2 text-center">
-              <div
-                className={cn(
-                  "text-[11px] font-sans font-semibold leading-none",
-                  p.active ? "text-ink" : "text-ink-muted",
-                )}
-              >
-                {p.name}
-              </div>
-              <div
-                className={cn(
-                  "text-[8px] font-mono mt-1",
-                  p.active ? "text-rose-300/90" : "text-ink-dim",
-                )}
-              >
-                {p.tone}
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-      {/* "Selected" pill bottom */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ delay: 0.9, duration: 0.6 }}
-        className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full bg-canvas/70 backdrop-blur border border-rose-400/30"
-      >
-        <span className="size-1.5 rounded-full bg-rose-400 animate-pulse" />
-        <span className="text-[9px] font-mono text-rose-200">
-          Nova · selected
-        </span>
-      </motion.div>
-    </div>
-  );
-}
-
-/* -------------------- Visual: Trust gates — approval flow -------------- */
-
-function TrustViz() {
-  const steps = [
-    {
-      label: "You said",
-      sublabel: "Schedule a March promo post",
-      tone: "neutral",
-    },
-    {
-      label: "Plan ready",
-      sublabel: "3 deliverables · 1 irreversible",
-      tone: "neutral",
-    },
-    {
-      label: "Awaiting you",
-      sublabel: "Approve or adjust",
-      tone: "amber",
-    },
-    {
-      label: "Shipped",
-      sublabel: "Posted at 9:00",
-      tone: "emerald",
-    },
-  ];
-  return (
-    <div className="absolute inset-0 overflow-hidden">
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 50%, rgba(16,185,129,0.08), transparent 65%)",
-        }}
-      />
-      <div className="absolute inset-0 p-5 flex">
-        {/* Vertical track */}
-        <div className="relative w-1.5 mr-4 ml-2 my-2">
-          <div className="absolute inset-0 rounded-full bg-line" />
-          <motion.div
-            className="absolute top-0 left-0 right-0 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-emerald-400"
-            initial={{ height: "0%" }}
-            whileInView={{ height: "100%" }}
-            viewport={{ once: true }}
-            transition={{ duration: 2, delay: 0.3, ease: "easeOut" }}
-          />
-        </div>
-        {/* Steps */}
-        <div className="flex-1 flex flex-col justify-between py-1.5">
-          {steps.map((s, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, x: 10 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.4 + i * 0.18, duration: 0.5 }}
-              className="relative flex items-start gap-3"
+              initial={false}
+              animate={{
+                opacity: !visible ? 0 : isFiltered ? 0.25 : 1,
+                x: visible ? 0 : -12,
+              }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className={cn(
+                "relative flex items-center gap-2 rounded-md border bg-canvas/60 px-2 py-1.5",
+                isActive ? "border-amber-400/60 ring-1 ring-amber-400/20 bg-amber-400/[0.04]" : "border-line",
+              )}
             >
-              {/* Marker */}
-              <div className="-ml-[34px] mt-0.5 relative">
-                <span
-                  className={cn(
-                    "size-3 rounded-full border-2 flex items-center justify-center",
-                    s.tone === "amber"
-                      ? "border-amber-400 bg-amber-400/20"
-                      : s.tone === "emerald"
-                        ? "border-emerald-400 bg-emerald-400"
-                        : "border-line-bright bg-canvas",
-                  )}
-                >
-                  {s.tone === "emerald" && (
-                    <svg
-                      width="6"
-                      height="6"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="text-canvas"
-                    >
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </span>
-                {s.tone === "amber" && (
-                  <motion.span
-                    className="absolute inset-0 rounded-full border-2 border-amber-400"
-                    animate={{ scale: [1, 1.8, 1], opacity: [0.7, 0, 0.7] }}
-                    transition={{
-                      duration: 1.8,
-                      repeat: Infinity,
-                      ease: "easeOut",
-                    }}
+              <span className="text-[8px] font-mono text-ink-dim w-10 shrink-0 tabular-nums">{m.date}</span>
+              <span className="text-[9px] font-sans text-ink flex-1 truncate">{m.text}</span>
+              <span className={cn(
+                "text-[7px] tracking-[0.18em] uppercase font-sans font-medium px-1 py-0.5 rounded",
+                m.tone === "emerald" && "text-emerald-300 bg-emerald-400/10",
+                m.tone === "amber" && "text-amber-300 bg-amber-400/10",
+                m.tone === "ink" && "text-ink-muted bg-line/40",
+              )}>{m.tag}</span>
+            </motion.div>
+          );
+        })}
+      </div>
+      {/* Bottom updating indicator */}
+      <div className="absolute bottom-0 left-0 right-0 h-7 border-t border-line bg-canvas/70 flex items-center justify-center gap-1.5">
+        <span className="size-1 rounded-full bg-amber-400 animate-pulse"/>
+        <span className="text-[8px] tracking-[0.22em] uppercase text-amber-300/80 font-sans">Updating · just now</span>
+      </div>
+      {/* Nova cursor */}
+      <motion.div
+        initial={false}
+        animate={cursor}
+        transition={{ duration: 0.65, ease: [0.22, 0.61, 0.36, 1] }}
+        className="absolute pointer-events-none z-30 flex items-start gap-1"
+        style={{ transform: "translate(-2px, -2px)" }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" className="text-amber-400 drop-shadow">
+          <path d="M5 3l14 8-7 1-3 7L5 3z" fill="currentColor" stroke="white" strokeWidth="1" strokeLinejoin="round"/>
+        </svg>
+        <span className="px-1.5 py-px rounded-md bg-amber-500 text-white text-[8px] font-sans font-semibold leading-3 shadow-md">Nova</span>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * 2. Personality — agent picker with cursor cycling, voice plays
+ * ============================================================ */
+
+const PERSONAS = [
+  { name: "Nova", tone: "Calm · direct", from: "#f9a8d4", to: "#a855f7" },
+  { name: "Echo", tone: "Warm · curious", from: "#fde68a", to: "#f97316" },
+  { name: "Sage", tone: "Editorial · slow", from: "#bef264", to: "#16a34a" },
+  { name: "Atlas", tone: "Bold · decisive", from: "#7dd3fc", to: "#0284c7" },
+];
+
+export function PersonalityScene() {
+  const [active, setActive] = useState(0);
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      while (!cancelled) {
+        for (let i = 0; i < PERSONAS.length; i++) {
+          if (cancelled) return;
+          setActive(i);
+          setPlaying(false);
+          await wait(600);
+          if (cancelled) return;
+          setPlaying(true);
+          await wait(1600);
+        }
+        if (cancelled) return;
+        setActive(0);
+        setPlaying(true);
+        await wait(2400);
+      }
+    };
+    void run();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Cursor target: hover the active persona
+  const cursorTarget = (() => {
+    const positions = [
+      { left: "28%", top: "32%" }, // Nova top-left
+      { left: "72%", top: "32%" }, // Echo top-right
+      { left: "28%", top: "70%" }, // Sage bottom-left
+      { left: "72%", top: "70%" }, // Atlas bottom-right
+    ];
+    return positions[active] ?? positions[0];
+  })();
+
+  const cur = PERSONAS[active]!;
+
+  return (
+    <div className="relative size-full overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse at 50% 40%, rgba(244,114,182,0.16), transparent 60%)",
+      }}/>
+      {/* Toolbar */}
+      <div className="absolute top-0 left-0 right-0 h-7 border-b border-line bg-canvas/70 backdrop-blur-md flex items-center px-3 gap-2 z-10">
+        <span className="text-[9px] font-mono text-rose-300/80">Agent · Choose voice</span>
+        <span className="ml-auto text-[9px] font-mono text-ink-muted">5 personalities</span>
+      </div>
+      {/* 2x2 grid of personas */}
+      <div className="absolute inset-x-3 top-9 bottom-12 grid grid-cols-2 grid-rows-2 gap-2">
+        {PERSONAS.map((p, i) => {
+          const isActive = i === active;
+          return (
+            <motion.div
+              key={p.name}
+              animate={{
+                scale: isActive ? 1.02 : 1,
+                opacity: isActive ? 1 : 0.6,
+              }}
+              transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
+              className={cn(
+                "relative rounded-xl border flex flex-col items-center justify-center gap-1",
+                isActive ? "border-rose-400/50 bg-rose-400/[0.05] ring-1 ring-rose-400/20" : "border-line bg-canvas/40",
+              )}
+            >
+              {/* Orb */}
+              <div className="relative">
+                {isActive && (
+                  <motion.div
+                    className="absolute -inset-3 rounded-full"
+                    style={{ background: `radial-gradient(circle, ${p.from}40, transparent 70%)` }}
+                    animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
+                    transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
                   />
                 )}
-              </div>
-              <div className="min-w-0">
                 <div
-                  className={cn(
-                    "text-[10px] tracking-[0.18em] uppercase font-sans font-medium",
-                    s.tone === "amber"
-                      ? "text-amber-300"
-                      : s.tone === "emerald"
-                        ? "text-emerald-300"
-                        : "text-ink-muted",
-                  )}
+                  className="relative size-9 rounded-full"
+                  style={{
+                    background: `radial-gradient(circle at 32% 30%, ${p.from}, ${p.to} 70%, rgba(0,0,0,0.5) 100%)`,
+                    boxShadow: isActive
+                      ? `0 6px 20px -6px ${p.from}cc`
+                      : "0 4px 12px -4px rgba(0,0,0,0.6)",
+                  }}
                 >
-                  {s.label}
+                  <span className="absolute size-1.5 rounded-full bg-white/80 top-1.5 left-1.5" style={{ filter: "blur(1px)" }}/>
                 </div>
-                <div className="text-[10px] font-sans text-ink mt-0.5 leading-tight">
-                  {s.sublabel}
-                </div>
-                {s.tone === "amber" && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 4 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 1.4, duration: 0.4 }}
-                    className="mt-1.5 flex gap-1.5"
-                  >
-                    <motion.button
-                      whileHover={{ scale: 1.04 }}
-                      className="h-5 px-2 rounded-full bg-emerald-400 text-emerald-950 text-[9px] font-sans font-semibold flex items-center gap-1"
-                    >
-                      <svg
-                        width="8"
-                        height="8"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="3.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M5 13l4 4L19 7" />
-                      </svg>
-                      Approve
-                    </motion.button>
-                    <button className="h-5 px-2 rounded-full border border-line text-[9px] font-sans text-ink-muted">
-                      Adjust
-                    </button>
-                  </motion.div>
-                )}
               </div>
+              <div className="text-center">
+                <div className={`text-[9px] font-sans font-semibold leading-none ${isActive ? "text-white" : "text-ink-muted"}`}>{p.name}</div>
+                <div className={`text-[7px] font-mono mt-0.5 ${isActive ? "text-rose-300" : "text-ink-dim"}`}>{p.tone}</div>
+              </div>
+              {/* Selection ring */}
+              {isActive && (
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute top-1.5 right-1.5 size-3 rounded-full bg-rose-400 ring-2 ring-rose-400/30 flex items-center justify-center"
+                >
+                  <svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" className="text-canvas">
+                    <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </motion.span>
+              )}
             </motion.div>
+          );
+        })}
+      </div>
+      {/* Voice waveform footer (live for active persona) */}
+      <div className="absolute bottom-0 left-0 right-0 h-11 border-t border-line bg-panel/40 flex items-center px-3 gap-2">
+        <div className="size-5 rounded-full" style={{ background: `radial-gradient(circle at 32% 30%, ${cur.from}, ${cur.to})` }}/>
+        <span className="text-[9px] font-sans font-semibold text-ink">{cur.name}</span>
+        <div className="flex-1 h-5 flex items-end gap-[2px] px-2">
+          {Array.from({ length: 24 }).map((_, i) => (
+            <motion.span
+              key={i}
+              animate={playing ? { scaleY: [1, 0.4 + (i % 5) * 0.12, 1] } : { scaleY: 0.3 }}
+              transition={{
+                duration: 1.2 + (i % 3) * 0.2,
+                repeat: playing ? Infinity : 0,
+                ease: "easeInOut",
+                delay: i * 0.04,
+              }}
+              className="w-[2px] origin-bottom rounded-full bg-gradient-to-t from-rose-400 to-rose-200"
+              style={{ height: `${30 + (i * 7) % 70}%` }}
+            />
           ))}
         </div>
+        <span className="text-[8px] font-mono text-rose-300/80 tabular-nums w-8 text-right">0:0{(active + 1) % 9}</span>
       </div>
-      {/* Footer note */}
+      {/* Nova cursor */}
       <motion.div
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ delay: 1.6, duration: 0.6 }}
-        className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full bg-canvas/70 backdrop-blur border border-emerald-400/30 whitespace-nowrap"
+        initial={false}
+        animate={cursorTarget}
+        transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
+        className="absolute pointer-events-none z-30 flex items-start gap-1"
+        style={{ transform: "translate(-2px, -2px)" }}
       >
-        <span className="size-1.5 rounded-full bg-emerald-400" />
-        <span className="text-[9px] font-mono text-emerald-200">
-          Nothing ships without you
-        </span>
+        <svg width="14" height="14" viewBox="0 0 24 24" className="text-rose-400 drop-shadow">
+          <path d="M5 3l14 8-7 1-3 7L5 3z" fill="currentColor" stroke="white" strokeWidth="1" strokeLinejoin="round"/>
+        </svg>
+        <span className="px-1.5 py-px rounded-md bg-rose-500 text-white text-[8px] font-sans font-semibold leading-3 shadow-md">You</span>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * 3. Trust gates — approval modal, user clicks Approve, action ships
+ * ============================================================ */
+
+type TStep = "idle" | "modal-open" | "reviewing" | "to-approve" | "approved" | "shipped";
+
+export function TrustScene() {
+  const [step, setStep] = useState<TStep>("idle");
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      while (!cancelled) {
+        setStep("idle"); await wait(700);
+        if (cancelled) return;
+        setStep("modal-open"); await wait(800);
+        if (cancelled) return;
+        setStep("reviewing"); await wait(900);
+        if (cancelled) return;
+        setStep("to-approve"); await wait(700);
+        if (cancelled) return;
+        setStep("approved"); await wait(900);
+        if (cancelled) return;
+        setStep("shipped"); await wait(2400);
+      }
+    };
+    void run();
+    return () => { cancelled = true; };
+  }, []);
+
+  const modalOn = step !== "idle";
+  const approvedNow = step === "approved" || step === "shipped";
+  const shipped = step === "shipped";
+  const approveHover = step === "to-approve";
+
+  const cursor = (() => {
+    switch (step) {
+      case "idle": return { left: "85%", top: "82%" };
+      case "modal-open":
+      case "reviewing": return { left: "30%", top: "50%" };
+      case "to-approve":
+      case "approved": return { left: "38%", top: "78%" };
+      case "shipped": return { left: "55%", top: "30%" };
+    }
+  })();
+
+  return (
+    <div className="relative size-full overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse at 50% 50%, rgba(16,185,129,0.12), transparent 65%)",
+      }}/>
+      {/* Backdrop card showing the agent's plan */}
+      <div className="absolute inset-3 rounded-md border border-line bg-panel/30 p-3 flex flex-col gap-2 opacity-70">
+        <div className="text-[8px] tracking-[0.22em] uppercase text-ink-dim font-sans">Pending action</div>
+        <div className="text-[10px] font-sans text-ink-muted leading-snug">
+          Instagram post · @hannahshair · Friday 9:00
+        </div>
+        <div className="h-px bg-line"/>
+        <div className="flex-1"/>
+      </div>
+      {/* Approval modal */}
+      <AnimatePresence>
+        {modalOn && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
+            className="absolute inset-x-3 top-6 bottom-6 rounded-xl border border-emerald-400/40 bg-canvas/95 backdrop-blur shadow-2xl shadow-emerald-400/10 flex flex-col overflow-hidden"
+          >
+            {/* Modal header */}
+            <div className="h-7 border-b border-line bg-panel/60 flex items-center px-3">
+              <span className="text-[8px] tracking-[0.22em] uppercase text-emerald-300 font-sans font-medium flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse"/>
+                Approve to publish
+              </span>
+              <span className="ml-auto text-ink-muted text-[10px]">×</span>
+            </div>
+            {/* Body */}
+            <div className="flex-1 p-3 flex flex-col gap-2">
+              <div className="text-[8px] tracking-[0.18em] uppercase text-ink-muted font-sans">Going live</div>
+              <div className="flex items-center gap-2 rounded-md border border-line bg-canvas/60 p-2">
+                <div className="size-9 rounded shrink-0" style={{
+                  background: "linear-gradient(135deg, #f472b6 0%, #d946ef 50%, #f59e0b 100%)",
+                }}/>
+                <div className="min-w-0">
+                  <div className="text-[10px] font-sans font-semibold text-ink leading-tight">Instagram · @hannahshair</div>
+                  <div className="text-[8px] font-serif italic text-ink-muted leading-tight mt-0.5 truncate">
+                    &ldquo;New looks this season.&rdquo;
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-[8px] tracking-[0.18em] uppercase font-sans">
+                <span className="text-emerald-300 flex items-center gap-1">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+                  Reversible
+                </span>
+                <span className="text-ink-dim">·</span>
+                <span className="text-ink-muted">Fri · 9:00 am</span>
+              </div>
+            </div>
+            {/* CTAs */}
+            <div className="border-t border-line p-2 flex items-center gap-1.5">
+              <div className="relative flex-1">
+                <motion.div initial={false} animate={{ opacity: approveHover && !approvedNow ? 1 : 0 }} transition={{ duration: 0.2 }}
+                  className="pointer-events-none absolute -inset-1 rounded-full border border-dashed border-emerald-300/60"/>
+                <motion.div
+                  animate={{
+                    scale: approveHover && !approvedNow ? 1.03 : 1,
+                  }}
+                  transition={{ duration: 0.3 }}
+                  className={cn(
+                    "h-7 rounded-full text-[10px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-colors",
+                    approvedNow ? "bg-emerald-300 text-emerald-950" : "bg-emerald-400 text-emerald-950",
+                  )}
+                >
+                  {approvedNow ? (
+                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+                      Approved
+                    </motion.span>
+                  ) : (
+                    "Approve & publish"
+                  )}
+                </motion.div>
+              </div>
+              <span className="h-7 px-2.5 rounded-full border border-line text-[9px] font-sans text-ink-muted flex items-center">Adjust</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Shipped chip rises */}
+      <AnimatePresence>
+        {shipped && (
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="absolute top-3 right-3 z-30 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-400/20 border border-emerald-400/50 backdrop-blur-md text-[9px] tracking-[0.18em] uppercase text-emerald-200 font-sans font-medium shadow-xl"
+          >
+            <span className="size-1.5 rounded-full bg-emerald-400"/>
+            Posted · 9:00 am
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Nova cursor */}
+      <motion.div
+        initial={false}
+        animate={cursor}
+        transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
+        className="absolute pointer-events-none z-30 flex items-start gap-1"
+        style={{ transform: "translate(-2px, -2px)" }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" className="text-emerald-400 drop-shadow">
+          <path d="M5 3l14 8-7 1-3 7L5 3z" fill="currentColor" stroke="white" strokeWidth="1" strokeLinejoin="round"/>
+        </svg>
+        <span className="px-1.5 py-px rounded-md bg-emerald-500 text-white text-[8px] font-sans font-semibold leading-3 shadow-md">You</span>
       </motion.div>
     </div>
   );
