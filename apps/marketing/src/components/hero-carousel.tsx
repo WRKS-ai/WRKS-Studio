@@ -10,7 +10,6 @@ import {
 } from "motion/react";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/cn";
 
 type Kind = "website" | "social" | "ad" | "copy" | "blog";
 
@@ -74,7 +73,6 @@ const AUTO_MS = 5200;
 
 export function HeroCarousel() {
   const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
   const reduced = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -89,15 +87,15 @@ export function HeroCarousel() {
     damping: 22,
   });
 
-  const advance = useCallback((dir: 1 | -1) => {
-    setActive((a) => (a + dir + CARDS.length) % CARDS.length);
+  const advance = useCallback(() => {
+    setActive((a) => (a + 1) % CARDS.length);
   }, []);
 
   useEffect(() => {
-    if (paused || reduced) return;
-    const id = setInterval(() => advance(1), AUTO_MS);
+    if (reduced) return;
+    const id = setInterval(advance, AUTO_MS);
     return () => clearInterval(id);
-  }, [advance, paused, reduced]);
+  }, [advance, reduced]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!ref.current) return;
@@ -109,7 +107,6 @@ export function HeroCarousel() {
   };
 
   const handleMouseLeave = () => {
-    setPaused(false);
     mx.set(0);
     my.set(0);
   };
@@ -125,7 +122,6 @@ export function HeroCarousel() {
     <div
       ref={ref}
       className="relative w-full"
-      onMouseEnter={() => setPaused(true)}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
@@ -189,10 +185,10 @@ export function HeroCarousel() {
                 filter: `blur(${s.blur}px)`,
               }}
               transition={{
-                type: "spring",
-                stiffness: 95,
-                damping: 24,
-                mass: 1.1,
+                duration: 1.4,
+                ease: [0.32, 0.72, 0, 1],
+                opacity: { duration: 1.4, ease: [0.32, 0.72, 0, 1] },
+                filter: { duration: 1.2, ease: [0.32, 0.72, 0, 1] },
               }}
               className="absolute w-[320px] sm:w-[360px] lg:w-[420px] aspect-[3/4] cursor-pointer select-none"
               style={{ transformStyle: "preserve-3d", zIndex: 5 - Math.abs(slot) }}
@@ -202,54 +198,7 @@ export function HeroCarousel() {
           );
         })}
       </motion.div>
-
-      {/* Controls */}
-      <div className="mt-2 flex items-center justify-center gap-4">
-        <CtrlButton onClick={() => advance(-1)} ariaLabel="Previous">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </CtrlButton>
-        <div className="flex items-center gap-1.5">
-          {CARDS.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setActive(i)}
-              aria-label={`Show ${CARDS[i]!.kind}`}
-              className={cn(
-                "h-[3px] rounded-full transition-all duration-500",
-                i === active ? "w-8 bg-ink" : "w-2 bg-ink-dim hover:bg-ink-muted",
-              )}
-            />
-          ))}
-        </div>
-        <CtrlButton onClick={() => advance(1)} ariaLabel="Next">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </CtrlButton>
-      </div>
     </div>
-  );
-}
-
-function CtrlButton({
-  onClick,
-  ariaLabel,
-  children,
-}: {
-  onClick: () => void;
-  ariaLabel: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={ariaLabel}
-      className="size-9 rounded-full border border-line bg-panel/60 backdrop-blur-md text-ink-muted hover:text-ink hover:border-ink/30 hover:bg-panel transition-all flex items-center justify-center"
-    >
-      {children}
-    </button>
   );
 }
 
