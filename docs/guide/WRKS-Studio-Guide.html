@@ -1,0 +1,1568 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>WRKS Studio — A Beginner's Guide</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 22mm 20mm;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: Georgia, "Times New Roman", serif;
+        color: #1a1a1a;
+        line-height: 1.6;
+        font-size: 11.5pt;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      .label,
+      .nav,
+      .meta,
+      .stat,
+      .tag,
+      .badge {
+        font-family: -apple-system, "Segoe UI", "Helvetica Neue", Arial,
+          sans-serif;
+      }
+
+      .page {
+        page-break-after: always;
+        min-height: calc(297mm - 44mm);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+      .page:last-child {
+        page-break-after: auto;
+      }
+
+      .page-num {
+        position: absolute;
+        bottom: -10mm;
+        right: 0;
+        font-family: -apple-system, "Segoe UI", sans-serif;
+        font-size: 9pt;
+        color: #999;
+      }
+
+      .label {
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 9pt;
+        color: #888;
+        margin-bottom: 12px;
+      }
+
+      h1 {
+        font-size: 36pt;
+        line-height: 1.05;
+        margin: 0 0 18px;
+        letter-spacing: -0.01em;
+        font-weight: 700;
+      }
+      h1 .light {
+        color: #888;
+        font-weight: 400;
+        font-style: italic;
+      }
+
+      h2 {
+        font-size: 22pt;
+        line-height: 1.15;
+        margin: 0 0 14px;
+        letter-spacing: -0.005em;
+      }
+      h2 .light {
+        color: #888;
+        font-style: italic;
+      }
+
+      h3 {
+        font-size: 13pt;
+        margin: 24px 0 8px;
+        font-weight: 600;
+      }
+
+      p {
+        margin: 0 0 14px;
+        max-width: 65ch;
+      }
+
+      .lead {
+        font-size: 13pt;
+        line-height: 1.55;
+        color: #333;
+      }
+
+      blockquote {
+        font-family: Georgia, serif;
+        font-style: italic;
+        font-size: 16pt;
+        line-height: 1.4;
+        color: #1a1a1a;
+        border-left: 3px solid #111;
+        margin: 24px 0;
+        padding: 4px 0 4px 22px;
+        max-width: 60ch;
+      }
+
+      ul,
+      ol {
+        padding-left: 22px;
+        margin: 8px 0 16px;
+      }
+      li {
+        margin-bottom: 6px;
+      }
+
+      .cover {
+        justify-content: space-between;
+        padding-top: 30mm;
+      }
+      .cover .top .brand {
+        font-family: -apple-system, "Segoe UI", sans-serif;
+        font-size: 11pt;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #888;
+        margin-bottom: 12mm;
+      }
+      .cover .top h1 {
+        font-size: 56pt;
+        line-height: 1;
+      }
+      .cover .top .sub {
+        margin-top: 10mm;
+        font-size: 18pt;
+        color: #555;
+        font-style: italic;
+      }
+      .cover .bottom {
+        font-family: -apple-system, "Segoe UI", sans-serif;
+        font-size: 10pt;
+        color: #777;
+        line-height: 1.5;
+      }
+
+      .toc-list {
+        list-style: none;
+        padding: 0;
+      }
+      .toc-list li {
+        display: flex;
+        align-items: baseline;
+        margin-bottom: 12px;
+        font-family: -apple-system, "Segoe UI", sans-serif;
+        font-size: 11pt;
+      }
+      .toc-list .num {
+        width: 36px;
+        color: #888;
+        font-variant-numeric: tabular-nums;
+      }
+      .toc-list .ttl {
+        flex: 1;
+      }
+      .toc-list .pg {
+        color: #888;
+        font-variant-numeric: tabular-nums;
+      }
+      .toc-list .dot {
+        flex: 1;
+        border-bottom: 1px dotted #ccc;
+        margin: 0 8px;
+        position: relative;
+        bottom: 4px;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin: 16px 0;
+      }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 14px;
+        margin: 16px 0;
+      }
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 16px 18px;
+        background: #fafafa;
+      }
+      .card h4 {
+        margin: 0 0 6px;
+        font-family: -apple-system, "Segoe UI", sans-serif;
+        font-size: 11pt;
+      }
+      .card p {
+        margin: 0;
+        font-size: 10.5pt;
+        color: #444;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 10.5pt;
+        margin: 12px 0;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 9px 12px;
+        border-bottom: 1px solid #e5e5e5;
+        vertical-align: top;
+      }
+      th {
+        font-family: -apple-system, "Segoe UI", sans-serif;
+        font-size: 9pt;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #888;
+        font-weight: 600;
+        border-bottom: 2px solid #1a1a1a;
+      }
+      td.bold {
+        font-weight: 600;
+      }
+
+      .diagram-wrap {
+        margin: 18px 0;
+        text-align: center;
+      }
+      .diagram-cap {
+        font-family: -apple-system, "Segoe UI", sans-serif;
+        font-size: 9pt;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        margin-top: 8px;
+      }
+
+      .callout {
+        background: #fff8e1;
+        border-left: 3px solid #f0b90b;
+        padding: 14px 18px;
+        margin: 18px 0;
+        border-radius: 0 6px 6px 0;
+        font-size: 10.5pt;
+      }
+      .callout strong {
+        font-family: -apple-system, "Segoe UI", sans-serif;
+      }
+
+      .key {
+        background: #f0f7ff;
+        border-left: 3px solid #2563eb;
+        padding: 14px 18px;
+        margin: 18px 0;
+        border-radius: 0 6px 6px 0;
+        font-size: 10.5pt;
+      }
+
+      .pill {
+        display: inline-block;
+        background: #111;
+        color: #fff;
+        font-family: -apple-system, "Segoe UI", sans-serif;
+        font-size: 8.5pt;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+
+      .stack-grid {
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 8px 18px;
+        font-size: 10.5pt;
+        margin: 12px 0;
+      }
+      .stack-grid .name {
+        font-family: -apple-system, "Segoe UI", sans-serif;
+        font-weight: 600;
+      }
+
+      hr {
+        border: none;
+        border-top: 1px solid #e5e5e5;
+        margin: 22px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ===================== COVER ===================== -->
+    <section class="page cover">
+      <div class="top">
+        <div class="brand">A SlightWrks Platform</div>
+        <h1>
+          WRKS Studio<br />
+          <span class="light">A Beginner's Guide</span>
+        </h1>
+        <div class="sub">Understanding the platform you're building.</div>
+      </div>
+      <div class="bottom">
+        Prepared for the WRKS-ai engineering team · May 2026<br />
+        Source: Founding Product Brief v4
+      </div>
+    </section>
+
+    <!-- ===================== TOC ===================== -->
+    <section class="page">
+      <div class="label">Contents</div>
+      <h2>What's inside</h2>
+      <p style="color: #555; margin-bottom: 26px">
+        This guide is paced one idea at a time. Read it in order. Don't worry
+        about understanding everything on first pass — the concepts build on
+        each other.
+      </p>
+      <ul class="toc-list">
+        <li>
+          <span class="num">01</span><span class="ttl">The problem</span
+          ><span class="dot"></span><span class="pg">3</span>
+        </li>
+        <li>
+          <span class="num">02</span><span class="ttl">The solution</span
+          ><span class="dot"></span><span class="pg">4</span>
+        </li>
+        <li>
+          <span class="num">03</span
+          ><span class="ttl">The vision moment</span><span class="dot"></span
+          ><span class="pg">5</span>
+        </li>
+        <li>
+          <span class="num">04</span><span class="ttl">Meet the agent</span
+          ><span class="dot"></span><span class="pg">6</span>
+        </li>
+        <li>
+          <span class="num">05</span
+          ><span class="ttl">How it works, step by step</span
+          ><span class="dot"></span><span class="pg">7</span>
+        </li>
+        <li>
+          <span class="num">06</span><span class="ttl">What it builds</span
+          ><span class="dot"></span><span class="pg">9</span>
+        </li>
+        <li>
+          <span class="num">07</span
+          ><span class="ttl">The three connections</span
+          ><span class="dot"></span><span class="pg">10</span>
+        </li>
+        <li>
+          <span class="num">08</span
+          ><span class="ttl">The quality equation</span><span class="dot"></span
+          ><span class="pg">11</span>
+        </li>
+        <li>
+          <span class="num">09</span><span class="ttl">The five layers</span
+          ><span class="dot"></span><span class="pg">12</span>
+        </li>
+        <li>
+          <span class="num">10</span><span class="ttl">Who it's for</span
+          ><span class="dot"></span><span class="pg">13</span>
+        </li>
+        <li>
+          <span class="num">11</span
+          ><span class="ttl">How it's different</span><span class="dot"></span
+          ><span class="pg">14</span>
+        </li>
+        <li>
+          <span class="num">12</span
+          ><span class="ttl">The tech stack, simplified</span
+          ><span class="dot"></span><span class="pg">15</span>
+        </li>
+        <li>
+          <span class="num">13</span
+          ><span class="ttl">What you're actually building</span
+          ><span class="dot"></span><span class="pg">17</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- ===================== 01 PROBLEM ===================== -->
+    <section class="page">
+      <div class="label">01 · The problem</div>
+      <h2>
+        There's a gap between<br /><span class="light"
+          >having an idea and having a real business.</span
+        >
+      </h2>
+
+      <p class="lead">
+        Imagine your aunt has a great idea for a small bakery. To actually
+        launch it, here's what she has to do:
+      </p>
+      <ul>
+        <li>Build a website (or hire someone to)</li>
+        <li>Write copy that actually sells</li>
+        <li>Set up Instagram, Facebook, maybe TikTok</li>
+        <li>Design ad creatives if she wants paying customers</li>
+        <li>Figure out SEO so people can find her</li>
+        <li>Set up Stripe to take payments</li>
+        <li>Connect a CRM so she can follow up with leads</li>
+      </ul>
+      <p>
+        Each one is a wall. Each wall takes time, money, or expertise she
+        doesn't have. Most people don't make it past the third wall. The bakery
+        idea dies — not because it was bad, but because the path to launching
+        it was exhausting.
+      </p>
+
+      <div class="diagram-wrap">
+        <svg width="500" height="180" viewBox="0 0 500 180">
+          <rect
+            x="20"
+            y="60"
+            width="80"
+            height="60"
+            fill="#fff"
+            stroke="#1a1a1a"
+            stroke-width="1.5"
+            rx="4"
+          />
+          <text
+            x="60"
+            y="95"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="11"
+          >
+            Your idea
+          </text>
+
+          <text
+            x="250"
+            y="50"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="9"
+            fill="#888"
+          >
+            walls in the way
+          </text>
+
+          <line x1="115" y1="90" x2="135" y2="90" stroke="#888" stroke-width="1.5"/>
+          <rect x="135" y="55" width="20" height="70" fill="#e5e5e5" stroke="#999" stroke-width="1"/>
+          <line x1="160" y1="90" x2="180" y2="90" stroke="#888" stroke-width="1.5"/>
+          <rect x="180" y="55" width="20" height="70" fill="#e5e5e5" stroke="#999" stroke-width="1"/>
+          <line x1="205" y1="90" x2="225" y2="90" stroke="#888" stroke-width="1.5"/>
+          <rect x="225" y="55" width="20" height="70" fill="#e5e5e5" stroke="#999" stroke-width="1"/>
+          <line x1="250" y1="90" x2="270" y2="90" stroke="#888" stroke-width="1.5"/>
+          <rect x="270" y="55" width="20" height="70" fill="#e5e5e5" stroke="#999" stroke-width="1"/>
+          <line x1="295" y1="90" x2="315" y2="90" stroke="#888" stroke-width="1.5"/>
+          <rect x="315" y="55" width="20" height="70" fill="#e5e5e5" stroke="#999" stroke-width="1"/>
+          <line x1="340" y1="90" x2="360" y2="90" stroke="#888" stroke-width="1.5"/>
+
+          <rect
+            x="380"
+            y="60"
+            width="100"
+            height="60"
+            fill="#fff"
+            stroke="#bbb"
+            stroke-width="1.5"
+            stroke-dasharray="4 3"
+            rx="4"
+          />
+          <text
+            x="430"
+            y="88"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="11"
+            fill="#888"
+          >
+            A real
+          </text>
+          <text
+            x="430"
+            y="103"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="11"
+            fill="#888"
+          >
+            business
+          </text>
+
+          <text
+            x="250"
+            y="160"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="9"
+            fill="#888"
+          >
+            most ideas die in the middle
+          </text>
+        </svg>
+        <div class="diagram-cap">The friction problem</div>
+      </div>
+
+      <div class="page-num">3</div>
+    </section>
+
+    <!-- ===================== 02 SOLUTION ===================== -->
+    <section class="page">
+      <div class="label">02 · The solution</div>
+      <h2>
+        WRKS Studio<br /><span class="light">replaces the walls with one agent.</span>
+      </h2>
+
+      <p class="lead">
+        Instead of forcing your aunt to learn seven tools, WRKS Studio gives
+        her one personalised AI agent. She talks to it. It builds the website.
+        It writes the posts. It designs the ad creative. It publishes
+        everything. It remembers what works and gets sharper over time.
+      </p>
+
+      <div class="diagram-wrap">
+        <svg width="500" height="220" viewBox="0 0 500 220">
+          <rect
+            x="20"
+            y="90"
+            width="100"
+            height="40"
+            fill="#fff"
+            stroke="#1a1a1a"
+            stroke-width="1.5"
+            rx="4"
+          />
+          <text
+            x="70"
+            y="115"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="11"
+          >
+            Your aunt
+          </text>
+
+          <line
+            x1="125"
+            y1="110"
+            x2="200"
+            y2="110"
+            stroke="#1a1a1a"
+            stroke-width="1.5"
+            marker-end="url(#arrow)"
+          />
+          <text
+            x="162"
+            y="100"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="9"
+            fill="#666"
+          >
+            one sentence
+          </text>
+
+          <circle
+            cx="250"
+            cy="110"
+            r="42"
+            fill="#1a1a1a"
+            stroke="#1a1a1a"
+            stroke-width="1.5"
+          />
+          <text
+            x="250"
+            y="107"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="11"
+            fill="#fff"
+            font-weight="600"
+          >
+            Agent
+          </text>
+          <text
+            x="250"
+            y="123"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="9"
+            fill="#bbb"
+          >
+            (named, voiced)
+          </text>
+
+          <line
+            x1="295"
+            y1="110"
+            x2="365"
+            y2="50"
+            stroke="#888"
+            stroke-width="1"
+          />
+          <line
+            x1="295"
+            y1="110"
+            x2="365"
+            y2="85"
+            stroke="#888"
+            stroke-width="1"
+          />
+          <line
+            x1="295"
+            y1="110"
+            x2="365"
+            y2="120"
+            stroke="#888"
+            stroke-width="1"
+          />
+          <line
+            x1="295"
+            y1="110"
+            x2="365"
+            y2="155"
+            stroke="#888"
+            stroke-width="1"
+          />
+          <line
+            x1="295"
+            y1="110"
+            x2="365"
+            y2="190"
+            stroke="#888"
+            stroke-width="1"
+          />
+
+          <rect
+            x="365"
+            y="35"
+            width="115"
+            height="28"
+            fill="#fafafa"
+            stroke="#1a1a1a"
+            stroke-width="1"
+            rx="3"
+          />
+          <text
+            x="423"
+            y="53"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="10"
+          >
+            Website
+          </text>
+
+          <rect
+            x="365"
+            y="71"
+            width="115"
+            height="28"
+            fill="#fafafa"
+            stroke="#1a1a1a"
+            stroke-width="1"
+            rx="3"
+          />
+          <text
+            x="423"
+            y="89"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="10"
+          >
+            Social posts
+          </text>
+
+          <rect
+            x="365"
+            y="107"
+            width="115"
+            height="28"
+            fill="#fafafa"
+            stroke="#1a1a1a"
+            stroke-width="1"
+            rx="3"
+          />
+          <text
+            x="423"
+            y="125"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="10"
+          >
+            Ad creatives
+          </text>
+
+          <rect
+            x="365"
+            y="143"
+            width="115"
+            height="28"
+            fill="#fafafa"
+            stroke="#1a1a1a"
+            stroke-width="1"
+            rx="3"
+          />
+          <text
+            x="423"
+            y="161"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="10"
+          >
+            Copywriting
+          </text>
+
+          <rect
+            x="365"
+            y="179"
+            width="115"
+            height="28"
+            fill="#fafafa"
+            stroke="#1a1a1a"
+            stroke-width="1"
+            rx="3"
+          />
+          <text
+            x="423"
+            y="197"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="10"
+          >
+            Blog &amp; SEO
+          </text>
+
+          <defs>
+            <marker
+              id="arrow"
+              viewBox="0 0 10 10"
+              refX="8"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a" />
+            </marker>
+          </defs>
+        </svg>
+        <div class="diagram-cap">One person → one agent → many outputs</div>
+      </div>
+
+      <div class="key">
+        <strong>The key shift:</strong> WRKS Studio doesn't simplify the existing
+        tools. It removes the need to use them at all. The user never opens
+        Wix, never writes a caption, never logs into Google Ads. They talk.
+        The agent does the rest.
+      </div>
+
+      <div class="page-num">4</div>
+    </section>
+
+    <!-- ===================== 03 VISION MOMENT ===================== -->
+    <section class="page">
+      <div class="label">03 · The vision moment</div>
+      <h2>One sentence in.<br /><span class="light">Three live things out.</span></h2>
+
+      <p>
+        This is the single most important page in the guide. Memorise it. Every
+        decision you make on this build will be judged against it.
+      </p>
+
+      <p>Imagine a hairdresser, between clients, on her phone. She says:</p>
+
+      <blockquote>
+        "I want a 20% promo for March. Social post, banner on my website,
+        discount code for returning customers."
+      </blockquote>
+
+      <p>That's it. That's the whole instruction. Now look at what happens:</p>
+
+      <div class="diagram-wrap">
+        <svg width="500" height="200" viewBox="0 0 500 200">
+          <rect
+            x="20"
+            y="80"
+            width="120"
+            height="40"
+            fill="#1a1a1a"
+            rx="20"
+          />
+          <text
+            x="80"
+            y="105"
+            text-anchor="middle"
+            font-family="Segoe UI, sans-serif"
+            font-size="10"
+            fill="#fff"
+            font-weight="600"
+          >
+            One sentence
+          </text>
+
+          <line
+            x1="145"
+            y1="100"
+            x2="195"
+            y2="100"
+            stroke="#1a1a1a"
+            stroke-width="1.5"
+            marker-end="url(#arrow2)"
+          />
+
+          <circle cx="225" cy="100" r="28" fill="#fff" stroke="#1a1a1a" stroke-width="1.5" />
+          <text x="225" y="97" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="9" font-weight="600">WRKS</text>
+          <text x="225" y="110" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="9">Studio</text>
+
+          <line x1="255" y1="100" x2="305" y2="40" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#arrow2)" />
+          <line x1="255" y1="100" x2="305" y2="100" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#arrow2)" />
+          <line x1="255" y1="100" x2="305" y2="160" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#arrow2)" />
+
+          <rect x="310" y="22" width="170" height="36" fill="#fafafa" stroke="#1a1a1a" stroke-width="1" rx="4" />
+          <text x="395" y="38" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" font-weight="600">Instagram post</text>
+          <text x="395" y="51" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="9" fill="#666">published live</text>
+
+          <rect x="310" y="82" width="170" height="36" fill="#fafafa" stroke="#1a1a1a" stroke-width="1" rx="4" />
+          <text x="395" y="98" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" font-weight="600">Website banner</text>
+          <text x="395" y="111" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="9" fill="#666">deployed</text>
+
+          <rect x="310" y="142" width="170" height="36" fill="#fafafa" stroke="#1a1a1a" stroke-width="1" rx="4" />
+          <text x="395" y="158" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" font-weight="600">Discount code</text>
+          <text x="395" y="171" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="9" fill="#666">active for returning users</text>
+
+          <defs>
+            <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a" />
+            </marker>
+          </defs>
+        </svg>
+        <div class="diagram-cap">The vision moment, visualised</div>
+      </div>
+
+      <div class="callout">
+        <strong>The litmus test.</strong> Whenever you face a build decision
+        ("should we add this feature?", "should we change this flow?"), ask:
+        <em>does this make the vision moment cleaner, or does it complicate it?</em>
+        If it complicates it, cut it.
+      </div>
+
+      <div class="page-num">5</div>
+    </section>
+
+    <!-- ===================== 04 MEET THE AGENT ===================== -->
+    <section class="page">
+      <div class="label">04 · Meet the agent</div>
+      <h2>It's not a chatbot.<br /><span class="light">It's a colleague.</span></h2>
+
+      <p class="lead">
+        The single biggest difference between WRKS Studio and every other AI
+        tool is this: the agent has a personality. The user picks one of 3–6
+        personalities at signup. They give it a name. They choose its voice.
+        Over time, it adapts to how they talk.
+      </p>
+
+      <h3>Why this matters for the business</h3>
+      <p>
+        After six months of using WRKS, the agent knows the user's voice, their
+        offers, their style, what's worked, what's flopped. Switching to a
+        competitor means losing a colleague who knows them. That's the
+        retention design. People don't churn from a colleague — they churn from
+        a tool.
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h4>Has a name</h4>
+          <p>The user names it on signup. "Hey Nova, can you…"</p>
+        </div>
+        <div class="card">
+          <h4>Has a voice</h4>
+          <p>Picked from ElevenLabs voices. Speaks the same on web and mobile.</p>
+        </div>
+        <div class="card">
+          <h4>Has a personality</h4>
+          <p>Direct vs. encouraging, formal vs. casual, brief vs. detailed.</p>
+        </div>
+        <div class="card">
+          <h4>Has memory</h4>
+          <p>Remembers every decision the user has ever approved or rejected.</p>
+        </div>
+      </div>
+
+      <div class="key">
+        <strong>What this isn't.</strong> Not a chatbot popup. Not "Hi, I'm a
+        virtual assistant." The agent is named, voiced, and present on every
+        screen. It's the centre of the product, not a feature added on the side.
+      </div>
+
+      <div class="page-num">6</div>
+    </section>
+
+    <!-- ===================== 05 HOW IT WORKS ===================== -->
+    <section class="page">
+      <div class="label">05 · How it works, step by step</div>
+      <h2>The loop<br /><span class="light">that powers everything.</span></h2>
+
+      <p>
+        Every interaction with WRKS Studio follows the same six steps, no
+        matter what the user is asking for. Once you understand this loop, you
+        understand 80% of how the product works.
+      </p>
+
+      <div class="diagram-wrap">
+        <svg width="500" height="380" viewBox="0 0 500 380">
+          <!-- Step 1 -->
+          <rect x="20" y="10" width="460" height="50" fill="#fff" stroke="#1a1a1a" stroke-width="1.5" rx="6"/>
+          <text x="40" y="30" font-family="Segoe UI, sans-serif" font-size="10" fill="#888" font-weight="600">STEP 1 · CLARIFY</text>
+          <text x="40" y="48" font-family="Georgia, serif" font-size="11">User says something. Agent parses it. Asks one clarifying question if unclear.</text>
+
+          <line x1="250" y1="60" x2="250" y2="76" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#arrow3)"/>
+
+          <!-- Step 2 -->
+          <rect x="20" y="78" width="460" height="50" fill="#fff" stroke="#1a1a1a" stroke-width="1.5" rx="6"/>
+          <text x="40" y="98" font-family="Segoe UI, sans-serif" font-size="10" fill="#888" font-weight="600">STEP 2 · PLAN</text>
+          <text x="40" y="116" font-family="Georgia, serif" font-size="11">Agent identifies all deliverables needed and picks the right framework for each.</text>
+
+          <line x1="250" y1="128" x2="250" y2="144" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#arrow3)"/>
+
+          <!-- Step 3 -->
+          <rect x="20" y="146" width="460" height="50" fill="#f0f7ff" stroke="#2563eb" stroke-width="1.5" rx="6"/>
+          <text x="40" y="166" font-family="Segoe UI, sans-serif" font-size="10" fill="#2563eb" font-weight="600">STEP 3 · SHOW</text>
+          <text x="40" y="184" font-family="Georgia, serif" font-size="11">Agent says "here's what I'm going to make." User confirms or redirects.</text>
+
+          <line x1="250" y1="196" x2="250" y2="212" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#arrow3)"/>
+
+          <!-- Step 4 -->
+          <rect x="20" y="214" width="460" height="50" fill="#fff" stroke="#1a1a1a" stroke-width="1.5" rx="6"/>
+          <text x="40" y="234" font-family="Segoe UI, sans-serif" font-size="10" fill="#888" font-weight="600">STEP 4 · STAGE</text>
+          <text x="40" y="252" font-family="Georgia, serif" font-size="11">Output appears in a live preview. User reviews. Says "make it shorter." Agent revises.</text>
+
+          <line x1="250" y1="264" x2="250" y2="280" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#arrow3)"/>
+
+          <!-- Step 5 -->
+          <rect x="20" y="282" width="460" height="50" fill="#f0f7ff" stroke="#2563eb" stroke-width="1.5" rx="6"/>
+          <text x="40" y="302" font-family="Segoe UI, sans-serif" font-size="10" fill="#2563eb" font-weight="600">STEP 5 · APPROVE</text>
+          <text x="40" y="320" font-family="Georgia, serif" font-size="11">User approves. Agent publishes to social, deploys to site, or saves to library.</text>
+
+          <line x1="250" y1="332" x2="250" y2="348" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#arrow3)"/>
+
+          <!-- Step 6 -->
+          <rect x="20" y="350" width="460" height="20" fill="#1a1a1a" rx="6"/>
+          <text x="40" y="365" font-family="Segoe UI, sans-serif" font-size="10" fill="#fff" font-weight="600">STEP 6 · REPORT &amp; REMEMBER</text>
+          <text x="320" y="365" font-family="Segoe UI, sans-serif" font-size="9" fill="#bbb">Memory updates. Agent gets sharper.</text>
+
+          <defs>
+            <marker id="arrow3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a" />
+            </marker>
+          </defs>
+        </svg>
+        <div class="diagram-cap">The six-step loop, every time</div>
+      </div>
+
+      <div class="page-num">7</div>
+    </section>
+
+    <!-- ===================== 05b Continued ===================== -->
+    <section class="page">
+      <div class="label">05 · How it works (continued)</div>
+      <h2>The hard rule:<br /><span class="light">show before you do.</span></h2>
+
+      <p>
+        Steps 3 and 5 are highlighted in the diagram for a reason. They are the
+        "human gates" — the moments where the agent stops and waits for the
+        user. This is not a quirk. It's a deliberate design choice and you
+        will see it baked into the engineering.
+      </p>
+
+      <h3>Reversible vs. irreversible</h3>
+      <p>
+        Some actions can be undone (drafting copy, generating an image). Those
+        can run automatically. Other actions cannot be undone (publishing to
+        Instagram, deploying a live site, sending money via Stripe). Those
+        <strong>require explicit user confirmation</strong>, every single time.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Reversible — can auto-run</th>
+            <th>Irreversible — must confirm</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Drafting a social post in the staging area</td>
+            <td>Publishing it to Instagram</td>
+          </tr>
+          <tr>
+            <td>Generating new headline copy</td>
+            <td>Deploying it to the live website</td>
+          </tr>
+          <tr>
+            <td>Designing an ad creative</td>
+            <td>Forwarding form data to the user's CRM</td>
+          </tr>
+          <tr>
+            <td>Drafting a discount code</td>
+            <td>Activating the discount code on Stripe</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <strong>Why this matters to you.</strong> When you're building, the
+        approval gates are not nice-to-haves. They are the trust mechanism that
+        lets users hand the keys to an AI in the first place. Build them with
+        care.
+      </div>
+
+      <div class="page-num">8</div>
+    </section>
+
+    <!-- ===================== 06 WHAT IT BUILDS ===================== -->
+    <section class="page">
+      <div class="label">06 · What it builds</div>
+      <h2>Five things.<br /><span class="light">Done exceptionally.</span></h2>
+
+      <p>
+        WRKS Studio doesn't try to do everything a business owner needs. It
+        deliberately picks five high-impact deliverables and does them at a
+        professional level. Anything outside this list is out of scope for
+        version one.
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <span class="pill">01</span>
+          <h4 style="margin-top: 8px">Websites &amp; Funnels</h4>
+          <p>
+            Landing pages, full sites, sales funnels. Forms forward to the
+            user's CRM. Stripe payments embedded. Booking links embedded.
+          </p>
+        </div>
+        <div class="card">
+          <span class="pill">02</span>
+          <h4 style="margin-top: 8px">Social Content</h4>
+          <p>
+            Posts, captions, and visuals for Instagram, Facebook, and LinkedIn.
+            Each platform's format rules built into the framework.
+          </p>
+        </div>
+        <div class="card">
+          <span class="pill">03</span>
+          <h4 style="margin-top: 8px">Ad Creatives</h4>
+          <p>
+            Headlines, body text, image direction. Designed to a proven ad
+            framework. User downloads and uploads to Meta / Google Ads.
+          </p>
+        </div>
+        <div class="card">
+          <span class="pill">04</span>
+          <h4 style="margin-top: 8px">Copywriting</h4>
+          <p>
+            Page copy, CTAs, offer descriptions, brand voice writing. Not
+            generic AI text — written to a conversion framework.
+          </p>
+        </div>
+      </div>
+      <div class="grid-2" style="grid-template-columns: 1fr 1fr">
+        <div class="card">
+          <span class="pill">05</span>
+          <h4 style="margin-top: 8px">SEO &amp; Blog</h4>
+          <p>
+            Long-form posts, metadata, keyword targeting, internal linking.
+            Structured for search and for the user's brand.
+          </p>
+        </div>
+        <div class="card" style="background: #fff8e1; border-color: #f0b90b">
+          <h4 style="margin-top: 0">What it deliberately doesn't do</h4>
+          <p>
+            No email automation. No sales sequences. No CRM build. Those are
+            future versions. Saying no protects the focus.
+          </p>
+        </div>
+      </div>
+
+      <div class="page-num">9</div>
+    </section>
+
+    <!-- ===================== 07 CONNECTIONS ===================== -->
+    <section class="page">
+      <div class="label">07 · The three connections</div>
+      <h2>Only three doors out.<br /><span class="light">No doors in.</span></h2>
+
+      <p>
+        WRKS Studio talks to the outside world in only three ways. And
+        critically, all three are <em>outbound</em> only. The platform never
+        reads live data from anywhere — no analytics, no follower counts, no
+        revenue dashboards. This is deliberate.
+      </p>
+
+      <div class="diagram-wrap">
+        <svg width="500" height="240" viewBox="0 0 500 240">
+          <circle cx="250" cy="120" r="50" fill="#1a1a1a"/>
+          <text x="250" y="115" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="11" fill="#fff" font-weight="600">WRKS</text>
+          <text x="250" y="130" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="11" fill="#fff" font-weight="600">Studio</text>
+
+          <line x1="250" y1="65" x2="250" y2="20" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#arrow4)"/>
+          <rect x="155" y="0" width="190" height="20" fill="#fafafa" stroke="#1a1a1a" stroke-width="1" rx="3"/>
+          <text x="250" y="14" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" font-weight="600">Social — publish only</text>
+
+          <line x1="295" y1="155" x2="365" y2="200" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#arrow4)"/>
+          <rect x="345" y="200" width="135" height="20" fill="#fafafa" stroke="#1a1a1a" stroke-width="1" rx="3"/>
+          <text x="412" y="214" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" font-weight="600">CRM — webhook</text>
+
+          <line x1="205" y1="155" x2="135" y2="200" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#arrow4)"/>
+          <rect x="20" y="200" width="135" height="20" fill="#fafafa" stroke="#1a1a1a" stroke-width="1" rx="3"/>
+          <text x="87" y="214" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" font-weight="600">Stripe — embed only</text>
+
+          <defs>
+            <marker id="arrow4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a" />
+            </marker>
+          </defs>
+        </svg>
+        <div class="diagram-cap">All arrows point outward — nothing flows back in</div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Connection</th>
+            <th>What it does</th>
+            <th>What it never does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="bold">Social</td>
+            <td>Publishes posts to Instagram, Facebook, LinkedIn</td>
+            <td>Reads followers, engagement, or analytics</td>
+          </tr>
+          <tr>
+            <td class="bold">CRM</td>
+            <td>Forwards form submissions to the user's CRM webhook</td>
+            <td>Reads contacts, deals, or pipeline data</td>
+          </tr>
+          <tr>
+            <td class="bold">Stripe</td>
+            <td>Embeds payment links into pages and funnels</td>
+            <td>Reads transaction history or revenue</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="key">
+        <strong>Why this is a feature, not a limitation.</strong> Reading live
+        data means integrations, permissions, broken APIs, and complexity that
+        slows down the wow moment. The agent doesn't need to read your
+        analytics to write a good post. It needs to know your business — and
+        it learns that by working with you, not by scraping a dashboard.
+      </div>
+
+      <div class="page-num">10</div>
+    </section>
+
+    <!-- ===================== 08 QUALITY EQUATION ===================== -->
+    <section class="page">
+      <div class="label">08 · The quality equation</div>
+      <h2>The moat<br /><span class="light">is this single equation.</span></h2>
+
+      <p class="lead">
+        Anyone can spin up a ChatGPT wrapper and have it write Instagram
+        captions. So why is WRKS Studio different? Because of this:
+      </p>
+
+      <div class="diagram-wrap" style="margin: 30px 0">
+        <svg width="500" height="170" viewBox="0 0 500 170">
+          <rect x="20" y="55" width="140" height="60" fill="#fff" stroke="#1a1a1a" stroke-width="2" rx="6"/>
+          <text x="90" y="80" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="11" font-weight="700">FRAMEWORK</text>
+          <text x="90" y="98" text-anchor="middle" font-family="Georgia, serif" font-size="10" fill="#666" font-style="italic">the proven way</text>
+          <text x="90" y="110" text-anchor="middle" font-family="Georgia, serif" font-size="10" fill="#666" font-style="italic">to make a thing</text>
+
+          <text x="180" y="93" text-anchor="middle" font-family="Georgia, serif" font-size="32" font-weight="600">×</text>
+
+          <rect x="200" y="55" width="140" height="60" fill="#fff" stroke="#1a1a1a" stroke-width="2" rx="6"/>
+          <text x="270" y="80" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="11" font-weight="700">MEMORY</text>
+          <text x="270" y="98" text-anchor="middle" font-family="Georgia, serif" font-size="10" fill="#666" font-style="italic">everything about</text>
+          <text x="270" y="110" text-anchor="middle" font-family="Georgia, serif" font-size="10" fill="#666" font-style="italic">this business</text>
+
+          <text x="360" y="93" text-anchor="middle" font-family="Georgia, serif" font-size="32" font-weight="600">=</text>
+
+          <rect x="380" y="55" width="100" height="60" fill="#1a1a1a" rx="6"/>
+          <text x="430" y="80" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="11" fill="#fff" font-weight="700">OUTPUT</text>
+          <text x="430" y="98" text-anchor="middle" font-family="Georgia, serif" font-size="10" fill="#bbb" font-style="italic">correct AND</text>
+          <text x="430" y="110" text-anchor="middle" font-family="Georgia, serif" font-size="10" fill="#bbb" font-style="italic">on-brand</text>
+        </svg>
+      </div>
+
+      <h3>What's a "framework"?</h3>
+      <p>
+        A WRKS framework is the proprietary, step-by-step method WRKS has
+        developed for making a specific deliverable type — built and validated
+        on real client work. It's not a prompt. It's logic, structure, format
+        rules, quality criteria, and execution sequence rolled together.
+      </p>
+      <p>
+        Think of it like a chef's recipe + their plating rules + their
+        ingredient sourcing standards. A general AI can describe a dish. A WRKS
+        framework knows how a real chef would make it.
+      </p>
+
+      <h3>What's "memory"?</h3>
+      <p>
+        Memory is everything WRKS knows about <em>this specific user's business</em>:
+        their voice, their audience, their offers, their pricing, what's worked
+        before, what they've rejected. It's built up over time, not by reading
+        external data, but by being the agent that does the work.
+      </p>
+
+      <div class="callout">
+        <strong>Without framework:</strong> generic AI content. Sounds like
+        every other startup.<br />
+        <strong>Without memory:</strong> on-brand garbage. Sounds professional,
+        but says nothing about the user's actual business.<br />
+        <strong>Both together:</strong> output that's professionally correct
+        AND personally relevant. That's the moat.
+      </div>
+
+      <div class="page-num">11</div>
+    </section>
+
+    <!-- ===================== 09 LAYERS ===================== -->
+    <section class="page">
+      <div class="label">09 · The five layers</div>
+      <h2>How the system is built,<br /><span class="light">top to bottom.</span></h2>
+
+      <p>
+        Engineering teams talk about systems in "layers." Top is what the user
+        sees. Bottom is the plumbing. WRKS Studio has five.
+      </p>
+
+      <div class="diagram-wrap">
+        <svg width="500" height="320" viewBox="0 0 500 320">
+          <rect x="80" y="10" width="340" height="48" fill="#1a1a1a" rx="4"/>
+          <text x="100" y="30" font-family="Segoe UI, sans-serif" font-size="9" fill="#bbb" font-weight="600">LAYER 1 · TOP</text>
+          <text x="100" y="48" font-family="Segoe UI, sans-serif" font-size="13" fill="#fff" font-weight="600">Interface (web + mobile, avatar, voice)</text>
+
+          <rect x="80" y="70" width="340" height="48" fill="#fff" stroke="#1a1a1a" stroke-width="1.5" rx="4"/>
+          <text x="100" y="90" font-family="Segoe UI, sans-serif" font-size="9" fill="#888" font-weight="600">LAYER 2</text>
+          <text x="100" y="108" font-family="Segoe UI, sans-serif" font-size="13" font-weight="600">Orchestrator agent (the brain)</text>
+
+          <rect x="80" y="130" width="340" height="48" fill="#fff" stroke="#1a1a1a" stroke-width="1.5" rx="4"/>
+          <text x="100" y="150" font-family="Segoe UI, sans-serif" font-size="9" fill="#888" font-weight="600">LAYER 3</text>
+          <text x="100" y="168" font-family="Segoe UI, sans-serif" font-size="13" font-weight="600">Staging environments (live preview surfaces)</text>
+
+          <rect x="80" y="190" width="340" height="48" fill="#fff" stroke="#1a1a1a" stroke-width="1.5" rx="4"/>
+          <text x="100" y="210" font-family="Segoe UI, sans-serif" font-size="9" fill="#888" font-weight="600">LAYER 4</text>
+          <text x="100" y="228" font-family="Segoe UI, sans-serif" font-size="13" font-weight="600">Frameworks &amp; execution (the moat)</text>
+
+          <rect x="80" y="250" width="340" height="48" fill="#1a1a1a" rx="4"/>
+          <text x="100" y="270" font-family="Segoe UI, sans-serif" font-size="9" fill="#bbb" font-weight="600">LAYER 5 · BASE</text>
+          <text x="100" y="288" font-family="Segoe UI, sans-serif" font-size="13" fill="#fff" font-weight="600">Connections (social, CRM, Stripe)</text>
+        </svg>
+        <div class="diagram-cap">The five-layer architecture</div>
+      </div>
+
+      <p style="font-size: 10.5pt; color: #555">
+        Read this like a building. The user lives on the top floor (Layer 1).
+        Below them, the agent does the thinking (Layer 2). Below that, the
+        staging environments are where deliverables come to life (Layer 3).
+        Below that, the WRKS frameworks and execution engine produce the actual
+        outputs (Layer 4). At the bottom, connections to the outside world
+        ship things to where they need to go (Layer 5).
+      </p>
+
+      <div class="page-num">12</div>
+    </section>
+
+    <!-- ===================== 10 WHO IT'S FOR ===================== -->
+    <section class="page">
+      <div class="label">10 · Who it's for</div>
+      <h2>Built for owners,<br /><span class="light">not for marketers.</span></h2>
+
+      <p class="lead">
+        WRKS Studio's user is a small business owner — a hairdresser, a
+        bakery, a clothing brand, a personal trainer, a consultant. Someone who
+        runs their own business and doesn't have time to learn marketing tools.
+      </p>
+
+      <h3>Where they actually use it</h3>
+      <p>
+        Not at a desk. Between clients. On the train. During lunch. WRKS Studio
+        is mobile-first because that's where its users live. The web app is the
+        full environment for deeper work, but most commands are fired from a
+        phone in the real world.
+      </p>
+
+      <h3>The pricing model</h3>
+      <p>
+        No free tier. Free trial → paid. Pricing is gated <em>only</em> by how
+        many active business profiles a user runs — never by features, rate
+        limits, or AI credits.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Tier</th>
+            <th>Price / month</th>
+            <th>Profiles</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="bold">Starter</td><td>$97</td><td>1</td></tr>
+          <tr><td class="bold">Growth</td><td>$197</td><td>up to 3</td></tr>
+          <tr><td class="bold">Pro</td><td>$497</td><td>up to 8</td></tr>
+          <tr><td class="bold">Agency</td><td>$997</td><td>unlimited</td></tr>
+          <tr><td class="bold">Enterprise</td><td>Custom</td><td>Custom</td></tr>
+        </tbody>
+      </table>
+
+      <div class="key">
+        <strong>Why this pricing model.</strong> Other AI tools charge by
+        usage, which trains users to use less. WRKS wants users to use it
+        constantly. Flat pricing per business profile makes that natural.
+      </div>
+
+      <div class="page-num">13</div>
+    </section>
+
+    <!-- ===================== 11 HOW IT'S DIFFERENT ===================== -->
+    <section class="page">
+      <div class="label">11 · How it's different</div>
+      <h2>Why this isn't<br /><span class="light">"just another AI tool."</span></h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Compared to</th>
+            <th>What they do</th>
+            <th>What WRKS does differently</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="bold">ChatGPT</td>
+            <td>General-purpose chat. Writes anything you ask.</td>
+            <td>Knows your business. Outputs follow proven frameworks. Publishes the result.</td>
+          </tr>
+          <tr>
+            <td class="bold">Wix / Framer</td>
+            <td>Website builders. You drag, drop, write, publish.</td>
+            <td>You don't build. The agent builds and the user only directs and approves.</td>
+          </tr>
+          <tr>
+            <td class="bold">Canva</td>
+            <td>Design tool. You make the visuals yourself.</td>
+            <td>Visuals are produced as part of the deliverable, not a tool you operate.</td>
+          </tr>
+          <tr>
+            <td class="bold">v0 / Lovable</td>
+            <td>AI generates code. Aimed at developers.</td>
+            <td>Aimed at business owners. Outputs are deliverables, not source code.</td>
+          </tr>
+          <tr>
+            <td class="bold">A marketing agency</td>
+            <td>Humans do the work. $3K–$10K per month. Slow.</td>
+            <td>Always-on. Cost of a phone bill. Doesn't quit, doesn't get sick.</td>
+          </tr>
+          <tr>
+            <td class="bold">Buffer / Hootsuite</td>
+            <td>Schedules content you've already written.</td>
+            <td>Writes the content, designs the visual, publishes it. Doesn't schedule — acts.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <strong>The category we're inventing.</strong> WRKS Studio is not
+        competing with any of these tools individually. It's replacing the
+        <em>need</em> to use them. The pitch is: stop assembling a stack of
+        tools. Talk to one agent.
+      </div>
+
+      <div class="page-num">14</div>
+    </section>
+
+    <!-- ===================== 12 STACK ===================== -->
+    <section class="page">
+      <div class="label">12 · The tech stack, simplified</div>
+      <h2>What we're using<br /><span class="light">to build it.</span></h2>
+
+      <p>
+        These are the tools we picked. You don't need to memorise these — just
+        know what each one does and why it's there.
+      </p>
+
+      <h3>The core (everything sits on these)</h3>
+      <div class="stack-grid">
+        <div class="name">Next.js</div>
+        <div>The framework that runs our website + product app. Pages, routing, server logic — all in one.</div>
+        <div class="name">TypeScript</div>
+        <div>Adds types to JavaScript so we catch mistakes before they ship.</div>
+        <div class="name">Tailwind</div>
+        <div>How we style things. Instead of writing CSS files, we use small utility classes inside the HTML.</div>
+        <div class="name">shadcn/ui</div>
+        <div>Pre-made buttons, dialogs, forms, etc. We copy them into our project and own the code.</div>
+        <div class="name">pnpm</div>
+        <div>The package manager. It installs all the libraries our code depends on. Faster than npm.</div>
+        <div class="name">Turborepo</div>
+        <div>Lets us put multiple apps (marketing site, web app, mobile app) in one repository, with shared code.</div>
+      </div>
+
+      <h3>The user system</h3>
+      <div class="stack-grid">
+        <div class="name">Clerk</div>
+        <div>Handles signup, login, password reset. Also gives us "Organizations" — perfect for our business profiles.</div>
+        <div class="name">Supabase</div>
+        <div>The database. Stores users, business profiles, memory, assets. Has built-in security so each business's data is isolated.</div>
+      </div>
+
+      <h3>The intelligence layer</h3>
+      <div class="stack-grid">
+        <div class="name">Claude API</div>
+        <div>The AI brain. We send it instructions, it returns text, plans, decisions. This is the agent's mind.</div>
+        <div class="name">ElevenLabs</div>
+        <div>Gives the agent its voice. Converts text to speech and speech to text.</div>
+      </div>
+
+      <div class="page-num">15</div>
+    </section>
+
+    <!-- ===================== 12b STACK CONT ===================== -->
+    <section class="page">
+      <div class="label">12 · The tech stack (continued)</div>
+      <h2>Where things live<br /><span class="light">on the internet.</span></h2>
+
+      <h3>Hosting &amp; storage</h3>
+      <div class="stack-grid">
+        <div class="name">Vercel</div>
+        <div>Where we deploy WRKS Studio itself. Push code to GitHub → Vercel makes it live in seconds.</div>
+        <div class="name">Cloudflare Pages</div>
+        <div>Where the websites the agent <em>creates for users</em> are hosted. One site per business profile.</div>
+        <div class="name">Cloudflare R2</div>
+        <div>Object storage. The "asset library" lives here — every output the agent has ever made.</div>
+        <div class="name">Astro</div>
+        <div>The framework used for the user-facing websites the agent builds. Fast, simple, and easy for AI to edit.</div>
+      </div>
+
+      <h3>Money &amp; messages</h3>
+      <div class="stack-grid">
+        <div class="name">Stripe</div>
+        <div>Handles payments — both for our subscriptions, and for embedding payment buttons into user-built pages.</div>
+        <div class="name">Resend</div>
+        <div>Sends emails. Welcome emails, password resets, notifications.</div>
+      </div>
+
+      <h3>Helping Claude Code build (MCP servers)</h3>
+      <p style="font-size: 10.5pt; color: #555">
+        These are tools that connect <em>my AI assistant</em> (the one
+        building this with you) to other systems. They're not part of WRKS
+        Studio itself — they make me more effective.
+      </p>
+      <div class="stack-grid">
+        <div class="name">shadcn MCP</div>
+        <div>Lets me browse and install shadcn components without leaving the chat.</div>
+        <div class="name">21st.dev Magic</div>
+        <div>Generates beautiful UI variations from a one-line description.</div>
+        <div class="name">Context7</div>
+        <div>Gives me up-to-date docs for fast-moving frameworks.</div>
+        <div class="name">GitHub MCP</div>
+        <div>I can manage pull requests and issues from inside our chat.</div>
+      </div>
+
+      <div class="key">
+        <strong>The shape to remember.</strong> Frontend = Next.js + Tailwind +
+        shadcn. Backend = Supabase + Clerk. Brain = Claude + ElevenLabs.
+        Hosting = Vercel + Cloudflare. That's it. Everything else slots into
+        one of those buckets.
+      </div>
+
+      <div class="page-num">16</div>
+    </section>
+
+    <!-- ===================== 13 ROADMAP ===================== -->
+    <section class="page">
+      <div class="label">13 · What you're actually building</div>
+      <h2>The journey,<br /><span class="light">in three acts.</span></h2>
+
+      <div class="diagram-wrap">
+        <svg width="500" height="220" viewBox="0 0 500 220">
+          <line x1="40" y1="120" x2="460" y2="120" stroke="#ccc" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+          <circle cx="80" cy="120" r="14" fill="#1a1a1a"/>
+          <text x="80" y="125" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="11" fill="#fff" font-weight="700">1</text>
+          <text x="80" y="80" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" font-weight="600">Marketing site</text>
+          <text x="80" y="95" text-anchor="middle" font-family="Georgia, serif" font-size="9" fill="#666" font-style="italic">we are here</text>
+          <text x="80" y="160" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="9" fill="#888">Q2 2026</text>
+
+          <circle cx="250" cy="120" r="14" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+          <text x="250" y="125" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="11" font-weight="700">2</text>
+          <text x="250" y="80" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" font-weight="600">Product app (web)</text>
+          <text x="250" y="95" text-anchor="middle" font-family="Georgia, serif" font-size="9" fill="#666" font-style="italic">home + agent + staging</text>
+          <text x="250" y="160" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="9" fill="#888">Q3 2026</text>
+
+          <circle cx="420" cy="120" r="14" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+          <text x="420" y="125" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="11" font-weight="700">3</text>
+          <text x="420" y="80" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="10" font-weight="600">Mobile app + first users</text>
+          <text x="420" y="95" text-anchor="middle" font-family="Georgia, serif" font-size="9" fill="#666" font-style="italic">phone-first launch</text>
+          <text x="420" y="160" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="9" fill="#888">Q4 2026</text>
+        </svg>
+        <div class="diagram-cap">The year-one roadmap, simplified</div>
+      </div>
+
+      <h3>Where we are right now</h3>
+      <p>
+        The repo is live at <strong>github.com/WRKS-ai/WRKS-Studio</strong>.
+        The marketing site is scaffolded with Next.js, Tailwind, and a
+        landing page that reflects the brand voice. The design system source
+        of truth (<em>design.md</em>) is in place. The founding brief is in
+        the docs folder.
+      </p>
+
+      <h3>What's next</h3>
+      <ol>
+        <li>Polish the marketing site, deploy to Vercel, get a live URL</li>
+        <li>Stand up identity (Clerk) + database (Supabase) for the product app</li>
+        <li>Build the home ecosystem and first staging environment</li>
+        <li>Wire the orchestrator agent with Claude API + ElevenLabs</li>
+        <li>Onboard the first prototype users — agency clients first</li>
+      </ol>
+
+      <hr/>
+
+      <p style="font-style: italic; color: #555; margin-top: 24px">
+        You don't need to memorise everything in this guide. You need to be
+        able to point to it. The vision moment, the agent relationship, the
+        framework × memory equation, and the hard scope rules — those are
+        the four things to keep in your head every time you make a build
+        decision. Everything else is implementation detail.
+      </p>
+
+      <p style="font-family: -apple-system, 'Segoe UI', sans-serif; font-size: 9pt; color: #888; margin-top: 50px; text-align: center">
+        End of guide · WRKS Studio · A SlightWrks platform · 2026
+      </p>
+
+      <div class="page-num">17</div>
+    </section>
+  </body>
+</html>

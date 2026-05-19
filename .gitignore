@@ -3,6 +3,17 @@ _brief.txt
 _brief.zip
 _docx_extract/
 
+# Claude Code session state
+.claude/
+
+# Playwright MCP working files
+.playwright-mcp/
+
+# Screenshot artifacts at repo root
+/*.png
+/*.jpeg
+/*.jpg
+
 # Dependencies
 node_modules/
 .pnp
