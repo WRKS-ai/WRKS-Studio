@@ -26,22 +26,22 @@ export default function Home() {
 
 function Nav() {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-bg/70 border-b border-border">
+    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-canvas/70 border-b border-line">
       <div className="max-w-screen-xl mx-auto px-6 lg:px-8 h-14 flex items-center justify-between">
         <span className="font-serif text-lg tracking-tight">
-          WRKS<span className="text-fg-muted"> Studio</span>
+          WRKS<span className="text-ink-muted"> Studio</span>
         </span>
-        <div className="hidden sm:flex items-center gap-7 text-sm font-sans text-fg-muted">
-          <a href="#how" className="hover:text-fg transition-colors">
+        <div className="hidden sm:flex items-center gap-7 text-sm font-sans text-ink-muted">
+          <a href="#how" className="hover:text-ink transition-colors">
             How it works
           </a>
-          <a href="#pricing" className="hover:text-fg transition-colors">
+          <a href="#pricing" className="hover:text-ink transition-colors">
             Pricing
           </a>
         </div>
         <a
           href="#waitlist"
-          className="inline-flex items-center gap-1.5 rounded-full bg-fg text-bg text-sm font-sans font-medium h-9 px-4 hover:opacity-90 transition-opacity"
+          className="inline-flex items-center gap-1.5 rounded-full bg-ink text-canvas text-sm font-sans font-medium h-9 px-4 hover:opacity-90 transition-opacity"
         >
           Join waitlist
           <span aria-hidden>→</span>
@@ -53,14 +53,14 @@ function Nav() {
 
 function Footer() {
   return (
-    <footer className="py-16 px-6 lg:px-8 border-t border-border">
+    <footer className="py-16 px-6 lg:px-8 border-t border-line">
       <div className="max-w-screen-xl mx-auto">
         <div className="grid sm:grid-cols-[1.4fr_1fr_1fr_1fr] gap-10 mb-12">
           <div>
             <span className="font-serif text-xl tracking-tight">
-              WRKS<span className="text-fg-muted"> Studio</span>
+              WRKS<span className="text-ink-muted"> Studio</span>
             </span>
-            <p className="mt-3 text-sm text-fg-muted font-sans max-w-xs leading-relaxed">
+            <p className="mt-3 text-sm text-ink-muted font-sans max-w-xs leading-relaxed">
               The connected business nervous system. One agent. Five
               deliverables. Live from your phone.
             </p>
@@ -88,7 +88,7 @@ function Footer() {
             ]}
           />
         </div>
-        <div className="pt-8 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-fg-dim font-sans">
+        <div className="pt-8 border-t border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-ink-dim font-sans">
           <span>A SlightWrks platform · © 2026</span>
           <span className="flex items-center gap-2">
             <span className="size-1.5 rounded-full bg-emerald-400/80 animate-pulse" />
@@ -109,7 +109,7 @@ function FooterCol({
 }) {
   return (
     <div>
-      <div className="text-[10px] tracking-[0.22em] uppercase text-fg-dim font-sans mb-4">
+      <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-sans mb-4">
         {title}
       </div>
       <ul className="space-y-2.5 text-sm font-sans">
@@ -117,7 +117,7 @@ function FooterCol({
           <li key={l.label}>
             <a
               href={l.href}
-              className="text-fg-muted hover:text-fg transition-colors"
+              className="text-ink-muted hover:text-ink transition-colors"
             >
               {l.label}
             </a>

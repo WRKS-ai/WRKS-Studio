@@ -25,14 +25,14 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section id="how" className="py-28 px-6 lg:px-8 border-t border-border">
+    <section id="how" className="py-28 px-6 lg:px-8 border-t border-line">
       <div className="max-w-screen-xl mx-auto">
         <motion.p
           initial={{ opacity: 0, y: 8 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
-          className="text-[10px] tracking-[0.22em] uppercase text-fg-muted font-sans mb-5"
+          className="text-[10px] tracking-[0.22em] uppercase text-ink-muted font-sans mb-5"
         >
           How it works
         </motion.p>
@@ -45,7 +45,7 @@ export function HowItWorks() {
         >
           A relationship,
           <br />
-          <span className="italic text-fg-muted">not a tool.</span>
+          <span className="italic text-ink-muted">not a tool.</span>
         </motion.h2>
 
         <div className="mt-20 grid md:grid-cols-3 gap-6 lg:gap-8">
@@ -60,13 +60,13 @@ export function HowItWorks() {
                 delay: i * 0.12,
                 ease: [0.2, 0.7, 0.2, 1],
               }}
-              className="group relative border border-border rounded-3xl bg-bg-elev/40 hover:bg-bg-elev/70 hover:border-fg/20 transition-all duration-300 p-6 sm:p-7 overflow-hidden"
+              className="group relative border border-line rounded-3xl bg-panel/40 hover:bg-panel/70 hover:border-ink/20 transition-all duration-300 p-6 sm:p-7 overflow-hidden"
             >
-              <div className="font-mono text-xs text-fg-dim mb-6">{s.n}</div>
+              <div className="font-mono text-xs text-ink-dim mb-6">{s.n}</div>
               <h3 className="font-serif text-2xl sm:text-3xl mb-3">
                 {s.title}
               </h3>
-              <p className="text-sm text-fg-muted leading-relaxed mb-7 max-w-[28ch]">
+              <p className="text-sm text-ink-muted leading-relaxed mb-7 max-w-[28ch]">
                 {s.body}
               </p>
               <div className="mt-auto pt-2">{s.mock}</div>
@@ -80,23 +80,23 @@ export function HowItWorks() {
 
 function MockTell() {
   return (
-    <div className="border border-border rounded-xl bg-bg p-4">
-      <div className="flex items-center gap-2 text-[9px] tracking-[0.18em] uppercase text-fg-dim font-sans mb-2">
+    <div className="border border-line rounded-xl bg-canvas p-4">
+      <div className="flex items-center gap-2 text-[9px] tracking-[0.18em] uppercase text-ink-dim font-sans mb-2">
         <span className="size-1 rounded-full bg-emerald-400/80" />
         Voice
       </div>
-      <p className="font-serif italic text-sm text-fg leading-snug">
+      <p className="font-serif italic text-sm text-ink leading-snug">
         &ldquo;Schedule a Friday post about the new latte menu.&rdquo;
       </p>
       <div className="mt-3 flex items-center gap-1">
         {[12, 18, 22, 16, 24, 14, 20, 10, 16, 22, 18, 14].map((h, i) => (
           <span
             key={i}
-            className="w-1 rounded-full bg-fg/40"
+            className="w-1 rounded-full bg-ink/40"
             style={{ height: `${h}px` }}
           />
         ))}
-        <span className="ml-auto text-[10px] font-mono text-fg-dim">0:04</span>
+        <span className="ml-auto text-[10px] font-mono text-ink-dim">0:04</span>
       </div>
     </div>
   );
@@ -104,8 +104,8 @@ function MockTell() {
 
 function MockShow() {
   return (
-    <div className="border border-border rounded-xl bg-bg p-4">
-      <div className="flex items-center gap-2 text-[9px] tracking-[0.18em] uppercase text-fg-dim font-sans mb-3">
+    <div className="border border-line rounded-xl bg-canvas p-4">
+      <div className="flex items-center gap-2 text-[9px] tracking-[0.18em] uppercase text-ink-dim font-sans mb-3">
         <span className="size-1 rounded-full bg-amber-400/80" />
         Plan
       </div>
@@ -113,20 +113,20 @@ function MockShow() {
         {["Instagram post · 1080×1080", "Story tile · 1080×1920"].map((t) => (
           <div
             key={t}
-            className="flex items-center gap-2 text-xs text-fg-muted font-sans"
+            className="flex items-center gap-2 text-xs text-ink-muted font-sans"
           >
-            <span className="size-3 rounded-sm border border-fg-muted/40 flex items-center justify-center">
-              <span className="size-1.5 rounded-sm bg-fg-muted/40" />
+            <span className="size-3 rounded-sm border border-ink-muted/40 flex items-center justify-center">
+              <span className="size-1.5 rounded-sm bg-ink-muted/40" />
             </span>
             {t}
           </div>
         ))}
       </div>
       <div className="mt-3 flex gap-2">
-        <span className="text-[10px] font-sans px-2 py-0.5 rounded-full bg-fg text-bg">
+        <span className="text-[10px] font-sans px-2 py-0.5 rounded-full bg-ink text-canvas">
           Confirm
         </span>
-        <span className="text-[10px] font-sans px-2 py-0.5 rounded-full border border-border text-fg-muted">
+        <span className="text-[10px] font-sans px-2 py-0.5 rounded-full border border-line text-ink-muted">
           Adjust
         </span>
       </div>
@@ -136,14 +136,14 @@ function MockShow() {
 
 function MockShip() {
   return (
-    <div className="border border-border rounded-xl bg-bg p-4 space-y-2">
+    <div className="border border-line rounded-xl bg-canvas p-4 space-y-2">
       {[
         { l: "Instagram", s: "Posted" },
         { l: "Site banner", s: "Deployed" },
         { l: "Memory", s: "Updated" },
       ].map((r) => (
         <div key={r.l} className="flex items-center justify-between">
-          <span className="text-xs text-fg-muted font-sans">{r.l}</span>
+          <span className="text-xs text-ink-muted font-sans">{r.l}</span>
           <span className="flex items-center gap-1.5 text-[10px] tracking-[0.18em] uppercase text-emerald-400/90 font-sans font-medium">
             <span className="size-1 rounded-full bg-emerald-400" />
             {r.s}

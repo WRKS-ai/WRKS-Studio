@@ -37,7 +37,7 @@ export function Pricing() {
   return (
     <section
       id="pricing"
-      className="py-28 px-6 lg:px-8 border-t border-border"
+      className="py-28 px-6 lg:px-8 border-t border-line"
     >
       <div className="max-w-screen-xl mx-auto">
         <motion.p
@@ -45,7 +45,7 @@ export function Pricing() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
-          className="text-[10px] tracking-[0.22em] uppercase text-fg-muted font-sans mb-5"
+          className="text-[10px] tracking-[0.22em] uppercase text-ink-muted font-sans mb-5"
         >
           Pricing
         </motion.p>
@@ -58,7 +58,7 @@ export function Pricing() {
         >
           Flat per business.
           <br />
-          <span className="italic text-fg-muted">
+          <span className="italic text-ink-muted">
             No rate limits. No credits.
           </span>
         </motion.h2>
@@ -67,7 +67,7 @@ export function Pricing() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ delay: 0.15, duration: 0.6 }}
-          className="mt-6 text-base text-fg-muted max-w-xl"
+          className="mt-6 text-base text-ink-muted max-w-xl"
         >
           Pricing is gated only by how many active business profiles you run.
           Use the agent as much as you want — that&apos;s the point.
@@ -87,12 +87,12 @@ export function Pricing() {
               }}
               className={`relative border rounded-3xl p-7 transition-all duration-300 ${
                 t.featured
-                  ? "border-fg/40 bg-fg/[0.05] hover:bg-fg/[0.08]"
-                  : "border-border bg-bg-elev/40 hover:bg-bg-elev/70 hover:border-fg/20"
+                  ? "border-ink/40 bg-ink/[0.05] hover:bg-ink/[0.08]"
+                  : "border-line bg-panel/40 hover:bg-panel/70 hover:border-ink/20"
               }`}
             >
               {t.featured && (
-                <span className="absolute -top-2.5 left-7 text-[9px] tracking-[0.22em] uppercase font-sans bg-fg text-bg px-2.5 py-1 rounded-full">
+                <span className="absolute -top-2.5 left-7 text-[9px] tracking-[0.22em] uppercase font-sans bg-ink text-canvas px-2.5 py-1 rounded-full">
                   Most chosen
                 </span>
               )}
@@ -103,18 +103,18 @@ export function Pricing() {
                 <span className="font-serif text-4xl tracking-tight">
                   {t.price}
                 </span>
-                <span className="text-xs text-fg-muted font-sans">/ month</span>
+                <span className="text-xs text-ink-muted font-sans">/ month</span>
               </div>
-              <div className="text-xs text-fg-muted font-sans mb-6">
+              <div className="text-xs text-ink-muted font-sans mb-6">
                 {t.profiles}
               </div>
               <ul className="space-y-2.5 text-sm">
                 {t.bullets.map((b) => (
                   <li
                     key={b}
-                    className="flex items-start gap-2.5 text-fg-muted font-sans"
+                    className="flex items-start gap-2.5 text-ink-muted font-sans"
                   >
-                    <span className="mt-1.5 size-1 rounded-full bg-fg-muted/80 shrink-0" />
+                    <span className="mt-1.5 size-1 rounded-full bg-ink-muted/80 shrink-0" />
                     <span>{b}</span>
                   </li>
                 ))}
@@ -128,7 +128,7 @@ export function Pricing() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ delay: 0.4, duration: 0.6 }}
-          className="mt-10 text-center text-xs text-fg-dim font-sans"
+          className="mt-10 text-center text-xs text-ink-dim font-sans"
         >
           Enterprise pricing available for custom profile limits + dedicated
           infrastructure.

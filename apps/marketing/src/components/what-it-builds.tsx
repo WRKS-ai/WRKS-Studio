@@ -41,14 +41,14 @@ const ITEMS: {
 
 export function WhatItBuilds() {
   return (
-    <section className="py-28 px-6 lg:px-8 border-t border-border">
+    <section className="py-28 px-6 lg:px-8 border-t border-line">
       <div className="max-w-screen-xl mx-auto">
         <motion.p
           initial={{ opacity: 0, y: 8 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
-          className="text-[10px] tracking-[0.22em] uppercase text-fg-muted font-sans mb-5"
+          className="text-[10px] tracking-[0.22em] uppercase text-ink-muted font-sans mb-5"
         >
           What it builds
         </motion.p>
@@ -61,7 +61,7 @@ export function WhatItBuilds() {
         >
           Five deliverables.
           <br />
-          <span className="italic text-fg-muted">Done right, every time.</span>
+          <span className="italic text-ink-muted">Done right, every time.</span>
         </motion.h2>
 
         <div className="mt-16 grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -76,13 +76,13 @@ export function WhatItBuilds() {
                 delay: i * 0.08,
                 ease: [0.2, 0.7, 0.2, 1],
               }}
-              className={`group relative border border-border rounded-3xl bg-bg-elev/40 hover:bg-bg-elev hover:border-fg/20 transition-all duration-300 p-7 ${it.span ?? ""}`}
+              className={`group relative border border-line rounded-3xl bg-panel/40 hover:bg-panel hover:border-ink/20 transition-all duration-300 p-7 ${it.span ?? ""}`}
             >
-              <div className="size-10 rounded-xl border border-border bg-bg flex items-center justify-center text-fg-muted group-hover:text-fg group-hover:border-fg/30 transition-colors mb-6">
+              <div className="size-10 rounded-xl border border-line bg-canvas flex items-center justify-center text-ink-muted group-hover:text-ink group-hover:border-ink/30 transition-colors mb-6">
                 {it.icon}
               </div>
               <h3 className="font-serif text-2xl mb-2">{it.title}</h3>
-              <p className="text-sm text-fg-muted leading-relaxed max-w-[36ch]">
+              <p className="text-sm text-ink-muted leading-relaxed max-w-[36ch]">
                 {it.body}
               </p>
               {it.featured && (
@@ -102,12 +102,12 @@ export function WhatItBuilds() {
               delay: ITEMS.length * 0.08,
               ease: [0.2, 0.7, 0.2, 1],
             }}
-            className="relative border border-dashed border-border rounded-3xl bg-transparent p-7"
+            className="relative border border-dashed border-line rounded-3xl bg-transparent p-7"
           >
-            <div className="text-[10px] tracking-[0.22em] uppercase text-fg-dim font-sans mb-3">
+            <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-sans mb-3">
               Coming later
             </div>
-            <p className="text-sm text-fg-muted leading-relaxed max-w-[36ch]">
+            <p className="text-sm text-ink-muted leading-relaxed max-w-[36ch]">
               Email automation, sales sequences, and CRM build are deliberately
               out of scope for v1. We&apos;re building the core five
               exceptionally first.
@@ -121,24 +121,24 @@ export function WhatItBuilds() {
 
 function FakeBrowser() {
   return (
-    <div className="rounded-2xl border border-border bg-bg overflow-hidden">
-      <div className="h-7 flex items-center gap-1.5 px-3 border-b border-border bg-bg-elev/40">
-        <span className="size-2 rounded-full bg-fg-dim/40" />
-        <span className="size-2 rounded-full bg-fg-dim/40" />
-        <span className="size-2 rounded-full bg-fg-dim/40" />
-        <span className="ml-3 text-[10px] font-mono text-fg-dim">
+    <div className="rounded-2xl border border-line bg-canvas overflow-hidden">
+      <div className="h-7 flex items-center gap-1.5 px-3 border-b border-line bg-panel/40">
+        <span className="size-2 rounded-full bg-ink-dim/40" />
+        <span className="size-2 rounded-full bg-ink-dim/40" />
+        <span className="size-2 rounded-full bg-ink-dim/40" />
+        <span className="ml-3 text-[10px] font-mono text-ink-dim">
           hannahshair.com
         </span>
       </div>
       <div className="p-5 grid grid-cols-2 gap-4 items-center">
         <div>
-          <div className="h-2 w-20 rounded-full bg-fg/50 mb-2" />
-          <div className="h-3 w-32 rounded-full bg-fg/80 mb-3" />
-          <div className="h-1.5 w-28 rounded-full bg-fg-muted/40 mb-1" />
-          <div className="h-1.5 w-24 rounded-full bg-fg-muted/40 mb-3" />
-          <div className="h-5 w-16 rounded-full bg-fg" />
+          <div className="h-2 w-20 rounded-full bg-ink/50 mb-2" />
+          <div className="h-3 w-32 rounded-full bg-ink/80 mb-3" />
+          <div className="h-1.5 w-28 rounded-full bg-ink-muted/40 mb-1" />
+          <div className="h-1.5 w-24 rounded-full bg-ink-muted/40 mb-3" />
+          <div className="h-5 w-16 rounded-full bg-ink" />
         </div>
-        <div className="h-20 rounded-lg bg-bg-elev border border-border" />
+        <div className="h-20 rounded-lg bg-panel border border-line" />
       </div>
     </div>
   );
