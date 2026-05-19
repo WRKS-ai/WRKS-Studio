@@ -3,12 +3,12 @@
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import {
-  AdCanvas,
-  BlogCanvas,
-  CopyCanvas,
-  SocialCanvas,
-  WebsiteCanvas,
-} from "./canvas-mockups";
+  AdTarget,
+  BlogSpread,
+  CopyLadder,
+  SocialRadar,
+  WebsiteFunnel,
+} from "./bento-illustrations";
 
 const ITEMS: {
   title: string;
@@ -21,32 +21,32 @@ const ITEMS: {
     title: "Websites & funnels",
     body: "Conversion pages that publish to your own domain. Forms forward to your CRM. Stripe payments built in.",
     icon: <IconBrowser />,
-    mock: <WebsiteCanvas />,
+    mock: <WebsiteFunnel />,
     span: "md:col-span-2 lg:col-span-2",
   },
   {
     title: "Social content",
     body: "Posts, captions, visuals — each platform's format rules baked into the framework.",
     icon: <IconSocial />,
-    mock: <SocialCanvas />,
+    mock: <SocialRadar />,
   },
   {
     title: "Ad creatives",
     body: "Headlines, body copy, image direction. Built to a proven ad framework.",
     icon: <IconAd />,
-    mock: <AdCanvas />,
+    mock: <AdTarget />,
   },
   {
     title: "Copywriting",
     body: "Page copy, CTAs, brand voice writing — to a proven conversion framework.",
     icon: <IconCopy />,
-    mock: <CopyCanvas />,
+    mock: <CopyLadder />,
   },
   {
     title: "SEO & blog",
     body: "Long-form posts, metadata, internal linking. Structured for search.",
     icon: <IconSeo />,
-    mock: <BlogCanvas />,
+    mock: <BlogSpread />,
   },
 ];
 
