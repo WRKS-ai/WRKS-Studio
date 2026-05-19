@@ -2,7 +2,9 @@ import { Architecture } from "@/components/architecture";
 import { FAQ } from "@/components/faq";
 import { Hero } from "@/components/hero";
 import { HowItWorks } from "@/components/how-it-works";
+import { NovaPill } from "@/components/nova-pill";
 import { Pricing } from "@/components/pricing";
+import { ScrollProgress } from "@/components/scroll-progress";
 import { TrustStrip } from "@/components/trust-strip";
 import { Waitlist } from "@/components/waitlist";
 import { WhatItBuilds } from "@/components/what-it-builds";
@@ -10,6 +12,8 @@ import { WhatItBuilds } from "@/components/what-it-builds";
 export default function Home() {
   return (
     <main className="flex flex-col">
+      <ScrollProgress />
+      <NovaPill />
       <Nav />
       <Hero />
       <TrustStrip />
