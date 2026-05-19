@@ -1,589 +1,674 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useMemo } from "react";
 
-/* 1. Websites & funnels — literal funnel of visitors converting ----------- */
+/* ============================================================
+ * Shared atoms
+ * ============================================================ */
 
-export function WebsiteFunnel() {
-  const visitors = useMemo(
-    () => Array.from({ length: 24 }, (_, i) => i),
-    [],
-  );
-  return (
-    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-gradient-to-b from-sky-950/30 to-canvas">
-      <svg
-        viewBox="0 0 200 130"
-        className="absolute inset-0 size-full"
-        preserveAspectRatio="none"
-      >
-        {/* Funnel walls */}
-        <motion.path
-          d="M 20 14 L 180 14 L 130 116 L 70 116 Z"
-          fill="rgba(56,189,248,0.03)"
-          stroke="rgba(56,189,248,0.45)"
-          strokeWidth="0.4"
-          initial={{ pathLength: 0 }}
-          whileInView={{ pathLength: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 1.4, ease: "easeOut" }}
-        />
-        {/* Stage dividers */}
-        <line
-          x1="32"
-          y1="46"
-          x2="168"
-          y2="46"
-          stroke="rgba(56,189,248,0.2)"
-          strokeWidth="0.3"
-          strokeDasharray="1 1.6"
-        />
-        <line
-          x1="48"
-          y1="78"
-          x2="152"
-          y2="78"
-          stroke="rgba(56,189,248,0.2)"
-          strokeWidth="0.3"
-          strokeDasharray="1 1.6"
-        />
-      </svg>
-      {/* Stage labels — left side */}
-      <div className="absolute inset-0 flex flex-col">
-        <Row y={9} count="1,284" label="Visits" tone="muted" />
-        <Row y={31} count="612" label="Engaged" tone="muted" />
-        <Row y={57} count="148" label="Booked" tone="emerald" />
-      </div>
-      {/* Flowing visitor dots */}
-      <div className="absolute inset-0 pointer-events-none">
-        {visitors.map((i) => (
-          <Dot key={i} index={i} />
-        ))}
-      </div>
-      {/* Conversion bottom pill */}
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ delay: 0.8, duration: 0.5 }}
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-400/15 border border-emerald-400/40 backdrop-blur"
-      >
-        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-[9px] tracking-[0.18em] uppercase text-emerald-300 font-sans font-medium">
-          11.5% conversion
-        </span>
-      </motion.div>
-    </div>
-  );
-}
-
-function Row({
-  y,
-  count,
-  label,
-  tone,
+function MeshBg({
+  colors,
 }: {
-  y: number;
-  count: string;
-  label: string;
-  tone: "muted" | "emerald";
+  colors: { x: number; y: number; color: string }[];
 }) {
   return (
-    <div
-      className="absolute left-4 right-4 flex items-baseline justify-between"
-      style={{ top: `${y}%` }}
-    >
-      <div className="flex items-baseline gap-1.5">
-        <span
-          className={`text-[14px] font-mono font-semibold ${
-            tone === "emerald" ? "text-emerald-300" : "text-ink"
-          }`}
-        >
-          {count}
-        </span>
-        <span className="text-[9px] tracking-[0.18em] uppercase text-ink-muted font-sans">
-          {label}
-        </span>
-      </div>
+    <div className="absolute inset-0 overflow-hidden">
+      {colors.map((c, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: 360,
+            height: 360,
+            left: `${c.x}%`,
+            top: `${c.y}%`,
+            transform: "translate(-50%, -50%)",
+            background: `radial-gradient(circle, ${c.color}, transparent 65%)`,
+            filter: "blur(60px)",
+            opacity: 0.85,
+          }}
+          animate={{
+            x: [0, 14, -10, 0],
+            y: [0, -8, 12, 0],
+          }}
+          transition={{
+            duration: 14 + i * 3,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: i * 1.5,
+          }}
+        />
+      ))}
+      {/* Subtle noise / grain */}
+      <div
+        className="absolute inset-0 opacity-[0.06] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)",
+          backgroundSize: "3px 3px",
+        }}
+      />
+      {/* Vignette */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, transparent 30%, rgba(8,8,10,0.7) 100%)",
+        }}
+      />
     </div>
   );
 }
 
-function Dot({ index }: { index: number }) {
-  const lane = index % 6;
-  const startX = 30 + lane * 14;
-  const delay = (index * 0.25) % 5;
-  return (
-    <motion.span
-      className="absolute size-1.5 rounded-full bg-sky-300"
-      style={{ left: `${startX}%`, top: "12%" }}
-      animate={{
-        y: ["0%", "660%"],
-        x: [`0%`, `${(lane - 2.5) * -4}%`],
-        opacity: [0, 1, 1, 0.4, 0],
-      }}
-      transition={{
-        duration: 6,
-        delay,
-        repeat: Infinity,
-        ease: "linear",
-      }}
-    />
-  );
-}
-
-/* 2. Social — content radiating from a hub --------------------------------- */
-
-export function SocialRadar() {
-  const platforms = [
-    { name: "INSTAGRAM", angle: -50, color: "#f472b6" },
-    { name: "FACEBOOK", angle: 35, color: "#60a5fa" },
-    { name: "LINKEDIN", angle: 145, color: "#34d399" },
-  ];
-  return (
-    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-gradient-to-br from-rose-950/30 via-canvas to-canvas">
-      <svg
-        viewBox="0 0 200 130"
-        className="absolute inset-0 size-full"
-        preserveAspectRatio="none"
-      >
-        {/* Concentric rings */}
-        {[20, 36, 52].map((r, i) => (
-          <motion.circle
-            key={r}
-            cx={100}
-            cy={65}
-            r={r}
-            fill="none"
-            stroke="rgba(244,114,182,0.18)"
-            strokeWidth="0.3"
-            strokeDasharray="0.8 1.5"
-            initial={{ opacity: 0, scale: 0.6 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.15 + i * 0.12, duration: 0.6 }}
-            style={{ transformOrigin: "100px 65px" }}
-          />
-        ))}
-        {/* Spokes */}
-        {platforms.map((p) => {
-          const rad = (p.angle * Math.PI) / 180;
-          const x = 100 + Math.cos(rad) * 56;
-          const y = 65 + Math.sin(rad) * 56;
-          return (
-            <motion.line
-              key={p.name}
-              x1={100}
-              y1={65}
-              x2={x}
-              y2={y}
-              stroke={p.color}
-              strokeWidth="0.4"
-              strokeOpacity={0.4}
-              initial={{ pathLength: 0 }}
-              whileInView={{ pathLength: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1.2, delay: 0.4 }}
-            />
-          );
-        })}
-      </svg>
-
-      {/* Animated post particles traveling outward */}
-      {platforms.map((p, i) =>
-        Array.from({ length: 3 }).map((_, j) => (
-          <Particle key={`${p.name}-${j}`} angle={p.angle} color={p.color} delay={j * 0.6 + i * 0.2} />
-        )),
-      )}
-
-      {/* Platform end nodes + labels */}
-      {platforms.map((p) => {
-        const rad = (p.angle * Math.PI) / 180;
-        const x = 100 + Math.cos(rad) * 56;
-        const y = 65 + Math.sin(rad) * 56;
-        return (
-          <PlatformNode
-            key={p.name}
-            xPct={(x / 200) * 100}
-            yPct={(y / 130) * 100}
-            label={p.name}
-            color={p.color}
-          />
-        );
-      })}
-
-      {/* Central hub */}
-      <motion.div
-        initial={{ scale: 0 }}
-        whileInView={{ scale: 1 }}
-        viewport={{ once: true }}
-        transition={{ delay: 0.3, type: "spring", stiffness: 280, damping: 18 }}
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center"
-      >
-        <div className="relative size-12 rounded-full bg-gradient-to-br from-white/95 via-white/40 to-white/5 shadow-2xl shadow-rose-400/30 flex items-center justify-center overflow-hidden">
-          <span className="absolute inset-1 rounded-full bg-gradient-to-br from-white/90 to-white/10" />
-          <span className="absolute size-2 rounded-full bg-white top-2 left-2 blur-[1px]" />
-        </div>
-      </motion.div>
-
-      {/* Footer */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ delay: 1.2, duration: 0.5 }}
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full bg-canvas/70 backdrop-blur border border-rose-400/30"
-      >
-        <span className="size-1.5 rounded-full bg-rose-400 animate-pulse" />
-        <span className="text-[9px] tracking-[0.18em] uppercase text-rose-200 font-sans font-medium">
-          One post · 3 platforms
-        </span>
-      </motion.div>
-    </div>
-  );
-}
-
-function PlatformNode({
-  xPct,
-  yPct,
-  label,
-  color,
+function FloatingChip({
+  children,
+  className,
+  delay = 0,
+  style,
 }: {
-  xPct: number;
-  yPct: number;
-  label: string;
-  color: string;
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+  style?: React.CSSProperties;
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0 }}
-      whileInView={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0, y: 8, scale: 0.9 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
       viewport={{ once: true }}
-      transition={{ delay: 0.9, type: "spring", stiffness: 200 }}
-      className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1"
-      style={{ left: `${xPct}%`, top: `${yPct}%` }}
+      transition={{ delay: 0.6 + delay, duration: 0.5, ease: "easeOut" }}
+      className={`absolute backdrop-blur-md border rounded-full px-2.5 py-1 flex items-center gap-1.5 text-[9px] tracking-[0.18em] uppercase font-sans font-medium shadow-xl ${className ?? ""}`}
+      style={style}
     >
-      <span
-        className="size-2.5 rounded-full border-2"
-        style={{ borderColor: color, background: `${color}33` }}
-      />
-      <span
-        className="text-[7px] font-mono tracking-[0.18em]"
-        style={{ color: `${color}` }}
-      >
-        {label}
-      </span>
+      {children}
     </motion.div>
   );
 }
 
-function Particle({
-  angle,
-  color,
-  delay,
-}: {
-  angle: number;
-  color: string;
-  delay: number;
-}) {
-  const rad = (angle * Math.PI) / 180;
-  const tx = Math.cos(rad) * 110;
-  const ty = Math.sin(rad) * 110;
+/* ============================================================
+ * 1. WebsitesBento — glossy laptop with site preview
+ * ============================================================ */
+
+export function WebsiteFunnel() {
   return (
-    <motion.span
-      className="absolute left-1/2 top-1/2 size-1 rounded-full"
-      style={{ backgroundColor: color }}
-      animate={{
-        x: [0, tx],
-        y: [0, ty],
-        opacity: [0, 1, 0.6, 0],
-        scale: [0.6, 1, 1, 0.6],
-      }}
-      transition={{
-        duration: 2.4,
-        delay,
-        repeat: Infinity,
-        ease: "easeOut",
-      }}
-    />
-  );
-}
-
-/* 3. Ads — target with three arrows --------------------------------------- */
-
-export function AdTarget() {
-  return (
-    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-gradient-to-br from-amber-950/40 via-canvas to-canvas">
-      <svg
-        viewBox="0 0 200 130"
-        className="absolute inset-0 size-full"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <radialGradient id="targetGrad" cx="0.5" cy="0.5" r="0.5">
-            <stop offset="0%" stopColor="rgba(251,191,36,0.25)" />
-            <stop offset="100%" stopColor="rgba(251,191,36,0)" />
-          </radialGradient>
-        </defs>
-        {/* Bullseye rings */}
-        <circle cx={100} cy={65} r={58} fill="url(#targetGrad)" />
-        {[58, 44, 30, 16, 6].map((r, i) => (
-          <motion.circle
-            key={r}
-            cx={100}
-            cy={65}
-            r={r}
-            fill="none"
-            stroke={
-              i === 4
-                ? "rgba(251,191,36,0.95)"
-                : `rgba(251,191,36,${0.45 - i * 0.07})`
-            }
-            strokeWidth={i === 4 ? 0.6 : 0.4}
-            initial={{ scale: 0 }}
-            whileInView={{ scale: 1 }}
-            viewport={{ once: true }}
-            transition={{
-              delay: 0.15 + i * 0.08,
-              duration: 0.5,
-              ease: "easeOut",
-            }}
-            style={{ transformOrigin: "100px 65px" }}
-          />
-        ))}
-        {/* Crosshair */}
-        <line x1="100" y1="0" x2="100" y2="130" stroke="rgba(251,191,36,0.12)" strokeWidth="0.2" />
-        <line x1="0" y1="65" x2="200" y2="65" stroke="rgba(251,191,36,0.12)" strokeWidth="0.2" />
-
-        {/* Arrows */}
-        <Arrow x={100} y={65} delay={0.7} color="#fde68a" rotate={-30} />
-        <Arrow x={94} y={70} delay={0.9} color="#fbbf24" rotate={20} />
-        <Arrow x={110} y={58} delay={1.1} color="#f59e0b" rotate={-15} />
-      </svg>
-      {/* Labels */}
+    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
+      <MeshBg
+        colors={[
+          { x: 25, y: 30, color: "rgba(56,189,248,0.55)" },
+          { x: 75, y: 70, color: "rgba(99,102,241,0.45)" },
+          { x: 50, y: 50, color: "rgba(14,165,233,0.25)" },
+        ]}
+      />
+      {/* Laptop */}
       <motion.div
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
+        initial={{ opacity: 0, y: 20, rotateX: 20 }}
+        whileInView={{ opacity: 1, y: 0, rotateX: 12 }}
         viewport={{ once: true }}
-        transition={{ delay: 1.4, duration: 0.5 }}
-        className="absolute top-4 left-4 text-[8px] tracking-[0.18em] uppercase text-amber-200/80 font-mono"
+        transition={{ delay: 0.2, duration: 0.9, ease: [0.2, 0.7, 0.2, 1] }}
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[58%] w-[72%]"
+        style={{ perspective: "1200px", transformStyle: "preserve-3d" }}
       >
-        Variant B
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ delay: 1.5, duration: 0.5 }}
-        className="absolute bottom-12 right-6 text-[8px] tracking-[0.18em] uppercase text-amber-300 font-mono font-semibold"
-      >
-        7.8% CTR ↑
-      </motion.div>
-      {/* Footer */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ delay: 1.6, duration: 0.5 }}
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full bg-canvas/70 backdrop-blur border border-amber-400/30"
-      >
-        <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-        <span className="text-[9px] tracking-[0.18em] uppercase text-amber-200 font-sans font-medium">
-          Winner found · auto-promoted
-        </span>
-      </motion.div>
-    </div>
-  );
-}
-
-function Arrow({
-  x,
-  y,
-  delay,
-  color,
-  rotate,
-}: {
-  x: number;
-  y: number;
-  delay: number;
-  color: string;
-  rotate: number;
-}) {
-  return (
-    <motion.g
-      initial={{ opacity: 0, x: -60, y: -60 }}
-      whileInView={{ opacity: 1, x: 0, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ delay, duration: 0.6, ease: "easeOut" }}
-      style={{ transformOrigin: `${x}px ${y}px` }}
-    >
-      <g transform={`translate(${x}, ${y}) rotate(${rotate})`}>
-        <line x1="0" y1="0" x2="-22" y2="-22" stroke={color} strokeWidth="0.6" />
-        <polygon points="0,0 -2,-4 -4,-2" fill={color} />
-        <line x1="-22" y1="-22" x2="-26" y2="-19" stroke={color} strokeWidth="0.5" />
-        <line x1="-22" y1="-22" x2="-19" y2="-26" stroke={color} strokeWidth="0.5" />
-      </g>
-    </motion.g>
-  );
-}
-
-/* 4. Copy — typographic ladder (variants evolving) ------------------------- */
-
-export function CopyLadder() {
-  const drafts = [
-    {
-      heading: "Modern hair.",
-      italic: "Honest pricing.",
-      cvr: "5.8%",
-      best: false,
-    },
-    {
-      heading: "Premium cuts",
-      italic: "on your schedule",
-      cvr: "7.1%",
-      best: false,
-    },
-    {
-      heading: "The salon",
-      italic: "that knows you",
-      cvr: "12.4%",
-      best: true,
-    },
-  ];
-  return (
-    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-gradient-to-br from-violet-950/30 via-canvas to-canvas p-5">
-      {/* Vertical timeline rail */}
-      <div className="absolute left-7 top-7 bottom-12 w-px bg-gradient-to-b from-violet-500/40 via-violet-400/30 to-violet-400" />
-      <div className="relative flex flex-col gap-3 mt-1">
-        {drafts.map((d, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, x: -10 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.15 + i * 0.18, duration: 0.5 }}
-            className="relative pl-5"
-          >
-            <span
-              className={`absolute left-0 top-2 size-2 rounded-full ${
-                d.best ? "bg-violet-300 ring-2 ring-violet-300/30" : "bg-violet-500/50"
-              }`}
-            />
-            <div className="flex items-baseline justify-between gap-3">
-              <div
-                className={`font-serif leading-tight tracking-tight ${
-                  d.best
-                    ? "text-xl text-ink"
-                    : "text-sm text-ink-muted/70 line-through decoration-violet-400/30 decoration-1"
-                }`}
-              >
-                {d.heading}{" "}
-                <span className="italic">{d.italic}</span>
-              </div>
-              <div
-                className={`shrink-0 text-[10px] font-mono font-semibold ${
-                  d.best ? "text-violet-200" : "text-ink-dim"
-                }`}
-              >
-                {d.cvr}
+        {/* Screen */}
+        <div
+          className="relative rounded-t-xl border border-white/15 bg-canvas/90 overflow-hidden"
+          style={{
+            aspectRatio: "16/10",
+            boxShadow:
+              "0 30px 60px -20px rgba(56,189,248,0.45), 0 0 0 1px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.08)",
+          }}
+        >
+          {/* Site mockup inside */}
+          <div className="absolute inset-1.5 rounded-md overflow-hidden bg-gradient-to-br from-slate-900 to-slate-950 border border-white/5">
+            {/* Site nav */}
+            <div className="flex items-center justify-between px-2 py-1.5 border-b border-white/5">
+              <span className="h-1 w-6 rounded-full bg-white/80" />
+              <div className="flex gap-1">
+                <span className="h-0.5 w-3 rounded-full bg-white/30" />
+                <span className="h-0.5 w-3 rounded-full bg-white/30" />
               </div>
             </div>
-          </motion.div>
-        ))}
-      </div>
-      {/* Footer pill */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ delay: 1, duration: 0.5 }}
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full bg-canvas/70 backdrop-blur border border-violet-400/30 whitespace-nowrap"
-      >
-        <span className="size-1.5 rounded-full bg-violet-400 animate-pulse" />
-        <span className="text-[9px] tracking-[0.18em] uppercase text-violet-200 font-sans font-medium">
-          Draft 3 won · +2.1× vs draft 1
-        </span>
-      </motion.div>
-    </div>
-  );
-}
-
-/* 5. Blog — magazine spread typography ------------------------------------- */
-
-export function BlogSpread() {
-  return (
-    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-gradient-to-br from-emerald-950/25 via-canvas to-canvas">
-      {/* Page edge */}
-      <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-400/30 to-transparent" />
-
-      <div className="absolute inset-0 p-5 flex flex-col">
-        {/* Top meta */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[8px] tracking-[0.22em] uppercase text-emerald-300/80 font-mono">
-            Hair care · No. 12
-          </span>
-          <span className="text-[8px] tracking-[0.18em] uppercase text-ink-dim font-mono">
-            Mar 12, 2026
-          </span>
-        </div>
-
-        {/* Headline w/ drop cap */}
-        <div className="flex gap-2 items-start">
-          <motion.span
-            initial={{ opacity: 0, scale: 0.6 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2, duration: 0.6, type: "spring" }}
-            className="font-serif text-[56px] leading-none tracking-tight text-emerald-200 -mt-1"
-          >
-            H
-          </motion.span>
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="font-serif text-lg leading-tight tracking-tight text-ink"
-          >
-            ow often should you trim
-            <br />
-            <span className="italic text-ink-muted">layered hair?</span>
-          </motion.div>
-        </div>
-
-        {/* Two-column body */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.5, duration: 0.6 }}
-          className="mt-3 grid grid-cols-2 gap-3"
-        >
-          {[0, 1].map((col) => (
-            <div key={col} className="space-y-1.5">
-              {Array.from({
-                length: col === 0 ? 5 : 4,
-              }).map((_, i) => (
+            {/* Hero band */}
+            <div
+              className="relative px-2.5 py-3"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(56,189,248,0.15) 0%, transparent 50%, rgba(168,85,247,0.1) 100%)",
+              }}
+            >
+              <div className="text-[7px] tracking-[0.22em] uppercase text-sky-300/80 font-sans mb-1">
+                hannahshair
+              </div>
+              <div className="font-serif text-[10px] leading-tight text-white">
+                Modern cuts.
+              </div>
+              <div className="font-serif italic text-[10px] leading-tight text-white/70 mb-1.5">
+                Honest pricing.
+              </div>
+              <span className="inline-block h-3 px-1.5 rounded-full bg-white text-[6px] font-sans font-medium text-slate-900 leading-3">
+                Book now
+              </span>
+            </div>
+            {/* Grid */}
+            <div className="grid grid-cols-3 gap-1 p-2">
+              {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className="h-1 rounded-full bg-ink-muted/30"
-                  style={{ width: `${80 + Math.sin(i + col) * 16}%` }}
+                  className="aspect-square rounded bg-gradient-to-br from-sky-400/10 to-violet-500/15 border border-white/5"
                 />
               ))}
             </div>
-          ))}
-        </motion.div>
-
-        {/* Bottom inline meta */}
-        <div className="mt-auto flex items-center gap-3 text-[8px] tracking-[0.18em] uppercase font-mono">
-          <span className="text-emerald-300/90">SEO 94</span>
-          <span className="text-ink-dim">·</span>
-          <span className="text-ink-muted">1,247 words</span>
-          <span className="text-ink-dim">·</span>
-          <span className="text-ink-muted">4 min</span>
-          <span className="ml-auto text-ink-dim">— page 1 of 3</span>
+          </div>
         </div>
+        {/* Base */}
+        <div
+          className="mx-auto h-1.5 bg-gradient-to-b from-white/20 to-white/5 rounded-b-lg"
+          style={{ width: "108%", marginLeft: "-4%" }}
+        />
+        {/* Reflection */}
+        <div
+          className="mx-auto h-6 -mt-1 rounded-full blur-md"
+          style={{
+            width: "80%",
+            background:
+              "radial-gradient(ellipse, rgba(56,189,248,0.35), transparent 60%)",
+          }}
+        />
+      </motion.div>
+      {/* Floating chips */}
+      <FloatingChip
+        delay={0}
+        className="border-sky-400/40 bg-sky-400/10 text-sky-200"
+        style={{ top: "16%", right: "8%" }}
+      >
+        <span className="size-1.5 rounded-full bg-sky-400 animate-pulse" />
+        hannahshair.com
+      </FloatingChip>
+      <FloatingChip
+        delay={0.2}
+        className="border-emerald-400/40 bg-emerald-400/10 text-emerald-200"
+        style={{ bottom: "12%", left: "8%" }}
+      >
+        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        Deployed · v.42
+      </FloatingChip>
+    </div>
+  );
+}
+
+/* ============================================================
+ * 2. SocialBento — phone with IG post
+ * ============================================================ */
+
+export function SocialRadar() {
+  return (
+    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
+      <MeshBg
+        colors={[
+          { x: 30, y: 30, color: "rgba(244,114,182,0.6)" },
+          { x: 70, y: 70, color: "rgba(251,146,60,0.5)" },
+          { x: 50, y: 50, color: "rgba(217,70,239,0.3)" },
+        ]}
+      />
+      {/* Phone */}
+      <motion.div
+        initial={{ opacity: 0, y: 24, rotateY: 25 }}
+        whileInView={{ opacity: 1, y: 0, rotateY: 14 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.2, duration: 0.9, ease: [0.2, 0.7, 0.2, 1] }}
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[52%] w-[34%]"
+        style={{ perspective: "1200px", transformStyle: "preserve-3d" }}
+      >
+        <div
+          className="relative rounded-[18px] border border-white/15 bg-canvas/95 overflow-hidden"
+          style={{
+            aspectRatio: "9/19",
+            boxShadow:
+              "0 30px 60px -20px rgba(244,114,182,0.55), 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.1)",
+          }}
+        >
+          {/* notch */}
+          <div className="absolute top-1 left-1/2 -translate-x-1/2 h-1 w-8 rounded-full bg-black/70" />
+          {/* IG header */}
+          <div className="absolute top-4 left-1 right-1 flex items-center gap-1 px-1.5">
+            <div className="size-3 rounded-full bg-gradient-to-br from-rose-400 via-fuchsia-500 to-amber-400 p-[1px]">
+              <div className="size-full rounded-full bg-canvas" />
+            </div>
+            <span className="text-[5px] font-sans font-semibold text-white">
+              hannahshair
+            </span>
+          </div>
+          {/* Image */}
+          <div
+            className="absolute top-7 left-1 right-1 aspect-square rounded overflow-hidden"
+            style={{
+              background:
+                "linear-gradient(135deg, #f472b6 0%, #d946ef 50%, #f59e0b 100%)",
+            }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(ellipse at 25% 25%, rgba(255,255,255,0.3), transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(0,0,0,0.45), transparent 60%)",
+              }}
+            />
+            <div className="absolute bottom-1 left-1 font-serif italic text-[5px] leading-tight text-white">
+              New looks
+              <br />
+              this season.
+            </div>
+            <div className="absolute top-1 right-1 px-1 py-px rounded-full bg-canvas/60 text-[4px] tracking-widest uppercase text-white font-sans">
+              20% off
+            </div>
+          </div>
+          {/* Icons row */}
+          <div className="absolute bottom-1.5 left-1 right-1 flex items-center gap-1">
+            <span className="size-1.5 rounded-sm bg-white/80" />
+            <span className="size-1.5 rounded-sm bg-white/80" />
+            <span className="size-1.5 rounded-sm bg-white/80" />
+            <span className="ml-auto text-[4px] font-mono text-white/60">
+              1.2k
+            </span>
+          </div>
+        </div>
+      </motion.div>
+      {/* Floating notification chips */}
+      <FloatingChip
+        delay={0.2}
+        className="border-rose-400/40 bg-rose-400/10 text-rose-200"
+        style={{ top: "14%", left: "8%" }}
+      >
+        <span className="size-1.5 rounded-full bg-rose-400 animate-pulse" />
+        Posting Friday 9:00
+      </FloatingChip>
+      <FloatingChip
+        delay={0.4}
+        className="border-emerald-400/40 bg-emerald-400/10 text-emerald-200"
+        style={{ top: "32%", right: "7%" }}
+      >
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
+        Approved
+      </FloatingChip>
+      <FloatingChip
+        delay={0.6}
+        className="border-amber-400/40 bg-amber-400/10 text-amber-200"
+        style={{ bottom: "16%", right: "10%" }}
+      >
+        +3 platforms
+      </FloatingChip>
+    </div>
+  );
+}
+
+/* ============================================================
+ * 3. AdsBento — floating ad creative with metric chips
+ * ============================================================ */
+
+export function AdTarget() {
+  const variants = [
+    { id: "A", ctr: "4.2%", x: 12, y: 25 },
+    { id: "C", ctr: "2.1%", x: 78, y: 70 },
+  ];
+  return (
+    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
+      <MeshBg
+        colors={[
+          { x: 50, y: 50, color: "rgba(251,191,36,0.55)" },
+          { x: 80, y: 30, color: "rgba(251,146,60,0.4)" },
+          { x: 20, y: 70, color: "rgba(217,119,6,0.3)" },
+        ]}
+      />
+      {/* Loser variant cards in back */}
+      {variants.map((v, i) => (
+        <motion.div
+          key={v.id}
+          initial={{ opacity: 0, scale: 0.85, rotate: i === 0 ? -10 : 8 }}
+          whileInView={{
+            opacity: 0.55,
+            scale: 0.65,
+            rotate: i === 0 ? -10 : 8,
+          }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.2 + i * 0.1, duration: 0.6 }}
+          className="absolute rounded-xl border border-white/10 bg-canvas/70 backdrop-blur-sm overflow-hidden"
+          style={{
+            left: `${v.x}%`,
+            top: `${v.y}%`,
+            width: "28%",
+            aspectRatio: "4/5",
+          }}
+        >
+          <div
+            className="size-full"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(120,53,15,0.6) 0%, rgba(20,15,5,0.9) 100%)",
+            }}
+          />
+          <div className="absolute top-1.5 left-1.5 text-[6px] font-mono text-amber-200/80">
+            {v.id}
+          </div>
+          <div className="absolute bottom-1.5 right-1.5 text-[7px] font-mono text-amber-200/70">
+            {v.ctr}
+          </div>
+        </motion.div>
+      ))}
+      {/* Winner — front and center */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.85, y: 10 }}
+        whileInView={{ opacity: 1, scale: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.4, duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[40%]"
+        style={{ aspectRatio: "4/5" }}
+      >
+        <div
+          className="relative size-full rounded-xl border border-amber-300/40 overflow-hidden"
+          style={{
+            boxShadow:
+              "0 25px 50px -15px rgba(251,191,36,0.6), 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.15)",
+          }}
+        >
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse at 30% 25%, rgba(254,243,199,0.4), transparent 50%), linear-gradient(135deg, #92400e 0%, #422006 50%, #1c0a02 100%)",
+            }}
+          />
+          {/* Sponsored top */}
+          <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between">
+            <span className="text-[5px] font-mono text-amber-200/70 tracking-widest">
+              Sponsored
+            </span>
+            <span className="text-[5px] font-mono text-amber-200/70">B</span>
+          </div>
+          {/* Headline */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-3">
+            <div className="font-serif italic text-white text-sm leading-none drop-shadow">
+              Hair that
+            </div>
+            <div className="font-serif text-white text-sm leading-none font-semibold mt-0.5 drop-shadow">
+              remembers you.
+            </div>
+            <div className="mt-1.5 text-[5px] tracking-[0.22em] uppercase text-amber-200/90 font-sans">
+              20% off this week
+            </div>
+          </div>
+          {/* Bottom CTA */}
+          <div className="absolute bottom-1.5 left-1.5 right-1.5">
+            <div className="h-3 rounded-full bg-white/95 flex items-center justify-center text-[6px] font-sans font-semibold text-slate-900">
+              Book now
+            </div>
+          </div>
+        </div>
+      </motion.div>
+      {/* Floating chips */}
+      <FloatingChip
+        delay={0.5}
+        className="border-amber-300/50 bg-amber-400/15 text-amber-100"
+        style={{ top: "14%", right: "8%" }}
+      >
+        <span className="size-1.5 rounded-full bg-amber-300 animate-pulse" />
+        Winner · B
+      </FloatingChip>
+      <FloatingChip
+        delay={0.7}
+        className="border-emerald-400/40 bg-emerald-400/10 text-emerald-200"
+        style={{ bottom: "14%", left: "10%" }}
+      >
+        7.8% CTR ↑
+      </FloatingChip>
+    </div>
+  );
+}
+
+/* ============================================================
+ * 4. CopyBento — fanned stack of typography cards
+ * ============================================================ */
+
+export function CopyLadder() {
+  const variants = [
+    { rotate: -10, x: -28, scale: 0.92, opacity: 0.55, depth: 0 },
+    { rotate: 8, x: 22, scale: 0.96, opacity: 0.75, depth: 1 },
+    { rotate: -2, x: 0, scale: 1, opacity: 1, depth: 2 },
+  ];
+  return (
+    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
+      <MeshBg
+        colors={[
+          { x: 30, y: 35, color: "rgba(167,139,250,0.55)" },
+          { x: 75, y: 70, color: "rgba(129,140,248,0.45)" },
+          { x: 55, y: 55, color: "rgba(139,92,246,0.3)" },
+        ]}
+      />
+      {/* Stacked cards */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[52%]">
+        {variants.map((v, i) => {
+          const isWinner = v.depth === 2;
+          return (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20, rotate: v.rotate }}
+              whileInView={{
+                opacity: v.opacity,
+                y: 0,
+                rotate: v.rotate,
+                x: v.x,
+                scale: v.scale,
+              }}
+              viewport={{ once: true }}
+              transition={{
+                delay: 0.2 + i * 0.15,
+                duration: 0.7,
+                ease: [0.2, 0.7, 0.2, 1],
+              }}
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl border overflow-hidden"
+              style={{
+                width: 170,
+                aspectRatio: "5/3",
+                zIndex: v.depth,
+                background: isWinner
+                  ? "linear-gradient(135deg, rgba(45,30,75,0.95) 0%, rgba(20,15,40,0.95) 100%)"
+                  : "rgba(20,15,30,0.85)",
+                borderColor: isWinner
+                  ? "rgba(167,139,250,0.6)"
+                  : "rgba(255,255,255,0.08)",
+                backdropFilter: "blur(20px)",
+                boxShadow: isWinner
+                  ? "0 25px 50px -15px rgba(167,139,250,0.55), 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.12)"
+                  : "0 15px 30px -10px rgba(0,0,0,0.6)",
+              }}
+            >
+              <div className="absolute inset-0 p-3 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`text-[7px] font-mono ${
+                      isWinner ? "text-violet-200" : "text-ink-dim"
+                    }`}
+                  >
+                    Variant {i === 0 ? "C" : i === 1 ? "B" : "A"}
+                  </span>
+                  {isWinner && (
+                    <span className="text-[7px] tracking-[0.18em] uppercase font-sans font-semibold text-violet-200">
+                      Winner
+                    </span>
+                  )}
+                </div>
+                <div>
+                  {i === 0 && (
+                    <div className="font-serif text-[11px] leading-tight text-white/70">
+                      Modern hair.{" "}
+                      <span className="italic">Honest pricing.</span>
+                    </div>
+                  )}
+                  {i === 1 && (
+                    <div className="font-serif text-[11px] leading-tight text-white/80">
+                      Premium cuts{" "}
+                      <span className="italic">on your schedule</span>
+                    </div>
+                  )}
+                  {i === 2 && (
+                    <>
+                      <div className="font-serif text-[14px] leading-tight text-white">
+                        The salon
+                      </div>
+                      <div className="font-serif italic text-[14px] leading-tight text-white/85">
+                        that knows you
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-[7px] font-mono">
+                  <span
+                    className={
+                      isWinner ? "text-violet-200" : "text-ink-dim"
+                    }
+                  >
+                    {i === 0 ? "5.8%" : i === 1 ? "7.1%" : "12.4%"} CVR
+                  </span>
+                  {isWinner && (
+                    <span className="text-violet-300">+2.1× draft 1</span>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
+      {/* Floating chip */}
+      <FloatingChip
+        delay={0.7}
+        className="border-violet-400/50 bg-violet-400/15 text-violet-100"
+        style={{ bottom: "12%", left: "50%", transform: "translateX(-50%)" }}
+      >
+        <span className="size-1.5 rounded-full bg-violet-300 animate-pulse" />
+        Draft 3 of 7 won
+      </FloatingChip>
+    </div>
+  );
+}
+
+/* ============================================================
+ * 5. BlogBento — open magazine spread floating
+ * ============================================================ */
+
+export function BlogSpread() {
+  return (
+    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
+      <MeshBg
+        colors={[
+          { x: 30, y: 30, color: "rgba(52,211,153,0.55)" },
+          { x: 75, y: 70, color: "rgba(20,184,166,0.4)" },
+          { x: 55, y: 55, color: "rgba(16,185,129,0.25)" },
+        ]}
+      />
+      {/* Open spread */}
+      <motion.div
+        initial={{ opacity: 0, y: 20, rotateX: 18 }}
+        whileInView={{ opacity: 1, y: 0, rotateX: 8 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.2, duration: 0.9, ease: [0.2, 0.7, 0.2, 1] }}
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[55%] w-[78%]"
+        style={{ perspective: "1200px", transformStyle: "preserve-3d" }}
+      >
+        <div
+          className="relative grid grid-cols-2 rounded-lg border border-white/15 overflow-hidden"
+          style={{
+            aspectRatio: "16/10",
+            boxShadow:
+              "0 30px 60px -20px rgba(16,185,129,0.45), 0 0 0 1px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.08)",
+            background:
+              "linear-gradient(135deg, #f7f3e8 0%, #ede5d3 100%)",
+          }}
+        >
+          {/* Center spine shadow */}
+          <div
+            className="absolute top-0 bottom-0 left-1/2 w-1.5 -translate-x-1/2 pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(to right, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.2) 100%)",
+            }}
+          />
+          {/* Left page */}
+          <div className="relative p-3 text-slate-900">
+            <div className="text-[5px] tracking-[0.22em] uppercase text-emerald-700/80 font-mono mb-1.5">
+              Hair care · No. 12
+            </div>
+            <div className="flex items-start gap-1">
+              <div className="font-serif text-[36px] leading-none text-emerald-800 -mt-1">
+                H
+              </div>
+              <div className="font-serif text-[10px] leading-tight pt-1.5">
+                ow often should
+                <br />
+                you trim layered hair?
+              </div>
+            </div>
+            <div className="mt-2 space-y-1">
+              {[100, 92, 86, 78, 92, 70].map((w, i) => (
+                <div
+                  key={i}
+                  className="h-[3px] rounded-full bg-slate-900/15"
+                  style={{ width: `${w}%` }}
+                />
+              ))}
+            </div>
+          </div>
+          {/* Right page */}
+          <div className="relative p-3 text-slate-900">
+            <div className="aspect-[16/9] rounded mb-2 relative overflow-hidden"
+              style={{
+                background:
+                  "radial-gradient(ellipse at 30% 30%, rgba(52,211,153,0.5), transparent 60%), linear-gradient(135deg, #047857 0%, #064e3b 50%, #022c22 100%)",
+              }}
+            >
+              <div className="absolute bottom-1 left-1.5 text-[5px] font-mono text-emerald-100/80 tracking-widest">
+                Mar 12, 2026
+              </div>
+            </div>
+            <div className="space-y-1">
+              {[100, 92, 86, 78, 92].map((w, i) => (
+                <div
+                  key={i}
+                  className="h-[3px] rounded-full bg-slate-900/15"
+                  style={{ width: `${w}%` }}
+                />
+              ))}
+            </div>
+            <div className="mt-2 flex items-center justify-between text-[5px] font-mono text-slate-900/50 tracking-widest">
+              <span>page 1 of 3</span>
+              <span>1,247 words</span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+      {/* Floating chips */}
+      <FloatingChip
+        delay={0.4}
+        className="border-emerald-400/40 bg-emerald-400/10 text-emerald-200"
+        style={{ top: "14%", right: "8%" }}
+      >
+        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        SEO 94
+      </FloatingChip>
+      <FloatingChip
+        delay={0.6}
+        className="border-white/20 bg-white/5 text-ink-muted"
+        style={{ bottom: "14%", left: "10%" }}
+      >
+        4 min read
+      </FloatingChip>
     </div>
   );
 }
