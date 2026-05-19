@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import Image from "next/image";
 import type { ReactNode } from "react";
 
 const ITEMS: {
@@ -80,7 +81,8 @@ export function WhatItBuilds() {
                 delay: i * 0.07,
                 ease: [0.2, 0.7, 0.2, 1],
               }}
-              className={`group relative border border-line rounded-3xl bg-panel/60 hover:bg-panel hover:border-line-bright transition-all duration-500 p-7 overflow-hidden ${it.span ?? ""}`}
+              whileHover={{ y: -4 }}
+              className={`group relative border border-line rounded-3xl bg-panel/60 hover:bg-panel hover:border-line-bright transition-[background-color,border-color] duration-500 p-7 overflow-hidden ${it.span ?? ""}`}
             >
               <div className="relative z-10 flex items-start justify-between mb-5">
                 <div className="size-10 rounded-xl border border-line bg-canvas/80 flex items-center justify-center text-ink-muted group-hover:text-ink group-hover:border-ink/30 transition-colors">
@@ -170,21 +172,17 @@ function WebsiteMock() {
             </div>
           </div>
         </div>
-        <div
-          className="relative"
-          style={{
-            background:
-              "linear-gradient(135deg, #d4a574 0%, #b08055 50%, #6d4a2f 100%)",
-          }}
-        >
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(ellipse at 70% 30%, rgba(255,255,255,0.15), transparent 50%), radial-gradient(ellipse at 30% 70%, rgba(0,0,0,0.4), transparent 60%)",
-            }}
+        <div className="relative overflow-hidden">
+          <Image
+            src="/mockups/salon-interior.png"
+            alt="Hair salon interior"
+            fill
+            sizes="(min-width: 1024px) 400px, 50vw"
+            className="object-cover"
+            priority={false}
           />
-          <div className="absolute bottom-2 right-2 text-[8px] font-mono text-white/60">
+          <div className="absolute inset-0 bg-gradient-to-r from-canvas/40 via-transparent to-transparent" />
+          <div className="absolute bottom-2 right-2 text-[8px] font-mono text-white/70 bg-canvas/50 backdrop-blur-sm px-2 py-0.5 rounded-full">
             01 / 04
           </div>
         </div>
@@ -212,19 +210,14 @@ function InstagramMock() {
         </div>
         <span className="text-ink-muted text-xs">···</span>
       </div>
-      <div
-        className="aspect-square relative"
-        style={{
-          background:
-            "linear-gradient(135deg, #f4cba9 0%, #d49476 35%, #8b5a3c 100%)",
-        }}
-      >
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at 70% 25%, rgba(255,240,220,0.4), transparent 50%), radial-gradient(ellipse at 20% 80%, rgba(50,30,15,0.4), transparent 60%)",
-          }}
+      <div className="aspect-square relative overflow-hidden">
+        <Image
+          src="/mockups/stylized-portrait.png"
+          alt="Stylized hair portrait"
+          fill
+          sizes="(min-width: 1024px) 320px, 50vw"
+          className="object-cover"
+          priority={false}
         />
         <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-canvas/60 backdrop-blur-sm text-[8px] tracking-widest uppercase text-white font-sans font-medium">
           March · 20% off
@@ -286,27 +279,23 @@ function AdMock() {
         </div>
         <span className="text-[9px] font-sans text-ink-muted">Sponsored</span>
       </div>
-      <div
-        className="aspect-[4/3] relative flex items-center justify-center"
-        style={{
-          background:
-            "linear-gradient(135deg, #2a4a6e 0%, #1a2a3e 50%, #0a1422 100%)",
-        }}
-      >
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(circle at 30% 30%, rgba(120,180,255,0.15), transparent 60%)",
-          }}
+      <div className="aspect-[4/3] relative overflow-hidden flex items-center justify-center">
+        <Image
+          src="/mockups/hair-closeup.png"
+          alt="Styled hair close-up"
+          fill
+          sizes="(min-width: 1024px) 320px, 50vw"
+          className="object-cover"
+          priority={false}
         />
-        <div className="relative text-center px-4">
-          <div className="font-serif text-white text-xl leading-tight italic">
+        <div className="absolute inset-0 bg-gradient-to-t from-canvas/80 via-canvas/20 to-transparent" />
+        <div className="relative text-center px-4 z-10">
+          <div className="font-serif text-white text-xl leading-tight italic drop-shadow-lg">
             Hair that
             <br />
             <span className="not-italic font-semibold">remembers you.</span>
           </div>
-          <div className="mt-2 text-[9px] tracking-widest uppercase text-blue-200/80 font-sans">
+          <div className="mt-2 text-[9px] tracking-widest uppercase text-amber-200/90 font-sans drop-shadow">
             Book this week · 20% off
           </div>
         </div>
