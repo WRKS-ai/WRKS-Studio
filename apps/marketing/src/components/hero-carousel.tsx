@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AnimatePresence,
   motion,
   useMotionValue,
   useReducedMotion,
@@ -11,11 +12,14 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 
+type Kind = "website" | "social" | "ad" | "copy" | "blog";
+
 type Card = {
-  kind: "website" | "social" | "ad" | "copy" | "blog";
+  kind: Kind;
   image?: string;
   promptLabel: string;
   prompt: string;
+  glow: string; // rgba color for active-card glow
 };
 
 const CARDS: Card[] = [
@@ -25,12 +29,14 @@ const CARDS: Card[] = [
     promptLabel: "Build my Hannah's Hair landing page",
     prompt:
       "Build a landing page for my hair salon. Booking, gallery, and pricing.",
+    glow: "rgba(251, 191, 36, 0.22)", // amber
   },
   {
     kind: "social",
     image: "/mockups/stylized-portrait.png",
     promptLabel: "Friday post about the new latte menu",
     prompt: "Schedule a Friday Instagram post about our new latte menu.",
+    glow: "rgba(244, 114, 182, 0.22)", // rose
   },
   {
     kind: "ad",
@@ -38,30 +44,33 @@ const CARDS: Card[] = [
     promptLabel: "March promo · social + banner + discount",
     prompt:
       "20% promo for March. Social post, banner on my site, discount code.",
+    glow: "rgba(251, 146, 60, 0.22)", // orange
   },
   {
     kind: "copy",
     promptLabel: "Hero copy that converts",
     prompt: "Write hero copy for a returning-customers discount offer.",
+    glow: "rgba(167, 139, 250, 0.22)", // violet
   },
   {
     kind: "blog",
     image: "/mockups/salon-mirror.png",
     promptLabel: "Blog post · trimming layered hair",
     prompt: "Draft an SEO blog post on how often to trim layered hair.",
+    glow: "rgba(52, 211, 153, 0.22)", // emerald
   },
 ];
 
 /* visual offsets per relative slot ( -2 … 2 ) */
 const SLOT = [
-  { rotY: 38, x: -380, z: -200, opacity: 0.28, scale: 0.82, blur: 4 }, // -2
-  { rotY: 22, x: -210, z: -90, opacity: 0.7, scale: 0.92, blur: 2 }, // -1
-  { rotY: 0, x: 0, z: 0, opacity: 1, scale: 1.05, blur: 0 }, // 0 center
-  { rotY: -22, x: 210, z: -90, opacity: 0.7, scale: 0.92, blur: 2 }, // 1
-  { rotY: -38, x: 380, z: -200, opacity: 0.28, scale: 0.82, blur: 4 }, // 2
+  { rotY: 42, x: -490, z: -240, opacity: 0.22, scale: 0.78, blur: 5 }, // -2
+  { rotY: 24, x: -280, z: -110, opacity: 0.65, scale: 0.9, blur: 2 }, // -1
+  { rotY: 0, x: 0, z: 0, opacity: 1, scale: 1.06, blur: 0 }, // 0 center
+  { rotY: -24, x: 280, z: -110, opacity: 0.65, scale: 0.9, blur: 2 }, // 1
+  { rotY: -42, x: 490, z: -240, opacity: 0.22, scale: 0.78, blur: 5 }, // 2
 ];
 
-const AUTO_MS = 4200;
+const AUTO_MS = 5200;
 
 export function HeroCarousel() {
   const [active, setActive] = useState(0);
@@ -120,26 +129,40 @@ export function HeroCarousel() {
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Center spotlight glow behind the featured card */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -z-10"
-        aria-hidden
-      >
-        <div className="size-[520px] sm:size-[720px] rounded-full bg-gradient-to-br from-white/[0.10] via-amber-200/[0.04] to-transparent blur-[140px]" />
-      </div>
+      {/* Per-card colored glow — fades between active card colors */}
+      <AnimatePresence mode="sync">
+        <motion.div
+          key={CARDS[active]!.kind}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.2, ease: "easeInOut" }}
+          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -z-10"
+          aria-hidden
+        >
+          <div
+            className="size-[600px] sm:size-[820px] rounded-full"
+            style={{
+              background: `radial-gradient(circle, ${CARDS[active]!.glow}, transparent 65%)`,
+              filter: "blur(110px)",
+            }}
+          />
+        </motion.div>
+      </AnimatePresence>
+      {/* Inner breathing white glow */}
       <motion.div
         className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -z-10"
         aria-hidden
-        animate={{ opacity: [0.6, 1, 0.6] }}
+        animate={{ opacity: [0.5, 0.9, 0.5] }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
       >
-        <div className="size-[280px] sm:size-[380px] rounded-full bg-white/[0.08] blur-[80px]" />
+        <div className="size-[320px] sm:size-[440px] rounded-full bg-white/[0.06] blur-[80px]" />
       </motion.div>
 
       <motion.div
-        className="relative h-[400px] sm:h-[460px] lg:h-[520px] flex items-center justify-center"
+        className="relative h-[440px] sm:h-[500px] lg:h-[580px] flex items-center justify-center"
         style={{
-          perspective: "1600px",
+          perspective: "1800px",
           rotateY: tiltY,
           rotateX: tiltX,
           transformStyle: "preserve-3d",
@@ -167,11 +190,11 @@ export function HeroCarousel() {
               }}
               transition={{
                 type: "spring",
-                stiffness: 140,
-                damping: 22,
-                mass: 0.9,
+                stiffness: 95,
+                damping: 24,
+                mass: 1.1,
               }}
-              className="absolute w-[260px] sm:w-[300px] lg:w-[340px] aspect-[3/4] cursor-pointer select-none"
+              className="absolute w-[320px] sm:w-[360px] lg:w-[420px] aspect-[3/4] cursor-pointer select-none"
               style={{ transformStyle: "preserve-3d", zIndex: 5 - Math.abs(slot) }}
             >
               <CarouselCard card={card} featured={isCenter} />
@@ -232,12 +255,24 @@ function CtrlButton({
 
 function CarouselCard({ card, featured }: { card: Card; featured: boolean }) {
   return (
-    <div className="relative size-full rounded-3xl border border-line-bright bg-panel overflow-hidden shadow-2xl shadow-black/70">
+    <div
+      className="relative size-full rounded-3xl border border-line-bright bg-panel overflow-hidden shadow-2xl shadow-black/70 transition-shadow duration-700"
+      style={
+        featured
+          ? {
+              boxShadow: `0 30px 80px -20px ${card.glow.replace("0.22", "0.55")}, 0 0 0 1px ${card.glow}, 0 25px 50px -12px rgba(0,0,0,0.7)`,
+            }
+          : undefined
+      }
+    >
       <CardVisual card={card} />
 
-      {/* Top status pill */}
+      {/* Top status pill — color matches card kind */}
       <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-canvas/60 backdrop-blur-md px-2.5 py-1">
-        <span className="size-1 rounded-full bg-emerald-400 animate-pulse" />
+        <span
+          className="size-1 rounded-full animate-pulse"
+          style={{ background: card.glow.replace("0.22", "1") }}
+        />
         <span className="text-[9px] tracking-[0.18em] uppercase text-white/90 font-sans font-medium">
           {kindLabel(card.kind)}
         </span>
