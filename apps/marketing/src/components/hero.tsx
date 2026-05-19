@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { HeroCarousel } from "./hero-carousel";
 import { MeshGradient } from "./mesh-gradient";
+import { StarField } from "./star-field";
 
 const LINE_ONE = ["Tell", "it."];
 const LINE_TWO = ["It", "WRKS."];
@@ -15,6 +16,7 @@ const wordVariants = {
 export function Hero() {
   return (
     <section className="relative pt-28 pb-16 sm:pt-32 sm:pb-20 px-6 lg:px-8 overflow-hidden">
+      <StarField />
       <MeshGradient />
 
       <div className="max-w-screen-xl mx-auto relative flex flex-col items-center text-center">
@@ -30,7 +32,7 @@ export function Hero() {
           </span>
         </motion.div>
 
-        <h1 className="font-serif text-5xl sm:text-6xl lg:text-[5.75rem] leading-[0.96] tracking-tight">
+        <h1 className="font-serif text-6xl sm:text-7xl lg:text-[7rem] leading-[0.92] tracking-tight max-w-5xl">
           <span className="block">
             {LINE_ONE.map((word, i) => (
               <motion.span
@@ -48,24 +50,24 @@ export function Hero() {
                 {word}
               </motion.span>
             ))}
-            <span className="inline-block italic text-ink-muted">
-              {LINE_TWO.map((word, i) => (
-                <motion.span
-                  key={word + i}
-                  variants={wordVariants}
-                  initial="hidden"
-                  animate="visible"
-                  transition={{
-                    delay: 0.4 + i * 0.08,
-                    duration: 0.7,
-                    ease: [0.2, 0.7, 0.2, 1],
-                  }}
-                  className="inline-block mr-3"
-                >
-                  {word}
-                </motion.span>
-              ))}
-            </span>
+          </span>
+          <span className="block italic text-ink-muted">
+            {LINE_TWO.map((word, i) => (
+              <motion.span
+                key={word + i}
+                variants={wordVariants}
+                initial="hidden"
+                animate="visible"
+                transition={{
+                  delay: 0.42 + i * 0.08,
+                  duration: 0.7,
+                  ease: [0.2, 0.7, 0.2, 1],
+                }}
+                className="inline-block mr-3"
+              >
+                {word}
+              </motion.span>
+            ))}
           </span>
         </h1>
 

@@ -1,8 +1,14 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import {
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "motion/react";
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 
 type Card = {
@@ -61,6 +67,18 @@ export function HeroCarousel() {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const reduced = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const tiltY = useSpring(useTransform(mx, [-1, 1], [-6, 6]), {
+    stiffness: 80,
+    damping: 22,
+  });
+  const tiltX = useSpring(useTransform(my, [-1, 1], [4, -4]), {
+    stiffness: 80,
+    damping: 22,
+  });
 
   const advance = useCallback((dir: 1 | -1) => {
     setActive((a) => (a + dir + CARDS.length) % CARDS.length);
@@ -72,6 +90,21 @@ export function HeroCarousel() {
     return () => clearInterval(id);
   }, [advance, paused, reduced]);
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width) * 2 - 1;
+    const y = ((e.clientY - r.top) / r.height) * 2 - 1;
+    mx.set(x);
+    my.set(y);
+  };
+
+  const handleMouseLeave = () => {
+    setPaused(false);
+    mx.set(0);
+    my.set(0);
+  };
+
   const slotFor = (i: number) => {
     let diff = i - active;
     if (diff < -2) diff += CARDS.length;
@@ -81,21 +114,36 @@ export function HeroCarousel() {
 
   return (
     <div
+      ref={ref}
       className="relative w-full"
       onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
-      {/* Center glow behind the cards */}
+      {/* Center spotlight glow behind the featured card */}
       <div
         className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -z-10"
         aria-hidden
       >
-        <div className="size-[460px] sm:size-[640px] rounded-full bg-white/[0.06] blur-[120px]" />
+        <div className="size-[520px] sm:size-[720px] rounded-full bg-gradient-to-br from-white/[0.10] via-amber-200/[0.04] to-transparent blur-[140px]" />
       </div>
+      <motion.div
+        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -z-10"
+        aria-hidden
+        animate={{ opacity: [0.6, 1, 0.6] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <div className="size-[280px] sm:size-[380px] rounded-full bg-white/[0.08] blur-[80px]" />
+      </motion.div>
 
-      <div
+      <motion.div
         className="relative h-[400px] sm:h-[460px] lg:h-[520px] flex items-center justify-center"
-        style={{ perspective: "1600px" }}
+        style={{
+          perspective: "1600px",
+          rotateY: tiltY,
+          rotateX: tiltX,
+          transformStyle: "preserve-3d",
+        }}
       >
         {CARDS.map((card, i) => {
           const slot = slotFor(i);
@@ -130,7 +178,7 @@ export function HeroCarousel() {
             </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* Controls */}
       <div className="mt-2 flex items-center justify-center gap-4">
@@ -198,25 +246,37 @@ function CarouselCard({ card, featured }: { card: Card; featured: boolean }) {
       {/* Featured overlay */}
       {featured && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5, ease: "easeOut" }}
-          className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-canvas via-canvas/85 to-transparent"
+          transition={{ delay: 0.25, duration: 0.5, ease: "easeOut" }}
+          className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-canvas via-canvas/90 to-transparent"
         >
-          <div className="text-[9px] tracking-[0.22em] uppercase text-ink-muted font-sans mb-1.5">
-            You said
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[9px] tracking-[0.22em] uppercase text-ink-muted font-sans flex items-center gap-1.5">
+              <span className="size-1 rounded-full bg-emerald-400 animate-pulse" />
+              You said
+            </div>
+            <span className="text-[9px] tracking-[0.18em] uppercase text-emerald-300/90 font-mono">
+              4.2s
+            </span>
           </div>
-          <p className="font-serif italic text-ink text-sm leading-snug mb-3 line-clamp-2">
+          <p className="font-serif italic text-ink text-[15px] leading-snug mb-3.5 line-clamp-2">
             &ldquo;{card.prompt}&rdquo;
           </p>
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] tracking-[0.18em] uppercase text-emerald-400/90 font-sans font-medium flex items-center gap-1.5">
-              <span className="size-1 rounded-full bg-emerald-400" />
-              Shipped in 4.2s
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[10px] tracking-[0.18em] uppercase text-emerald-400/90 font-sans font-medium flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-emerald-400" />
+              Shipped
             </span>
-            <button className="text-[10px] font-sans font-medium text-ink-muted hover:text-ink transition-colors">
-              Watch →
-            </button>
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 400, damping: 22 }}
+              className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-ink text-canvas text-[11px] font-sans font-semibold hover:opacity-90 transition-opacity"
+            >
+              Watch it build
+              <span aria-hidden>→</span>
+            </motion.button>
           </div>
         </motion.div>
       )}
