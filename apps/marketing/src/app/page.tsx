@@ -1,4 +1,5 @@
 import { Architecture } from "@/components/architecture";
+import { Details } from "@/components/details";
 import { FAQ } from "@/components/faq";
 import { Hero } from "@/components/hero";
 import { HowItWorks } from "@/components/how-it-works";
@@ -18,6 +19,7 @@ export default function Home() {
       <Hero />
       <TrustStrip />
       <HowItWorks />
+      <Details />
       <WhatItBuilds />
       <Architecture />
       <Pricing />

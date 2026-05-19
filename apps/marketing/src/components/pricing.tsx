@@ -37,7 +37,7 @@ export function Pricing() {
   return (
     <section
       id="pricing"
-      className="py-28 px-6 lg:px-8 border-t border-line"
+      className="py-32 px-6 lg:px-8 border-t border-line"
     >
       <div className="max-w-screen-xl mx-auto">
         <motion.p
@@ -54,7 +54,7 @@ export function Pricing() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.7, ease: "easeOut" }}
-          className="font-serif text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tight max-w-3xl"
+          className="font-serif text-5xl sm:text-6xl lg:text-7xl leading-[1.05] tracking-tight max-w-3xl"
         >
           Flat per business.
           <br />

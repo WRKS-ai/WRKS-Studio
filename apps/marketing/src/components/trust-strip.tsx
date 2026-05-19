@@ -15,7 +15,7 @@ const TYPES = [
 
 export function TrustStrip() {
   return (
-    <section className="py-14 px-6 lg:px-8 border-t border-line">
+    <section className="py-20 px-6 lg:px-8 border-t border-line">
       <div className="max-w-screen-xl mx-auto">
         <motion.p
           initial={{ opacity: 0 }}

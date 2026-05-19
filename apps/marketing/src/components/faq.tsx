@@ -32,7 +32,7 @@ const QUESTIONS = [
 
 export function FAQ() {
   return (
-    <section className="py-28 px-6 lg:px-8 border-t border-line">
+    <section className="py-32 px-6 lg:px-8 border-t border-line">
       <div className="max-w-3xl mx-auto">
         <motion.p
           initial={{ opacity: 0, y: 8 }}

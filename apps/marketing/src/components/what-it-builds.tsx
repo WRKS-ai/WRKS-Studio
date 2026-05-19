@@ -46,7 +46,7 @@ const ITEMS: {
 
 export function WhatItBuilds() {
   return (
-    <section className="py-28 px-6 lg:px-8 border-t border-line relative overflow-hidden">
+    <section className="py-32 px-6 lg:px-8 border-t border-line relative overflow-hidden">
       <div className="max-w-screen-xl mx-auto relative">
         <motion.p
           initial={{ opacity: 0, y: 8 }}
@@ -62,7 +62,7 @@ export function WhatItBuilds() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.7, ease: "easeOut" }}
-          className="font-serif text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tight max-w-3xl"
+          className="font-serif text-5xl sm:text-6xl lg:text-7xl leading-[1.05] tracking-tight max-w-3xl"
         >
           Five deliverables.
           <br />
