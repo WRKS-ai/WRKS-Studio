@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimatePresence, motion, useScroll } from "motion/react";
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 
@@ -368,27 +367,32 @@ function StagePlan() {
     label: string;
     format: string;
     accent: "rose" | "sky" | "violet";
-    image?: string;
-    swatch?: string;
+    swatch: string;
+    icon: "instagram" | "browser" | "tag";
   }[] = [
     {
       label: "Instagram post",
       format: "1080 × 1080 · feed",
       accent: "rose",
-      image: "/mockups/stylized-portrait.png",
+      swatch:
+        "linear-gradient(135deg, #f472b6 0%, #d946ef 45%, #f59e0b 100%)",
+      icon: "instagram",
     },
     {
       label: "Website banner",
       format: "Live deploy · hannahshair.com",
       accent: "sky",
-      image: "/mockups/salon-interior.png",
+      swatch:
+        "linear-gradient(135deg, #38bdf8 0%, #2563eb 50%, #1e3a8a 100%)",
+      icon: "browser",
     },
     {
       label: "Discount code",
       format: "HANNAH20 · 20% off · returning",
       accent: "violet",
       swatch:
-        "linear-gradient(135deg, #8b5cf6 0%, #4338ca 50%, #1e1b4b 100%)",
+        "linear-gradient(135deg, #a78bfa 0%, #6d28d9 50%, #1e1b4b 100%)",
+      icon: "tag",
     },
   ];
   return (
@@ -435,20 +439,12 @@ function StagePlan() {
             >
               {/* Thumbnail */}
               <div className="relative size-12 rounded-lg overflow-hidden border border-line shrink-0">
-                {it.image ? (
-                  <Image
-                    src={it.image}
-                    alt=""
-                    fill
-                    sizes="48px"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div
-                    className="absolute inset-0"
-                    style={{ background: it.swatch }}
-                  />
-                )}
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ background: it.swatch }}
+                >
+                  <ThumbIcon kind={it.icon} />
+                </div>
                 <div className="absolute bottom-0.5 right-0.5 size-1.5 rounded-full bg-emerald-400 ring-1 ring-canvas" />
               </div>
               <div className="flex-1 min-w-0">
@@ -514,28 +510,89 @@ function StagePlan() {
   );
 }
 
+function ThumbIcon({
+  kind,
+}: {
+  kind: "instagram" | "browser" | "tag";
+}) {
+  if (kind === "instagram") {
+    return (
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        className="text-white/90"
+      >
+        <rect x="3" y="3" width="18" height="18" rx="5" />
+        <circle cx="12" cy="12" r="4" />
+        <circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (kind === "browser") {
+    return (
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        className="text-white/90"
+      >
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M3 9h18" />
+        <circle cx="6.5" cy="6.5" r="0.6" fill="currentColor" />
+        <circle cx="8.8" cy="6.5" r="0.6" fill="currentColor" />
+      </svg>
+    );
+  }
+  // tag
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      className="text-white/90"
+    >
+      <path d="M20 12l-7.5 7.5a1.5 1.5 0 0 1-2.1 0L3 12V3h9l8 8a1.5 1.5 0 0 1 0 2z" />
+      <circle cx="7" cy="7" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
 function StageShip() {
   const outs: {
     label: string;
     status: string;
     url: string;
     metric: string;
-    image?: string;
-    swatch?: string;
+    swatch: string;
+    icon: "instagram" | "browser" | "tag";
   }[] = [
     {
       label: "Instagram",
       status: "Posted",
       url: "instagram.com/p/Czxk1Lq",
       metric: "127 reach",
-      image: "/mockups/stylized-portrait.png",
+      swatch:
+        "linear-gradient(135deg, #f472b6 0%, #d946ef 45%, #f59e0b 100%)",
+      icon: "instagram",
     },
     {
       label: "Website banner",
       status: "Deployed",
       url: "hannahshair.com",
       metric: "live · v.42",
-      image: "/mockups/salon-interior.png",
+      swatch:
+        "linear-gradient(135deg, #38bdf8 0%, #2563eb 50%, #1e3a8a 100%)",
+      icon: "browser",
     },
     {
       label: "Discount code",
@@ -543,7 +600,8 @@ function StageShip() {
       url: "HANNAH20",
       metric: "0 redemptions",
       swatch:
-        "linear-gradient(135deg, #8b5cf6 0%, #4338ca 50%, #1e1b4b 100%)",
+        "linear-gradient(135deg, #a78bfa 0%, #6d28d9 50%, #1e1b4b 100%)",
+      icon: "tag",
     },
   ];
   return (
@@ -590,22 +648,12 @@ function StageShip() {
             >
               {/* Thumbnail */}
               <div className="relative size-12 rounded-lg overflow-hidden border border-line shrink-0">
-                {o.image ? (
-                  <Image
-                    src={o.image}
-                    alt=""
-                    fill
-                    sizes="48px"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div
-                    className="absolute inset-0 flex items-center justify-center font-mono text-[10px] text-white"
-                    style={{ background: o.swatch }}
-                  >
-                    HANNAH20
-                  </div>
-                )}
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ background: o.swatch }}
+                >
+                  <ThumbIcon kind={o.icon} />
+                </div>
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}

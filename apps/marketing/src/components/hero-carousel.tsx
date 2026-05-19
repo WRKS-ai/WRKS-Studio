@@ -8,8 +8,14 @@ import {
   useSpring,
   useTransform,
 } from "motion/react";
-import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  AdCanvas,
+  BlogCanvas,
+  CopyCanvas,
+  SocialCanvas,
+  WebsiteCanvas,
+} from "./canvas-mockups";
 
 type Kind = "website" | "social" | "ad" | "copy" | "blog";
 
@@ -284,52 +290,20 @@ function kindLabel(k: Card["kind"]) {
 }
 
 function CardVisual({ card }: { card: Card }) {
-  if (card.image) {
-    return (
-      <>
-        <Image
-          src={card.image}
-          alt={card.promptLabel}
-          fill
-          sizes="340px"
-          className="object-cover"
-          priority
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-canvas/70" />
-      </>
-    );
-  }
-  // Copy card — no image, render variant stack
+  const M = MOCK_FOR_KIND[card.kind];
   return (
-    <div className="size-full bg-gradient-to-br from-panel via-panel to-canvas p-5 flex flex-col gap-3 justify-center">
-      <div className="border border-line rounded-2xl bg-canvas p-4">
-        <div className="text-[8px] tracking-[0.22em] uppercase text-ink-dim font-sans mb-1.5">
-          Variant A
-        </div>
-        <div className="font-serif text-base leading-tight tracking-tight text-ink">
-          The salon
-          <br />
-          <span className="italic text-ink-muted">that knows you</span>
-        </div>
-        <div className="mt-2 text-[9px] font-mono text-emerald-400/90 flex items-center gap-1">
-          <span className="size-1 rounded-full bg-emerald-400" />
-          12.4% CVR
-        </div>
-      </div>
-      <div className="border border-line rounded-2xl bg-canvas/60 p-4 opacity-60">
-        <div className="text-[8px] tracking-[0.22em] uppercase text-ink-dim font-sans mb-1.5">
-          Variant B
-        </div>
-        <div className="font-serif text-base leading-tight tracking-tight text-ink-muted">
-          Premium cuts
-          <br />
-          <span className="italic">on your schedule</span>
-        </div>
-        <div className="mt-2 text-[9px] font-mono text-ink-dim flex items-center gap-1">
-          <span className="size-1 rounded-full bg-ink-dim" />
-          7.1% CVR
-        </div>
+    <div className="absolute inset-0 p-3 flex items-center justify-center bg-gradient-to-br from-panel via-panel to-canvas">
+      <div className="w-full">
+        <M />
       </div>
     </div>
   );
 }
+
+const MOCK_FOR_KIND: Record<Kind, React.ComponentType> = {
+  website: WebsiteCanvas,
+  social: SocialCanvas,
+  ad: AdCanvas,
+  copy: CopyCanvas,
+  blog: BlogCanvas,
+};
