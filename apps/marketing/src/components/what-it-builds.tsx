@@ -314,24 +314,48 @@ function AdMock() {
 
 function CopyMock() {
   return (
-    <div className="relative rounded-2xl border border-line-bright bg-canvas overflow-hidden shadow-xl shadow-black/40 p-5">
-      <div className="text-[8px] tracking-[0.22em] uppercase text-ink-dim font-sans mb-2">
-        Hero · variant A
-      </div>
-      <div className="font-serif text-base leading-tight tracking-tight text-ink mb-3">
-        The salon
-        <br />
-        <span className="italic text-ink-muted">that knows you</span>
-      </div>
-      <div className="text-[10px] text-ink-muted font-sans leading-snug mb-3">
-        We remember your style, your time slots, and the exact shade you like.
-      </div>
-      <div className="flex gap-2">
-        <div className="h-5 px-2 rounded-full bg-ink text-canvas text-[8px] font-sans font-medium flex items-center">
+    <div className="relative rounded-2xl border border-line-bright bg-canvas overflow-hidden shadow-xl shadow-black/40">
+      {/* Variant A — current */}
+      <div className="p-5 border-b border-line">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[8px] tracking-[0.22em] uppercase text-ink-dim font-sans">
+            Hero · variant A
+          </div>
+          <div className="text-[8px] font-mono text-emerald-400/90 flex items-center gap-1">
+            <span className="size-1 rounded-full bg-emerald-400" />
+            12.4% CVR
+          </div>
+        </div>
+        <div className="font-serif text-base leading-tight tracking-tight text-ink mb-2">
+          The salon
+          <br />
+          <span className="italic text-ink-muted">that knows you</span>
+        </div>
+        <div className="text-[10px] text-ink-muted font-sans leading-snug mb-3">
+          We remember your style, your time slots, and the exact shade.
+        </div>
+        <div className="h-5 px-2.5 rounded-full bg-ink text-canvas text-[8px] font-sans font-medium inline-flex items-center">
           Book in 30s
         </div>
-        <div className="text-[8px] font-mono text-ink-dim self-center">
-          → tested vs 7 variants
+      </div>
+      {/* Variant B — losing */}
+      <div className="p-5 opacity-60">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[8px] tracking-[0.22em] uppercase text-ink-dim font-sans">
+            Hero · variant B
+          </div>
+          <div className="text-[8px] font-mono text-ink-dim flex items-center gap-1">
+            <span className="size-1 rounded-full bg-ink-dim" />
+            7.1% CVR
+          </div>
+        </div>
+        <div className="font-serif text-base leading-tight tracking-tight text-ink-muted mb-2">
+          Premium cuts
+          <br />
+          <span className="italic">on your schedule</span>
+        </div>
+        <div className="text-[10px] text-ink-dim font-sans leading-snug">
+          Modern styling, vintage craftsmanship, walk-in friendly.
         </div>
       </div>
     </div>
@@ -340,33 +364,46 @@ function CopyMock() {
 
 function BlogMock() {
   return (
-    <div className="relative rounded-2xl border border-line-bright bg-canvas overflow-hidden shadow-xl shadow-black/40 p-5">
-      <div className="flex items-center gap-1.5 mb-3">
-        <span className="text-[8px] tracking-[0.22em] uppercase text-ink-dim font-sans">
-          Mar 12 · 4 min
-        </span>
-        <span className="text-[8px] text-ink-dim">·</span>
-        <span className="text-[8px] tracking-[0.22em] uppercase text-emerald-400/80 font-sans">
-          SEO score 94
-        </span>
-      </div>
-      <div className="font-serif text-base leading-tight tracking-tight text-ink mb-2">
-        How often should you trim layered hair?
-      </div>
-      <div className="space-y-1.5 mb-3">
-        <div className="h-1 w-full rounded-full bg-ink-muted/25" />
-        <div className="h-1 w-[88%] rounded-full bg-ink-muted/25" />
-        <div className="h-1 w-[72%] rounded-full bg-ink-muted/25" />
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {["hair-care", "layered-cut", "hannahshair"].map((t) => (
-          <span
-            key={t}
-            className="text-[8px] font-mono px-2 py-0.5 rounded-full border border-line text-ink-muted"
-          >
-            #{t}
+    <div className="relative rounded-2xl border border-line-bright bg-canvas overflow-hidden shadow-xl shadow-black/40">
+      <div className="relative aspect-[16/9] overflow-hidden">
+        <Image
+          src="/mockups/salon-mirror.png"
+          alt="Hair salon"
+          fill
+          sizes="(min-width: 1024px) 320px, 50vw"
+          className="object-cover"
+          priority={false}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-canvas/30 via-transparent to-canvas/80" />
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+          <span className="text-[8px] tracking-[0.22em] uppercase text-white/80 font-sans bg-canvas/60 backdrop-blur-sm px-2 py-0.5 rounded-full">
+            Mar 12 · 4 min
           </span>
-        ))}
+          <span className="text-[8px] tracking-[0.22em] uppercase text-emerald-300 font-sans bg-canvas/60 backdrop-blur-sm px-2 py-0.5 rounded-full">
+            SEO 94
+          </span>
+        </div>
+      </div>
+      <div className="p-5">
+        <div className="font-serif text-[15px] leading-tight tracking-tight text-ink mb-2.5">
+          How often should you trim layered hair?
+        </div>
+        <div className="space-y-1.5 mb-3">
+          <div className="h-1 w-full rounded-full bg-ink-muted/25" />
+          <div className="h-1 w-[92%] rounded-full bg-ink-muted/25" />
+          <div className="h-1 w-[78%] rounded-full bg-ink-muted/25" />
+          <div className="h-1 w-[58%] rounded-full bg-ink-muted/25" />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {["hair-care", "layered-cut", "salon-tips"].map((t) => (
+            <span
+              key={t}
+              className="text-[8px] font-mono px-2 py-0.5 rounded-full border border-line text-ink-muted"
+            >
+              #{t}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );
