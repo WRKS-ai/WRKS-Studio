@@ -9,13 +9,7 @@ import {
   useTransform,
 } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  AdCanvas,
-  BlogCanvas,
-  CopyCanvas,
-  SocialCanvas,
-  WebsiteCanvas,
-} from "./canvas-mockups";
+import { HeroPreview } from "./hero-card-mockups";
 
 type Kind = "website" | "social" | "ad" | "copy" | "blog";
 
@@ -290,20 +284,5 @@ function kindLabel(k: Card["kind"]) {
 }
 
 function CardVisual({ card }: { card: Card }) {
-  const M = MOCK_FOR_KIND[card.kind];
-  return (
-    <div className="absolute inset-0 p-3 flex items-center justify-center bg-gradient-to-br from-panel via-panel to-canvas">
-      <div className="w-full">
-        <M />
-      </div>
-    </div>
-  );
+  return <HeroPreview kind={card.kind} />;
 }
-
-const MOCK_FOR_KIND: Record<Kind, React.ComponentType> = {
-  website: WebsiteCanvas,
-  social: SocialCanvas,
-  ad: AdCanvas,
-  copy: CopyCanvas,
-  blog: BlogCanvas,
-};
