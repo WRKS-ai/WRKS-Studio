@@ -197,7 +197,7 @@ export function WebsiteFunnel() {
   })();
 
   return (
-    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
+    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
       <div className="absolute inset-0 pointer-events-none" style={{
         background: "radial-gradient(ellipse at 30% 30%, rgba(56,189,248,0.16), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(99,102,241,0.12), transparent 60%)",
       }}/>
@@ -353,7 +353,7 @@ export function SocialRadar() {
   })();
 
   return (
-    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
+    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
       <div className="absolute inset-0 pointer-events-none" style={{
         background: "radial-gradient(ellipse at 30% 30%, rgba(244,114,182,0.18), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(251,146,60,0.12), transparent 60%)",
       }}/>
@@ -534,7 +534,7 @@ export function AdTarget() {
   ];
 
   return (
-    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
+    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
       <div className="absolute inset-0 pointer-events-none" style={{
         background: "radial-gradient(ellipse at 30% 30%, rgba(251,191,36,0.18), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(251,146,60,0.12), transparent 60%)",
       }}/>
@@ -668,7 +668,7 @@ export function CopyLadder() {
   const promoted = step === "show-A-final";
 
   return (
-    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
+    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
       <div className="absolute inset-0 pointer-events-none" style={{
         background: "radial-gradient(ellipse at 30% 30%, rgba(167,139,250,0.18), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(129,140,248,0.12), transparent 60%)",
       }}/>
@@ -807,7 +807,7 @@ export function BlogSpread() {
   ];
 
   return (
-    <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
+    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
       <div className="absolute inset-0 pointer-events-none" style={{
         background: "radial-gradient(ellipse at 25% 25%, rgba(52,211,153,0.18), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(20,184,166,0.12), transparent 60%)",
       }}/>
