@@ -303,7 +303,7 @@ export function WebsiteFunnel() {
  * 2. Social — Nova composing a post
  * ============================================================ */
 
-type SStep = "idle" | "open-composer" | "to-caption" | "typing" | "to-platforms" | "scheduled";
+type SStep = "idle" | "to-caption" | "typing" | "to-publish" | "scheduled";
 
 const S_CAPTION = "New looks this season.";
 
@@ -317,21 +317,19 @@ export function SocialRadar() {
       while (!cancelled) {
         setStep("idle"); setTyped(""); await wait(800);
         if (cancelled) return;
-        setStep("open-composer"); await wait(800);
-        if (cancelled) return;
-        setStep("to-caption"); await wait(600);
+        setStep("to-caption"); await wait(700);
         if (cancelled) return;
         setStep("typing");
         for (let i = 0; i <= S_CAPTION.length; i++) {
           if (cancelled) return;
           setTyped(S_CAPTION.slice(0, i));
-          await wait(60);
+          await wait(55);
         }
-        await wait(400);
+        await wait(500);
         if (cancelled) return;
-        setStep("to-platforms"); await wait(800);
+        setStep("to-publish"); await wait(700);
         if (cancelled) return;
-        setStep("scheduled"); await wait(2200);
+        setStep("scheduled"); await wait(2400);
         if (cancelled) return;
       }
     };
@@ -339,126 +337,139 @@ export function SocialRadar() {
     return () => { cancelled = true; };
   }, []);
 
-  const composerOn = step !== "idle";
   const captionHover = step === "to-caption" || step === "typing";
-  const platformsHover = step === "to-platforms" || step === "scheduled";
+  const publishHover = step === "to-publish";
   const scheduled = step === "scheduled";
+  const hasText = step === "typing" || step === "to-publish" || step === "scheduled";
 
   const cursor = (() => {
     switch (step) {
-      case "idle": return { left: "80%", top: "78%" };
-      case "open-composer": return { left: "30%", top: "44%" };
+      case "idle": return { left: "82%", top: "84%" };
       case "to-caption":
-      case "typing": return { left: "62%", top: "58%" };
-      case "to-platforms":
-      case "scheduled": return { left: "55%", top: "82%" };
+      case "typing": return { left: "42%", top: "62%" };
+      case "to-publish":
+      case "scheduled": return { left: "70%", top: "82%" };
     }
   })();
 
   return (
     <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-line-bright bg-canvas">
       <div className="absolute inset-0 pointer-events-none" style={{
-        background: "radial-gradient(ellipse at 25% 25%, rgba(244,114,182,0.18), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(251,146,60,0.12), transparent 60%)",
+        background: "radial-gradient(ellipse at 30% 30%, rgba(244,114,182,0.18), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(251,146,60,0.12), transparent 60%)",
       }}/>
       <Toolbar
-        filename="Schedule / Friday · 7 Mar"
+        filename="Compose / Instagram"
         rightColor="rose"
-        right={<>March 2026 <span className="size-3.5 rounded border border-rose-400/40 flex items-center justify-center text-[9px] leading-none">›</span></>}
+        right={<>Fri · 9:00 am</>}
       />
-      {/* Calendar mini in left sidebar */}
-      <div className="absolute top-8 bottom-0 left-0 w-[32%] border-r border-line bg-panel/30 p-2">
-        <div className="text-[8px] tracking-[0.2em] uppercase text-ink-dim font-sans mb-1.5 px-1">This week</div>
-        <div className="grid grid-cols-7 gap-0.5">
-          {["M","T","W","T","F","S","S"].map((d, i) => (
-            <div key={i} className="text-center text-[6px] font-mono text-ink-dim">{d}</div>
-          ))}
-          {[3,4,5,6,7,8,9].map((d, i) => {
-            const isFri = d === 7;
-            const isSel = isFri && composerOn;
-            return (
-              <div key={d} className={`relative aspect-square rounded-sm flex items-center justify-center text-[7px] font-mono ${
-                isSel ? "bg-rose-400/20 text-rose-200 ring-1 ring-rose-400/50" : i === 3 ? "bg-emerald-400/15 text-emerald-300" : "text-ink-muted"
-              }`}>{d}</div>
-            );
-          })}
-        </div>
-        <div className="mt-2 space-y-1">
-          {[
-            { d: "Thu 6", t: "Salon FAQ", tone: "emerald" },
-            { d: "Fri 7", t: "March promo", tone: composerOn ? "rose" : "muted" },
-            { d: "Sat 8", t: "—", tone: "muted" },
-          ].map((r, i) => (
-            <div key={i} className={`flex items-center gap-1 px-1 py-0.5 rounded text-[7px] font-mono ${
-              r.tone === "emerald" ? "text-emerald-300/80" : r.tone === "rose" ? "text-rose-200 bg-rose-400/10" : "text-ink-dim"
-            }`}>
-              <span className={`size-1 rounded-full ${r.tone === "emerald" ? "bg-emerald-400" : r.tone === "rose" ? "bg-rose-400 animate-pulse" : "bg-ink-dim"}`}/>
-              <span>{r.d}</span>
-              <span className="ml-auto truncate">{r.t}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      {/* Composer canvas */}
-      <div className="absolute top-8 bottom-0 left-[32%] right-0 p-3">
-        <motion.div initial={{ opacity: 0, scale: 0.95, y: 8 }} animate={composerOn ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.95, y: 8 }} transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
-          className="h-full rounded-md bg-canvas border border-line p-2.5 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <div className="size-4 rounded-full bg-gradient-to-br from-rose-400 via-fuchsia-500 to-amber-400 p-[1px]">
-                <div className="size-full rounded-full bg-canvas"/>
+      {/* Single centered Instagram post mockup */}
+      <div className="absolute inset-x-0 top-8 bottom-0 flex items-center justify-center p-4">
+        <div className="flex gap-3 items-stretch w-full max-w-md">
+          {/* Phone-shape post card */}
+          <div className="relative w-[58%] rounded-xl border border-line-bright bg-canvas overflow-hidden shadow-xl shadow-rose-500/10">
+            {/* Post header */}
+            <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-line">
+              <div className="size-5 rounded-full bg-gradient-to-br from-rose-400 via-fuchsia-500 to-amber-400 p-[1px]">
+                <div className="size-full rounded-full bg-canvas flex items-center justify-center text-[7px] font-sans font-semibold text-white">h</div>
               </div>
-              <span className="text-[8px] font-sans font-semibold text-white">@hannahshair</span>
+              <span className="text-[9px] font-sans font-semibold text-white">@hannahshair</span>
+              <span className="ml-auto text-ink-muted text-[9px]">···</span>
             </div>
-            <span className="text-[7px] font-mono text-ink-dim">Instagram · Post</span>
-          </div>
-          {/* Image area */}
-          <div className="relative aspect-[5/3] rounded overflow-hidden" style={{
-            background: "linear-gradient(135deg, #f472b6 0%, #d946ef 50%, #f59e0b 100%)",
-          }}>
-            <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 70% 30%, rgba(255,200,150,0.3), transparent 60%)" }}/>
-            <div className="absolute top-1.5 right-1.5 px-1 py-0.5 rounded-full bg-canvas/60 text-[6px] tracking-widest uppercase text-white font-sans">20% off</div>
-          </div>
-          {/* Caption field with hover ring */}
-          <div className="relative">
-            <motion.div initial={false} animate={{ opacity: captionHover ? 1 : 0 }} transition={{ duration: 0.25 }}
-              className="pointer-events-none absolute -inset-1 rounded border-2 border-dashed border-rose-400/70"
-              style={{ boxShadow: "0 0 0 3px rgba(244,114,182,0.08)" }}/>
-            <div className="rounded bg-panel/50 border border-line px-2 py-1.5 text-[10px] font-serif italic text-white/90 min-h-[20px]">
-              {step === "typing" || step === "to-platforms" || step === "scheduled" ? (
-                <>&ldquo;{typed || S_CAPTION}&rdquo;{step === "typing" && (
-                  <motion.span animate={{ opacity: [1,0,1] }} transition={{ duration: 0.7, repeat: Infinity }}
-                    className="inline-block w-[1.5px] h-[10px] bg-rose-300 align-middle ml-0.5"/>)}</>
-              ) : <span className="text-ink-dim">Write a caption…</span>}
+            {/* Image */}
+            <div className="relative aspect-square" style={{
+              background: "radial-gradient(ellipse at 70% 30%, rgba(255,200,150,0.35), transparent 55%), linear-gradient(135deg, #f472b6 0%, #d946ef 45%, #f59e0b 100%)",
+            }}>
+              <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 30% 80%, rgba(0,0,0,0.35), transparent 60%)" }}/>
+              <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-canvas/60 backdrop-blur text-[7px] tracking-widest uppercase text-white font-sans font-medium">
+                20% off
+              </div>
+              <div className="absolute bottom-2 left-2.5 font-serif italic text-white text-[11px] leading-tight drop-shadow">
+                New looks
+                <br />
+                this season.
+              </div>
             </div>
-          </div>
-          {/* Platform pills */}
-          <div className="relative">
-            <motion.div initial={false} animate={{ opacity: platformsHover ? 1 : 0 }} transition={{ duration: 0.25 }}
-              className="pointer-events-none absolute -inset-1 rounded border border-dashed border-rose-300/50"/>
-            <div className="flex items-center gap-1">
-              {[
-                { name: "Instagram", on: true },
-                { name: "Facebook", on: platformsHover || scheduled },
-                { name: "LinkedIn", on: scheduled },
-              ].map((p) => (
-                <span key={p.name} className={`h-3.5 px-1.5 rounded-full text-[7px] font-mono flex items-center gap-1 ${
-                  p.on ? "bg-rose-400/20 text-rose-200 border border-rose-400/40" : "border border-line text-ink-dim"
-                }`}>
-                  {p.on && <span className="size-1 rounded-full bg-rose-400"/>}
-                  {p.name}
-                </span>
+            {/* Icons row */}
+            <div className="px-2 py-1.5 flex items-center gap-2 border-t border-line">
+              {["heart","comment","share"].map((k) => (
+                <svg key={k} width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="text-white/85">
+                  {k === "heart" && <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>}
+                  {k === "comment" && <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>}
+                  {k === "share" && <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>}
+                </svg>
               ))}
-              <span className="ml-auto text-[7px] font-mono text-ink-muted">Fri · 9:00 am</span>
+              <span className="ml-auto text-[8px] font-mono text-ink-dim">1,284 likes</span>
             </div>
           </div>
-        </motion.div>
+          {/* Right column: caption editor + publish */}
+          <div className="flex-1 flex flex-col gap-2 min-w-0">
+            <div className="text-[8px] tracking-[0.2em] uppercase text-ink-dim font-sans">Caption</div>
+            <div className="relative flex-1">
+              <motion.div
+                initial={false}
+                animate={{ opacity: captionHover ? 1 : 0 }}
+                transition={{ duration: 0.25 }}
+                className="pointer-events-none absolute -inset-1 rounded-md border-2 border-dashed border-rose-400/70"
+                style={{ boxShadow: "0 0 0 3px rgba(244,114,182,0.08)" }}
+              />
+              <div className="size-full rounded-md bg-panel/40 border border-line p-2 text-[10px] font-serif italic text-white leading-snug overflow-hidden">
+                {hasText ? (
+                  <>
+                    &ldquo;{typed || S_CAPTION}&rdquo;
+                    {step === "typing" && (
+                      <motion.span
+                        animate={{ opacity: [1, 0, 1] }}
+                        transition={{ duration: 0.7, repeat: Infinity }}
+                        className="inline-block w-[1.5px] h-[10px] bg-rose-300 align-middle ml-0.5"
+                      />
+                    )}
+                  </>
+                ) : (
+                  <span className="text-ink-dim not-italic">Write a caption…</span>
+                )}
+              </div>
+            </div>
+            {/* Publish button */}
+            <div className="relative">
+              <motion.div
+                initial={false}
+                animate={{ opacity: publishHover ? 1 : 0 }}
+                transition={{ duration: 0.25 }}
+                className="pointer-events-none absolute -inset-1 rounded-full border border-dashed border-rose-300/70"
+              />
+              <motion.div
+                animate={{ scale: publishHover ? 1.03 : 1 }}
+                transition={{ duration: 0.3 }}
+                className={cn(
+                  "h-7 rounded-full flex items-center justify-center gap-1 text-[9px] font-sans font-semibold transition-colors",
+                  scheduled ? "bg-emerald-400 text-emerald-950" : "bg-rose-400 text-rose-950",
+                )}
+              >
+                {scheduled ? (
+                  <>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Scheduled
+                  </>
+                ) : (
+                  "Schedule"
+                )}
+              </motion.div>
+            </div>
+          </div>
+        </div>
       </div>
       <NovaCursor to={cursor} color="rose"/>
-      <StatusChip show={scheduled} tone="rose" position={{ bottom: "12px", right: "12px" }}>
-        <span className="size-1.5 rounded-full bg-rose-400"/>Scheduled · 3 platforms
+      <StatusChip show={scheduled} tone="rose" position={{ bottom: "12px", left: "12px" }}>
+        <span className="size-1.5 rounded-full bg-rose-400"/>Posting Friday 9:00 am
       </StatusChip>
     </div>
   );
+}
+
+function cn(...c: (string | false | null | undefined)[]) {
+  return c.filter(Boolean).join(" ");
 }
 
 /* ============================================================
