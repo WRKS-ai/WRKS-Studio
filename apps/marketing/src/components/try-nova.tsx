@@ -36,6 +36,7 @@ type Scenario = {
   prompt: string;
   deliverables: Deliverable[];
   totalTime: string;
+  speech: string;
 };
 
 /* ============================================================
@@ -52,6 +53,7 @@ const SCENARIOS: Record<string, Scenario> = {
       { kind: "code", title: "Discount code", status: "Pending approval", detail: "HANNAH20 · 20% off", tone: "violet" },
     ],
     totalTime: "3.2s",
+    speech: "Got it. Building your March promo. Instagram post, website banner, and a discount code. Done in three seconds.",
   },
   latte: {
     id: "latte",
@@ -62,6 +64,7 @@ const SCENARIOS: Record<string, Scenario> = {
       { kind: "memory", title: "Brand voice memory", status: "Updated", detail: "+1 entry", tone: "emerald" },
     ],
     totalTime: "2.8s",
+    speech: "Scheduling your Friday latte post. Drafting the post and the story tile, and updating brand voice. All set.",
   },
   blackfriday: {
     id: "blackfriday",
@@ -72,6 +75,7 @@ const SCENARIOS: Record<string, Scenario> = {
       { kind: "crm", title: "Lead form", status: "Forwarding to CRM", detail: "→ HubSpot", tone: "emerald" },
     ],
     totalTime: "4.1s",
+    speech: "Building your Black Friday landing page. Stripe checkout embedded, lead form forwarding to your CRM. Ready to publish.",
   },
   fallback: {
     id: "fallback",
@@ -82,6 +86,7 @@ const SCENARIOS: Record<string, Scenario> = {
       { kind: "email", title: "Follow-up email", status: "Drafted", detail: "Sequence ready", tone: "amber" },
     ],
     totalTime: "3.0s",
+    speech: "Got it. Drafting a social post, a landing section, and a follow-up email. All tuned to your voice.",
   },
   blog: {
     id: "blog",
@@ -92,6 +97,7 @@ const SCENARIOS: Record<string, Scenario> = {
       { kind: "memory", title: "Topic memory", status: "Updated", detail: "+3 keywords", tone: "amber" },
     ],
     totalTime: "3.8s",
+    speech: "Drafting a long-form post, a promo tweet with a pull-quote, and updating topic memory. SEO score ninety-four.",
   },
   ad: {
     id: "ad",
@@ -102,6 +108,7 @@ const SCENARIOS: Record<string, Scenario> = {
       { kind: "social", title: "Organic adapt", status: "Drafted", detail: "IG + Facebook", tone: "rose" },
     ],
     totalTime: "3.5s",
+    speech: "Building three ad variants for the test, an eight hook headline set, and an organic adaptation. Ready for Meta.",
   },
 };
 
@@ -191,6 +198,31 @@ const TONE_TEXT: Record<Deliverable["tone"], string> = {
 
 const STATUS_LINES = ["Parsing intent…", "Picking frameworks…", "Drafting deliverables…"];
 
+const VOICE_STORAGE_KEY = "wrks-voice-on";
+
+function pickNovaVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return null;
+  // Prefer high-quality female English voices
+  const preferred = [
+    /samantha/i,           // macOS
+    /aria/i,               // Windows
+    /natural female/i,     // Edge enhanced
+    /jenny/i,
+    /female.*english/i,
+    /google.*us english/i, // Chrome
+    /allison/i,
+    /serena/i,
+  ];
+  for (const re of preferred) {
+    const v = voices.find((vv) => vv.lang.startsWith("en") && re.test(vv.name));
+    if (v) return v;
+  }
+  // Any English voice
+  return voices.find((v) => v.lang.startsWith("en")) ?? voices[0] ?? null;
+}
+
 export function TryNova() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [input, setInput] = useState("");
@@ -199,7 +231,63 @@ export function TryNova() {
   const [statusStep, setStatusStep] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [hasRunFirstDemo, setHasRunFirstDemo] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const cancelRef = useRef<{ cancelled: boolean }>({ cancelled: false });
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // Load voice preference on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(VOICE_STORAGE_KEY);
+    if (saved === "1") setVoiceOn(true);
+    // Warm up voice list
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const persistVoice = (on: boolean) => {
+    setVoiceOn(on);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(VOICE_STORAGE_KEY, on ? "1" : "0");
+    }
+    if (!on && typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  };
+
+  const speak = (text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    const voice = pickNovaVoice();
+    if (voice) utter.voice = voice;
+    utter.rate = 1.02;
+    utter.pitch = 1.05;
+    utter.volume = 1;
+    utter.onstart = () => setIsSpeaking(true);
+    utter.onend = () => setIsSpeaking(false);
+    utter.onerror = () => setIsSpeaking(false);
+    utteranceRef.current = utter;
+    window.speechSynthesis.speak(utter);
+  };
+
+  const stopSpeech = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+  };
 
   // First-load auto-demo
   useEffect(() => {
@@ -213,8 +301,9 @@ export function TryNova() {
   }, []);
 
   const runScenario = async (text: string) => {
-    // Cancel previous run
+    // Cancel previous run and any in-progress speech
     cancelRef.current.cancelled = true;
+    stopSpeech();
     const localCancel = { cancelled: false };
     cancelRef.current = localCancel;
 
@@ -255,6 +344,11 @@ export function TryNova() {
     clearInterval(interval);
     if (localCancel.cancelled) return;
     setPhase("done");
+
+    // Speak after the visual ships
+    if (voiceOn) {
+      speak(scen.speech);
+    }
   };
 
   const onSubmit = (e: FormEvent) => {
@@ -271,6 +365,7 @@ export function TryNova() {
 
   const onReset = () => {
     cancelRef.current.cancelled = true;
+    stopSpeech();
     setPhase("idle");
     setScenario(null);
     setShownCount(0);
@@ -313,20 +408,53 @@ export function TryNova() {
               </span>
               <span className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-sans">· demo</span>
             </div>
-            {phase === "done" && (
-              <motion.button
-                onClick={onReset}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-[10px] tracking-[0.18em] uppercase text-ink-muted hover:text-ink font-sans flex items-center gap-1 transition-colors"
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => persistVoice(!voiceOn)}
+                aria-pressed={voiceOn}
+                aria-label={voiceOn ? "Mute Nova" : "Hear Nova"}
+                className={`group relative h-7 pl-2 pr-3 rounded-full border text-[10px] tracking-[0.18em] uppercase font-sans flex items-center gap-1.5 transition-colors ${
+                  voiceOn
+                    ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-200"
+                    : "border-line bg-canvas/60 text-ink-muted hover:text-ink hover:border-ink/40"
+                }`}
               >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 12a9 9 0 1 0 3-6.7"/>
-                  <path d="M3 3v6h6"/>
-                </svg>
-                Try another
-              </motion.button>
-            )}
+                <span className="relative flex items-center justify-center size-4">
+                  {voiceOn ? (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 5L6 9H3v6h3l5 4V5z"/>
+                      <path d="M15.5 8.5a4 4 0 0 1 0 7"/>
+                      <path d="M18 6a8 8 0 0 1 0 12"/>
+                    </svg>
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 5L6 9H3v6h3l5 4V5z"/>
+                      <path d="M22 9l-6 6"/>
+                      <path d="M16 9l6 6"/>
+                    </svg>
+                  )}
+                  {isSpeaking && voiceOn && (
+                    <span className="absolute -inset-1 rounded-full border border-emerald-300/40 animate-ping" />
+                  )}
+                </span>
+                {voiceOn ? "Voice on" : "Hear Nova"}
+              </button>
+              {phase === "done" && (
+                <motion.button
+                  onClick={onReset}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-[10px] tracking-[0.18em] uppercase text-ink-muted hover:text-ink font-sans flex items-center gap-1 transition-colors"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 3-6.7"/>
+                    <path d="M3 3v6h6"/>
+                  </svg>
+                  Try another
+                </motion.button>
+              )}
+            </div>
           </div>
           {/* Preset chips */}
           <div className="flex flex-wrap gap-1.5 mb-3">
@@ -388,17 +516,27 @@ export function TryNova() {
               <div className="px-5 sm:px-7 pt-5 pb-6 border-t border-line/60 mt-5">
                 {/* Nova row */}
                 <div className="flex items-center gap-3 mb-3">
-                  <NovaOrb pulsing={isBusy} />
+                  <NovaOrb pulsing={isBusy} speaking={isSpeaking} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-sans font-semibold text-ink">Nova</span>
                       <span className="text-[9px] font-mono text-ink-dim flex items-center gap-1">
                         <span
                           className={`size-1 rounded-full ${
-                            phase === "done" ? "bg-emerald-400" : "bg-amber-400 animate-pulse"
+                            isSpeaking
+                              ? "bg-sky-400 animate-pulse"
+                              : phase === "done"
+                                ? "bg-emerald-400"
+                                : "bg-amber-400 animate-pulse"
                           }`}
                         />
-                        {phase === "thinking" ? "thinking" : phase === "working" ? "drafting" : "shipped"}
+                        {isSpeaking
+                          ? "speaking"
+                          : phase === "thinking"
+                            ? "thinking"
+                            : phase === "working"
+                              ? "drafting"
+                              : "shipped"}
                       </span>
                     </div>
                     <AnimatePresence mode="wait">
@@ -518,25 +656,42 @@ export function TryNova() {
  * Atoms
  * ============================================================ */
 
-function NovaOrb({ pulsing }: { pulsing: boolean }) {
+function NovaOrb({ pulsing, speaking }: { pulsing: boolean; speaking: boolean }) {
+  const active = pulsing || speaking;
   return (
     <div className="relative shrink-0">
+      {speaking && (
+        <>
+          <motion.span
+            className="absolute -inset-3 rounded-full border border-sky-300/30"
+            animate={{ scale: [0.9, 1.25, 0.9], opacity: [0.6, 0, 0.6] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.span
+            className="absolute -inset-3 rounded-full border border-sky-300/20"
+            animate={{ scale: [1, 1.45, 1], opacity: [0.35, 0, 0.35] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+          />
+        </>
+      )}
       <motion.div
         className="absolute -inset-1.5 rounded-full"
         style={{
-          background:
-            "radial-gradient(circle, rgba(255,255,255,0.25), transparent 70%)",
+          background: speaking
+            ? "radial-gradient(circle, rgba(125,211,252,0.35), transparent 70%)"
+            : "radial-gradient(circle, rgba(255,255,255,0.25), transparent 70%)",
         }}
-        animate={pulsing ? { scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] } : { opacity: 0.5 }}
-        transition={pulsing ? { duration: 1.4, repeat: Infinity, ease: "easeInOut" } : { duration: 0.3 }}
+        animate={active ? { scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] } : { opacity: 0.5 }}
+        transition={active ? { duration: speaking ? 0.9 : 1.4, repeat: Infinity, ease: "easeInOut" } : { duration: 0.3 }}
       />
       <div
         className="relative size-8 rounded-full"
         style={{
           background:
             "radial-gradient(circle at 32% 30%, #ffffff, #e0e7ff 60%, rgba(99,102,241,0.6) 100%)",
-          boxShadow:
-            pulsing
+          boxShadow: speaking
+            ? "0 0 24px 2px rgba(125,211,252,0.5), inset 0 -6px 14px rgba(50,30,80,0.5)"
+            : pulsing
               ? "0 0 18px 0 rgba(165,180,252,0.45), inset 0 -6px 14px rgba(50,30,80,0.5)"
               : "0 4px 12px -4px rgba(0,0,0,0.6), inset 0 -6px 14px rgba(50,30,80,0.4)",
         }}
@@ -545,6 +700,24 @@ function NovaOrb({ pulsing }: { pulsing: boolean }) {
           className="absolute size-1.5 rounded-full bg-white top-1.5 left-1.5"
           style={{ filter: "blur(0.5px)" }}
         />
+        {speaking && (
+          <div className="absolute inset-0 flex items-center justify-center gap-[2px]">
+            {[0, 1, 2, 3].map((i) => (
+              <motion.span
+                key={i}
+                className="block w-[2px] rounded-full bg-white/90"
+                animate={{ height: ["20%", "65%", "30%", "55%", "20%"] }}
+                transition={{
+                  duration: 0.9,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: i * 0.12,
+                }}
+                style={{ filter: "drop-shadow(0 0 2px rgba(125,211,252,0.8))" }}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
