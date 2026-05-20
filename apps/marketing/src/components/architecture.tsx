@@ -94,12 +94,12 @@ export function Architecture() {
         </div>
 
         {/* Live stack visualization */}
-        <div className="relative aspect-[4/5] rounded-2xl border border-line-bright bg-canvas overflow-hidden">
+        <div className="relative rounded-2xl border border-line-bright bg-canvas overflow-hidden p-4">
           <div className="absolute inset-0 pointer-events-none" style={{
             background: "radial-gradient(ellipse at 50% 50%, rgba(99,102,241,0.12), transparent 70%)",
           }}/>
           {/* Top: current request */}
-          <div className="absolute top-3 left-3 right-3 z-20 rounded-md border border-line bg-canvas/80 backdrop-blur-md px-3 py-2 flex items-center gap-2">
+          <div className="relative z-20 rounded-md border border-line bg-canvas/80 backdrop-blur-md px-3 py-2 flex items-center gap-2 mb-3">
             <span className="size-5 rounded-full bg-gradient-to-br from-white/95 to-white/40 shrink-0"/>
             <div className="min-w-0">
               <div className="text-[8px] tracking-[0.18em] uppercase text-ink-dim font-sans">Request</div>
@@ -120,7 +120,7 @@ export function Architecture() {
           </div>
 
           {/* 5 stacked layers */}
-          <div className="absolute top-[20%] bottom-[6%] left-0 right-0 flex flex-col justify-around px-4">
+          <div className="relative flex flex-col gap-2">
             {LAYERS.map((layer, i) => {
               const isActive = i === activeLayer;
               const isPast = activeLayer >= 0 && i < activeLayer;
