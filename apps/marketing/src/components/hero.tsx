@@ -1,9 +1,9 @@
 "use client";
 
 import { motion } from "motion/react";
-import { HeroCarousel } from "./hero-carousel";
 import { MeshGradient } from "./mesh-gradient";
 import { StarField } from "./star-field";
+import { TryNova } from "./try-nova";
 
 const LINE_ONE = ["Tell", "it."];
 const LINE_TWO = ["It", "WRKS."];
@@ -112,12 +112,12 @@ export function Hero() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.05, duration: 0.6 }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.05, duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
           className="mt-10 sm:mt-14 w-full"
         >
-          <HeroCarousel />
+          <TryNova />
         </motion.div>
 
         <motion.div
