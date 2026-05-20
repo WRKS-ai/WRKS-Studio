@@ -22,7 +22,7 @@ const ITEMS: {
     body: "Conversion pages that publish to your own domain. Forms forward to your CRM. Stripe payments built in.",
     icon: <IconBrowser />,
     mock: <WebsiteFunnel />,
-    span: "md:col-span-2 lg:col-span-2",
+    span: "md:col-span-2",
   },
   {
     title: "Social content",
@@ -75,7 +75,7 @@ export function WhatItBuilds() {
           <span className="italic text-ink-muted">Done right, every time.</span>
         </motion.h2>
 
-        <div className="mt-16 grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="mt-16 grid md:grid-cols-2 gap-6 sm:gap-8">
           {ITEMS.map((it, i) => (
             <motion.div
               key={it.title}
@@ -121,7 +121,7 @@ export function WhatItBuilds() {
               delay: ITEMS.length * 0.07,
               ease: [0.2, 0.7, 0.2, 1],
             }}
-            className="relative md:col-span-2 lg:col-span-2 border border-dashed border-line rounded-3xl p-7 flex flex-col justify-center"
+            className="relative md:col-span-2 border border-dashed border-line rounded-3xl p-7 flex flex-col justify-center"
           >
             <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-sans mb-3">
               Coming later

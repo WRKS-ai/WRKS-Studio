@@ -363,7 +363,7 @@ export function SocialRadar() {
         right={<>Fri · 9:00 am</>}
       />
       {/* Single centered Instagram post mockup */}
-      <div className="absolute inset-x-0 top-8 bottom-0 flex items-center justify-center p-4">
+      <div className="absolute inset-x-0 top-8 bottom-0 flex items-center justify-center px-5 py-6">
         <div className="flex gap-3 items-stretch w-full max-w-md">
           {/* Phone-shape post card */}
           <div className="relative w-[58%] rounded-xl border border-line-bright bg-canvas overflow-hidden shadow-xl shadow-rose-500/10">
