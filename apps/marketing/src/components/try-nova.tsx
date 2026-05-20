@@ -192,6 +192,30 @@ const TONE_TEXT: Record<Deliverable["tone"], string> = {
   emerald: "text-emerald-300",
 };
 
+const TONE_GLOW: Record<Deliverable["tone"], string> = {
+  rose: "rgba(244,114,182,0.45)",
+  sky: "rgba(56,189,248,0.45)",
+  violet: "rgba(167,139,250,0.45)",
+  amber: "rgba(252,211,77,0.45)",
+  emerald: "rgba(52,211,153,0.45)",
+};
+
+const TONE_LINE: Record<Deliverable["tone"], string> = {
+  rose: "rgba(244,114,182,0.55)",
+  sky: "rgba(56,189,248,0.55)",
+  violet: "rgba(167,139,250,0.55)",
+  amber: "rgba(252,211,77,0.55)",
+  emerald: "rgba(52,211,153,0.55)",
+};
+
+/* Triangle around Nova: top, lower-right, lower-left */
+const ORBIT_POSITIONS: { angle: number; x: number; y: number }[] = [
+  { angle: -90, x: 0, y: -200 },
+  { angle: 30, x: 173, y: 100 },
+  { angle: 150, x: -173, y: 100 },
+];
+const ORBIT_RADIUS = 200;
+
 /* ============================================================
  * Main component
  * ============================================================ */
@@ -662,9 +686,9 @@ export function TryNova() {
           )}
         </div>
 
-        {/* Response panel */}
+        {/* Orbital stage */}
         <AnimatePresence>
-          {showResponse && (
+          {showResponse && scenario && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -672,132 +696,14 @@ export function TryNova() {
               transition={{ duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }}
               className="overflow-hidden"
             >
-              <div className="px-5 sm:px-7 pt-5 pb-6 border-t border-line/60 mt-5">
-                {/* Nova row */}
-                <div className="flex items-center gap-3 mb-3">
-                  <NovaOrb pulsing={isBusy} speaking={isSpeaking} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-sans font-semibold text-ink">Nova</span>
-                      <span className="text-[9px] font-mono text-ink-dim flex items-center gap-1">
-                        <span
-                          className={`size-1 rounded-full ${
-                            isSpeaking
-                              ? "bg-sky-400 animate-pulse"
-                              : phase === "done"
-                                ? "bg-emerald-400"
-                                : "bg-amber-400 animate-pulse"
-                          }`}
-                        />
-                        {isSpeaking
-                          ? "speaking"
-                          : phase === "thinking"
-                            ? "thinking"
-                            : phase === "working"
-                              ? "drafting"
-                              : "shipped"}
-                      </span>
-                    </div>
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={`${phase}-${statusStep}`}
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        transition={{ duration: 0.25 }}
-                        className="text-[10px] sm:text-xs font-sans text-ink-muted mt-0.5"
-                      >
-                        {phase === "thinking"
-                          ? STATUS_LINES[statusStep]
-                          : phase === "working"
-                            ? `Drafting ${scenario?.deliverables.length} deliverables…`
-                            : `Shipped in ${scenario?.totalTime ?? `${elapsed.toFixed(1)}s`}`}
-                      </motion.div>
-                    </AnimatePresence>
-                  </div>
-                  {isBusy && (
-                    <span className="text-[10px] font-mono text-ink-dim tabular-nums">
-                      {elapsed.toFixed(1)}s
-                    </span>
-                  )}
-                </div>
-
-                {/* You said */}
-                {scenario?.prompt && (
-                  <div className="mb-3 rounded-xl border border-line bg-canvas/60 px-3 py-2">
-                    <div className="text-[8px] tracking-[0.22em] uppercase text-ink-dim font-sans mb-1">
-                      You said
-                    </div>
-                    <p className="text-sm font-serif italic text-ink leading-snug">
-                      &ldquo;{scenario.prompt}&rdquo;
-                    </p>
-                  </div>
-                )}
-
-                {/* Deliverable cards */}
-                <div className="space-y-2">
-                  {scenario?.deliverables.map((d, i) => {
-                    const visible = i < shownCount;
-                    return (
-                      <motion.div
-                        key={`${scenario.id}-${i}-${d.title}`}
-                        initial={{ opacity: 0, x: 16, scale: 0.98 }}
-                        animate={
-                          visible
-                            ? { opacity: 1, x: 0, scale: 1 }
-                            : { opacity: 0, x: 16, scale: 0.98 }
-                        }
-                        transition={{ duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }}
-                        className={`rounded-xl border ${TONE_RING[d.tone]} bg-canvas/60 px-3 py-2.5 flex items-center gap-3`}
-                      >
-                        {/* Thumbnail */}
-                        <div
-                          className="relative size-10 rounded-lg overflow-hidden border border-line shrink-0 flex items-center justify-center text-white/95"
-                          style={{ background: TONE_GRADIENTS[d.tone] }}
-                        >
-                          <KindIcon kind={d.kind} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[12px] font-sans font-semibold text-ink truncate">
-                              {d.title}
-                            </span>
-                          </div>
-                          <div className="text-[10px] font-mono text-ink-muted mt-0.5 truncate">
-                            {d.detail}
-                          </div>
-                        </div>
-                        <span className={`text-[9px] tracking-[0.18em] uppercase font-sans font-medium ${TONE_TEXT[d.tone]} shrink-0`}>
-                          {d.status}
-                        </span>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-
-                {/* Done footer */}
-                <AnimatePresence>
-                  {phase === "done" && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.35, delay: 0.2 }}
-                      className="mt-3 flex items-center justify-between gap-2"
-                    >
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-400/15 border border-emerald-400/40 text-[10px] tracking-[0.18em] uppercase text-emerald-200 font-sans font-medium">
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M5 13l4 4L19 7"/>
-                        </svg>
-                        Shipped in {scenario?.totalTime ?? `${elapsed.toFixed(1)}s`}
-                      </div>
-                      <span className="text-[10px] font-sans text-ink-dim italic">
-                        This is a demo · waitlist for the real thing
-                      </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <OrbitalStage
+                scenario={scenario}
+                shownCount={shownCount}
+                statusStep={statusStep}
+                phase={phase}
+                elapsed={elapsed}
+                isSpeaking={isSpeaking}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -817,68 +723,354 @@ export function TryNova() {
  * Atoms
  * ============================================================ */
 
-function NovaOrb({ pulsing, speaking }: { pulsing: boolean; speaking: boolean }) {
+/* ---------- Nova orb (big, central) ---------- */
+function BigNovaOrb({ size, pulsing, speaking }: { size: number; pulsing: boolean; speaking: boolean }) {
   const active = pulsing || speaking;
   return (
-    <div className="relative shrink-0">
+    <div className="relative" style={{ width: size, height: size }}>
       {speaking && (
         <>
           <motion.span
-            className="absolute -inset-3 rounded-full border border-sky-300/30"
-            animate={{ scale: [0.9, 1.25, 0.9], opacity: [0.6, 0, 0.6] }}
+            className="absolute inset-0 rounded-full border border-sky-300/30"
+            style={{ margin: -size * 0.35 }}
+            animate={{ scale: [0.95, 1.35, 0.95], opacity: [0.7, 0, 0.7] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
           />
           <motion.span
-            className="absolute -inset-3 rounded-full border border-sky-300/20"
-            animate={{ scale: [1, 1.45, 1], opacity: [0.35, 0, 0.35] }}
+            className="absolute inset-0 rounded-full border border-sky-300/15"
+            style={{ margin: -size * 0.6 }}
+            animate={{ scale: [0.95, 1.45, 0.95], opacity: [0.4, 0, 0.4] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
           />
         </>
       )}
       <motion.div
-        className="absolute -inset-1.5 rounded-full"
+        className="absolute inset-0 rounded-full"
         style={{
+          margin: -size * 0.2,
           background: speaking
-            ? "radial-gradient(circle, rgba(125,211,252,0.35), transparent 70%)"
-            : "radial-gradient(circle, rgba(255,255,255,0.25), transparent 70%)",
+            ? "radial-gradient(circle, rgba(125,211,252,0.45), transparent 70%)"
+            : "radial-gradient(circle, rgba(165,180,252,0.4), transparent 70%)",
         }}
-        animate={active ? { scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] } : { opacity: 0.5 }}
-        transition={active ? { duration: speaking ? 0.9 : 1.4, repeat: Infinity, ease: "easeInOut" } : { duration: 0.3 }}
+        animate={active ? { scale: [1, 1.18, 1], opacity: [0.6, 1, 0.6] } : { opacity: 0.55 }}
+        transition={active ? { duration: speaking ? 1.0 : 1.5, repeat: Infinity, ease: "easeInOut" } : { duration: 0.3 }}
       />
       <div
-        className="relative size-8 rounded-full"
+        className="relative rounded-full"
         style={{
-          background:
-            "radial-gradient(circle at 32% 30%, #ffffff, #e0e7ff 60%, rgba(99,102,241,0.6) 100%)",
+          width: size,
+          height: size,
+          background: "radial-gradient(circle at 32% 28%, #ffffff, #e0e7ff 55%, rgba(99,102,241,0.85) 100%)",
           boxShadow: speaking
-            ? "0 0 24px 2px rgba(125,211,252,0.5), inset 0 -6px 14px rgba(50,30,80,0.5)"
+            ? "0 0 56px 6px rgba(125,211,252,0.55), inset 0 -18px 40px rgba(50,30,80,0.6)"
             : pulsing
-              ? "0 0 18px 0 rgba(165,180,252,0.45), inset 0 -6px 14px rgba(50,30,80,0.5)"
-              : "0 4px 12px -4px rgba(0,0,0,0.6), inset 0 -6px 14px rgba(50,30,80,0.4)",
+              ? "0 0 40px 0 rgba(165,180,252,0.55), inset 0 -18px 40px rgba(50,30,80,0.55)"
+              : "0 16px 36px -10px rgba(0,0,0,0.7), inset 0 -18px 40px rgba(50,30,80,0.5)",
         }}
       >
         <span
-          className="absolute size-1.5 rounded-full bg-white top-1.5 left-1.5"
-          style={{ filter: "blur(0.5px)" }}
+          className="absolute rounded-full bg-white"
+          style={{
+            width: size * 0.18,
+            height: size * 0.18,
+            top: size * 0.18,
+            left: size * 0.2,
+            filter: "blur(1px)",
+            opacity: 0.95,
+          }}
         />
         {speaking && (
-          <div className="absolute inset-0 flex items-center justify-center gap-[2px]">
-            {[0, 1, 2, 3].map((i) => (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ gap: Math.max(2, size * 0.04) }}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
               <motion.span
                 key={i}
-                className="block w-[2px] rounded-full bg-white/90"
-                animate={{ height: ["20%", "65%", "30%", "55%", "20%"] }}
-                transition={{
-                  duration: 0.9,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: i * 0.12,
-                }}
-                style={{ filter: "drop-shadow(0 0 2px rgba(125,211,252,0.8))" }}
+                className="block rounded-full bg-white/95"
+                style={{ width: Math.max(2, size * 0.035), filter: "drop-shadow(0 0 4px rgba(125,211,252,0.9))" }}
+                animate={{ height: ["18%", "62%", "30%", "55%", "25%", "65%", "20%"] }}
+                transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut", delay: i * 0.1 }}
               />
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Orbital deliverable chip ---------- */
+function OrbChip({ d }: { d: Deliverable }) {
+  return (
+    <div
+      className={`w-40 rounded-2xl border ${TONE_RING[d.tone]} bg-canvas/85 backdrop-blur-md px-3 py-2.5`}
+      style={{
+        boxShadow: `0 16px 34px -12px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 30px -8px ${TONE_GLOW[d.tone]}`,
+      }}
+    >
+      <div className="flex items-start gap-2.5">
+        <div
+          className="size-9 rounded-lg overflow-hidden border border-line shrink-0 flex items-center justify-center text-white/95"
+          style={{ background: TONE_GRADIENTS[d.tone] }}
+        >
+          <KindIcon kind={d.kind} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-sans font-semibold text-ink leading-tight truncate">
+            {d.title}
+          </div>
+          <div className="text-[9px] font-mono text-ink-muted leading-tight truncate mt-0.5">
+            {d.detail}
+          </div>
+        </div>
+      </div>
+      <div className={`mt-2 flex items-center gap-1 text-[8px] tracking-[0.22em] uppercase font-sans font-medium ${TONE_TEXT[d.tone]}`}>
+        <span className="size-1 rounded-full bg-current" />
+        {d.status}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Mobile compact chip (full width) ---------- */
+function OrbChipWide({ d }: { d: Deliverable }) {
+  return (
+    <div
+      className={`w-full rounded-xl border ${TONE_RING[d.tone]} bg-canvas/80 backdrop-blur-md px-3 py-2.5 flex items-center gap-3`}
+      style={{ boxShadow: `0 0 22px -10px ${TONE_GLOW[d.tone]}` }}
+    >
+      <div
+        className="size-9 rounded-lg overflow-hidden border border-line shrink-0 flex items-center justify-center text-white/95"
+        style={{ background: TONE_GRADIENTS[d.tone] }}
+      >
+        <KindIcon kind={d.kind} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[11px] font-sans font-semibold text-ink truncate leading-tight">
+          {d.title}
+        </div>
+        <div className="text-[9px] font-mono text-ink-muted truncate mt-0.5">{d.detail}</div>
+      </div>
+      <span className={`text-[8px] tracking-[0.2em] uppercase font-sans font-medium ${TONE_TEXT[d.tone]} shrink-0`}>
+        {d.status}
+      </span>
+    </div>
+  );
+}
+
+/* ---------- Orbital constellation stage ---------- */
+function OrbitalStage({
+  scenario,
+  shownCount,
+  statusStep,
+  phase,
+  elapsed,
+  isSpeaking,
+}: {
+  scenario: Scenario;
+  shownCount: number;
+  statusStep: number;
+  phase: Phase;
+  elapsed: number;
+  isSpeaking: boolean;
+}) {
+  const isBusy = phase === "thinking" || phase === "working";
+  const statusText =
+    phase === "thinking"
+      ? STATUS_LINES[statusStep]
+      : phase === "working"
+        ? "Drafting deliverables…"
+        : `Shipped in ${scenario.totalTime}`;
+
+  return (
+    <div className="relative border-t border-line/60 mt-5">
+      {/* Desktop orbital constellation */}
+      <div className="hidden sm:flex relative h-[520px] items-center justify-center overflow-hidden">
+        {/* Ambient backdrop */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 50%, rgba(99,102,241,0.18), transparent 60%), radial-gradient(ellipse at 50% 100%, rgba(244,114,182,0.08), transparent 60%)",
+          }}
+        />
+        {/* Decorative orbit rings */}
+        <div className="absolute size-[440px] rounded-full border border-white/[0.05]" />
+        <div className="absolute size-[300px] rounded-full border border-white/[0.04]" />
+        <div className="absolute size-[160px] rounded-full border border-white/[0.03]" />
+
+        {/* Connection lines (rotated divs) */}
+        {scenario.deliverables.map((d, i) => {
+          const pos = ORBIT_POSITIONS[i];
+          if (!pos) return null;
+          const visible = i < shownCount;
+          return (
+            <motion.div
+              key={`line-${i}`}
+              className="absolute left-1/2 top-1/2 origin-left"
+              style={{
+                width: ORBIT_RADIUS,
+                height: 1,
+                transform: `rotate(${pos.angle}deg)`,
+              }}
+              initial={{ scaleX: 0, opacity: 0 }}
+              animate={{ scaleX: visible ? 1 : 0, opacity: visible ? 1 : 0 }}
+              transition={{ duration: 0.65, ease: "easeOut" }}
+            >
+              <div
+                className="h-px w-full"
+                style={{
+                  background: `linear-gradient(90deg, ${TONE_LINE[d.tone]} 0%, ${TONE_LINE[d.tone]} 35%, transparent 100%)`,
+                }}
+              />
+            </motion.div>
+          );
+        })}
+
+        {/* Center Nova orb */}
+        <div className="relative z-10">
+          <BigNovaOrb size={104} pulsing={isBusy} speaking={isSpeaking} />
+        </div>
+
+        {/* Status line directly under orb */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 z-10" style={{ marginTop: 80 }}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${phase}-${statusStep}`}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.25 }}
+              className="text-[11px] font-sans text-ink-muted whitespace-nowrap text-center"
+            >
+              {statusText}
+            </motion.div>
+          </AnimatePresence>
+          {isBusy && (
+            <div className="text-[9px] font-mono text-ink-dim tabular-nums text-center mt-0.5">
+              {elapsed.toFixed(1)}s
+            </div>
+          )}
+        </div>
+
+        {/* Spawning particle for the most recent deliverable */}
+        <AnimatePresence>
+          {shownCount > 0 && scenario.deliverables[shownCount - 1] && ORBIT_POSITIONS[shownCount - 1] && (
+            <motion.span
+              key={`particle-${scenario.id}-${shownCount}`}
+              className="absolute left-1/2 top-1/2 size-2.5 rounded-full z-30 pointer-events-none"
+              style={{
+                background: TONE_GRADIENTS[scenario.deliverables[shownCount - 1]!.tone],
+                boxShadow: `0 0 16px 4px ${TONE_GLOW[scenario.deliverables[shownCount - 1]!.tone]}`,
+              }}
+              initial={{ x: -5, y: -5, opacity: 1, scale: 0.6 }}
+              animate={{
+                x: ORBIT_POSITIONS[shownCount - 1]!.x - 5,
+                y: ORBIT_POSITIONS[shownCount - 1]!.y - 5,
+                opacity: 0,
+                scale: 1.6,
+              }}
+              transition={{ duration: 0.75, ease: "easeOut" }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Deliverable chips at orbit positions */}
+        {scenario.deliverables.map((d, i) => {
+          const pos = ORBIT_POSITIONS[i];
+          if (!pos) return null;
+          const visible = i < shownCount;
+          return (
+            <motion.div
+              key={`chip-${scenario.id}-${i}-${d.title}`}
+              className="absolute left-1/2 top-1/2 z-20"
+              style={{ marginLeft: -80, marginTop: -36 }}
+              initial={{ opacity: 0, scale: 0.4, x: 0, y: 0 }}
+              animate={
+                visible
+                  ? { opacity: 1, scale: 1, x: pos.x, y: pos.y }
+                  : { opacity: 0, scale: 0.4, x: 0, y: 0 }
+              }
+              transition={{ duration: 0.75, ease: [0.2, 0.7, 0.2, 1], delay: visible ? 0.15 : 0 }}
+            >
+              <motion.div
+                animate={visible ? { y: [0, -4, 0] } : {}}
+                transition={visible ? { duration: 4, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 } : {}}
+              >
+                <OrbChip d={d} />
+              </motion.div>
+            </motion.div>
+          );
+        })}
+
+        {/* Shipped pill — bottom of stage */}
+        <AnimatePresence>
+          {phase === "done" && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4, delay: 0.3 }}
+              className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400/15 border border-emerald-400/40 text-[10px] tracking-[0.22em] uppercase text-emerald-200 font-sans font-medium"
+            >
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 13l4 4L19 7"/>
+              </svg>
+              Shipped in {scenario.totalTime}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Demo disclaimer */}
+        <span className="absolute bottom-1.5 right-4 text-[9px] font-sans text-ink-dim italic">
+          Demo · waitlist for the real thing
+        </span>
+      </div>
+
+      {/* Mobile vertical layout */}
+      <div className="sm:hidden flex flex-col items-center px-5 pt-8 pb-6">
+        <BigNovaOrb size={72} pulsing={isBusy} speaking={isSpeaking} />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`m-${phase}-${statusStep}`}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.25 }}
+            className="mt-4 text-[11px] font-sans text-ink-muted text-center"
+          >
+            {statusText}
+          </motion.div>
+        </AnimatePresence>
+        <div className="mt-6 w-full space-y-2">
+          {scenario.deliverables.map((d, i) => {
+            const visible = i < shownCount;
+            return (
+              <motion.div
+                key={`m-chip-${i}`}
+                initial={{ opacity: 0, x: i % 2 === 0 ? -16 : 16, scale: 0.95 }}
+                animate={visible ? { opacity: 1, x: 0, scale: 1 } : { opacity: 0 }}
+                transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+              >
+                <OrbChipWide d={d} />
+              </motion.div>
+            );
+          })}
+        </div>
+        <AnimatePresence>
+          {phase === "done" && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.35, delay: 0.2 }}
+              className="mt-4 flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400/15 border border-emerald-400/40 text-[10px] tracking-[0.22em] uppercase text-emerald-200 font-sans font-medium"
+            >
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 13l4 4L19 7"/>
+              </svg>
+              Shipped in {scenario.totalTime}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
