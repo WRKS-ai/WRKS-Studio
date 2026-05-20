@@ -1,7 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
-import type { ChangeEvent, FormEvent } from "react";
+import { AnimatePresence, motion, useSpring, useTime, useTransform } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 /* ============================================================
@@ -192,20 +191,6 @@ const TONE_GLOW: Record<Deliverable["tone"], string> = {
   emerald: "rgba(52,211,153,0.45)",
 };
 
-const TONE_LINE: Record<Deliverable["tone"], string> = {
-  rose: "rgba(244,114,182,0.55)",
-  sky: "rgba(56,189,248,0.55)",
-  violet: "rgba(167,139,250,0.55)",
-  amber: "rgba(252,211,77,0.55)",
-  emerald: "rgba(52,211,153,0.55)",
-};
-
-/* Triangle around Nova: top, lower-right, lower-left */
-const ORBIT_POSITIONS: { angle: number; x: number; y: number }[] = [
-  { angle: -90, x: 0, y: -210 },
-  { angle: 30, x: 182, y: 105 },
-  { angle: 150, x: -182, y: 105 },
-];
 
 /* ============================================================
  * Main component
@@ -479,15 +464,7 @@ export function TryNova() {
     }
   };
 
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text) return;
-    void runScenario(text);
-  };
-
   const onPreset = (preset: typeof PRESETS[number]) => {
-    setInput(preset.prompt);
     void runScenario(preset.prompt);
   };
 
@@ -505,206 +482,119 @@ export function TryNova() {
     setInput("");
   };
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setInput(e.target.value);
+  const onOrbTap = () => {
+    if (isListening) {
+      stopListening();
+      return;
+    }
+    if (micSupported) {
+      startListening();
+    }
   };
 
   const isBusy = phase === "thinking" || phase === "working";
-  const showResponse = scenario !== null;
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
-      {/* Outer glass panel */}
-      <div
-        className="relative rounded-3xl border border-line-bright bg-panel/60 backdrop-blur-xl overflow-hidden shadow-2xl shadow-black/40"
-        style={{
-          boxShadow:
-            "0 30px 80px -20px rgba(99,102,241,0.18), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)",
-        }}
-      >
-        <div
-          className="absolute inset-0 pointer-events-none -z-10"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.15), transparent 65%), radial-gradient(ellipse at 50% 100%, rgba(244,114,182,0.08), transparent 60%)",
-          }}
-        />
-        {/* Composer header */}
-        <div className="px-5 sm:px-7 pt-5 sm:pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] tracking-[0.22em] uppercase text-emerald-300/90 font-sans font-medium">
-                Try Nova
-              </span>
-              <span className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-sans">· demo</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => persistVoice(!voiceOn)}
-                aria-pressed={voiceOn}
-                aria-label={voiceOn ? "Mute Nova" : "Hear Nova"}
-                className={`group relative h-7 pl-2 pr-3 rounded-full border text-[10px] tracking-[0.18em] uppercase font-sans flex items-center gap-1.5 transition-colors ${
-                  voiceOn
-                    ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-200"
-                    : "border-line bg-canvas/60 text-ink-muted hover:text-ink hover:border-ink/40"
-                }`}
-              >
-                <span className="relative flex items-center justify-center size-4">
-                  {voiceOn ? (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 5L6 9H3v6h3l5 4V5z"/>
-                      <path d="M15.5 8.5a4 4 0 0 1 0 7"/>
-                      <path d="M18 6a8 8 0 0 1 0 12"/>
-                    </svg>
-                  ) : (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 5L6 9H3v6h3l5 4V5z"/>
-                      <path d="M22 9l-6 6"/>
-                      <path d="M16 9l6 6"/>
-                    </svg>
-                  )}
-                  {isSpeaking && voiceOn && (
-                    <span className="absolute -inset-1 rounded-full border border-emerald-300/40 animate-ping" />
-                  )}
-                </span>
-                {voiceOn ? "Voice on" : "Hear Nova"}
-              </button>
-              {phase === "done" && (
-                <motion.button
-                  onClick={onReset}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="text-[10px] tracking-[0.18em] uppercase text-ink-muted hover:text-ink font-sans flex items-center gap-1 transition-colors"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 12a9 9 0 1 0 3-6.7"/>
-                    <path d="M3 3v6h6"/>
-                  </svg>
-                  Try another
-                </motion.button>
-              )}
-            </div>
-          </div>
-          {/* Preset chips */}
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {PRESETS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => onPreset(p)}
-                disabled={isBusy}
-                className="text-[10px] sm:text-xs font-sans h-7 px-3 rounded-full border border-line bg-canvas/60 text-ink-muted hover:text-ink hover:border-ink/40 hover:bg-canvas transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          {/* Input form */}
-          <form onSubmit={onSubmit} className="relative flex items-center gap-2">
-            <div className="relative flex-1">
-              {micSupported ? (
-                <button
-                  type="button"
-                  onClick={isListening ? stopListening : startListening}
-                  disabled={isBusy}
-                  aria-label={isListening ? "Stop listening" : "Talk to Nova"}
-                  className={`absolute left-1.5 top-1/2 -translate-y-1/2 size-9 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                    isListening
-                      ? "bg-rose-500 text-white"
-                      : "bg-canvas border border-line text-ink-muted hover:text-ink hover:border-ink/40"
-                  }`}
-                >
-                  {isListening && (
-                    <>
-                      <span className="absolute inset-0 rounded-xl bg-rose-500/40 animate-ping" />
-                      <span className="absolute -inset-1 rounded-xl border border-rose-400/40 animate-pulse" />
-                    </>
-                  )}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="relative">
-                    <rect x="9" y="3" width="6" height="12" rx="3" />
-                    <path d="M5 11a7 7 0 0 0 14 0" />
-                    <path d="M12 18v3" />
-                  </svg>
-                </button>
+    <div className="w-full relative">
+      {/* Top bar — boxless */}
+      <div className="max-w-3xl mx-auto px-2 sm:px-4 flex items-center justify-between mb-4 sm:mb-2">
+        <div className="flex items-center gap-2">
+          <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[10px] tracking-[0.24em] uppercase text-emerald-300/90 font-sans font-medium">
+            Try Nova
+          </span>
+          <span className="text-[10px] tracking-[0.24em] uppercase text-ink-dim font-sans">· live demo</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => persistVoice(!voiceOn)}
+            aria-pressed={voiceOn}
+            aria-label={voiceOn ? "Mute Nova" : "Hear Nova"}
+            className={`group relative h-7 pl-2 pr-3 rounded-full border text-[10px] tracking-[0.18em] uppercase font-sans flex items-center gap-1.5 transition-colors ${
+              voiceOn
+                ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-200"
+                : "border-line bg-canvas/40 text-ink-muted hover:text-ink hover:border-ink/40"
+            }`}
+          >
+            <span className="relative flex items-center justify-center size-4">
+              {voiceOn ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 5L6 9H3v6h3l5 4V5z"/>
+                  <path d="M15.5 8.5a4 4 0 0 1 0 7"/>
+                  <path d="M18 6a8 8 0 0 1 0 12"/>
+                </svg>
               ) : (
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 size-1.5 rounded-full bg-emerald-400 animate-pulse pointer-events-none" />
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 5L6 9H3v6h3l5 4V5z"/>
+                  <path d="M22 9l-6 6"/>
+                  <path d="M16 9l6 6"/>
+                </svg>
               )}
-              <input
-                type="text"
-                value={input}
-                onChange={handleInputChange}
-                disabled={isBusy}
-                placeholder={
-                  isListening
-                    ? "Listening… speak now"
-                    : micSupported
-                      ? "Tap the mic, or type what to make…"
-                      : "Tell Nova what to make…"
-                }
-                className={`w-full h-12 ${micSupported ? "pl-12" : "pl-9"} pr-4 rounded-2xl bg-canvas border text-ink placeholder:text-ink-dim text-sm font-sans focus:outline-none focus:ring-2 transition-all disabled:opacity-60 ${
-                  isListening
-                    ? "border-rose-400/60 ring-2 ring-rose-400/20 focus:border-rose-400/60 focus:ring-rose-400/20"
-                    : "border-line focus:border-ink/40 focus:ring-ink/10"
-                }`}
-              />
-            </div>
+              {isSpeaking && voiceOn && (
+                <span className="absolute -inset-1 rounded-full border border-emerald-300/40 animate-ping" />
+              )}
+            </span>
+            {voiceOn ? "Voice on" : "Hear Nova"}
+          </button>
+          {phase === "done" && (
             <motion.button
-              type="submit"
-              disabled={isBusy || !input.trim() || isListening}
-              whileHover={{ scale: isBusy ? 1 : 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="h-12 px-5 rounded-2xl bg-ink text-canvas text-sm font-sans font-semibold shadow-lg shadow-ink/10 hover:shadow-ink/20 transition-shadow flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-ink/10"
+              onClick={onReset}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-[10px] tracking-[0.18em] uppercase text-ink-muted hover:text-ink font-sans flex items-center gap-1 transition-colors"
             >
-              {isBusy ? (
-                <>
-                  <Spinner /> Working
-                </>
-              ) : (
-                <>
-                  Try it
-                  <span aria-hidden>→</span>
-                </>
-              )}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 3-6.7"/>
+                <path d="M3 3v6h6"/>
+              </svg>
+              Try another
             </motion.button>
-          </form>
-          {micError && (
-            <div className="mt-2 text-[10px] tracking-[0.18em] uppercase text-rose-300/90 font-sans">
-              {micError}
-            </div>
           )}
         </div>
-
-        {/* Orbital stage */}
-        <AnimatePresence>
-          {showResponse && scenario && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }}
-              className="overflow-hidden"
-            >
-              <OrbitalStage
-                scenario={scenario}
-                shownCount={shownCount}
-                statusStep={statusStep}
-                phase={phase}
-                elapsed={elapsed}
-                isSpeaking={isSpeaking}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
-      {/* Helper line below */}
-      <div className="mt-3 text-center text-[10px] tracking-[0.18em] uppercase text-ink-dim font-sans">
-        {micSupported
-          ? "Talk to Nova or type · 1 sentence, 3 deliverables"
-          : "Pick a preset or type your own · 1 sentence, 3 deliverables"}
+      {/* Orbital centerpiece — orb is the speak button, spheres orbit around */}
+      <OrbitalCenterpiece
+        scenario={scenario}
+        shownCount={shownCount}
+        statusStep={statusStep}
+        phase={phase}
+        elapsed={elapsed}
+        isSpeaking={isSpeaking}
+        isListening={isListening}
+        transcript={input}
+        micSupported={micSupported}
+        onOrbTap={onOrbTap}
+      />
+
+      {/* Naked preset suggestions */}
+      <div className="max-w-3xl mx-auto px-4 mt-4 text-center">
+        <div className="text-[10px] tracking-[0.24em] uppercase text-ink-dim font-sans mb-3">
+          {micSupported ? "tap Nova to talk · or try" : "try saying"}
+        </div>
+        <div className="flex flex-wrap items-baseline justify-center gap-x-1 sm:gap-x-2 gap-y-2">
+          {PRESETS.map((p, i) => (
+            <span key={p.id} className="inline-flex items-baseline">
+              <button
+                type="button"
+                onClick={() => onPreset(p)}
+                disabled={isBusy || isListening}
+                className="font-serif italic text-sm sm:text-base text-ink hover:text-emerald-200 transition-colors underline-offset-4 hover:underline decoration-emerald-400/40 disabled:opacity-50"
+              >
+                &ldquo;{p.label}&rdquo;
+              </button>
+              {i < PRESETS.length - 1 && (
+                <span className="text-ink-dim mx-2 sm:mx-3">·</span>
+              )}
+            </span>
+          ))}
+        </div>
+        {micError && (
+          <div className="mt-3 text-[10px] tracking-[0.18em] uppercase text-rose-300/90 font-sans">
+            {micError}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -714,23 +604,40 @@ export function TryNova() {
  * Atoms
  * ============================================================ */
 
-/* ---------- Nova orb (big, central) ---------- */
-function BigNovaOrb({ size, pulsing, speaking }: { size: number; pulsing: boolean; speaking: boolean }) {
-  const active = pulsing || speaking;
+/* ---------- Nova orb (big, central, tappable) ---------- */
+function BigNovaOrb({
+  size,
+  pulsing,
+  speaking,
+  listening = false,
+}: {
+  size: number;
+  pulsing: boolean;
+  speaking: boolean;
+  listening?: boolean;
+}) {
+  const active = pulsing || speaking || listening;
+  const haloColor = listening
+    ? "rgba(244,114,182,0.5)"
+    : speaking
+      ? "rgba(125,211,252,0.45)"
+      : "rgba(165,180,252,0.42)";
+  const ringColor = listening ? "rgba(244,114,182,0.45)" : "rgba(125,211,252,0.3)";
+
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      {speaking && (
+      {(speaking || listening) && (
         <>
           <motion.span
-            className="absolute inset-0 rounded-full border border-sky-300/30"
-            style={{ margin: -size * 0.35 }}
-            animate={{ scale: [0.95, 1.35, 0.95], opacity: [0.7, 0, 0.7] }}
+            className="absolute inset-0 rounded-full"
+            style={{ margin: -size * 0.4, border: `1px solid ${ringColor}` }}
+            animate={{ scale: [0.95, 1.4, 0.95], opacity: [0.75, 0, 0.75] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
           />
           <motion.span
-            className="absolute inset-0 rounded-full border border-sky-300/15"
-            style={{ margin: -size * 0.6 }}
-            animate={{ scale: [0.95, 1.45, 0.95], opacity: [0.4, 0, 0.4] }}
+            className="absolute inset-0 rounded-full"
+            style={{ margin: -size * 0.65, border: `1px solid ${ringColor}`, opacity: 0.5 }}
+            animate={{ scale: [0.95, 1.55, 0.95], opacity: [0.5, 0, 0.5] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
           />
         </>
@@ -738,36 +645,38 @@ function BigNovaOrb({ size, pulsing, speaking }: { size: number; pulsing: boolea
       <motion.div
         className="absolute inset-0 rounded-full"
         style={{
-          margin: -size * 0.2,
-          background: speaking
-            ? "radial-gradient(circle, rgba(125,211,252,0.45), transparent 70%)"
-            : "radial-gradient(circle, rgba(165,180,252,0.4), transparent 70%)",
+          margin: -size * 0.25,
+          background: `radial-gradient(circle, ${haloColor}, transparent 70%)`,
         }}
-        animate={active ? { scale: [1, 1.18, 1], opacity: [0.6, 1, 0.6] } : { opacity: 0.55 }}
-        transition={active ? { duration: speaking ? 1.0 : 1.5, repeat: Infinity, ease: "easeInOut" } : { duration: 0.3 }}
+        animate={active ? { scale: [1, 1.2, 1], opacity: [0.6, 1, 0.6] } : { opacity: 0.55 }}
+        transition={active ? { duration: speaking || listening ? 1.0 : 1.5, repeat: Infinity, ease: "easeInOut" } : { duration: 0.3 }}
       />
       <div
         className="relative rounded-full"
         style={{
           width: size,
           height: size,
-          background: "radial-gradient(circle at 32% 28%, #ffffff, #e0e7ff 55%, rgba(99,102,241,0.85) 100%)",
-          boxShadow: speaking
-            ? "0 0 56px 6px rgba(125,211,252,0.55), inset 0 -18px 40px rgba(50,30,80,0.6)"
-            : pulsing
-              ? "0 0 40px 0 rgba(165,180,252,0.55), inset 0 -18px 40px rgba(50,30,80,0.55)"
-              : "0 16px 36px -10px rgba(0,0,0,0.7), inset 0 -18px 40px rgba(50,30,80,0.5)",
+          background: listening
+            ? "radial-gradient(circle at 32% 28%, #ffffff, #fbcfe8 55%, rgba(244,114,182,0.85) 100%)"
+            : "radial-gradient(circle at 32% 28%, #ffffff, #e0e7ff 55%, rgba(99,102,241,0.85) 100%)",
+          boxShadow: listening
+            ? "0 0 64px 6px rgba(244,114,182,0.55), inset 0 -18px 40px rgba(80,20,50,0.6)"
+            : speaking
+              ? "0 0 64px 6px rgba(125,211,252,0.55), inset 0 -18px 40px rgba(50,30,80,0.6)"
+              : pulsing
+                ? "0 0 48px 0 rgba(165,180,252,0.6), inset 0 -18px 40px rgba(50,30,80,0.55)"
+                : "0 18px 40px -10px rgba(0,0,0,0.75), inset 0 -18px 40px rgba(50,30,80,0.5)",
         }}
       >
         <span
           className="absolute rounded-full bg-white"
           style={{
-            width: size * 0.18,
-            height: size * 0.18,
-            top: size * 0.18,
-            left: size * 0.2,
-            filter: "blur(1px)",
-            opacity: 0.95,
+            width: size * 0.2,
+            height: size * 0.2,
+            top: size * 0.16,
+            left: size * 0.19,
+            filter: "blur(2px)",
+            opacity: 0.9,
           }}
         />
         {speaking && (
@@ -779,6 +688,28 @@ function BigNovaOrb({ size, pulsing, speaking }: { size: number; pulsing: boolea
                 style={{ width: Math.max(2, size * 0.035), filter: "drop-shadow(0 0 4px rgba(125,211,252,0.9))" }}
                 animate={{ height: ["18%", "62%", "30%", "55%", "25%", "65%", "20%"] }}
                 transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut", delay: i * 0.1 }}
+              />
+            ))}
+          </div>
+        )}
+        {listening && !speaking && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <svg width={size * 0.32} height={size * 0.32} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.4))" }}>
+              <rect x="9" y="3" width="6" height="12" rx="3"/>
+              <path d="M5 11a7 7 0 0 0 14 0"/>
+              <path d="M12 18v3"/>
+            </svg>
+          </div>
+        )}
+        {!speaking && !listening && pulsing && (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ gap: Math.max(2, size * 0.04) }}>
+            {[0, 1, 2].map((i) => (
+              <motion.span
+                key={i}
+                className="block rounded-full bg-white/70"
+                style={{ width: Math.max(2, size * 0.035), filter: "drop-shadow(0 0 4px rgba(165,180,252,0.8))" }}
+                animate={{ height: ["20%", "45%", "20%"] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", delay: i * 0.18 }}
               />
             ))}
           </div>
@@ -835,7 +766,7 @@ function OrbSphere({ d, size = 68 }: { d: Deliverable; size?: number }) {
   );
 }
 
-/* ---------- Orbital constellation stage (boxless) ---------- */
+/* ---------- Orbital centerpiece (boxless, orb-as-button) ---------- */
 
 /* Stable, pseudo-random scatter for ambient dust */
 const DUST: { left: string; top: string; dur: number; delay: number }[] = [
@@ -851,39 +782,113 @@ const DUST: { left: string; top: string; dur: number; delay: number }[] = [
   { left: "88%", top: "52%", dur: 6.4, delay: 1.0 },
 ];
 
-function OrbitalStage({
+/* Orbit parameters per slot: starting angle, radius, angular speed deg/sec */
+const ORBITS: { angle: number; radius: number; speed: number }[] = [
+  { angle: -90, radius: 218, speed: 5.5 },
+  { angle: 30, radius: 232, speed: 6.4 },
+  { angle: 150, radius: 218, speed: 5.0 },
+];
+
+function OrbitingSphere({ d, index, visible }: { d: Deliverable; index: number; visible: boolean }) {
+  const orbit = ORBITS[index] ?? ORBITS[0]!;
+  const time = useTime();
+
+  // Continuous orbital position via motion values
+  const orbitalX = useTransform(time, (t) =>
+    Math.cos(((orbit.angle + (t / 1000) * orbit.speed) * Math.PI) / 180) * orbit.radius,
+  );
+  const orbitalY = useTransform(time, (t) =>
+    Math.sin(((orbit.angle + (t / 1000) * orbit.speed) * Math.PI) / 180) * orbit.radius,
+  );
+
+  // Spawn progression: 0 = at Nova center, 1 = at orbital position
+  const spawnProgress = useSpring(0, { stiffness: 90, damping: 20 });
+  useEffect(() => {
+    spawnProgress.set(visible ? 1 : 0);
+  }, [visible, spawnProgress]);
+
+  const x = useTransform([spawnProgress, orbitalX], (vs) => {
+    const arr = vs as number[];
+    return (arr[0] ?? 0) * (arr[1] ?? 0);
+  });
+  const y = useTransform([spawnProgress, orbitalY], (vs) => {
+    const arr = vs as number[];
+    return (arr[0] ?? 0) * (arr[1] ?? 0);
+  });
+  const opacity = useTransform(spawnProgress, [0, 0.25, 1], [0, 0.5, 1]);
+  const scale = useTransform(spawnProgress, [0, 1], [0.35, 1]);
+
+  return (
+    <motion.div
+      className="absolute left-1/2 top-1/2 z-10 pointer-events-none"
+      style={{ x, y, opacity, scale, marginLeft: -78, marginTop: -36 }}
+    >
+      <motion.div
+        animate={visible ? { y: [0, -4, 0] } : {}}
+        transition={visible ? { duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: index * 0.4 } : {}}
+        className="flex flex-col items-center"
+        style={{ width: 156 }}
+      >
+        <OrbSphere d={d} size={64} />
+        <div className="mt-3 text-center">
+          <div className="font-serif text-[14px] text-ink font-semibold leading-tight">
+            {d.title}
+          </div>
+          <div className="text-[9px] font-mono text-ink-muted mt-1 leading-tight">
+            {d.detail}
+          </div>
+          <div className={`mt-1.5 inline-flex items-center gap-1 text-[8px] tracking-[0.24em] uppercase font-sans font-medium ${TONE_TEXT[d.tone]}`}>
+            <span className="size-1 rounded-full bg-current" />
+            {d.status}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function OrbitalCenterpiece({
   scenario,
   shownCount,
   statusStep,
   phase,
   elapsed,
   isSpeaking,
+  isListening,
+  transcript,
+  micSupported,
+  onOrbTap,
 }: {
-  scenario: Scenario;
+  scenario: Scenario | null;
   shownCount: number;
   statusStep: number;
   phase: Phase;
   elapsed: number;
   isSpeaking: boolean;
+  isListening: boolean;
+  transcript: string;
+  micSupported: boolean;
+  onOrbTap: () => void;
 }) {
   const isBusy = phase === "thinking" || phase === "working";
-  const statusText =
-    phase === "thinking"
+  const statusText = !scenario
+    ? null
+    : phase === "thinking"
       ? STATUS_LINES[statusStep]
       : phase === "working"
         ? "Drafting deliverables…"
         : `Shipped in ${scenario.totalTime}`;
 
   return (
-    <div className="relative border-t border-line/60 mt-5">
-      {/* Desktop orbital constellation */}
-      <div className="hidden sm:flex relative h-[560px] items-center justify-center overflow-hidden">
-        {/* Ambient backdrop */}
+    <div className="relative w-full">
+      {/* Desktop centerpiece */}
+      <div className="hidden sm:flex relative h-[600px] items-center justify-center overflow-visible">
+        {/* Ambient backdrop — soft glow only, no border */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              "radial-gradient(ellipse at 50% 45%, rgba(99,102,241,0.2), transparent 55%), radial-gradient(ellipse at 50% 100%, rgba(244,114,182,0.1), transparent 60%)",
+              "radial-gradient(ellipse at 50% 50%, rgba(99,102,241,0.2), transparent 55%), radial-gradient(ellipse at 50% 100%, rgba(244,114,182,0.07), transparent 60%)",
           }}
         />
 
@@ -898,160 +903,147 @@ function OrbitalStage({
           />
         ))}
 
-        {/* Slowly rotating orbit rings */}
+        {/* Slowly counter-rotating orbit rings */}
         <motion.div
-          className="absolute size-[460px] rounded-full border border-white/[0.05] pointer-events-none"
+          className="absolute size-[520px] rounded-full border border-white/[0.05] pointer-events-none"
           animate={{ rotate: 360 }}
-          transition={{ duration: 120, repeat: Infinity, ease: "linear" }}
+          transition={{ duration: 140, repeat: Infinity, ease: "linear" }}
         >
           <span className="absolute size-1 rounded-full bg-white/30 -top-0.5 left-1/2 -translate-x-1/2" />
         </motion.div>
         <motion.div
-          className="absolute size-[320px] rounded-full border border-white/[0.045] pointer-events-none"
+          className="absolute size-[360px] rounded-full border border-white/[0.045] pointer-events-none"
           animate={{ rotate: -360 }}
-          transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
+          transition={{ duration: 100, repeat: Infinity, ease: "linear" }}
         >
           <span className="absolute size-0.5 rounded-full bg-white/25 -bottom-0.5 left-1/2 -translate-x-1/2" />
         </motion.div>
 
-        {/* Curved connection arcs in SVG */}
-        <svg
-          className="absolute pointer-events-none"
-          width="640"
-          height="560"
-          viewBox="-320 -280 640 560"
-          style={{ overflow: "visible" }}
-        >
-          {scenario.deliverables.map((d, i) => {
-            const pos = ORBIT_POSITIONS[i];
-            if (!pos) return null;
-            const visible = i < shownCount;
-            // Bezier control: midpoint + perpendicular offset
-            const midX = pos.x / 2;
-            const midY = pos.y / 2;
-            const len = Math.sqrt(pos.x * pos.x + pos.y * pos.y) || 1;
-            const perpX = (-pos.y / len) * 36;
-            const perpY = (pos.x / len) * 36;
-            const c1x = midX + perpX;
-            const c1y = midY + perpY;
-            const path = `M 0 0 Q ${c1x} ${c1y} ${pos.x} ${pos.y}`;
-            return (
-              <motion.path
-                key={`arc-${scenario.id}-${i}`}
-                d={path}
-                stroke={TONE_LINE[d.tone]}
-                strokeWidth="1.25"
-                fill="none"
-                strokeLinecap="round"
-                strokeDasharray="0 1"
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{ pathLength: visible ? 1 : 0, opacity: visible ? 0.75 : 0 }}
-                transition={{ duration: 0.85, ease: "easeOut" }}
-                style={{ filter: `drop-shadow(0 0 6px ${TONE_LINE[d.tone]})` }}
-              />
-            );
-          })}
-        </svg>
-
-        {/* Center Nova orb (the sun) */}
-        <div className="relative z-10">
-          <BigNovaOrb size={120} pulsing={isBusy} speaking={isSpeaking} />
-        </div>
-
-        {/* Status line directly under orb (no box) */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 z-10 pointer-events-none" style={{ marginTop: 92 }}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${phase}-${statusStep}`}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.25 }}
-              className="font-serif italic text-sm text-ink-muted whitespace-nowrap text-center"
-            >
-              {statusText}
-            </motion.div>
-          </AnimatePresence>
-          {isBusy && (
-            <div className="text-[9px] font-mono text-ink-dim tabular-nums text-center mt-0.5">
-              {elapsed.toFixed(1)}s
-            </div>
-          )}
-        </div>
-
-        {/* Spawning particle that travels along the arc */}
+        {/* Emission burst at Nova when a deliverable spawns */}
         <AnimatePresence>
-          {shownCount > 0 && scenario.deliverables[shownCount - 1] && ORBIT_POSITIONS[shownCount - 1] && (
+          {shownCount > 0 && scenario && scenario.deliverables[shownCount - 1] && (
             <motion.span
-              key={`particle-${scenario.id}-${shownCount}`}
-              className="absolute left-1/2 top-1/2 size-2 rounded-full z-30 pointer-events-none"
+              key={`burst-${scenario.id}-${shownCount}`}
+              className="absolute left-1/2 top-1/2 rounded-full pointer-events-none z-10"
               style={{
-                marginLeft: -4,
-                marginTop: -4,
-                background: TONE_GRADIENTS[scenario.deliverables[shownCount - 1]!.tone],
-                boxShadow: `0 0 18px 5px ${TONE_GLOW[scenario.deliverables[shownCount - 1]!.tone]}`,
+                marginLeft: -70,
+                marginTop: -70,
+                width: 140,
+                height: 140,
+                border: `2px solid ${TONE_GLOW[scenario.deliverables[shownCount - 1]!.tone]}`,
               }}
-              initial={{ x: 0, y: 0, opacity: 1, scale: 0.6 }}
-              animate={{
-                x: ORBIT_POSITIONS[shownCount - 1]!.x,
-                y: ORBIT_POSITIONS[shownCount - 1]!.y,
-                opacity: [1, 1, 0],
-                scale: [0.6, 1.1, 1.8],
-              }}
-              transition={{ duration: 0.85, ease: "easeOut", times: [0, 0.7, 1] }}
+              initial={{ scale: 0.8, opacity: 0.85 }}
+              animate={{ scale: 2.6, opacity: 0 }}
+              transition={{ duration: 0.95, ease: "easeOut" }}
             />
           )}
         </AnimatePresence>
 
-        {/* Sphere + naked floating label at each orbit position */}
-        {scenario.deliverables.map((d, i) => {
-          const pos = ORBIT_POSITIONS[i];
-          if (!pos) return null;
-          const visible = i < shownCount;
-          return (
-            <motion.div
-              key={`node-${scenario.id}-${i}-${d.title}`}
-              className="absolute left-1/2 top-1/2 z-20"
-              initial={{ opacity: 0, scale: 0.25, x: 0, y: 0 }}
-              animate={
-                visible
-                  ? { opacity: 1, scale: 1, x: pos.x, y: pos.y }
-                  : { opacity: 0, scale: 0.25, x: 0, y: 0 }
-              }
-              transition={{ duration: 0.85, ease: [0.2, 0.7, 0.2, 1], delay: visible ? 0.2 : 0 }}
-            >
-              <motion.div
-                animate={visible ? { y: [0, -6, 0] } : {}}
-                transition={visible ? { duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.5 } : {}}
-                className="relative flex flex-col items-center"
-                style={{ width: 160, marginLeft: -80 }}
-              >
-                <OrbSphere d={d} size={70} />
-                <div className="mt-3 text-center pointer-events-none">
-                  <div className="font-serif text-[15px] text-ink font-semibold leading-tight">
-                    {d.title}
-                  </div>
-                  <div className="text-[9px] font-mono text-ink-muted mt-1 leading-tight">
-                    {d.detail}
-                  </div>
-                  <div className={`mt-1.5 inline-flex items-center gap-1 text-[8px] tracking-[0.24em] uppercase font-sans font-medium ${TONE_TEXT[d.tone]}`}>
-                    <span className="size-1 rounded-full bg-current" />
-                    {d.status}
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          );
-        })}
+        {/* Orbiting spheres */}
+        {scenario && scenario.deliverables.map((d, i) => (
+          <OrbitingSphere
+            key={`orbit-${scenario.id}-${i}`}
+            d={d}
+            index={i}
+            visible={i < shownCount}
+          />
+        ))}
 
-        {/* Shipped serif label — no box */}
+        {/* Center Nova orb — tappable speak button */}
+        <motion.button
+          type="button"
+          onClick={onOrbTap}
+          whileHover={{ scale: micSupported ? 1.05 : 1 }}
+          whileTap={{ scale: micSupported ? 0.96 : 1 }}
+          transition={{ type: "spring", stiffness: 380, damping: 20 }}
+          aria-label={isListening ? "Stop listening" : micSupported ? "Tap Nova to talk" : "Tap a preset below"}
+          disabled={!micSupported}
+          className="relative z-20 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-sky-300/50 disabled:cursor-default"
+          style={{ cursor: micSupported ? "pointer" : "default" }}
+        >
+          <BigNovaOrb size={150} pulsing={isBusy} speaking={isSpeaking} listening={isListening} />
+        </motion.button>
+
+        {/* Idle hint under orb */}
         <AnimatePresence>
-          {phase === "done" && (
+          {!scenario && !isListening && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 z-10 pointer-events-none text-center"
+              style={{ marginTop: 110 }}
+            >
+              <div className="font-serif italic text-base sm:text-lg text-ink-muted whitespace-nowrap">
+                {micSupported ? "Tap Nova to talk" : "Pick a phrase below"}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Live transcript while listening */}
+        <AnimatePresence>
+          {isListening && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 z-10 pointer-events-none text-center w-[80%] max-w-md"
+              style={{ marginTop: 115 }}
+            >
+              <div className="text-[9px] tracking-[0.24em] uppercase text-rose-300/90 font-sans mb-2 flex items-center justify-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-rose-400 animate-pulse" />
+                listening
+              </div>
+              <div className="font-serif italic text-base text-ink leading-snug min-h-[1.4em]">
+                {transcript || "…"}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Scenario status (thinking/working/done) */}
+        <AnimatePresence>
+          {scenario && !isListening && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 z-10 pointer-events-none text-center"
+              style={{ marginTop: 110 }}
+            >
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`${phase}-${statusStep}`}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.25 }}
+                  className="font-serif italic text-base text-ink-muted whitespace-nowrap"
+                >
+                  {statusText}
+                </motion.div>
+              </AnimatePresence>
+              {isBusy && (
+                <div className="text-[9px] font-mono text-ink-dim tabular-nums mt-1">
+                  {elapsed.toFixed(1)}s
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Shipped serif label at bottom */}
+        <AnimatePresence>
+          {phase === "done" && scenario && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
               className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 pointer-events-none"
             >
               <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -1062,36 +1054,57 @@ function OrbitalStage({
           )}
         </AnimatePresence>
 
-        {/* Tiny disclaimer */}
         <span className="absolute bottom-2 right-4 text-[9px] font-sans text-ink-dim italic z-20">
           demo · waitlist for the real thing
         </span>
       </div>
 
       {/* Mobile vertical layout */}
-      <div className="sm:hidden relative flex flex-col items-center px-5 pt-10 pb-10 overflow-hidden">
+      <div className="sm:hidden relative flex flex-col items-center pt-8 pb-6 overflow-hidden">
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              "radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.22), transparent 60%)",
+              "radial-gradient(ellipse at 50% 20%, rgba(99,102,241,0.22), transparent 60%)",
           }}
         />
-        <BigNovaOrb size={84} pulsing={isBusy} speaking={isSpeaking} />
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={`m-${phase}-${statusStep}`}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.25 }}
-            className="mt-5 font-serif italic text-sm text-ink-muted text-center relative"
-          >
-            {statusText}
-          </motion.div>
-        </AnimatePresence>
-        <div className="mt-8 w-full flex flex-col items-center gap-6 relative">
-          {scenario.deliverables.map((d, i) => {
+        <motion.button
+          type="button"
+          onClick={onOrbTap}
+          whileHover={{ scale: micSupported ? 1.04 : 1 }}
+          whileTap={{ scale: micSupported ? 0.96 : 1 }}
+          transition={{ type: "spring", stiffness: 380, damping: 20 }}
+          aria-label={isListening ? "Stop listening" : micSupported ? "Tap Nova to talk" : "Tap a preset below"}
+          disabled={!micSupported}
+          className="relative z-20 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-sky-300/50 disabled:cursor-default"
+        >
+          <BigNovaOrb size={100} pulsing={isBusy} speaking={isSpeaking} listening={isListening} />
+        </motion.button>
+
+        <div className="mt-5 min-h-[1.4em] relative text-center px-6">
+          {!scenario && !isListening && (
+            <span className="font-serif italic text-sm text-ink-muted">
+              {micSupported ? "Tap Nova to talk" : "Pick a phrase below"}
+            </span>
+          )}
+          {isListening && (
+            <div>
+              <div className="text-[9px] tracking-[0.24em] uppercase text-rose-300/90 font-sans mb-1 flex items-center justify-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-rose-400 animate-pulse" />
+                listening
+              </div>
+              <div className="font-serif italic text-sm text-ink">
+                {transcript || "…"}
+              </div>
+            </div>
+          )}
+          {scenario && !isListening && (
+            <span className="font-serif italic text-sm text-ink-muted">{statusText}</span>
+          )}
+        </div>
+
+        <div className="mt-6 w-full flex flex-col items-center gap-5 relative">
+          {scenario && scenario.deliverables.map((d, i) => {
             const visible = i < shownCount;
             return (
               <motion.div
@@ -1101,7 +1114,7 @@ function OrbitalStage({
                 transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
                 className="flex items-center gap-4"
               >
-                <OrbSphere d={d} size={56} />
+                <OrbSphere d={d} size={52} />
                 <div>
                   <div className="font-serif text-sm text-ink font-semibold leading-tight">
                     {d.title}
@@ -1119,7 +1132,7 @@ function OrbitalStage({
           })}
         </div>
         <AnimatePresence>
-          {phase === "done" && (
+          {phase === "done" && scenario && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1136,24 +1149,6 @@ function OrbitalStage({
         </AnimatePresence>
       </div>
     </div>
-  );
-}
-
-function Spinner() {
-  return (
-    <motion.svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      animate={{ rotate: 360 }}
-      transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
-    >
-      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-    </motion.svg>
   );
 }
 
