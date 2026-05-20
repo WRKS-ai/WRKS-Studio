@@ -200,6 +200,43 @@ const STATUS_LINES = ["Parsing intent…", "Picking frameworks…", "Drafting de
 
 const VOICE_STORAGE_KEY = "wrks-voice-on";
 
+/* ---------- SpeechRecognition (browser STT) ---------- */
+type MinRecognition = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  maxAlternatives: number;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
+  onstart: (() => void) | null;
+};
+
+function createRecognition(): MinRecognition | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: new () => MinRecognition;
+    webkitSpeechRecognition?: new () => MinRecognition;
+  };
+  const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+  if (!Ctor) return null;
+  const rec = new Ctor();
+  rec.lang = "en-US";
+  rec.interimResults = true;
+  rec.continuous = false;
+  rec.maxAlternatives = 1;
+  return rec;
+}
+
+function isRecognitionSupported(): boolean {
+  if (typeof window === "undefined") return false;
+  const w = window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown };
+  return Boolean(w.SpeechRecognition ?? w.webkitSpeechRecognition);
+}
+
 function pickNovaVoice(): SpeechSynthesisVoice | null {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
   const voices = window.speechSynthesis.getVoices();
@@ -233,14 +270,20 @@ export function TryNova() {
   const [hasRunFirstDemo, setHasRunFirstDemo] = useState(false);
   const [voiceOn, setVoiceOn] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [micSupported, setMicSupported] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
   const cancelRef = useRef<{ cancelled: boolean }>({ cancelled: false });
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const recognitionRef = useRef<MinRecognition | null>(null);
+  const finalTranscriptRef = useRef<string>("");
 
-  // Load voice preference on mount
+  // Load voice preference + detect mic support on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
     const saved = window.localStorage.getItem(VOICE_STORAGE_KEY);
     if (saved === "1") setVoiceOn(true);
+    setMicSupported(isRecognitionSupported());
     // Warm up voice list
     if ("speechSynthesis" in window) {
       window.speechSynthesis.getVoices();
@@ -252,6 +295,7 @@ export function TryNova() {
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
+      recognitionRef.current?.abort();
     };
   }, []);
 
@@ -289,6 +333,72 @@ export function TryNova() {
     setIsSpeaking(false);
   };
 
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  };
+
+  const startListening = () => {
+    if (!isRecognitionSupported()) {
+      setMicError("Voice input isn't supported in this browser. Try Chrome, Edge, or Safari.");
+      return;
+    }
+    // Cancel any in-progress speech so Nova doesn't talk over the user
+    stopSpeech();
+    // Cancel any in-progress demo run
+    cancelRef.current.cancelled = true;
+
+    const rec = createRecognition();
+    if (!rec) return;
+    recognitionRef.current = rec;
+    finalTranscriptRef.current = "";
+    setInput("");
+    setMicError(null);
+
+    rec.onstart = () => setIsListening(true);
+    rec.onresult = (e) => {
+      let interim = "";
+      let finalText = "";
+      for (let i = 0; i < e.results.length; i++) {
+        const res = e.results[i]!;
+        const alt = res[0]!;
+        if (res.isFinal) finalText += alt.transcript;
+        else interim += alt.transcript;
+      }
+      finalTranscriptRef.current = (finalTranscriptRef.current + finalText).trim();
+      const display = (finalTranscriptRef.current + " " + interim).trim();
+      setInput(display);
+    };
+    rec.onerror = (e) => {
+      setIsListening(false);
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        setMicError("Microphone blocked. Enable it in your browser to talk to Nova.");
+      } else if (e.error === "no-speech") {
+        setMicError("Didn't catch that. Tap the mic and try again.");
+      } else if (e.error !== "aborted") {
+        setMicError("Voice input hit a snag. Try again or type instead.");
+      }
+    };
+    rec.onend = () => {
+      setIsListening(false);
+      const finalText = finalTranscriptRef.current.trim();
+      if (finalText) {
+        // Auto-enable voice so visitors hear Nova talk back
+        if (!voiceOn) persistVoice(true);
+        setInput(finalText);
+        void runScenario(finalText);
+      }
+    };
+
+    try {
+      rec.start();
+    } catch {
+      // start() throws if already started — recover by aborting and retrying
+      rec.abort();
+      setIsListening(false);
+    }
+  };
+
   // First-load auto-demo
   useEffect(() => {
     if (hasRunFirstDemo) return;
@@ -301,9 +411,12 @@ export function TryNova() {
   }, []);
 
   const runScenario = async (text: string) => {
-    // Cancel previous run and any in-progress speech
+    // Cancel previous run, any in-progress speech, and any open mic
     cancelRef.current.cancelled = true;
     stopSpeech();
+    recognitionRef.current?.abort();
+    setIsListening(false);
+    setMicError(null);
     const localCancel = { cancelled: false };
     cancelRef.current = localCancel;
 
@@ -366,6 +479,9 @@ export function TryNova() {
   const onReset = () => {
     cancelRef.current.cancelled = true;
     stopSpeech();
+    recognitionRef.current?.abort();
+    setIsListening(false);
+    setMicError(null);
     setPhase("idle");
     setScenario(null);
     setShownCount(0);
@@ -472,18 +588,56 @@ export function TryNova() {
           </div>
           {/* Input form */}
           <form onSubmit={onSubmit} className="relative flex items-center gap-2">
-            <span className="absolute left-4 size-1.5 rounded-full bg-emerald-400 animate-pulse pointer-events-none" />
-            <input
-              type="text"
-              value={input}
-              onChange={handleInputChange}
-              disabled={isBusy}
-              placeholder="Tell Nova what to make…"
-              className="flex-1 h-12 pl-9 pr-4 rounded-2xl bg-canvas border border-line text-ink placeholder:text-ink-dim text-sm font-sans focus:outline-none focus:border-ink/40 focus:ring-2 focus:ring-ink/10 transition-all disabled:opacity-60"
-            />
+            <div className="relative flex-1">
+              {micSupported ? (
+                <button
+                  type="button"
+                  onClick={isListening ? stopListening : startListening}
+                  disabled={isBusy}
+                  aria-label={isListening ? "Stop listening" : "Talk to Nova"}
+                  className={`absolute left-1.5 top-1/2 -translate-y-1/2 size-9 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                    isListening
+                      ? "bg-rose-500 text-white"
+                      : "bg-canvas border border-line text-ink-muted hover:text-ink hover:border-ink/40"
+                  }`}
+                >
+                  {isListening && (
+                    <>
+                      <span className="absolute inset-0 rounded-xl bg-rose-500/40 animate-ping" />
+                      <span className="absolute -inset-1 rounded-xl border border-rose-400/40 animate-pulse" />
+                    </>
+                  )}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="relative">
+                    <rect x="9" y="3" width="6" height="12" rx="3" />
+                    <path d="M5 11a7 7 0 0 0 14 0" />
+                    <path d="M12 18v3" />
+                  </svg>
+                </button>
+              ) : (
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 size-1.5 rounded-full bg-emerald-400 animate-pulse pointer-events-none" />
+              )}
+              <input
+                type="text"
+                value={input}
+                onChange={handleInputChange}
+                disabled={isBusy}
+                placeholder={
+                  isListening
+                    ? "Listening… speak now"
+                    : micSupported
+                      ? "Tap the mic, or type what to make…"
+                      : "Tell Nova what to make…"
+                }
+                className={`w-full h-12 ${micSupported ? "pl-12" : "pl-9"} pr-4 rounded-2xl bg-canvas border text-ink placeholder:text-ink-dim text-sm font-sans focus:outline-none focus:ring-2 transition-all disabled:opacity-60 ${
+                  isListening
+                    ? "border-rose-400/60 ring-2 ring-rose-400/20 focus:border-rose-400/60 focus:ring-rose-400/20"
+                    : "border-line focus:border-ink/40 focus:ring-ink/10"
+                }`}
+              />
+            </div>
             <motion.button
               type="submit"
-              disabled={isBusy || !input.trim()}
+              disabled={isBusy || !input.trim() || isListening}
               whileHover={{ scale: isBusy ? 1 : 1.03 }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
@@ -501,6 +655,11 @@ export function TryNova() {
               )}
             </motion.button>
           </form>
+          {micError && (
+            <div className="mt-2 text-[10px] tracking-[0.18em] uppercase text-rose-300/90 font-sans">
+              {micError}
+            </div>
+          )}
         </div>
 
         {/* Response panel */}
@@ -646,7 +805,9 @@ export function TryNova() {
 
       {/* Helper line below */}
       <div className="mt-3 text-center text-[10px] tracking-[0.18em] uppercase text-ink-dim font-sans">
-        Pick a preset or type your own · 1 sentence, 3 deliverables
+        {micSupported
+          ? "Talk to Nova or type · 1 sentence, 3 deliverables"
+          : "Pick a preset or type your own · 1 sentence, 3 deliverables"}
       </div>
     </div>
   );
