@@ -88,12 +88,12 @@ export function WhatItBuilds() {
                 ease: [0.2, 0.7, 0.2, 1],
               }}
               whileHover={{ y: -4 }}
-              className={`group relative border border-line rounded-3xl bg-panel/60 hover:bg-panel hover:border-line-bright transition-[background-color,border-color] duration-500 overflow-hidden ${it.span ?? ""}`}
+              className={`group relative border border-line rounded-3xl bg-panel/60 hover:bg-panel hover:border-line-bright transition-[background-color,border-color] duration-500 overflow-hidden flex flex-col ${it.span ?? ""}`}
             >
-              {/* Graphic — hero of the card, edge-to-edge top */}
-              <div className="relative z-10">{it.mock}</div>
-              {/* Text content below */}
-              <div className="relative z-10 p-6 sm:p-7">
+              {/* Graphic — hero, fills available height */}
+              <div className="relative z-10 flex-1 min-h-[260px] flex">{it.mock}</div>
+              {/* Text content — fixed at the bottom */}
+              <div className="relative z-10 p-6 sm:p-7 shrink-0">
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className="size-7 rounded-lg border border-line bg-canvas/80 flex items-center justify-center text-ink-muted group-hover:text-ink group-hover:border-ink/30 transition-colors">
                     {it.icon}
