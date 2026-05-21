@@ -3,6 +3,7 @@ import { MeshGradient } from "@/components/mesh-gradient";
 import { StarField } from "@/components/star-field";
 import { Hero } from "@/components/v2/hero";
 import { Nav } from "@/components/v2/nav";
+import { WhatItBuilds } from "@/components/v2/what-it-builds";
 
 export const metadata: Metadata = {
   title: "WRKS Studio — v2",
@@ -25,11 +26,7 @@ export default function V2Home() {
         title="Nova section"
         lede="The interactive demo gets its own breathing room here."
       />
-      <Placeholder
-        eyebrow="What it builds"
-        title="Five deliverables"
-        lede="Pinned scrollytelling moment — the one cinematic motion event on the page."
-      />
+      <WhatItBuilds />
       <Placeholder
         eyebrow="How it works"
         title="Three phases"
