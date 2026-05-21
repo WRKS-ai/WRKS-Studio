@@ -6,7 +6,7 @@ import {
   useMotionValueEvent,
   useScroll,
 } from "motion/react";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 type Tone = "violet" | "sky" | "emerald";
 
@@ -282,31 +282,77 @@ function Sidebar() {
  * ============================================================ */
 
 function ListeningView() {
+  const promptWords =
+    "Build a Black Friday landing page with three social posts and a discount code.".split(
+      " ",
+    );
+
   return (
     <div className="relative size-full flex flex-col">
       {/* Conversation */}
       <div className="space-y-3 mb-auto">
-        <div className="flex items-start gap-2">
+        {/* Nova greeting — fades in first */}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="flex items-start gap-2"
+        >
           <div className="size-5 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-[8px] font-mono font-bold text-white shrink-0">
             N
           </div>
           <div className="text-[10px] font-sans text-white/55 leading-snug pt-0.5">
             Hey Hannah — what are we building today?
           </div>
-        </div>
-        <div className="flex items-start gap-2 justify-end">
+        </motion.div>
+
+        {/* User prompt — word-by-word reveal */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5, duration: 0.2 }}
+          className="flex items-start gap-2 justify-end"
+        >
           <div className="text-[10px] font-serif italic text-white/85 leading-snug pt-0.5 max-w-[78%] text-right">
-            &ldquo;Build a Black Friday landing page with three social posts and
-            a discount code.&rdquo;
+            <span>&ldquo;</span>
+            {promptWords.map((word, i) => (
+              <motion.span
+                key={i}
+                initial={{ opacity: 0, y: 3 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.25,
+                  delay: 0.7 + i * 0.07,
+                  ease: "easeOut",
+                }}
+                className="inline-block"
+              >
+                {word}
+                {i < promptWords.length - 1 ? " " : ""}
+              </motion.span>
+            ))}
+            <motion.span
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7 + promptWords.length * 0.07 + 0.1 }}
+            >
+              &rdquo;
+            </motion.span>
           </div>
-          <div className="size-5 rounded-full bg-emerald-400/15 flex items-center justify-center text-[8px] font-mono font-bold text-emerald-200 shrink-0" style={{ border: "1px solid rgba(52,211,153,0.4)" }}>
+          <div
+            className="size-5 rounded-full bg-emerald-400/15 flex items-center justify-center text-[8px] font-mono font-bold text-emerald-200 shrink-0"
+            style={{ border: "1px solid rgba(52,211,153,0.4)" }}
+          >
             H
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Voice input bar */}
-      <div
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2, ease: [0.2, 0.7, 0.2, 1] }}
         className="mt-3 rounded-xl p-2.5"
         style={{
           background: "rgba(255,255,255,0.03)",
@@ -314,12 +360,19 @@ function ListeningView() {
         }}
       >
         <div className="flex items-center gap-2 mb-2">
-          <div
+          <motion.div
             className="size-7 rounded-full flex items-center justify-center"
             style={{
               background: "linear-gradient(135deg, #a78bfa, #6366f1)",
-              boxShadow: "0 0 16px rgba(167,139,250,0.45)",
             }}
+            animate={{
+              boxShadow: [
+                "0 0 12px rgba(167,139,250,0.45)",
+                "0 0 24px rgba(167,139,250,0.65)",
+                "0 0 12px rgba(167,139,250,0.45)",
+              ],
+            }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
           >
             <svg
               width="13"
@@ -335,11 +388,12 @@ function ListeningView() {
               <path d="M5 11a7 7 0 0 0 14 0" />
               <path d="M12 18v3" />
             </svg>
-          </div>
+          </motion.div>
           <span className="text-[10px] font-mono text-violet-200/85">
-            Listening…
+            Listening
+            <BlinkingDots />
           </span>
-          <span className="ml-auto text-[9px] font-mono text-white/35">0:02</span>
+          <TickingTimer className="ml-auto text-[9px] font-mono text-white/35" />
         </div>
         {/* Waveform */}
         <div className="flex items-end justify-center gap-[2px] h-6">
@@ -360,8 +414,44 @@ function ListeningView() {
             />
           ))}
         </div>
-      </div>
+      </motion.div>
     </div>
+  );
+}
+
+function BlinkingDots() {
+  return (
+    <span className="inline-flex ml-0.5">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{
+            duration: 1.2,
+            repeat: Infinity,
+            delay: i * 0.18,
+            ease: "easeInOut",
+          }}
+        >
+          .
+        </motion.span>
+      ))}
+    </span>
+  );
+}
+
+function TickingTimer({ className }: { className?: string }) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSeconds((s) => (s + 0.1 > 5.9 ? 0 : s + 0.1));
+    }, 100);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span className={className}>
+      0:{seconds.toFixed(1).padStart(3, "0")}
+    </span>
   );
 }
 
@@ -370,44 +460,82 @@ function ListeningView() {
  * ============================================================ */
 
 function DraftingView() {
+  const tiles = [
+    {
+      tone: "rose" as const,
+      label: "Instagram",
+      status: "Drafted",
+      gradient: "linear-gradient(135deg, #f472b6 0%, #d946ef 45%, #f59e0b 100%)",
+    },
+    {
+      tone: "sky" as const,
+      label: "Website",
+      status: "Ready",
+      gradient: "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)",
+    },
+    {
+      tone: "violet" as const,
+      label: "Discount",
+      status: "Approved",
+      code: "HANNAH20",
+    },
+    {
+      tone: "amber" as const,
+      label: "Ad creative",
+      status: "A/B",
+      gradient: "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)",
+    },
+  ];
+
   return (
     <div className="relative size-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-[9px] font-mono text-white/55">
-          Drafting 4 deliverables · 2.1s
-        </div>
+        <DraftingCounter />
         <div className="flex items-center gap-1 text-[8px] font-mono text-sky-300/80">
           <span className="size-1 rounded-full bg-sky-400 animate-pulse" />
           live
         </div>
       </div>
-      {/* 4-tile grid */}
+      {/* 4-tile grid — staggered entrance */}
       <div className="grid grid-cols-2 gap-2 flex-1">
-        <DraftTile
-          tone="rose"
-          label="Instagram"
-          status="Drafted"
-          gradient="linear-gradient(135deg, #f472b6 0%, #d946ef 45%, #f59e0b 100%)"
-        />
-        <DraftTile
-          tone="sky"
-          label="Website"
-          status="Ready"
-          gradient="linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)"
-        />
-        <DraftTile
-          tone="violet"
-          label="Discount"
-          status="Approved"
-          code="HANNAH20"
-        />
-        <DraftTile
-          tone="amber"
-          label="Ad creative"
-          status="A/B"
-          gradient="linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)"
-        />
+        {tiles.map((tile, i) => (
+          <motion.div
+            key={tile.label}
+            initial={{ opacity: 0, y: 14, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{
+              duration: 0.55,
+              delay: 0.2 + i * 0.18,
+              ease: [0.2, 0.7, 0.2, 1],
+            }}
+            className="relative"
+          >
+            <DraftTile {...tile} entranceDelay={0.2 + i * 0.18} />
+          </motion.div>
+        ))}
       </div>
+    </div>
+  );
+}
+
+function DraftingCounter() {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    let elapsed = 0;
+    const id = setInterval(() => {
+      elapsed += 0.1;
+      if (elapsed > 2.1) {
+        clearInterval(id);
+        setSeconds(2.1);
+        return;
+      }
+      setSeconds(elapsed);
+    }, 100);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div className="text-[9px] font-mono text-white/55">
+      Drafting 4 deliverables · {seconds.toFixed(1)}s
     </div>
   );
 }
@@ -418,12 +546,14 @@ function DraftTile({
   status,
   gradient,
   code,
+  entranceDelay = 0,
 }: {
   tone: "rose" | "sky" | "violet" | "amber";
   label: string;
   status: string;
   gradient?: string;
   code?: string;
+  entranceDelay?: number;
 }) {
   const ringClass =
     tone === "rose"
@@ -445,32 +575,91 @@ function DraftTile({
 
   return (
     <div
-      className="relative rounded-lg overflow-hidden bg-black/40 p-2 flex flex-col"
+      className="relative rounded-lg overflow-hidden bg-black/40 p-2 flex flex-col h-full"
       style={{ border: `1px solid ${ringClass}` }}
     >
       <div className="flex items-center justify-between mb-1.5">
         <span className={`text-[7px] tracking-[0.22em] uppercase ${labelToneClass} font-sans font-medium`}>
           {label}
         </span>
-        <span className="text-[7px] tracking-[0.18em] uppercase text-emerald-300/85 font-sans">
+        <motion.span
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: entranceDelay + 0.45, duration: 0.3 }}
+          className="text-[7px] tracking-[0.18em] uppercase text-emerald-300/85 font-sans flex items-center gap-0.5"
+        >
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: entranceDelay + 0.45, type: "spring", stiffness: 400, damping: 18 }}
+            className="size-1 rounded-full bg-emerald-400 inline-block"
+          />
           {status}
-        </span>
+        </motion.span>
       </div>
       {code ? (
         <div
-          className="font-mono font-bold text-white text-[15px] tracking-[0.18em] text-center py-2 rounded-md flex-1 flex items-center justify-center"
+          className="font-mono font-bold text-white text-[15px] tracking-[0.18em] py-2 rounded-md flex-1 flex items-center justify-center relative overflow-hidden"
           style={{
             background: "linear-gradient(135deg, #a78bfa, #6366f1)",
             textShadow: "0 1px 4px rgba(0,0,0,0.4)",
           }}
         >
-          {code}
+          {/* Shimmer sweep */}
+          <motion.span
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%)",
+            }}
+            initial={{ x: "-100%" }}
+            animate={{ x: "200%" }}
+            transition={{
+              duration: 1.4,
+              delay: entranceDelay + 0.3,
+              ease: "easeInOut",
+              repeat: Infinity,
+              repeatDelay: 2.5,
+            }}
+          />
+          {/* Typed code */}
+          <span className="relative">
+            {code.split("").map((ch, i) => (
+              <motion.span
+                key={i}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: entranceDelay + 0.15 + i * 0.04 }}
+                className="inline-block"
+              >
+                {ch}
+              </motion.span>
+            ))}
+          </span>
         </div>
       ) : (
         <div
-          className="flex-1 rounded-md"
+          className="flex-1 rounded-md relative overflow-hidden"
           style={{ background: gradient }}
-        />
+        >
+          {/* Subtle scan-line shimmer */}
+          <motion.span
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%)",
+            }}
+            initial={{ x: "-100%" }}
+            animate={{ x: "200%" }}
+            transition={{
+              duration: 1.6,
+              delay: entranceDelay + 0.3,
+              ease: "easeInOut",
+              repeat: Infinity,
+              repeatDelay: 2.8,
+            }}
+          />
+        </div>
       )}
     </div>
   );
@@ -494,7 +683,7 @@ function ShippedView() {
     <div className="relative size-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="font-serif italic text-white/85 text-[12px] leading-snug">
-          Shipped to 6 channels in 3.2s
+          Shipped to <ShippedChannelCounter total={6} /> channels in 3.2s
         </div>
         <div className="flex items-center gap-1 text-[8px] font-mono text-emerald-300/85">
           <span className="size-1 rounded-full bg-emerald-400 animate-pulse" />
@@ -502,18 +691,38 @@ function ShippedView() {
         </div>
       </div>
       <div className="grid grid-cols-2 gap-1.5 flex-1">
-        {channels.map((c) => (
-          <ChannelRow key={c.name} channel={c} />
+        {channels.map((c, i) => (
+          <ChannelRow key={c.name} channel={c} delay={0.15 + i * 0.13} />
         ))}
       </div>
     </div>
   );
 }
 
+function ShippedChannelCounter({ total }: { total: number }) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let v = 0;
+    const id = setInterval(() => {
+      v += 1;
+      if (v >= total) {
+        clearInterval(id);
+        setCount(total);
+        return;
+      }
+      setCount(v);
+    }, 180);
+    return () => clearInterval(id);
+  }, [total]);
+  return <span className="font-mono not-italic text-emerald-300/90">{count}</span>;
+}
+
 function ChannelRow({
   channel,
+  delay = 0,
 }: {
   channel: { name: string; out: string; tone: "rose" | "sky" | "violet" | "amber" | "emerald" };
+  delay?: number;
 }) {
   const dotClass = {
     rose: "bg-rose-400",
@@ -524,12 +733,28 @@ function ChannelRow({
   }[channel.tone];
 
   return (
-    <div
-      className="rounded-md px-2.5 py-2 bg-white/[0.02] flex items-center gap-2"
+    <motion.div
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.45, delay, ease: [0.2, 0.7, 0.2, 1] }}
+      className="rounded-md px-2.5 py-2 bg-white/[0.02] flex items-center gap-2 relative overflow-hidden"
       style={{ border: "1px solid rgba(255,255,255,0.05)" }}
     >
-      <span className={`size-2 rounded-full ${dotClass}`} />
-      <div className="flex-1 min-w-0">
+      {/* Brief emerald "just landed" pulse */}
+      <motion.span
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: "rgba(52,211,153,0.18)" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 1, 0] }}
+        transition={{ duration: 0.7, delay: delay + 0.3, ease: "easeOut" }}
+      />
+      <motion.span
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay, type: "spring", stiffness: 380, damping: 20 }}
+        className={`size-2 rounded-full ${dotClass} relative`}
+      />
+      <div className="flex-1 min-w-0 relative">
         <div className="text-[9px] font-sans font-semibold text-white truncate">
           {channel.name}
         </div>
@@ -546,9 +771,15 @@ function ChannelRow({
         strokeWidth="3"
         strokeLinecap="round"
         strokeLinejoin="round"
+        className="relative"
       >
-        <path d="M5 13l4 4L19 7" />
+        <motion.path
+          d="M5 13l4 4L19 7"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.45, delay: delay + 0.25, ease: [0.2, 0.7, 0.2, 1] }}
+        />
       </svg>
-    </div>
+    </motion.div>
   );
 }
