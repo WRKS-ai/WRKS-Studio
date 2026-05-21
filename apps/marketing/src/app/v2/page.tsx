@@ -8,6 +8,7 @@ import { Footer } from "@/components/v2/footer";
 import { Hero } from "@/components/v2/hero";
 import { HowItWorks } from "@/components/v2/how-it-works";
 import { Memory } from "@/components/v2/memory";
+import { Nova } from "@/components/v2/nova";
 import { Waitlist } from "@/components/v2/waitlist";
 import { WhatItBuilds } from "@/components/v2/what-it-builds";
 
@@ -59,13 +60,8 @@ export default function V2Home() {
       <CardNav items={NAV_ITEMS} />
       <Hero />
 
-      {/* Placeholder bands to convey rhythm — will be replaced section-by-section */}
-      <Placeholder
-        eyebrow="Up next"
-        title="Nova section"
-        lede="The interactive demo gets its own breathing room here."
-      />
       <WhatItBuilds />
+      <Nova />
       <HowItWorks />
       <Connections />
       <Memory />
@@ -76,32 +72,3 @@ export default function V2Home() {
   );
 }
 
-function Placeholder({
-  eyebrow,
-  title,
-  lede,
-}: {
-  eyebrow: string;
-  title: string;
-  lede: string;
-}) {
-  return (
-    <section className="relative py-32 sm:py-40 px-6 lg:px-8 border-t border-white/[0.04]">
-      <div className="max-w-screen-xl mx-auto">
-        <div className="text-[12px] tracking-[0.18em] uppercase text-ink-dim font-sans font-medium mb-5">
-          {eyebrow}
-        </div>
-        <h2 className="font-serif text-5xl sm:text-6xl tracking-tight leading-[1.05] max-w-3xl">
-          {title}
-        </h2>
-        <p className="mt-6 text-[20px] text-ink-muted leading-[1.55] max-w-2xl">
-          {lede}
-        </p>
-        <div className="mt-10 inline-flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase text-ink-dim font-sans font-medium">
-          <span className="size-1 rounded-full bg-ink-dim" />
-          Placeholder · section will land in next commits
-        </div>
-      </div>
-    </section>
-  );
-}
