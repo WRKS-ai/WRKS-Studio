@@ -4,6 +4,7 @@ import { StarField } from "@/components/star-field";
 import { BrandMarquee } from "@/components/v2/brand-marquee";
 import { CardNav, type CardNavItem } from "@/components/v2/card-nav";
 import { Connections } from "@/components/v2/connections";
+import { Footer } from "@/components/v2/footer";
 import { Hero } from "@/components/v2/hero";
 import { HowItWorks } from "@/components/v2/how-it-works";
 import { Memory } from "@/components/v2/memory";
@@ -70,6 +71,7 @@ export default function V2Home() {
       <Memory />
       <Waitlist />
       <BrandMarquee />
+      <Footer />
     </main>
   );
 }
