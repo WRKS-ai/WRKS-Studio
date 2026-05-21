@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { MeshGradient } from "@/components/mesh-gradient";
 import { StarField } from "@/components/star-field";
 import { BrandMarquee } from "@/components/v2/brand-marquee";
+import { Connections } from "@/components/v2/connections";
 import { Hero } from "@/components/v2/hero";
 import { HowItWorks } from "@/components/v2/how-it-works";
 import { Nav } from "@/components/v2/nav";
@@ -30,6 +31,7 @@ export default function V2Home() {
       />
       <WhatItBuilds />
       <HowItWorks />
+      <Connections />
       <Placeholder
         eyebrow="Built around you"
         title="Memory & personality"
