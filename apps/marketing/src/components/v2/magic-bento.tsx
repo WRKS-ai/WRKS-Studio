@@ -15,6 +15,7 @@ export type BentoCard = {
   description: string;
   label: string;
   color?: string;
+  visual?: ReactNode;
 };
 
 const createParticleElement = (x: number, y: number, color: string) => {
@@ -410,6 +411,9 @@ export function MagicBento({
               <div className="magic-bento-card__header">
                 <div className="magic-bento-card__label">{card.label}</div>
               </div>
+              {card.visual && (
+                <div className="magic-bento-card__visual">{card.visual}</div>
+              )}
               <div className="magic-bento-card__content">
                 <h3 className="magic-bento-card__title">{card.title}</h3>
                 <p className="magic-bento-card__description">{card.description}</p>

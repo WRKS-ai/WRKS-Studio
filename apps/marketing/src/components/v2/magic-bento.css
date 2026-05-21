@@ -12,10 +12,9 @@
 .magic-bento-card {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   position: relative;
-  aspect-ratio: 4 / 3;
-  min-height: 200px;
+  aspect-ratio: auto;
+  min-height: 280px;
   width: 100%;
   padding: 1.5em;
   border-radius: 20px;
@@ -45,9 +44,23 @@
   align-items: center;
 }
 
+.magic-bento-card__visual {
+  position: relative;
+  z-index: 2;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 1em 0;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .magic-bento-card__content {
   flex-direction: column;
-  margin-top: auto;
+  margin-top: 0;
+  flex-shrink: 0;
 }
 
 .magic-bento-card__label {
