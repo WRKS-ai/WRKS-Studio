@@ -172,9 +172,6 @@ export function HeroCarousel() {
           return (
             <motion.div
               key={card.kind}
-              role="button"
-              tabIndex={isCenter ? 0 : -1}
-              onClick={() => setActive(i)}
               initial={false}
               animate={{
                 x: s.x,
@@ -185,12 +182,12 @@ export function HeroCarousel() {
                 filter: `blur(${s.blur}px)`,
               }}
               transition={{
-                duration: 1.4,
-                ease: [0.32, 0.72, 0, 1],
-                opacity: { duration: 1.4, ease: [0.32, 0.72, 0, 1] },
-                filter: { duration: 1.2, ease: [0.32, 0.72, 0, 1] },
+                duration: 1.8,
+                ease: [0.16, 1, 0.3, 1],
+                opacity: { duration: 1.4, ease: [0.22, 1, 0.36, 1] },
+                filter: { duration: 1.4, ease: [0.22, 1, 0.36, 1] },
               }}
-              className="absolute w-[320px] sm:w-[360px] lg:w-[420px] aspect-[3/4] cursor-pointer select-none"
+              className="absolute w-[320px] sm:w-[360px] lg:w-[420px] aspect-[3/4] select-none pointer-events-none"
               style={{ transformStyle: "preserve-3d", zIndex: 5 - Math.abs(slot) }}
             >
               <CarouselCard card={card} featured={isCenter} />
