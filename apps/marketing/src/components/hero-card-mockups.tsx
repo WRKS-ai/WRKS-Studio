@@ -72,16 +72,6 @@ function WebsiteHero() {
             }}
           />
 
-          {/* Top nav over photo */}
-          <div className="absolute top-3 left-4 right-4 flex items-center justify-between">
-            <span className="font-serif text-white text-[12px] tracking-tight">
-              Hannah&apos;s
-            </span>
-            <span className="text-[8px] font-sans text-white/70 uppercase tracking-[0.18em]">
-              Book
-            </span>
-          </div>
-
           {/* Hero copy at bottom */}
           <div className="absolute bottom-4 left-4 right-4">
             <div className="font-serif text-white text-[22px] leading-[0.95] tracking-tight">
@@ -89,10 +79,6 @@ function WebsiteHero() {
               <br />
               <span className="italic text-white/80">Honest pricing.</span>
             </div>
-            <span className="mt-3 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white text-[9px] font-sans font-semibold text-canvas">
-              Book now
-              <span aria-hidden>→</span>
-            </span>
           </div>
         </div>
       </div>
@@ -323,28 +309,12 @@ function CopyHero() {
             }}
           />
 
-          {/* Page chrome */}
-          <div className="absolute top-3 left-4 right-4 flex items-center justify-between">
-            <span className="font-serif text-white text-[11px] tracking-tight">
-              Hannah&apos;s
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-violet-500/30 backdrop-blur-md border border-violet-400/50 text-[8px] tracking-[0.22em] uppercase text-violet-100 font-sans font-medium">
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 13l4 4L19 7" />
-              </svg>
-              Variant A
-            </span>
-          </div>
-
           {/* Hero copy rendered */}
           <div className="absolute bottom-4 left-4 right-4">
             <div className="font-serif text-white text-[22px] leading-[0.95] tracking-tight">
               The salon
               <br />
               <span className="italic text-white/80">that knows you.</span>
-            </div>
-            <div className="mt-2 text-[10px] text-white/70 leading-snug max-w-[92%]">
-              We remember your style, your time slots, and the exact shade.
             </div>
           </div>
         </div>
