@@ -5,6 +5,7 @@ import { BrandMarquee } from "@/components/v2/brand-marquee";
 import { Connections } from "@/components/v2/connections";
 import { Hero } from "@/components/v2/hero";
 import { HowItWorks } from "@/components/v2/how-it-works";
+import { Memory } from "@/components/v2/memory";
 import { Nav } from "@/components/v2/nav";
 import { WhatItBuilds } from "@/components/v2/what-it-builds";
 
@@ -32,11 +33,7 @@ export default function V2Home() {
       <WhatItBuilds />
       <HowItWorks />
       <Connections />
-      <Placeholder
-        eyebrow="Built around you"
-        title="Memory & personality"
-        lede="Restrained typography only — no cursor scenes."
-      />
+      <Memory />
       <Placeholder
         eyebrow="Get started"
         title="Join the waitlist"
