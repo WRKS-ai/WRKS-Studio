@@ -7,6 +7,7 @@ import { Hero } from "@/components/v2/hero";
 import { HowItWorks } from "@/components/v2/how-it-works";
 import { Memory } from "@/components/v2/memory";
 import { Nav } from "@/components/v2/nav";
+import { Waitlist } from "@/components/v2/waitlist";
 import { WhatItBuilds } from "@/components/v2/what-it-builds";
 
 export const metadata: Metadata = {
@@ -34,11 +35,7 @@ export default function V2Home() {
       <HowItWorks />
       <Connections />
       <Memory />
-      <Placeholder
-        eyebrow="Get started"
-        title="Join the waitlist"
-        lede="Founding cohort onboarding underway."
-      />
+      <Waitlist />
       <BrandMarquee />
     </main>
   );
