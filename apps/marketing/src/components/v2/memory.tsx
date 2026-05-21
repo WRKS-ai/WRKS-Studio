@@ -53,6 +53,7 @@ export function Memory() {
     <section
       id="memory"
       className="relative py-32 sm:py-40 px-6 lg:px-8"
+      style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
     >
       <div className="relative max-w-screen-xl mx-auto">
         <div className="text-center mb-16 sm:mb-20">

@@ -8,6 +8,10 @@ export function WhatItBuilds() {
     <section
       id="builds"
       className="relative py-32 sm:py-40 px-6 lg:px-8"
+      style={{
+        borderTop: "1px solid rgba(255,255,255,0.05)",
+        background: "rgba(255,255,255,0.012)",
+      }}
     >
       <div className="relative max-w-screen-xl mx-auto">
         {/* Eyebrow + headline block */}

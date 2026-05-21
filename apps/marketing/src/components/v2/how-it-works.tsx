@@ -54,7 +54,11 @@ export function HowItWorks() {
   });
 
   return (
-    <section id="how" className="relative">
+    <section
+      id="how"
+      className="relative"
+      style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
+    >
       {/* Container is ~3 viewports tall — gives 2 viewports of scroll while pinned */}
       <div ref={containerRef} className="relative" style={{ height: "280vh" }}>
         <div className="sticky top-0 h-screen flex items-center overflow-hidden">

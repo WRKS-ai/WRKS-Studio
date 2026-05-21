@@ -12,6 +12,7 @@ export function Waitlist() {
     <section
       id="waitlist"
       className="relative py-32 sm:py-44 px-6 lg:px-8 overflow-hidden"
+      style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
     >
       {/* Strong ambient gradient — the closing moment */}
       <div
