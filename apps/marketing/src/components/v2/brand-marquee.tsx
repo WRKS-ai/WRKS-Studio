@@ -16,23 +16,23 @@ export function BrandMarquee() {
             "radial-gradient(ellipse at 50% 50%, rgba(167,139,250,0.08), transparent 65%)",
         }}
       />
-      <div className="relative max-w-screen-2xl mx-auto text-center leading-[0.8]">
+      <div className="relative max-w-screen-2xl mx-auto text-center leading-[0.85]">
         <ShinyText
           text="WRKS Studio"
-          speed={4.5}
-          delay={0.6}
-          yoyo={false}
-          color="#2a2532"
+          speed={6}
+          delay={0}
+          yoyo
+          color="#262030"
           shineColor="#e9e3ff"
           spread={110}
           direction="left"
-          className="font-serif font-medium tracking-[-0.04em]"
+          className="font-serif font-medium tracking-[-0.035em]"
         />
       </div>
       <style>{`
         section[aria-label="WRKS Studio"] .shiny-text {
-          font-size: clamp(5rem, 22vw, 22rem);
-          line-height: 0.8;
+          font-size: clamp(3rem, 13vw, 11rem);
+          line-height: 0.88;
         }
       `}</style>
     </section>
