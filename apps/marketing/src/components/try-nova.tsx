@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useSpring, useTime, useTransform } from "motion/react";
+import { AnimatePresence, motion, useTime, useTransform } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 /* ============================================================
@@ -555,7 +555,7 @@ export function TryNova() {
       </div>
 
       {/* Orbital centerpiece — orb is the speak button, spheres orbit around */}
-      <OrbitalCenterpiece
+      <VoiceScene
         scenario={scenario}
         shownCount={shownCount}
         statusStep={statusStep}
@@ -719,135 +719,390 @@ function BigNovaOrb({
   );
 }
 
-/* ---------- Floating sphere (no box, no border) ---------- */
-function OrbSphere({ d, size = 68 }: { d: Deliverable; size?: number }) {
+/* ---------- Voice Scene — Nova on left, living previews on right ---------- */
+
+/* Stable, pseudo-random scatter for ambient dust */
+const DUST: { left: string; top: string; dur: number; delay: number }[] = [
+  { left: "6%", top: "18%", dur: 6.2, delay: 0 },
+  { left: "16%", top: "78%", dur: 7.5, delay: 0.8 },
+  { left: "26%", top: "10%", dur: 5.8, delay: 1.6 },
+  { left: "38%", top: "88%", dur: 8.1, delay: 0.4 },
+  { left: "52%", top: "6%", dur: 6.6, delay: 1.2 },
+  { left: "66%", top: "82%", dur: 7.2, delay: 2.0 },
+  { left: "78%", top: "20%", dur: 5.4, delay: 0.6 },
+  { left: "88%", top: "62%", dur: 7.8, delay: 1.4 },
+  { left: "10%", top: "50%", dur: 6.0, delay: 2.4 },
+  { left: "94%", top: "40%", dur: 6.4, delay: 1.0 },
+];
+
+/* Petal positions in stage coords (relative to Nova at center).
+ * Stage = 960×600, Nova centered at (260, 300) — left third.
+ * Petals fan out to the right at three vertical levels. */
+const PETALS: {
+  shape: string; // CSS border-radius — organic blob
+  cx: number;
+  cy: number;
+  rotate: number;
+  ribbonOffset: number;
+}[] = [
+  { shape: "62% 38% 58% 42% / 50% 56% 44% 50%", cx: 700, cy: 145, rotate: -3, ribbonOffset: -22 },
+  { shape: "52% 48% 54% 46% / 56% 46% 54% 44%", cx: 740, cy: 300, rotate: 1.5, ribbonOffset: 0 },
+  { shape: "40% 60% 42% 58% / 54% 50% 50% 46%", cx: 700, cy: 455, rotate: 3, ribbonOffset: 22 },
+];
+
+const NOVA_CX = 260;
+const NOVA_CY = 300;
+const STAGE_W = 960;
+const STAGE_H = 600;
+
+/* ---------- Living previews: per-kind stylized mini-UI ---------- */
+
+function PreviewSocial({ d }: { d: Deliverable }) {
   return (
-    <div className="relative" style={{ width: size, height: size }}>
-      {/* Soft halo */}
+    <div className="relative w-full h-full flex flex-col px-4 py-3.5">
+      {/* Top — handle + menu */}
+      <div className="flex items-center gap-1.5">
+        <div
+          className="size-4 rounded-full"
+          style={{ background: TONE_GRADIENTS[d.tone] }}
+        />
+        <div className="h-1 w-12 rounded-full bg-white/40" />
+        <span className="ml-auto text-[8px] text-white/40 tracking-widest">···</span>
+      </div>
+      {/* Image */}
       <div
-        className="absolute rounded-full pointer-events-none"
+        className="mt-2 flex-1 rounded-md relative overflow-hidden"
         style={{
-          inset: -size * 0.35,
-          background: `radial-gradient(circle, ${TONE_GLOW[d.tone]}, transparent 65%)`,
-          opacity: 0.7,
-        }}
-      />
-      {/* Sphere body */}
-      <div
-        className="relative rounded-full"
-        style={{
-          width: size,
-          height: size,
           background: TONE_GRADIENTS[d.tone],
-          boxShadow: `inset 0 -${size * 0.16}px ${size * 0.32}px rgba(0,0,0,0.55), inset 0 ${size * 0.05}px ${size * 0.1}px rgba(255,255,255,0.3), 0 ${size * 0.18}px ${size * 0.34}px -${size * 0.12}px rgba(0,0,0,0.75), 0 0 40px -10px ${TONE_GLOW[d.tone]}`,
+          minHeight: 56,
         }}
       >
-        {/* Highlight */}
-        <span
-          className="absolute rounded-full bg-white"
-          style={{
-            width: size * 0.24,
-            height: size * 0.24,
-            top: size * 0.12,
-            left: size * 0.17,
-            filter: "blur(2px)",
-            opacity: 0.88,
-          }}
-        />
-        {/* Embossed icon */}
-        <div
-          className="absolute inset-0 flex items-center justify-center text-white"
-          style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" }}
-        >
-          <KindIcon kind={d.kind} size={Math.round(size * 0.4)} />
+        <div className="absolute inset-0 flex items-center justify-center text-white/95" style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }}>
+          <KindIcon kind={d.kind} size={20} />
         </div>
+        <div className="absolute bottom-1 left-2 right-2">
+          <div className="h-1 w-2/3 rounded-full bg-white/45" />
+        </div>
+      </div>
+      {/* Caption + icons */}
+      <div className="mt-2 flex items-center gap-1.5">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeOpacity="0.7" strokeWidth="2.2"><path d="M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 11c0 5.65-7 10-7 10z"/></svg>
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeOpacity="0.55" strokeWidth="2.2"><path d="M21 11.5a8.38 8.38 0 0 1-9 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.3-4.6A8.5 8.5 0 1 1 21 11.5z"/></svg>
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeOpacity="0.55" strokeWidth="2.2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        <span className="ml-auto h-0.5 w-6 rounded-full bg-white/30" />
       </div>
     </div>
   );
 }
 
-/* ---------- Orbital centerpiece (boxless, orb-as-button) ---------- */
+function PreviewWebsite({ d }: { d: Deliverable }) {
+  return (
+    <div className="relative w-full h-full flex flex-col px-4 py-3">
+      {/* Browser chrome */}
+      <div className="flex items-center gap-1 mb-2">
+        <span className="size-1.5 rounded-full bg-rose-300/70" />
+        <span className="size-1.5 rounded-full bg-amber-300/70" />
+        <span className="size-1.5 rounded-full bg-emerald-300/70" />
+        <div className="ml-2 flex-1 h-2 rounded-full bg-white/15 px-1.5 flex items-center">
+          <div className="h-0.5 w-12 rounded-full bg-white/50" />
+        </div>
+      </div>
+      {/* Hero */}
+      <div className="flex-1 flex flex-col justify-center">
+        <div className="h-1.5 w-3/4 rounded-full bg-white/85 mb-1.5" />
+        <div className="h-1 w-1/2 rounded-full bg-white/50 mb-1" />
+        <div className="h-1 w-3/5 rounded-full bg-white/35 mb-2.5" />
+        <div
+          className="inline-flex items-center self-start px-2 py-1 rounded-full"
+          style={{ background: TONE_GRADIENTS[d.tone] }}
+        >
+          <span className="h-0.5 w-7 rounded-full bg-white/90" />
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-1.5">
+        <span className="text-[8px] font-mono text-white/40 tracking-tight">{d.detail.split(" · ")[0] ?? d.detail}</span>
+      </div>
+    </div>
+  );
+}
 
-/* Stable, pseudo-random scatter for ambient dust */
-const DUST: { left: string; top: string; dur: number; delay: number }[] = [
-  { left: "8%", top: "20%", dur: 6.2, delay: 0 },
-  { left: "18%", top: "78%", dur: 7.5, delay: 0.8 },
-  { left: "30%", top: "12%", dur: 5.8, delay: 1.6 },
-  { left: "42%", top: "92%", dur: 8.1, delay: 0.4 },
-  { left: "58%", top: "8%", dur: 6.6, delay: 1.2 },
-  { left: "72%", top: "84%", dur: 7.2, delay: 2.0 },
-  { left: "85%", top: "30%", dur: 5.4, delay: 0.6 },
-  { left: "92%", top: "70%", dur: 7.8, delay: 1.4 },
-  { left: "12%", top: "48%", dur: 6.0, delay: 2.4 },
-  { left: "88%", top: "52%", dur: 6.4, delay: 1.0 },
-];
+function PreviewCoupon({ d }: { d: Deliverable }) {
+  // Big mono code in a ticket / coupon shape
+  const code = d.detail.split(" · ")[0]?.toUpperCase() ?? "WRKS20";
+  return (
+    <div className="relative w-full h-full flex flex-col justify-center items-center px-4 py-3">
+      <div
+        className="absolute inset-3 rounded-2xl border-2 border-dashed"
+        style={{ borderColor: TONE_GLOW[d.tone] }}
+      />
+      <span className="text-[8px] tracking-[0.24em] uppercase text-white/50 font-sans font-medium mb-1.5">
+        Promo code
+      </span>
+      <div
+        className="font-mono font-bold text-base tracking-[0.18em] text-white px-3 py-1 rounded-md"
+        style={{
+          background: TONE_GRADIENTS[d.tone],
+          textShadow: "0 1px 4px rgba(0,0,0,0.5)",
+        }}
+      >
+        {code}
+      </div>
+      <span className="mt-2 font-serif italic text-[11px] text-white/70">
+        {d.detail.split(" · ")[1] ?? "20% off"}
+      </span>
+    </div>
+  );
+}
 
-/* Orbit parameters per slot: starting angle, radius, angular speed deg/sec */
-const ORBITS: { angle: number; radius: number; speed: number }[] = [
-  { angle: -90, radius: 218, speed: 5.5 },
-  { angle: 30, radius: 232, speed: 6.4 },
-  { angle: 150, radius: 218, speed: 5.0 },
-];
+function PreviewBlog({ d }: { d: Deliverable }) {
+  return (
+    <div className="relative w-full h-full flex flex-col px-4 py-3.5">
+      <span className="text-[8px] tracking-[0.22em] uppercase text-white/40 font-sans">
+        Article
+      </span>
+      <div className="mt-2 h-1.5 w-4/5 rounded-full bg-white/85" />
+      <div className="mt-1.5 h-1 w-3/4 rounded-full bg-white/70" />
+      <div className="mt-3 space-y-1">
+        <div className="h-0.5 w-full rounded-full bg-white/35" />
+        <div className="h-0.5 w-full rounded-full bg-white/35" />
+        <div className="h-0.5 w-5/6 rounded-full bg-white/30" />
+        <div className="h-0.5 w-full rounded-full bg-white/30" />
+        <div className="h-0.5 w-3/4 rounded-full bg-white/25" />
+      </div>
+      <div className="mt-auto flex items-center gap-1.5">
+        <div
+          className="size-3 rounded-full"
+          style={{ background: TONE_GRADIENTS[d.tone] }}
+        />
+        <span className="text-[8px] font-mono text-white/50">{d.detail.split(" · ")[0]}</span>
+      </div>
+    </div>
+  );
+}
 
-function OrbitingSphere({ d, index, visible }: { d: Deliverable; index: number; visible: boolean }) {
-  const orbit = ORBITS[index] ?? ORBITS[0]!;
+function PreviewEmail({ d }: { d: Deliverable }) {
+  return (
+    <div className="relative w-full h-full flex flex-col px-4 py-3.5">
+      <div className="flex items-center gap-1.5">
+        <div
+          className="size-5 rounded-md flex items-center justify-center text-white"
+          style={{ background: TONE_GRADIENTS[d.tone] }}
+        >
+          <KindIcon kind="email" size={11} />
+        </div>
+        <div className="flex-1">
+          <div className="h-1 w-3/4 rounded-full bg-white/80" />
+          <div className="mt-1 h-0.5 w-1/2 rounded-full bg-white/40" />
+        </div>
+      </div>
+      <div className="mt-3 space-y-1.5">
+        <div className="h-0.5 w-full rounded-full bg-white/40" />
+        <div className="h-0.5 w-5/6 rounded-full bg-white/35" />
+        <div className="h-0.5 w-3/4 rounded-full bg-white/30" />
+        <div className="h-0.5 w-full rounded-full bg-white/30" />
+      </div>
+      <div className="mt-auto flex items-center justify-end gap-1.5">
+        <span className="text-[8px] tracking-[0.18em] uppercase text-white/50 font-sans">send</span>
+        <span aria-hidden className="text-white/70">→</span>
+      </div>
+    </div>
+  );
+}
+
+function PreviewAd({ d }: { d: Deliverable }) {
+  return (
+    <div className="relative w-full h-full flex flex-col px-4 py-3.5">
+      <div
+        className="rounded-md flex-1 relative overflow-hidden mb-2"
+        style={{ background: TONE_GRADIENTS[d.tone], minHeight: 48 }}
+      >
+        <div className="absolute inset-0 flex items-center justify-center text-white/95" style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }}>
+          <KindIcon kind={d.kind} size={18} />
+        </div>
+        <div className="absolute bottom-1.5 left-2 right-2 h-1 rounded-full bg-white/55" />
+      </div>
+      <div className="flex items-center gap-1">
+        {["A", "B", "C"].map((v, i) => (
+          <span
+            key={v}
+            className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-full ${
+              i === 0 ? "bg-white text-canvas" : "bg-white/15 text-white/70"
+            }`}
+          >
+            {v}
+          </span>
+        ))}
+        <span className="ml-auto text-[8px] font-mono text-white/40">{d.detail.split(" · ")[0]}</span>
+      </div>
+    </div>
+  );
+}
+
+function PreviewGeneric({ d }: { d: Deliverable }) {
+  return (
+    <div className="relative w-full h-full flex flex-col items-center justify-center px-4 py-3">
+      <div
+        className="size-12 rounded-2xl flex items-center justify-center text-white relative mb-2.5"
+        style={{
+          background: TONE_GRADIENTS[d.tone],
+          boxShadow: `0 6px 18px -6px ${TONE_GLOW[d.tone]}, inset 0 -4px 8px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.25)`,
+        }}
+      >
+        <KindIcon kind={d.kind} size={20} />
+      </div>
+      <div className="text-center w-full">
+        <div className="h-1 w-3/4 mx-auto rounded-full bg-white/75" />
+        <div className="mt-1.5 h-0.5 w-1/2 mx-auto rounded-full bg-white/40" />
+      </div>
+    </div>
+  );
+}
+
+function PreviewByKind({ d }: { d: Deliverable }) {
+  switch (d.kind) {
+    case "social":
+    case "story":
+      return <PreviewSocial d={d} />;
+    case "website":
+      return <PreviewWebsite d={d} />;
+    case "code":
+      return <PreviewCoupon d={d} />;
+    case "blog":
+    case "copy":
+      return <PreviewBlog d={d} />;
+    case "email":
+      return <PreviewEmail d={d} />;
+    case "ad":
+      return <PreviewAd d={d} />;
+    default:
+      return <PreviewGeneric d={d} />;
+  }
+}
+
+/* ---------- Petal (organic-shaped living preview tile) ---------- */
+function LivingPetal({
+  d,
+  index,
+  visible,
+}: {
+  d: Deliverable;
+  index: number;
+  visible: boolean;
+}) {
+  const petal = PETALS[index] ?? PETALS[0]!;
+  // Subtle continuous breath
   const time = useTime();
-
-  // Continuous orbital position via motion values
-  const orbitalX = useTransform(time, (t) =>
-    Math.cos(((orbit.angle + (t / 1000) * orbit.speed) * Math.PI) / 180) * orbit.radius,
-  );
-  const orbitalY = useTransform(time, (t) =>
-    Math.sin(((orbit.angle + (t / 1000) * orbit.speed) * Math.PI) / 180) * orbit.radius,
-  );
-
-  // Spawn progression: 0 = at Nova center, 1 = at orbital position
-  const spawnProgress = useSpring(0, { stiffness: 90, damping: 20 });
-  useEffect(() => {
-    spawnProgress.set(visible ? 1 : 0);
-  }, [visible, spawnProgress]);
-
-  const x = useTransform([spawnProgress, orbitalX], (vs) => {
-    const arr = vs as number[];
-    return (arr[0] ?? 0) * (arr[1] ?? 0);
-  });
-  const y = useTransform([spawnProgress, orbitalY], (vs) => {
-    const arr = vs as number[];
-    return (arr[0] ?? 0) * (arr[1] ?? 0);
-  });
-  const opacity = useTransform(spawnProgress, [0, 0.25, 1], [0, 0.5, 1]);
-  const scale = useTransform(spawnProgress, [0, 1], [0.35, 1]);
+  const bobY = useTransform(time, (t) => Math.sin((t / 1000 + index * 1.3) * 1.4) * 5);
+  const bobR = useTransform(time, (t) => Math.sin((t / 1000 + index * 0.7) * 0.9) * 1.3);
 
   return (
     <motion.div
-      className="absolute left-1/2 top-1/2 z-10 pointer-events-none"
-      style={{ x, y, opacity, scale, marginLeft: -78, marginTop: -36 }}
+      className="absolute pointer-events-none"
+      style={{
+        left: petal.cx,
+        top: petal.cy,
+        width: 220,
+        height: 150,
+        marginLeft: -110,
+        marginTop: -75,
+        y: bobY,
+        rotate: useTransform(bobR, (r) => petal.rotate + r),
+      }}
+      initial={{ opacity: 0, scale: 0.4, x: -340 }}
+      animate={visible ? { opacity: 1, scale: 1, x: 0 } : { opacity: 0, scale: 0.4, x: -340 }}
+      transition={{ duration: 0.95, ease: [0.2, 0.7, 0.2, 1], delay: visible ? 0.15 : 0 }}
     >
-      <motion.div
-        animate={visible ? { y: [0, -4, 0] } : {}}
-        transition={visible ? { duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: index * 0.4 } : {}}
-        className="flex flex-col items-center"
-        style={{ width: 156 }}
+      <div
+        className="relative w-full h-full backdrop-blur-sm"
+        style={{
+          borderRadius: petal.shape,
+          background: `linear-gradient(135deg, rgba(20,20,32,0.92) 0%, rgba(30,28,52,0.92) 100%)`,
+          border: `1px solid ${TONE_GLOW[d.tone]}`,
+          boxShadow: `0 22px 50px -16px rgba(0,0,0,0.7), 0 0 32px -8px ${TONE_GLOW[d.tone]}, inset 0 1px 0 rgba(255,255,255,0.06)`,
+          overflow: "hidden",
+        }}
       >
-        <OrbSphere d={d} size={64} />
-        <div className="mt-3 text-center">
-          <div className="font-serif text-[14px] text-ink font-semibold leading-tight">
-            {d.title}
-          </div>
-          <div className="text-[9px] font-mono text-ink-muted mt-1 leading-tight">
-            {d.detail}
-          </div>
-          <div className={`mt-1.5 inline-flex items-center gap-1 text-[8px] tracking-[0.24em] uppercase font-sans font-medium ${TONE_TEXT[d.tone]}`}>
-            <span className="size-1 rounded-full bg-current" />
-            {d.status}
-          </div>
+        {/* Inner tone wash */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(ellipse at 30% 0%, ${TONE_GLOW[d.tone]} 0%, transparent 55%)`,
+            opacity: 0.5,
+          }}
+        />
+        {/* Content */}
+        <div className="relative w-full h-full">
+          <PreviewByKind d={d} />
         </div>
-      </motion.div>
+      </div>
+      {/* Naked label under petal */}
+      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3 text-center whitespace-nowrap">
+        <div className="font-serif text-[13px] text-ink font-semibold leading-tight">
+          {d.title}
+        </div>
+        <div className={`mt-1 inline-flex items-center gap-1 text-[8px] tracking-[0.24em] uppercase font-sans font-medium ${TONE_TEXT[d.tone]}`}>
+          <span className="size-1 rounded-full bg-current" />
+          {d.status}
+        </div>
+      </div>
     </motion.div>
   );
 }
 
-function OrbitalCenterpiece({
+/* ---------- Flowing voice ribbon (SVG path) ---------- */
+function VoiceRibbon({
+  index,
+  visible,
+  tone,
+}: {
+  index: number;
+  visible: boolean;
+  tone: Deliverable["tone"];
+}) {
+  const petal = PETALS[index] ?? PETALS[0]!;
+  // Source: right edge of Nova
+  const sx = NOVA_CX + 75;
+  const sy = NOVA_CY + petal.ribbonOffset;
+  // Target: left side of petal
+  const tx = petal.cx - 100;
+  const ty = petal.cy;
+  // Two control points for a flowing S-curve
+  const c1x = sx + (tx - sx) * 0.35;
+  const c1y = sy;
+  const c2x = sx + (tx - sx) * 0.7;
+  const c2y = ty;
+  const path = `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tx} ${ty}`;
+
+  return (
+    <g>
+      {/* Outer soft glow */}
+      <motion.path
+        d={path}
+        stroke={TONE_GLOW[tone]}
+        strokeWidth="6"
+        fill="none"
+        strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: visible ? 1 : 0, opacity: visible ? 0.6 : 0 }}
+        transition={{ duration: 0.95, ease: "easeOut" }}
+        style={{ filter: `blur(4px)` }}
+      />
+      {/* Crisp inner line */}
+      <motion.path
+        d={path}
+        stroke={TONE_GLOW[tone]}
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: visible ? 1 : 0, opacity: visible ? 0.9 : 0 }}
+        transition={{ duration: 0.95, ease: "easeOut" }}
+      />
+    </g>
+  );
+}
+
+function VoiceScene({
   scenario,
   shownCount,
   statusStep,
@@ -881,18 +1136,17 @@ function OrbitalCenterpiece({
 
   return (
     <div className="relative w-full">
-      {/* Desktop centerpiece */}
-      <div className="hidden sm:flex relative h-[600px] items-center justify-center overflow-visible">
-        {/* Ambient backdrop — soft glow only, no border */}
+      {/* Desktop: horizontal voice→preview scene */}
+      <div className="hidden md:block relative w-full" style={{ height: STAGE_H }}>
+        {/* Ambient backdrop */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              "radial-gradient(ellipse at 50% 50%, rgba(99,102,241,0.2), transparent 55%), radial-gradient(ellipse at 50% 100%, rgba(244,114,182,0.07), transparent 60%)",
+              "radial-gradient(ellipse at 25% 50%, rgba(99,102,241,0.22), transparent 55%), radial-gradient(ellipse at 80% 50%, rgba(244,114,182,0.1), transparent 60%)",
           }}
         />
-
-        {/* Drifting dust particles */}
+        {/* Drifting dust */}
         {DUST.map((p, i) => (
           <motion.span
             key={`dust-${i}`}
@@ -903,164 +1157,150 @@ function OrbitalCenterpiece({
           />
         ))}
 
-        {/* Slowly counter-rotating orbit rings */}
-        <motion.div
-          className="absolute size-[520px] rounded-full border border-white/[0.05] pointer-events-none"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 140, repeat: Infinity, ease: "linear" }}
+        {/* Stage canvas — fixed aspect coords */}
+        <div
+          className="absolute left-1/2 top-1/2"
+          style={{
+            width: STAGE_W,
+            height: STAGE_H,
+            marginLeft: -STAGE_W / 2,
+            marginTop: -STAGE_H / 2,
+          }}
         >
-          <span className="absolute size-1 rounded-full bg-white/30 -top-0.5 left-1/2 -translate-x-1/2" />
-        </motion.div>
-        <motion.div
-          className="absolute size-[360px] rounded-full border border-white/[0.045] pointer-events-none"
-          animate={{ rotate: -360 }}
-          transition={{ duration: 100, repeat: Infinity, ease: "linear" }}
-        >
-          <span className="absolute size-0.5 rounded-full bg-white/25 -bottom-0.5 left-1/2 -translate-x-1/2" />
-        </motion.div>
+          {/* SVG layer: voice ribbons */}
+          <svg
+            className="absolute pointer-events-none"
+            width={STAGE_W}
+            height={STAGE_H}
+            viewBox={`0 0 ${STAGE_W} ${STAGE_H}`}
+            style={{ overflow: "visible" }}
+          >
+            {scenario &&
+              scenario.deliverables.map((d, i) => (
+                <VoiceRibbon
+                  key={`ribbon-${scenario.id}-${i}`}
+                  index={i}
+                  visible={i < shownCount}
+                  tone={d.tone}
+                />
+              ))}
+          </svg>
 
-        {/* Emission burst at Nova when a deliverable spawns */}
-        <AnimatePresence>
-          {shownCount > 0 && scenario && scenario.deliverables[shownCount - 1] && (
-            <motion.span
-              key={`burst-${scenario.id}-${shownCount}`}
-              className="absolute left-1/2 top-1/2 rounded-full pointer-events-none z-10"
-              style={{
-                marginLeft: -70,
-                marginTop: -70,
-                width: 140,
-                height: 140,
-                border: `2px solid ${TONE_GLOW[scenario.deliverables[shownCount - 1]!.tone]}`,
-              }}
-              initial={{ scale: 0.8, opacity: 0.85 }}
-              animate={{ scale: 2.6, opacity: 0 }}
-              transition={{ duration: 0.95, ease: "easeOut" }}
-            />
-          )}
-        </AnimatePresence>
+          {/* Nova orb — speak button */}
+          <motion.button
+            type="button"
+            onClick={onOrbTap}
+            whileHover={{ scale: micSupported ? 1.04 : 1 }}
+            whileTap={{ scale: micSupported ? 0.96 : 1 }}
+            transition={{ type: "spring", stiffness: 380, damping: 20 }}
+            aria-label={isListening ? "Stop listening" : micSupported ? "Tap Nova to talk" : "Tap a preset below"}
+            disabled={!micSupported}
+            className="absolute z-20 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-sky-300/50 disabled:cursor-default"
+            style={{
+              left: NOVA_CX,
+              top: NOVA_CY,
+              marginLeft: -75,
+              marginTop: -75,
+              cursor: micSupported ? "pointer" : "default",
+            }}
+          >
+            <BigNovaOrb size={150} pulsing={isBusy} speaking={isSpeaking} listening={isListening} />
+          </motion.button>
 
-        {/* Orbiting spheres */}
-        {scenario && scenario.deliverables.map((d, i) => (
-          <OrbitingSphere
-            key={`orbit-${scenario.id}-${i}`}
-            d={d}
-            index={i}
-            visible={i < shownCount}
-          />
-        ))}
-
-        {/* Center Nova orb — tappable speak button */}
-        <motion.button
-          type="button"
-          onClick={onOrbTap}
-          whileHover={{ scale: micSupported ? 1.05 : 1 }}
-          whileTap={{ scale: micSupported ? 0.96 : 1 }}
-          transition={{ type: "spring", stiffness: 380, damping: 20 }}
-          aria-label={isListening ? "Stop listening" : micSupported ? "Tap Nova to talk" : "Tap a preset below"}
-          disabled={!micSupported}
-          className="relative z-20 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-sky-300/50 disabled:cursor-default"
-          style={{ cursor: micSupported ? "pointer" : "default" }}
-        >
-          <BigNovaOrb size={150} pulsing={isBusy} speaking={isSpeaking} listening={isListening} />
-        </motion.button>
-
-        {/* Idle hint under orb */}
-        <AnimatePresence>
-          {!scenario && !isListening && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 z-10 pointer-events-none text-center"
-              style={{ marginTop: 110 }}
-            >
-              <div className="font-serif italic text-base sm:text-lg text-ink-muted whitespace-nowrap">
-                {micSupported ? "Tap Nova to talk" : "Pick a phrase below"}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Live transcript while listening */}
-        <AnimatePresence>
-          {isListening && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 z-10 pointer-events-none text-center w-[80%] max-w-md"
-              style={{ marginTop: 115 }}
-            >
-              <div className="text-[9px] tracking-[0.24em] uppercase text-rose-300/90 font-sans mb-2 flex items-center justify-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-rose-400 animate-pulse" />
-                listening
-              </div>
-              <div className="font-serif italic text-base text-ink leading-snug min-h-[1.4em]">
-                {transcript || "…"}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Scenario status (thinking/working/done) */}
-        <AnimatePresence>
-          {scenario && !isListening && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 z-10 pointer-events-none text-center"
-              style={{ marginTop: 110 }}
-            >
-              <AnimatePresence mode="wait">
+          {/* Status / hint / transcript text — under Nova */}
+          <div
+            className="absolute z-10 pointer-events-none text-center"
+            style={{ left: NOVA_CX, top: NOVA_CY + 110, marginLeft: -160, width: 320 }}
+          >
+            <AnimatePresence mode="wait">
+              {!scenario && !isListening && (
                 <motion.div
-                  key={`${phase}-${statusStep}`}
-                  initial={{ opacity: 0, y: 4 }}
+                  key="hint"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className="font-serif italic text-base lg:text-lg text-ink-muted"
+                >
+                  {micSupported ? "Tap Nova to talk" : "Pick a phrase below"}
+                </motion.div>
+              )}
+              {isListening && (
+                <motion.div
+                  key="listening"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div className="text-[9px] tracking-[0.24em] uppercase text-rose-300/90 font-sans mb-2 flex items-center justify-center gap-1.5">
+                    <span className="size-1.5 rounded-full bg-rose-400 animate-pulse" />
+                    listening
+                  </div>
+                  <div className="font-serif italic text-base text-ink leading-snug min-h-[1.4em]">
+                    {transcript || "…"}
+                  </div>
+                </motion.div>
+              )}
+              {scenario && !isListening && (
+                <motion.div
+                  key={`status-${phase}-${statusStep}`}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.25 }}
-                  className="font-serif italic text-base text-ink-muted whitespace-nowrap"
                 >
-                  {statusText}
+                  <div className="font-serif italic text-base text-ink-muted whitespace-nowrap">
+                    {statusText}
+                  </div>
+                  {isBusy && (
+                    <div className="text-[9px] font-mono text-ink-dim tabular-nums mt-1">
+                      {elapsed.toFixed(1)}s
+                    </div>
+                  )}
                 </motion.div>
-              </AnimatePresence>
-              {isBusy && (
-                <div className="text-[9px] font-mono text-ink-dim tabular-nums mt-1">
-                  {elapsed.toFixed(1)}s
-                </div>
               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </AnimatePresence>
+          </div>
 
-        {/* Shipped serif label at bottom */}
-        <AnimatePresence>
-          {phase === "done" && scenario && (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 pointer-events-none"
-            >
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-serif italic text-base text-emerald-200">
-                shipped in {scenario.totalTime}
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          {/* Three living petals — actual content previews */}
+          {scenario &&
+            scenario.deliverables.map((d, i) => (
+              <LivingPetal
+                key={`petal-${scenario.id}-${i}`}
+                d={d}
+                index={i}
+                visible={i < shownCount}
+              />
+            ))}
+
+          {/* Shipped serif label */}
+          <AnimatePresence>
+            {phase === "done" && scenario && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+                className="absolute z-20 flex items-center gap-2 pointer-events-none"
+                style={{ left: NOVA_CX, top: NOVA_CY + 170, marginLeft: -100, width: 200, justifyContent: "center" }}
+              >
+                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="font-serif italic text-base text-emerald-200">
+                  shipped in {scenario.totalTime}
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         <span className="absolute bottom-2 right-4 text-[9px] font-sans text-ink-dim italic z-20">
           demo · waitlist for the real thing
         </span>
       </div>
 
-      {/* Mobile vertical layout */}
-      <div className="sm:hidden relative flex flex-col items-center pt-8 pb-6 overflow-hidden">
+      {/* Mobile / narrow: vertical with mini-petals */}
+      <div className="md:hidden relative flex flex-col items-center pt-6 pb-6 overflow-hidden">
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -1078,10 +1318,10 @@ function OrbitalCenterpiece({
           disabled={!micSupported}
           className="relative z-20 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-sky-300/50 disabled:cursor-default"
         >
-          <BigNovaOrb size={100} pulsing={isBusy} speaking={isSpeaking} listening={isListening} />
+          <BigNovaOrb size={104} pulsing={isBusy} speaking={isSpeaking} listening={isListening} />
         </motion.button>
 
-        <div className="mt-5 min-h-[1.4em] relative text-center px-6">
+        <div className="mt-5 min-h-[2.4em] relative text-center px-6">
           {!scenario && !isListening && (
             <span className="font-serif italic text-sm text-ink-muted">
               {micSupported ? "Tap Nova to talk" : "Pick a phrase below"}
@@ -1093,9 +1333,7 @@ function OrbitalCenterpiece({
                 <span className="size-1.5 rounded-full bg-rose-400 animate-pulse" />
                 listening
               </div>
-              <div className="font-serif italic text-sm text-ink">
-                {transcript || "…"}
-              </div>
+              <div className="font-serif italic text-sm text-ink">{transcript || "…"}</div>
             </div>
           )}
           {scenario && !isListening && (
@@ -1103,33 +1341,51 @@ function OrbitalCenterpiece({
           )}
         </div>
 
-        <div className="mt-6 w-full flex flex-col items-center gap-5 relative">
-          {scenario && scenario.deliverables.map((d, i) => {
-            const visible = i < shownCount;
-            return (
-              <motion.div
-                key={`m-node-${i}`}
-                initial={{ opacity: 0, scale: 0.6 }}
-                animate={visible ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.6 }}
-                transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-                className="flex items-center gap-4"
-              >
-                <OrbSphere d={d} size={52} />
-                <div>
-                  <div className="font-serif text-sm text-ink font-semibold leading-tight">
-                    {d.title}
+        <div className="mt-6 w-full flex flex-col items-center gap-7 relative px-4">
+          {scenario &&
+            scenario.deliverables.map((d, i) => {
+              const visible = i < shownCount;
+              const petal = PETALS[i] ?? PETALS[0]!;
+              return (
+                <motion.div
+                  key={`m-petal-${i}`}
+                  initial={{ opacity: 0, scale: 0.7, y: 18 }}
+                  animate={visible ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.7, y: 18 }}
+                  transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+                  className="relative w-full max-w-[260px]"
+                >
+                  <div
+                    className="relative w-full backdrop-blur-sm"
+                    style={{
+                      height: 150,
+                      borderRadius: petal.shape,
+                      background: "linear-gradient(135deg, rgba(20,20,32,0.92) 0%, rgba(30,28,52,0.92) 100%)",
+                      border: `1px solid ${TONE_GLOW[d.tone]}`,
+                      boxShadow: `0 22px 50px -16px rgba(0,0,0,0.7), 0 0 32px -8px ${TONE_GLOW[d.tone]}, inset 0 1px 0 rgba(255,255,255,0.06)`,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        background: `radial-gradient(ellipse at 30% 0%, ${TONE_GLOW[d.tone]} 0%, transparent 55%)`,
+                        opacity: 0.5,
+                      }}
+                    />
+                    <PreviewByKind d={d} />
                   </div>
-                  <div className="text-[9px] font-mono text-ink-muted mt-0.5 leading-tight">
-                    {d.detail}
+                  <div className="mt-3 text-center">
+                    <div className="font-serif text-[13px] text-ink font-semibold leading-tight">
+                      {d.title}
+                    </div>
+                    <div className={`mt-1 inline-flex items-center gap-1 text-[8px] tracking-[0.24em] uppercase font-sans font-medium ${TONE_TEXT[d.tone]}`}>
+                      <span className="size-1 rounded-full bg-current" />
+                      {d.status}
+                    </div>
                   </div>
-                  <div className={`mt-1 inline-flex items-center gap-1 text-[8px] tracking-[0.22em] uppercase font-sans font-medium ${TONE_TEXT[d.tone]}`}>
-                    <span className="size-1 rounded-full bg-current" />
-                    {d.status}
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
+                </motion.div>
+              );
+            })}
         </div>
         <AnimatePresence>
           {phase === "done" && scenario && (
