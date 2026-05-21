@@ -20,6 +20,7 @@ type Prompt = {
   statusLabel: string;
   statusTone: Tone;
   view: ReactNode;
+  speech: string;
 };
 
 const PROMPTS: Prompt[] = [
@@ -30,6 +31,8 @@ const PROMPTS: Prompt[] = [
     statusLabel: "Drafting",
     statusTone: "violet",
     view: <MarchView />,
+    speech:
+      "Got it. Building your March promo. Instagram post, site banner, and a discount code. Done in three seconds.",
   },
   {
     id: "latte",
@@ -38,6 +41,8 @@ const PROMPTS: Prompt[] = [
     statusLabel: "Scheduled",
     statusTone: "rose",
     view: <LatteView />,
+    speech:
+      "Scheduling your Friday latte post. Drafting the post and the story tile, all in your brand voice. All set.",
   },
   {
     id: "blackfriday",
@@ -46,8 +51,33 @@ const PROMPTS: Prompt[] = [
     statusLabel: "Deploying",
     statusTone: "sky",
     view: <BlackFridayView />,
+    speech:
+      "Building your Black Friday landing page. Stripe checkout embedded, lead form forwarding to your CRM. Ready to publish.",
   },
 ];
+
+const VOICE_STORAGE_KEY = "wrks-nova-voice-on";
+
+function pickNovaVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return null;
+  const preferred = [
+    /samantha/i,
+    /aria/i,
+    /natural female/i,
+    /jenny/i,
+    /female.*english/i,
+    /google.*us english/i,
+    /allison/i,
+    /serena/i,
+  ];
+  for (const re of preferred) {
+    const v = voices.find((vv) => vv.lang.startsWith("en") && re.test(vv.name));
+    if (v) return v;
+  }
+  return voices.find((v) => v.lang.startsWith("en")) ?? voices[0] ?? null;
+}
 
 const CYCLE_MS = 6500;
 
@@ -143,14 +173,74 @@ export function Nova() {
   const [isListening, setIsListening] = useState(false);
   const [micSupported, setMicSupported] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
+  const [voiceOn, setVoiceOn] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const recognitionRef = useRef<MinRecognition | null>(null);
   const finalTranscriptRef = useRef<string>("");
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
     setMicSupported(isRecognitionSupported());
+    // Hydrate voice preference + warm up the voice list
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem(VOICE_STORAGE_KEY);
+      if (saved === "0") setVoiceOn(false);
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.getVoices();
+        window.speechSynthesis.onvoiceschanged = () => {
+          window.speechSynthesis.getVoices();
+        };
+      }
+    }
     return () => {
       recognitionRef.current?.abort();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
     };
+  }, []);
+
+  const stopSpeech = useCallback(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+  }, []);
+
+  const speak = useCallback(
+    (text: string) => {
+      if (!voiceOn) return;
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      const voice = pickNovaVoice();
+      if (voice) utter.voice = voice;
+      utter.rate = 1.02;
+      utter.pitch = 1.05;
+      utter.volume = 1;
+      utter.onstart = () => setIsSpeaking(true);
+      utter.onend = () => setIsSpeaking(false);
+      utter.onerror = () => setIsSpeaking(false);
+      utteranceRef.current = utter;
+      window.speechSynthesis.speak(utter);
+    },
+    [voiceOn],
+  );
+
+  const toggleVoice = useCallback(() => {
+    setVoiceOn((on) => {
+      const next = !on;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(VOICE_STORAGE_KEY, next ? "1" : "0");
+      }
+      if (!next) {
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
+        setIsSpeaking(false);
+      }
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -164,18 +254,25 @@ export function Nova() {
   const active = PROMPTS[activeIdx]!;
 
   const onPick = (i: number) => {
+    stopSpeech();
     setActiveIdx(i);
     setHasInteracted(true);
     setSubmittedText(null);
+    const p = PROMPTS[i];
+    if (p) speak(p.speech);
   };
 
   const onSubmit = (e?: FormEvent) => {
     e?.preventDefault();
     const text = input.trim();
     if (!text) return;
-    setActiveIdx(resolvePromptIdx(text));
+    stopSpeech();
+    const idx = resolvePromptIdx(text);
+    setActiveIdx(idx);
     setSubmittedText(text);
     setHasInteracted(true);
+    const p = PROMPTS[idx];
+    if (p) speak(p.speech);
   };
 
   const stopListening = useCallback(() => {
@@ -222,9 +319,12 @@ export function Nova() {
       setIsListening(false);
       const finalText = finalTranscriptRef.current.trim();
       if (finalText) {
-        setActiveIdx(resolvePromptIdx(finalText));
+        const idx = resolvePromptIdx(finalText);
+        setActiveIdx(idx);
         setSubmittedText(finalText);
         setHasInteracted(true);
+        const p = PROMPTS[idx];
+        if (p) speak(p.speech);
       }
     };
 
@@ -234,7 +334,7 @@ export function Nova() {
       rec.abort();
       setIsListening(false);
     }
-  }, []);
+  }, [speak]);
 
   return (
     <section
@@ -288,6 +388,44 @@ export function Nova() {
         >
           {/* LEFT — input + prompt suggestions */}
           <div>
+            {/* Voice toggle pill */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono">
+                Talk to Nova
+              </div>
+              <button
+                type="button"
+                onClick={toggleVoice}
+                aria-pressed={voiceOn}
+                aria-label={voiceOn ? "Mute Nova's voice" : "Enable Nova's voice"}
+                className={`group relative h-7 pl-2 pr-3 rounded-full border text-[10px] tracking-[0.18em] uppercase font-sans flex items-center gap-1.5 transition-colors ${
+                  voiceOn
+                    ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-200"
+                    : "border-white/[0.12] bg-white/[0.02] text-ink-muted hover:text-ink hover:border-white/[0.25]"
+                }`}
+              >
+                <span className="relative flex items-center justify-center size-4">
+                  {voiceOn ? (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 5L6 9H3v6h3l5 4V5z" />
+                      <path d="M15.5 8.5a4 4 0 0 1 0 7" />
+                      <path d="M18 6a8 8 0 0 1 0 12" />
+                    </svg>
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 5L6 9H3v6h3l5 4V5z" />
+                      <path d="M22 9l-6 6" />
+                      <path d="M16 9l6 6" />
+                    </svg>
+                  )}
+                  {isSpeaking && voiceOn && (
+                    <span className="absolute -inset-1 rounded-full border border-emerald-300/40 animate-ping" />
+                  )}
+                </span>
+                {voiceOn ? (isSpeaking ? "Speaking…" : "Voice on") : "Muted"}
+              </button>
+            </div>
+
             {/* Talk to Nova input */}
             <form onSubmit={onSubmit} className="relative">
               <div
