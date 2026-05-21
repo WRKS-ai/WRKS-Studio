@@ -8,7 +8,16 @@ export function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center px-6 lg:px-8 overflow-hidden">
       {/* Magic rings — full-bleed centerpiece backdrop (canvas = section) */}
-      <div className="absolute inset-0 pointer-events-none" aria-hidden>
+      <div
+        className="absolute inset-0 pointer-events-none"
+        aria-hidden
+        style={{
+          maskImage:
+            "linear-gradient(to bottom, transparent 0%, black 8%, black 80%, transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent 0%, black 8%, black 80%, transparent 100%)",
+        }}
+      >
         <MagicRings
           color="#a78bfa"
           colorTwo="#38bdf8"
