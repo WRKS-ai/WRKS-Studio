@@ -3,6 +3,7 @@ import { MeshGradient } from "@/components/mesh-gradient";
 import { StarField } from "@/components/star-field";
 import { BrandMarquee } from "@/components/v2/brand-marquee";
 import { Hero } from "@/components/v2/hero";
+import { HowItWorks } from "@/components/v2/how-it-works";
 import { Nav } from "@/components/v2/nav";
 import { WhatItBuilds } from "@/components/v2/what-it-builds";
 
@@ -28,11 +29,7 @@ export default function V2Home() {
         lede="The interactive demo gets its own breathing room here."
       />
       <WhatItBuilds />
-      <Placeholder
-        eyebrow="How it works"
-        title="Three phases"
-        lede="Tell it. It shows you. It ships. Simpler than before."
-      />
+      <HowItWorks />
       <Placeholder
         eyebrow="Built around you"
         title="Memory & personality"
