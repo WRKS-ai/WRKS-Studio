@@ -237,27 +237,37 @@ export function MagicRings({
     const ro = new ResizeObserver(resize);
     ro.observe(mount);
 
-    const onMouseMove = (e: MouseEvent) => {
+    // Listen on window so the canvas can stay pointer-events: none
+    // (so clicks pass through to overlay buttons) while still tracking mouse.
+    const onWindowMouseMove = (e: MouseEvent) => {
       const rect = mount.getBoundingClientRect();
-      mouseRef.current[0] = (e.clientX - rect.left) / rect.width - 0.5;
-      mouseRef.current[1] = -((e.clientY - rect.top) / rect.height - 0.5);
+      const inside =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+      if (inside) {
+        mouseRef.current[0] = (e.clientX - rect.left) / rect.width - 0.5;
+        mouseRef.current[1] = -((e.clientY - rect.top) / rect.height - 0.5);
+        isHoveredRef.current = true;
+      } else {
+        isHoveredRef.current = false;
+        mouseRef.current[0] = 0;
+        mouseRef.current[1] = 0;
+      }
     };
-    const onMouseEnter = () => {
-      isHoveredRef.current = true;
-    };
-    const onMouseLeave = () => {
-      isHoveredRef.current = false;
-      mouseRef.current[0] = 0;
-      mouseRef.current[1] = 0;
-    };
-    const onClick = () => {
-      burstRef.current = 1;
+    const onWindowClick = (e: MouseEvent) => {
+      const rect = mount.getBoundingClientRect();
+      const inside =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+      if (inside) burstRef.current = 1;
     };
 
-    mount.addEventListener("mousemove", onMouseMove);
-    mount.addEventListener("mouseenter", onMouseEnter);
-    mount.addEventListener("mouseleave", onMouseLeave);
-    mount.addEventListener("click", onClick);
+    window.addEventListener("mousemove", onWindowMouseMove);
+    window.addEventListener("click", onWindowClick);
 
     let frameId: number;
     const animate = (t: number) => {
@@ -306,10 +316,8 @@ export function MagicRings({
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", resize);
       ro.disconnect();
-      mount.removeEventListener("mousemove", onMouseMove);
-      mount.removeEventListener("mouseenter", onMouseEnter);
-      mount.removeEventListener("mouseleave", onMouseLeave);
-      mount.removeEventListener("click", onClick);
+      window.removeEventListener("mousemove", onWindowMouseMove);
+      window.removeEventListener("click", onWindowClick);
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement);
       }
