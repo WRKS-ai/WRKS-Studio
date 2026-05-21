@@ -1,63 +1,69 @@
 "use client";
 
-import { motion } from "motion/react";
-import type { ReactNode } from "react";
+import {
+  AnimatePresence,
+  motion,
+  useMotionValueEvent,
+  useScroll,
+} from "motion/react";
+import { useRef, useState, type ReactNode } from "react";
 
-const PHASES = [
+type Tone = "violet" | "sky" | "emerald";
+
+const PHASES: {
+  num: string;
+  title: string;
+  body: string;
+  statusLabel: string;
+  statusTone: Tone;
+}[] = [
   {
     num: "01",
     title: "Tell her",
     body: "Say what you need — voice, text, whatever's faster. Nova already knows your brand, your customers, your last winner. So you don't have to explain the basics every time.",
     statusLabel: "Listening",
+    statusTone: "violet",
   },
   {
     num: "02",
     title: "She shows you",
     body: "Within seconds you see the page, the post, the ad — exactly how it'll look published. Tap anything to tweak before it ships. Nothing goes live without your sign-off.",
     statusLabel: "Drafting",
+    statusTone: "sky",
   },
   {
     num: "03",
     title: "She ships",
     body: "Approve, and Nova publishes to your domain, your Instagram, your CRM — all the connections you've set up. Five deliverables in under five seconds.",
     statusLabel: "Shipped",
+    statusTone: "emerald",
   },
 ];
 
 export function HowItWorks() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"],
+  });
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useMotionValueEvent(scrollYProgress, "change", (progress) => {
+    const next = progress < 0.34 ? 0 : progress < 0.67 ? 1 : 2;
+    if (next !== activeIndex) setActiveIndex(next);
+  });
+
   return (
-    <section
-      id="how"
-      className="relative py-32 sm:py-40 px-6 lg:px-8"
-    >
-      <div className="relative max-w-screen-xl mx-auto">
-        <div className="mb-20 sm:mb-28 max-w-3xl">
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-120px" }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-1.5 text-[12px] tracking-[0.22em] uppercase text-ink-dim font-sans font-medium mb-6"
-          >
-            <span className="size-1 rounded-full bg-white/40" />
-            How it works
-          </motion.div>
-
-          <motion.h2
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-120px" }}
-            transition={{ duration: 0.85, ease: [0.2, 0.7, 0.2, 1] }}
-            className="font-serif font-medium tracking-tight leading-[1.02] text-[clamp(2.75rem,5.5vw,4.5rem)]"
-          >
-            Three steps. Five seconds.
-          </motion.h2>
-        </div>
-
-        <div className="space-y-24 sm:space-y-32">
-          {PHASES.map((phase, i) => (
-            <PhaseRow key={phase.num} phase={phase} index={i} reverse={i % 2 === 1} />
-          ))}
+    <section id="how" className="relative">
+      {/* Container is ~3 viewports tall — gives 2 viewports of scroll while pinned */}
+      <div ref={containerRef} className="relative" style={{ height: "280vh" }}>
+        <div className="sticky top-0 h-screen flex items-center overflow-hidden">
+          <div className="w-full px-6 lg:px-8">
+            <div className="max-w-screen-xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-12 lg:gap-20 items-center">
+              <LeftRail activeIndex={activeIndex} />
+              <RightMockup activeIndex={activeIndex} />
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -65,81 +71,104 @@ export function HowItWorks() {
 }
 
 /* ============================================================
- * Phase row — Framer-style: restrained text left, product UI right
+ * Left rail — sticky list of phases; active one expands its body
  * ============================================================ */
 
-function PhaseRow({
-  phase,
-  index,
-  reverse,
-}: {
-  phase: (typeof PHASES)[number];
-  index: number;
-  reverse: boolean;
-}) {
-  const visual =
-    phase.num === "01" ? (
-      <AppFrame statusLabel={phase.statusLabel} statusTone="violet">
-        <ListeningView />
-      </AppFrame>
-    ) : phase.num === "02" ? (
-      <AppFrame statusLabel={phase.statusLabel} statusTone="sky">
-        <DraftingView />
-      </AppFrame>
-    ) : (
-      <AppFrame statusLabel={phase.statusLabel} statusTone="emerald">
-        <ShippedView />
-      </AppFrame>
-    );
+function LeftRail({ activeIndex }: { activeIndex: number }) {
+  return (
+    <div>
+      <div className="inline-flex items-center gap-1.5 text-[12px] tracking-[0.22em] uppercase text-ink-dim font-sans font-medium mb-5">
+        <span className="size-1 rounded-full bg-white/40" />
+        How it works
+      </div>
+      <h2 className="font-serif font-medium tracking-tight leading-[1.02] text-[clamp(2.25rem,4.5vw,3.5rem)] mb-10 sm:mb-12">
+        Three steps. Five seconds.
+      </h2>
+
+      <div className="space-y-0">
+        {PHASES.map((phase, i) => {
+          const isActive = i === activeIndex;
+          return (
+            <div
+              key={phase.num}
+              className="border-t py-5 sm:py-6 transition-colors duration-500"
+              style={{
+                borderColor: isActive
+                  ? "rgba(255,255,255,0.15)"
+                  : "rgba(255,255,255,0.05)",
+              }}
+            >
+              <div
+                className="text-[10px] tracking-[0.24em] uppercase font-mono mb-2 transition-colors duration-500"
+                style={{
+                  color: isActive
+                    ? "rgba(255,255,255,0.6)"
+                    : "rgba(255,255,255,0.25)",
+                }}
+              >
+                Phase {phase.num}
+              </div>
+              <h3
+                className="font-serif font-medium tracking-tight transition-all duration-500"
+                style={{
+                  fontSize: isActive
+                    ? "clamp(1.75rem, 2.6vw, 2.25rem)"
+                    : "1.4rem",
+                  color: isActive
+                    ? "rgb(243 244 246)"
+                    : "rgba(255,255,255,0.35)",
+                  lineHeight: 1.1,
+                }}
+              >
+                {phase.title}
+              </h3>
+              <motion.div
+                initial={false}
+                animate={
+                  isActive
+                    ? { opacity: 1, height: "auto", marginTop: 14 }
+                    : { opacity: 0, height: 0, marginTop: 0 }
+                }
+                transition={{ duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }}
+                className="overflow-hidden"
+              >
+                <p className="font-sans text-ink-muted text-[clamp(0.95rem,1.3vw,1.05rem)] leading-[1.6] max-w-md">
+                  {phase.body}
+                </p>
+              </motion.div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * Right mockup — cross-fades between phase mockups on activeIndex change
+ * ============================================================ */
+
+function RightMockup({ activeIndex }: { activeIndex: number }) {
+  const active = PHASES[activeIndex] ?? PHASES[0]!;
+  const view =
+    activeIndex === 0 ? <ListeningView /> : activeIndex === 1 ? <DraftingView /> : <ShippedView />;
 
   return (
-    <div
-      className={`grid grid-cols-1 lg:grid-cols-[0.85fr_1.4fr] gap-12 lg:gap-20 items-center ${
-        reverse ? "lg:[&>*:first-child]:order-2" : ""
-      }`}
-    >
-      {/* Text */}
-      <div>
+    <div className="relative w-full max-w-2xl mx-auto" style={{ aspectRatio: "4 / 3" }}>
+      <AnimatePresence mode="wait">
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-          className="inline-flex items-center gap-1.5 text-[10px] tracking-[0.24em] uppercase text-ink-dim font-mono mb-5"
+          key={activeIndex}
+          initial={{ opacity: 0, y: 16, scale: 0.985 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -16, scale: 0.985 }}
+          transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+          className="absolute inset-0"
         >
-          Phase {phase.num}
+          <AppFrame statusLabel={active.statusLabel} statusTone={active.statusTone}>
+            {view}
+          </AppFrame>
         </motion.div>
-
-        <motion.h3
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.7, delay: 0.05, ease: [0.2, 0.7, 0.2, 1] }}
-          className="font-serif font-medium tracking-tight leading-[1.05] text-[clamp(2rem,3.6vw,2.75rem)] mb-5"
-        >
-          {phase.title}
-        </motion.h3>
-
-        <motion.p
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.7, delay: 0.12 }}
-          className="font-sans text-ink-muted text-[clamp(1rem,1.5vw,1.15rem)] leading-[1.6] max-w-md"
-        >
-          {phase.body}
-        </motion.p>
-      </div>
-
-      {/* Visual */}
-      <motion.div
-        initial={{ opacity: 0, y: 28 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.95, ease: [0.2, 0.7, 0.2, 1], delay: 0.15 }}
-      >
-        {visual}
-      </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
