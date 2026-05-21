@@ -81,6 +81,17 @@ function WebsiteHero() {
             </div>
           </div>
         </div>
+
+        {/* Native footer — testimonial + deployed status */}
+        <div className="px-3 py-2.5 flex items-center justify-between gap-2">
+          <div className="text-[10px] font-serif italic text-white/70 truncate">
+            &ldquo;Best cut in Toronto.&rdquo; — Sara J.
+          </div>
+          <span className="text-[8px] tracking-[0.22em] uppercase text-emerald-300/90 font-sans font-medium flex items-center gap-1 shrink-0">
+            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Deployed
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -265,6 +276,21 @@ function AdHero() {
             </div>
           </div>
         </div>
+
+        {/* Native FB engagement row */}
+        <div className="px-3 py-2.5 flex items-center gap-3 text-[10px] text-white/70 font-sans">
+          <span className="flex items-center gap-1.5">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="rgb(96 165 250)" stroke="none">
+              <path d="M2 9.5a3.5 3.5 0 0 1 6.7-1.5l3.3 1 .5-3.5a2.5 2.5 0 0 1 5 .5v5h3a2 2 0 0 1 2 2v2l-2 6h-12a2 2 0 0 1-2-2V9.5z" />
+            </svg>
+            127
+          </span>
+          <span>💬 12</span>
+          <span>↗ 5</span>
+          <span className="ml-auto text-[8px] font-mono text-emerald-300/90">
+            2,847 reach
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -317,6 +343,45 @@ function CopyHero() {
               <span className="italic text-white/80">that knows you.</span>
             </div>
           </div>
+        </div>
+
+        {/* Compact A/B/C variant strip */}
+        <div className="px-3 py-2.5 space-y-1.5">
+          {[
+            { label: "A", cvr: "12.4%", winner: true },
+            { label: "B", cvr: "7.1%", winner: false },
+            { label: "C", cvr: "5.8%", winner: false },
+          ].map((v) => (
+            <div
+              key={v.label}
+              className={`flex items-center gap-2 text-[10px] ${v.winner ? "" : "opacity-50"}`}
+            >
+              <span
+                className={`size-4 rounded text-[9px] font-mono font-bold flex items-center justify-center shrink-0 ${
+                  v.winner
+                    ? "bg-gradient-to-br from-violet-400 to-fuchsia-500 text-white"
+                    : "bg-white/[0.08] text-white/70"
+                }`}
+              >
+                {v.label}
+              </span>
+              <div className="flex-1 h-1 rounded-full bg-white/[0.05] overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${v.winner ? "bg-gradient-to-r from-violet-400 to-fuchsia-500" : "bg-white/25"}`}
+                  style={{
+                    width: v.label === "A" ? "100%" : v.label === "B" ? "57%" : "47%",
+                  }}
+                />
+              </div>
+              <span
+                className={`font-mono font-semibold tabular-nums shrink-0 text-[9px] ${
+                  v.winner ? "text-emerald-300" : "text-white/40"
+                }`}
+              >
+                {v.cvr}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -381,6 +446,21 @@ function BlogHero() {
               <span>5 min read</span>
             </div>
           </div>
+        </div>
+
+        {/* Tags + comment count footer */}
+        <div className="px-3 py-2.5 flex items-center gap-1.5 flex-wrap">
+          {["#hair-care", "#layered", "#salon-tips"].map((t) => (
+            <span
+              key={t}
+              className="text-[8px] font-mono px-1.5 py-0.5 rounded border border-white/[0.08] text-white/55"
+            >
+              {t}
+            </span>
+          ))}
+          <span className="ml-auto text-[8px] font-mono text-white/40">
+            47 comments
+          </span>
         </div>
       </div>
     </div>
