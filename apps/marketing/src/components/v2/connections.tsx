@@ -74,17 +74,8 @@ export function Connections() {
   return (
     <section
       id="connections"
-      className="relative py-32 sm:py-40 px-6 lg:px-8 overflow-hidden"
+      className="relative py-32 sm:py-40 px-6 lg:px-8"
     >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        aria-hidden
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 50%, rgba(56,189,248,0.06), transparent 60%)",
-        }}
-      />
-
       <div className="relative max-w-screen-xl mx-auto">
         <div className="text-center mb-16 sm:mb-20">
           <motion.div

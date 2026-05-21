@@ -7,18 +7,8 @@ export function WhatItBuilds() {
   return (
     <section
       id="builds"
-      className="relative py-32 sm:py-40 px-6 lg:px-8 overflow-hidden"
+      className="relative py-32 sm:py-40 px-6 lg:px-8"
     >
-      {/* Subtle violet → sky wash, picking up the hero ring tones */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        aria-hidden
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 0%, rgba(167,139,250,0.12), transparent 55%), radial-gradient(ellipse at 50% 100%, rgba(56,189,248,0.08), transparent 60%)",
-        }}
-      />
-
       <div className="relative max-w-screen-xl mx-auto">
         {/* Eyebrow + headline block */}
         <div className="text-center mb-20 sm:mb-24">
