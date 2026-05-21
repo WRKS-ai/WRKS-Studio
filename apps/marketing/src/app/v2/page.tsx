@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { MeshGradient } from "@/components/mesh-gradient";
 import { StarField } from "@/components/star-field";
+import { BrandMarquee } from "@/components/v2/brand-marquee";
 import { Hero } from "@/components/v2/hero";
 import { Nav } from "@/components/v2/nav";
 import { WhatItBuilds } from "@/components/v2/what-it-builds";
@@ -42,6 +43,7 @@ export default function V2Home() {
         title="Join the waitlist"
         lede="Founding cohort onboarding underway."
       />
+      <BrandMarquee />
     </main>
   );
 }
