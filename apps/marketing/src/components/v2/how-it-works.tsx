@@ -59,7 +59,34 @@ export function HowItWorks() {
       className="relative"
       style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
     >
-      {/* Container is ~3 viewports tall — gives 2 viewports of scroll while pinned */}
+      {/* Static centered heading — sits outside the sticky scrollytelling */}
+      <div className="relative pt-32 sm:pt-40 px-6 lg:px-8">
+        <div className="max-w-screen-xl mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-120px" }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-1.5 text-[12px] tracking-[0.22em] uppercase text-ink-dim font-sans font-medium mb-6"
+          >
+            <span className="size-1 rounded-full bg-white/40" />
+            How it works
+          </motion.div>
+
+          <motion.h2
+            initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
+            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            viewport={{ once: true, margin: "-120px" }}
+            transition={{ duration: 0.85, ease: [0.2, 0.7, 0.2, 1] }}
+            className="font-serif font-medium tracking-tight leading-[1.02] max-w-3xl mx-auto text-[clamp(2.75rem,5.5vw,4.5rem)]"
+          >
+            Three steps.{" "}
+            <span className="italic text-ink-muted">Five seconds.</span>
+          </motion.h2>
+        </div>
+      </div>
+
+      {/* Sticky scrollytelling container — phase list left, mockup right */}
       <div ref={containerRef} className="relative" style={{ height: "280vh" }}>
         <div className="sticky top-0 h-screen flex items-center overflow-hidden">
           <div className="w-full px-6 lg:px-8">
@@ -81,14 +108,6 @@ export function HowItWorks() {
 function LeftRail({ activeIndex }: { activeIndex: number }) {
   return (
     <div>
-      <div className="inline-flex items-center gap-1.5 text-[12px] tracking-[0.22em] uppercase text-ink-dim font-sans font-medium mb-5">
-        <span className="size-1 rounded-full bg-white/40" />
-        How it works
-      </div>
-      <h2 className="font-serif font-medium tracking-tight leading-[1.02] text-[clamp(2.25rem,4.5vw,3.5rem)] mb-10 sm:mb-12">
-        Three steps. Five seconds.
-      </h2>
-
       <div className="space-y-0">
         {PHASES.map((phase, i) => {
           const isActive = i === activeIndex;
