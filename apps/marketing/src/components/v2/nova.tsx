@@ -1,7 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { Button } from "./button";
 
 type Tone = "violet" | "sky" | "emerald" | "rose" | "amber";
@@ -42,21 +49,192 @@ const PROMPTS: Prompt[] = [
   },
 ];
 
-const CYCLE_MS = 6000;
+const CYCLE_MS = 6500;
+
+/* ============================================================
+ * SpeechRecognition (browser STT) — minimal typing
+ * ============================================================ */
+
+type MinRecognition = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  maxAlternatives: number;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onresult:
+    | ((e: {
+        results: ArrayLike<
+          ArrayLike<{ transcript: string }> & { isFinal: boolean }
+        >;
+      }) => void)
+    | null;
+  onend: (() => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
+  onstart: (() => void) | null;
+};
+
+function createRecognition(): MinRecognition | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: new () => MinRecognition;
+    webkitSpeechRecognition?: new () => MinRecognition;
+  };
+  const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+  if (!Ctor) return null;
+  const rec = new Ctor();
+  rec.lang = "en-US";
+  rec.interimResults = true;
+  rec.continuous = false;
+  rec.maxAlternatives = 1;
+  return rec;
+}
+
+function isRecognitionSupported(): boolean {
+  if (typeof window === "undefined") return false;
+  const w = window as unknown as {
+    SpeechRecognition?: unknown;
+    webkitSpeechRecognition?: unknown;
+  };
+  return Boolean(w.SpeechRecognition ?? w.webkitSpeechRecognition);
+}
+
+/* Keyword router → returns prompt index */
+function resolvePromptIdx(text: string): number {
+  const t = text.toLowerCase();
+  if (
+    t.includes("march") ||
+    t.includes("promo") ||
+    t.includes("discount") ||
+    t.includes("20%") ||
+    t.includes("sale")
+  )
+    return 0;
+  if (
+    t.includes("latte") ||
+    t.includes("coffee") ||
+    t.includes("friday") ||
+    t.includes("schedul") ||
+    t.includes("post about")
+  )
+    return 1;
+  if (
+    t.includes("black friday") ||
+    t.includes("landing") ||
+    t.includes("gift card") ||
+    t.includes("page") ||
+    t.includes("checkout")
+  )
+    return 2;
+  return 0;
+}
+
+/* ============================================================
+ * Section
+ * ============================================================ */
 
 export function Nova() {
   const [activeIdx, setActiveIdx] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [input, setInput] = useState("");
+  const [submittedText, setSubmittedText] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [micSupported, setMicSupported] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
+  const recognitionRef = useRef<MinRecognition | null>(null);
+  const finalTranscriptRef = useRef<string>("");
 
   useEffect(() => {
-    if (paused) return;
+    setMicSupported(isRecognitionSupported());
+    return () => {
+      recognitionRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (paused || hasInteracted) return;
     const id = setInterval(() => {
       setActiveIdx((i) => (i + 1) % PROMPTS.length);
     }, CYCLE_MS);
     return () => clearInterval(id);
-  }, [paused]);
+  }, [paused, hasInteracted]);
 
   const active = PROMPTS[activeIdx]!;
+
+  const onPick = (i: number) => {
+    setActiveIdx(i);
+    setHasInteracted(true);
+    setSubmittedText(null);
+  };
+
+  const onSubmit = (e?: FormEvent) => {
+    e?.preventDefault();
+    const text = input.trim();
+    if (!text) return;
+    setActiveIdx(resolvePromptIdx(text));
+    setSubmittedText(text);
+    setHasInteracted(true);
+  };
+
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  }, []);
+
+  const startListening = useCallback(() => {
+    if (!isRecognitionSupported()) {
+      setMicError("Voice input isn't supported in this browser. Try Chrome, Edge, or Safari.");
+      return;
+    }
+    const rec = createRecognition();
+    if (!rec) return;
+    recognitionRef.current = rec;
+    finalTranscriptRef.current = "";
+    setInput("");
+    setMicError(null);
+
+    rec.onstart = () => setIsListening(true);
+    rec.onresult = (e) => {
+      let interim = "";
+      let finalText = "";
+      for (let i = 0; i < e.results.length; i++) {
+        const res = e.results[i]!;
+        const alt = res[0]!;
+        if (res.isFinal) finalText += alt.transcript;
+        else interim += alt.transcript;
+      }
+      finalTranscriptRef.current = (finalTranscriptRef.current + finalText).trim();
+      setInput((finalTranscriptRef.current + " " + interim).trim());
+    };
+    rec.onerror = (e) => {
+      setIsListening(false);
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        setMicError("Microphone blocked. Enable it to talk to Nova.");
+      } else if (e.error === "no-speech") {
+        setMicError("Didn't catch that — try again.");
+      } else if (e.error !== "aborted") {
+        setMicError("Voice input hit a snag. Try again.");
+      }
+    };
+    rec.onend = () => {
+      setIsListening(false);
+      const finalText = finalTranscriptRef.current.trim();
+      if (finalText) {
+        setActiveIdx(resolvePromptIdx(finalText));
+        setSubmittedText(finalText);
+        setHasInteracted(true);
+      }
+    };
+
+    try {
+      rec.start();
+    } catch {
+      rec.abort();
+      setIsListening(false);
+    }
+  }, []);
 
   return (
     <section
@@ -87,7 +265,7 @@ export function Nova() {
             transition={{ duration: 0.85, ease: [0.2, 0.7, 0.2, 1] }}
             className="font-serif font-medium tracking-tight leading-[1.02] max-w-3xl mx-auto text-[clamp(2.75rem,5.5vw,4.5rem)]"
           >
-            Speak it.{" "}
+            Speak it. {" "}
             <span className="italic text-ink-muted">See it built.</span>
           </motion.h2>
 
@@ -98,97 +276,182 @@ export function Nova() {
             transition={{ delay: 0.15, duration: 0.7 }}
             className="mt-6 text-[18px] text-ink-muted leading-[1.55] max-w-2xl mx-auto"
           >
-            Tap a prompt. Watch Nova ship the page, the post, the code. The
-            real thing arrives when you join the cohort.
+            Tap the mic, type something, or pick a prompt. Watch Nova ship the
+            page, the post, the code — live.
           </motion.p>
         </div>
 
         <div
-          className="grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-8 lg:gap-12 items-center"
+          className="grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-8 lg:gap-12 items-start"
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
         >
-          {/* LEFT — prompt list */}
-          <div className="space-y-2.5">
-            <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono mb-4">
-              Pick a prompt
-            </div>
-            {PROMPTS.map((p, i) => {
-              const isActive = i === activeIdx;
-              return (
+          {/* LEFT — input + prompt suggestions */}
+          <div>
+            {/* Talk to Nova input */}
+            <form onSubmit={onSubmit} className="relative">
+              <div
+                className="relative flex items-center rounded-2xl transition-all duration-300"
+                style={{
+                  background: isListening
+                    ? "rgba(244,114,182,0.05)"
+                    : "rgba(255,255,255,0.02)",
+                  border: isListening
+                    ? "1px solid rgba(244,114,182,0.45)"
+                    : "1px solid rgba(255,255,255,0.08)",
+                  boxShadow: isListening
+                    ? "0 0 32px -8px rgba(244,114,182,0.5), inset 0 1px 0 rgba(255,255,255,0.04)"
+                    : "inset 0 1px 0 rgba(255,255,255,0.03)",
+                }}
+              >
+                {micSupported && (
+                  <button
+                    type="button"
+                    onClick={isListening ? stopListening : startListening}
+                    aria-label={isListening ? "Stop listening" : "Talk to Nova"}
+                    className="relative size-10 ml-1.5 rounded-xl flex items-center justify-center transition-colors"
+                    style={{
+                      background: isListening ? "#f43f5e" : "rgba(255,255,255,0.04)",
+                      color: "white",
+                    }}
+                  >
+                    {isListening && (
+                      <>
+                        <span className="absolute inset-0 rounded-xl bg-rose-500/40 animate-ping" />
+                        <span className="absolute -inset-1 rounded-xl border border-rose-400/40 animate-pulse" />
+                      </>
+                    )}
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="relative"
+                    >
+                      <rect x="9" y="3" width="6" height="12" rx="3" />
+                      <path d="M5 11a7 7 0 0 0 14 0" />
+                      <path d="M12 18v3" />
+                    </svg>
+                  </button>
+                )}
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={
+                    isListening
+                      ? "Listening… speak now"
+                      : micSupported
+                        ? "Tap the mic or tell Nova what to make…"
+                        : "Tell Nova what to make…"
+                  }
+                  className="flex-1 bg-transparent h-12 px-3 outline-none text-[15px] font-sans text-ink placeholder:text-ink-dim min-w-0"
+                />
                 <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setActiveIdx(i)}
-                  className="relative w-full text-left rounded-2xl px-4 sm:px-5 py-4 transition-all duration-300 group"
-                  style={{
-                    background: isActive
-                      ? "rgba(167,139,250,0.06)"
-                      : "rgba(255,255,255,0.02)",
-                    border: isActive
-                      ? "1px solid rgba(167,139,250,0.4)"
-                      : "1px solid rgba(255,255,255,0.06)",
-                    boxShadow: isActive
-                      ? "0 12px 32px -10px rgba(167,139,250,0.35), inset 0 1px 0 rgba(255,255,255,0.04)"
-                      : "none",
-                  }}
+                  type="submit"
+                  disabled={!input.trim() || isListening}
+                  className="h-9 mr-1.5 px-4 rounded-xl bg-ink text-canvas text-[13px] font-sans font-semibold transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
                 >
-                  {/* Active progress bar */}
-                  {isActive && !paused && (
-                    <motion.div
-                      key={activeIdx}
-                      className="absolute bottom-0 left-0 h-px rounded-b-2xl"
-                      style={{
-                        background:
-                          "linear-gradient(90deg, #a78bfa 0%, #38bdf8 100%)",
-                      }}
-                      initial={{ width: "0%" }}
-                      animate={{ width: "100%" }}
-                      transition={{ duration: CYCLE_MS / 1000, ease: "linear" }}
-                    />
-                  )}
+                  Build it
+                  <span aria-hidden>→</span>
+                </button>
+              </div>
+              {micError && (
+                <div className="mt-2 text-[10px] tracking-[0.18em] uppercase text-rose-300/90 font-sans">
+                  {micError}
+                </div>
+              )}
+            </form>
 
-                  <div className="flex items-start gap-3">
-                    <span
-                      className="mt-0.5 text-[10px] font-mono tracking-[0.22em] uppercase shrink-0 transition-colors duration-300"
+            {/* Preset prompts */}
+            <div className="mt-7">
+              <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono mb-3">
+                Or try a preset
+              </div>
+              <div className="space-y-2">
+                {PROMPTS.map((p, i) => {
+                  const isActive = i === activeIdx;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => onPick(i)}
+                      className="relative w-full text-left rounded-2xl px-4 py-3.5 transition-all duration-300"
                       style={{
-                        color: isActive
-                          ? "rgba(167,139,250,0.95)"
-                          : "rgba(255,255,255,0.35)",
+                        background: isActive
+                          ? "rgba(167,139,250,0.06)"
+                          : "rgba(255,255,255,0.02)",
+                        border: isActive
+                          ? "1px solid rgba(167,139,250,0.4)"
+                          : "1px solid rgba(255,255,255,0.06)",
+                        boxShadow: isActive
+                          ? "0 8px 24px -10px rgba(167,139,250,0.35)"
+                          : "none",
                       }}
                     >
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div
-                        className="font-serif italic transition-colors duration-300"
-                        style={{
-                          fontSize: "clamp(1rem, 1.4vw, 1.15rem)",
-                          color: isActive
-                            ? "rgb(243 244 246)"
-                            : "rgba(255,255,255,0.55)",
-                          lineHeight: 1.35,
-                        }}
-                      >
-                        &ldquo;{p.text}&rdquo;
+                      {isActive && !paused && !hasInteracted && (
+                        <motion.div
+                          key={activeIdx}
+                          className="absolute bottom-0 left-0 h-px rounded-b-2xl"
+                          style={{
+                            background:
+                              "linear-gradient(90deg, #a78bfa 0%, #38bdf8 100%)",
+                          }}
+                          initial={{ width: "0%" }}
+                          animate={{ width: "100%" }}
+                          transition={{
+                            duration: CYCLE_MS / 1000,
+                            ease: "linear",
+                          }}
+                        />
+                      )}
+                      <div className="flex items-start gap-2.5">
+                        <span
+                          className="mt-0.5 text-[9px] font-mono tracking-[0.22em] uppercase shrink-0 transition-colors duration-300"
+                          style={{
+                            color: isActive
+                              ? "rgba(167,139,250,0.95)"
+                              : "rgba(255,255,255,0.35)",
+                          }}
+                        >
+                          {String(i + 1).padStart(2, "0")}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div
+                            className="font-serif italic transition-colors duration-300"
+                            style={{
+                              fontSize: "clamp(0.95rem, 1.3vw, 1.05rem)",
+                              color: isActive
+                                ? "rgb(243 244 246)"
+                                : "rgba(255,255,255,0.55)",
+                              lineHeight: 1.35,
+                            }}
+                          >
+                            &ldquo;{p.text}&rdquo;
+                          </div>
+                          <div
+                            className="mt-1 text-[9px] font-mono transition-colors duration-300"
+                            style={{
+                              color: isActive
+                                ? "rgba(255,255,255,0.5)"
+                                : "rgba(255,255,255,0.3)",
+                            }}
+                          >
+                            {p.hint}
+                          </div>
+                        </div>
                       </div>
-                      <div
-                        className="mt-1.5 text-[10px] font-mono transition-colors duration-300"
-                        style={{
-                          color: isActive
-                            ? "rgba(255,255,255,0.55)"
-                            : "rgba(255,255,255,0.3)",
-                        }}
-                      >
-                        {p.hint}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-            <div className="pt-4">
+            <div className="pt-6">
               <Button variant="primary" size="md" withArrow href="#waitlist">
                 Get the real thing
               </Button>
@@ -199,7 +462,7 @@ export function Nova() {
           <div className="relative w-full">
             <AnimatePresence mode="wait">
               <motion.div
-                key={active.id}
+                key={`${active.id}-${submittedText ?? ""}`}
                 initial={{ opacity: 0, y: 16, scale: 0.985 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -16, scale: 0.985 }}
@@ -208,7 +471,8 @@ export function Nova() {
                 <NovaFrame
                   statusLabel={active.statusLabel}
                   statusTone={active.statusTone}
-                  prompt={active.text}
+                  prompt={submittedText ?? active.text}
+                  isUserPrompt={Boolean(submittedText)}
                 >
                   {active.view}
                 </NovaFrame>
@@ -229,11 +493,13 @@ function NovaFrame({
   statusLabel,
   statusTone,
   prompt,
+  isUserPrompt,
   children,
 }: {
   statusLabel: string;
   statusTone: Tone;
   prompt: string;
+  isUserPrompt: boolean;
   children: ReactNode;
 }) {
   const toneClasses = {
@@ -255,7 +521,6 @@ function NovaFrame({
         aspectRatio: "16 / 11",
       }}
     >
-      {/* Top bar */}
       <div
         className="absolute top-0 left-0 right-0 h-9 flex items-center px-3 gap-2"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
@@ -274,24 +539,22 @@ function NovaFrame({
         </div>
       </div>
 
-      {/* Prompt bar */}
       <div
         className="absolute top-9 left-0 right-0 px-4 py-2.5 flex items-center gap-2.5"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
       >
         <div className="size-5 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-[8px] font-mono font-bold text-white shrink-0">
-          N
+          {isUserPrompt ? "H" : "N"}
         </div>
         <div className="flex-1 min-w-0 text-[11px] font-serif italic text-white/80 truncate">
           &ldquo;{prompt}&rdquo;
         </div>
         <div className="text-[8px] font-mono text-emerald-300/85 flex items-center gap-1 shrink-0">
           <span className="size-1 rounded-full bg-emerald-400 animate-pulse" />
-          processing
+          {isUserPrompt ? "yours · live" : "processing"}
         </div>
       </div>
 
-      {/* Main canvas */}
       <div
         className="absolute left-0 right-0 bottom-0 p-4 sm:p-5"
         style={{ top: "calc(2.25rem + 2.625rem)" }}
