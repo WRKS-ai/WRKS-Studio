@@ -22,7 +22,7 @@ export function HeroPreview({ kind }: { kind: HeroKind }) {
 /* 1. WebsiteHero --------------------------------------------------------- */
 
 const WEBSITE_PHOTO =
-  "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=900&q=85&auto=format&fit=crop";
+  "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=1600&q=90&auto=format&fit=crop";
 
 function WebsiteHero() {
   return (
@@ -89,7 +89,7 @@ function WebsiteHero() {
 /* 2. SocialHero ---------------------------------------------------------- */
 
 const SOCIAL_PHOTO =
-  "https://images.unsplash.com/photo-1634449571010-02389ed0f9b0?w=900&q=85&auto=format&fit=crop";
+  "https://images.unsplash.com/photo-1634449571010-02389ed0f9b0?w=1600&q=90&auto=format&fit=crop";
 const SOCIAL_AVATAR =
   "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?w=120&q=85&auto=format&fit=crop";
 
@@ -201,7 +201,7 @@ function SocialHero() {
 /* 3. AdHero -------------------------------------------------------------- */
 
 const AD_PHOTO =
-  "https://images.unsplash.com/photo-1635814442700-446512be496a?w=900&q=85&auto=format&fit=crop";
+  "https://images.unsplash.com/photo-1635814442700-446512be496a?w=1600&q=90&auto=format&fit=crop";
 
 function AdHero() {
   return (
@@ -273,7 +273,7 @@ function AdHero() {
 /* 4. CopyHero ------------------------------------------------------------ */
 
 const COPY_PHOTO =
-  "https://images.unsplash.com/photo-1595475884562-073c30d45670?w=900&q=85&auto=format&fit=crop";
+  "https://images.unsplash.com/photo-1595475884562-073c30d45670?w=1600&q=90&auto=format&fit=crop";
 
 function CopyHero() {
   return (
@@ -326,7 +326,7 @@ function CopyHero() {
 /* 5. BlogHero ------------------------------------------------------------ */
 
 const BLOG_PHOTO =
-  "https://images.unsplash.com/photo-1633681138600-295fcd688876?w=900&q=85&auto=format&fit=crop";
+  "https://images.unsplash.com/photo-1633681138600-295fcd688876?w=1600&q=90&auto=format&fit=crop";
 
 function BlogHero() {
   return (

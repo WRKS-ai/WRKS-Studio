@@ -215,72 +215,8 @@ function CarouselCard({ card, featured }: { card: Card; featured: boolean }) {
       }
     >
       <CardVisual card={card} />
-
-      {/* Top status pill — color matches card kind */}
-      <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-canvas/60 backdrop-blur-md px-2.5 py-1">
-        <span
-          className="size-1 rounded-full animate-pulse"
-          style={{ background: card.glow.replace("0.22", "1") }}
-        />
-        <span className="text-[9px] tracking-[0.18em] uppercase text-white/90 font-sans font-medium">
-          {kindLabel(card.kind)}
-        </span>
-      </div>
-
-      {/* Featured overlay */}
-      {featured && (
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25, duration: 0.5, ease: "easeOut" }}
-          className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-canvas via-canvas/90 to-transparent"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-[9px] tracking-[0.22em] uppercase text-ink-muted font-sans flex items-center gap-1.5">
-              <span className="size-1 rounded-full bg-emerald-400 animate-pulse" />
-              You said
-            </div>
-            <span className="text-[9px] tracking-[0.18em] uppercase text-emerald-300/90 font-mono">
-              4.2s
-            </span>
-          </div>
-          <p className="font-serif italic text-ink text-[15px] leading-snug mb-3.5 line-clamp-2">
-            &ldquo;{card.prompt}&rdquo;
-          </p>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[10px] tracking-[0.18em] uppercase text-emerald-400/90 font-sans font-medium flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-emerald-400" />
-              Shipped
-            </span>
-            <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-ink text-canvas text-[11px] font-sans font-semibold hover:opacity-90 transition-opacity"
-            >
-              Watch it build
-              <span aria-hidden>→</span>
-            </motion.button>
-          </div>
-        </motion.div>
-      )}
     </div>
   );
-}
-
-function kindLabel(k: Card["kind"]) {
-  switch (k) {
-    case "website":
-      return "Website";
-    case "social":
-      return "Instagram";
-    case "ad":
-      return "Ad creative";
-    case "copy":
-      return "Copy variant";
-    case "blog":
-      return "Blog post";
-  }
 }
 
 function CardVisual({ card }: { card: Card }) {
