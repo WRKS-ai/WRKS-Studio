@@ -16,8 +16,8 @@ export function Hero() {
           speed={0.6}
           attenuation={9}
           lineThickness={2}
-          baseRadius={0.32}
-          radiusStep={0.085}
+          baseRadius={0.55}
+          radiusStep={0.1}
           scaleRate={0.08}
           opacity={0.75}
           blur={0.4}
