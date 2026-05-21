@@ -7,38 +7,30 @@ import { Button } from "./button";
 export function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center px-6 lg:px-8 overflow-hidden">
-      {/* Magic rings — full-bleed centerpiece backdrop */}
-      <div
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
-        aria-hidden
-      >
-        <div
-          className="relative"
-          style={{ width: "min(140vh, 1400px)", aspectRatio: "1 / 1" }}
-        >
-          <MagicRings
-            color="#a78bfa"
-            colorTwo="#38bdf8"
-            ringCount={7}
-            speed={0.6}
-            attenuation={9}
-            lineThickness={2}
-            baseRadius={0.32}
-            radiusStep={0.085}
-            scaleRate={0.08}
-            opacity={0.75}
-            blur={0.4}
-            noiseAmount={0.04}
-            rotation={0}
-            ringGap={1.5}
-            fadeIn={0.7}
-            fadeOut={0.5}
-            followMouse
-            mouseInfluence={0.12}
-            hoverScale={1.05}
-            parallax={0.03}
-          />
-        </div>
+      {/* Magic rings — full-bleed centerpiece backdrop (canvas = section) */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden>
+        <MagicRings
+          color="#a78bfa"
+          colorTwo="#38bdf8"
+          ringCount={7}
+          speed={0.6}
+          attenuation={9}
+          lineThickness={2}
+          baseRadius={0.32}
+          radiusStep={0.085}
+          scaleRate={0.08}
+          opacity={0.75}
+          blur={0.4}
+          noiseAmount={0.04}
+          rotation={0}
+          ringGap={1.5}
+          fadeIn={0.7}
+          fadeOut={0.5}
+          followMouse
+          mouseInfluence={0.12}
+          hoverScale={1.05}
+          parallax={0.03}
+        />
       </div>
 
       {/* Foreground content */}
