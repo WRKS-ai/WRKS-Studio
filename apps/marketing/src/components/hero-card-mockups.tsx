@@ -340,6 +340,9 @@ function AdHero() {
 
 /* 4. CopyHero ------------------------------------------------------------ */
 
+const COPY_PHOTO =
+  "https://images.unsplash.com/photo-1595475884562-073c30d45670?w=900&q=85&auto=format&fit=crop";
+
 function CopyHero() {
   return (
     <div className="absolute inset-0 bg-gradient-to-b from-violet-950/30 via-canvas to-canvas overflow-hidden">
@@ -348,103 +351,113 @@ function CopyHero() {
           <div className="flex items-center gap-1.5">
             <span className="size-1.5 rounded-full bg-violet-400 animate-pulse" />
             <span className="text-[9px] tracking-[0.2em] uppercase text-ink-muted font-sans">
-              Copy variants · A/B/C
+              Hero copy · Live
             </span>
           </div>
           <span className="text-[8px] font-mono text-violet-300/90 tracking-wider">
-            2,847 sessions · 99% conf
+            A/B/C tested · 12.4% CVR
           </span>
         </div>
       </div>
 
       <div className="mx-4 rounded-2xl overflow-hidden border border-white/[0.08] bg-[#0d0d12] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]">
-        {/* Test header — mimics a real A/B test dashboard */}
-        <div className="px-3 py-2.5 flex items-center justify-between border-b border-white/[0.06]">
-          <div className="flex items-center gap-1.5">
-            <div className="size-5 rounded-md bg-gradient-to-br from-violet-400 to-fuchsia-500 flex items-center justify-center">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 21V9l8-6 8 6v12"/>
-                <path d="M9 21v-6h6v6"/>
-              </svg>
-            </div>
-            <span className="text-[10px] font-sans font-semibold text-white">
-              Hero headline test
-            </span>
-          </div>
-          <span className="text-[8px] font-mono text-emerald-300/90 flex items-center gap-1">
-            <span className="size-1 rounded-full bg-emerald-400 animate-pulse" />
-            running
-          </span>
-        </div>
-
-        {/* Variants */}
-        <div className="p-3 space-y-2.5">
-          {/* Variant A — winner */}
+        {/* Hero rendered on landing page */}
+        <div className="aspect-[5/4] relative overflow-hidden">
+          <img
+            src={COPY_PHOTO}
+            alt="Hero rendering"
+            className="absolute inset-0 size-full object-cover"
+            loading="lazy"
+          />
           <div
-            className="rounded-xl p-3.5 relative overflow-hidden"
+            className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                "radial-gradient(ellipse at 30% 0%, rgba(167,139,250,0.18), transparent 60%), rgba(255,255,255,0.03)",
-              border: "1px solid rgba(167,139,250,0.4)",
-              boxShadow: "0 0 24px -8px rgba(167,139,250,0.35)",
+                "linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.85) 100%)",
             }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5">
-                <span className="size-5 rounded-md bg-gradient-to-br from-violet-400 to-fuchsia-500 flex items-center justify-center text-[10px] font-mono font-bold text-white">
-                  A
-                </span>
-                <span className="text-[8px] tracking-[0.22em] uppercase text-violet-200 font-sans font-medium flex items-center gap-1">
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 13l4 4L19 7"/>
-                  </svg>
-                  Winner
-                </span>
-              </div>
-              <span className="text-[10px] font-mono font-semibold text-emerald-300">
-                12.4% CVR
-              </span>
+          />
+
+          {/* Page nav chrome */}
+          <div className="absolute top-3 left-4 right-4 flex items-center justify-between">
+            <span className="font-serif text-white text-[11px] tracking-tight">
+              Hannah&apos;s
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-violet-500/30 backdrop-blur-md border border-violet-400/50 text-[8px] tracking-[0.22em] uppercase text-violet-100 font-sans font-medium">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+              Variant A
+            </span>
+          </div>
+
+          {/* Hero copy rendered */}
+          <div className="absolute bottom-4 left-4 right-4">
+            <div className="text-[8px] tracking-[0.24em] uppercase text-violet-200/85 font-sans mb-2">
+              Hero headline · winner
             </div>
-            <div className="font-serif text-white text-[18px] leading-[1.05] tracking-tight">
+            <div className="font-serif text-white text-[22px] leading-[0.95] tracking-tight">
               The salon
               <br />
               <span className="italic text-white/80">that knows you.</span>
             </div>
-            <div className="mt-2 text-[10px] text-white/65 leading-snug">
+            <div className="mt-2 text-[10px] text-white/75 leading-snug max-w-[92%]">
               We remember your style, your time slots, and the exact shade.
-            </div>
-          </div>
-
-          {/* Variant B */}
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] p-3 opacity-75">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="size-5 rounded-md bg-white/[0.06] flex items-center justify-center text-[10px] font-mono text-white/70">
-                B
-              </span>
-              <span className="text-[9px] font-mono text-white/50">7.1% CVR</span>
-            </div>
-            <div className="font-serif text-white/85 text-[14px] leading-tight">
-              <span className="italic">Premium cuts</span> on your schedule
-            </div>
-          </div>
-
-          {/* Variant C */}
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] p-3 opacity-55">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="size-5 rounded-md bg-white/[0.06] flex items-center justify-center text-[10px] font-mono text-white/55">
-                C
-              </span>
-              <span className="text-[9px] font-mono text-white/40">5.8% CVR</span>
-            </div>
-            <div className="font-serif text-white/75 text-[14px] leading-tight italic">
-              Modern hair. Honest pricing.
             </div>
           </div>
         </div>
 
-        {/* Bottom strip */}
-        <div className="px-3 py-2 border-t border-white/[0.06] flex items-center justify-between text-[8px] tracking-[0.22em] uppercase text-white/45 font-sans">
-          <span>3 variants · 7 days</span>
+        {/* Compact A/B/C variant strip */}
+        <div className="px-3 py-2.5 space-y-1.5 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between mb-0.5">
+            <span className="text-[8px] tracking-[0.22em] uppercase text-white/45 font-sans font-medium">
+              3 variants · 7 days
+            </span>
+            <span className="text-[8px] font-mono text-emerald-300/90 flex items-center gap-1">
+              <span className="size-1 rounded-full bg-emerald-400 animate-pulse" />
+              live
+            </span>
+          </div>
+          {[
+            { label: "A", text: "The salon that knows you.", cvr: "12.4%", winner: true },
+            { label: "B", text: "Premium cuts on your schedule", cvr: "7.1%", winner: false },
+            { label: "C", text: "Modern hair. Honest pricing.", cvr: "5.8%", winner: false },
+          ].map((v) => (
+            <div
+              key={v.label}
+              className={`flex items-center gap-2 text-[10px] ${v.winner ? "" : "opacity-50"}`}
+            >
+              <span
+                className={`size-4 rounded text-[9px] font-mono font-bold flex items-center justify-center shrink-0 ${
+                  v.winner
+                    ? "bg-gradient-to-br from-violet-400 to-fuchsia-500 text-white"
+                    : "bg-white/[0.08] text-white/70"
+                }`}
+              >
+                {v.label}
+              </span>
+              <span
+                className={`flex-1 truncate ${
+                  v.winner
+                    ? "text-white font-serif italic"
+                    : "text-white/65 font-sans"
+                }`}
+              >
+                {v.text}
+              </span>
+              <span
+                className={`font-mono font-semibold tabular-nums shrink-0 text-[9px] ${
+                  v.winner ? "text-emerald-300" : "text-white/40"
+                }`}
+              >
+                {v.cvr}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Confidence footer */}
+        <div className="px-3 py-2 border-t border-white/[0.04] flex items-center justify-between text-[8px] tracking-[0.22em] uppercase text-white/45 font-sans">
+          <span>2,847 sessions</span>
           <span className="text-violet-300/80 font-medium">99% confidence</span>
         </div>
       </div>
