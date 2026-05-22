@@ -8,6 +8,18 @@ import {
 } from "motion/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+function useIsMobile() {
+  const [m, setM] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const handle = () => setM(mq.matches);
+    handle();
+    mq.addEventListener("change", handle);
+    return () => mq.removeEventListener("change", handle);
+  }, []);
+  return m;
+}
+
 type Tone = "violet" | "sky" | "emerald";
 
 const PHASES: {
@@ -47,50 +59,68 @@ export function HowItWorks() {
     offset: ["start start", "end end"],
   });
   const [activeIndex, setActiveIndex] = useState(0);
+  const isMobile = useIsMobile();
 
   useMotionValueEvent(scrollYProgress, "change", (progress) => {
+    if (isMobile) return;
     const next = progress < 0.34 ? 0 : progress < 0.67 ? 1 : 2;
     if (next !== activeIndex) setActiveIndex(next);
   });
 
+  // Auto-advance phases on mobile (no scrollytelling available)
+  useEffect(() => {
+    if (!isMobile) return;
+    const id = setInterval(() => {
+      setActiveIndex((i) => (i + 1) % PHASES.length);
+    }, 4200);
+    return () => clearInterval(id);
+  }, [isMobile]);
+
   return (
     <section
       id="how"
-      className="relative"
+      className="relative py-[60px] sm:py-[140px]"
       style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
     >
-      {/* Static centered heading — sits outside the sticky scrollytelling */}
-      <div className="relative pt-32 sm:pt-40 px-6 lg:px-8">
-        <div className="max-w-screen-xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-120px" }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-1.5 text-[12px] tracking-[0.22em] uppercase text-ink-dim font-sans font-medium mb-6"
-          >
-            <span className="size-1 rounded-full bg-white/40" />
-            How it works
-          </motion.div>
+      {/* Sticky on desktop, natural flow on mobile */}
+      <div ref={containerRef} className="relative lg:h-[1800px]">
+        <div className="lg:sticky lg:top-0 lg:flex lg:flex-col lg:justify-start lg:overflow-hidden px-6 lg:px-8">
+          <div className="max-w-screen-xl mx-auto w-full">
+            {/* Heading */}
+            <div className="text-center mb-10 sm:mb-20 lg:mb-28">
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-120px" }}
+                transition={{ duration: 0.5 }}
+                className="inline-flex items-center gap-1.5 text-[12px] tracking-[0.22em] uppercase text-ink-dim font-sans font-medium mb-5"
+              >
+                <span className="size-1 rounded-full bg-white/40" />
+                How it works
+              </motion.div>
 
-          <motion.h2
-            initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
-            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            viewport={{ once: true, margin: "-120px" }}
-            transition={{ duration: 0.85, ease: [0.2, 0.7, 0.2, 1] }}
-            className="font-serif font-medium tracking-tight leading-[1.02] max-w-3xl mx-auto text-[clamp(2.75rem,5.5vw,4.5rem)]"
-          >
-            Three steps.{" "}
-            <span className="italic text-ink-muted">Five seconds.</span>
-          </motion.h2>
-        </div>
-      </div>
+              <motion.h2
+                initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
+                whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                viewport={{ once: true, margin: "-120px" }}
+                transition={{ duration: 0.85, ease: [0.2, 0.7, 0.2, 1] }}
+                className="font-serif font-medium tracking-tight leading-[1.02] max-w-3xl mx-auto text-[clamp(2.25rem,5.5vw,4.5rem)]"
+              >
+                Three steps.{" "}
+                <span className="italic text-ink-muted">Five seconds.</span>
+              </motion.h2>
+            </div>
 
-      {/* Sticky scrollytelling container — phase list left, mockup right */}
-      <div ref={containerRef} className="relative" style={{ height: "280vh" }}>
-        <div className="sticky top-0 h-screen flex items-center overflow-hidden">
-          <div className="w-full px-6 lg:px-8">
-            <div className="max-w-screen-xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-12 lg:gap-20 items-center">
+            {/* Mobile: single active phase + demo, paginated via dots */}
+            <div className="lg:hidden">
+              <MobilePhases
+                activeIndex={activeIndex}
+                onSelect={setActiveIndex}
+              />
+            </div>
+
+            {/* Desktop: side-by-side rail + demo */}
+            <div className="hidden lg:grid grid-cols-[1fr_1.4fr] gap-16 items-center">
               <LeftRail activeIndex={activeIndex} />
               <RightMockup activeIndex={activeIndex} />
             </div>
@@ -98,6 +128,73 @@ export function HowItWorks() {
         </div>
       </div>
     </section>
+  );
+}
+
+/* ============================================================
+ * Mobile layout — active phase paired with its demo, dots to switch
+ * ============================================================ */
+
+function MobilePhases({
+  activeIndex,
+  onSelect,
+}: {
+  activeIndex: number;
+  onSelect: (i: number) => void;
+}) {
+  const phase = PHASES[activeIndex]!;
+  return (
+    <div className="flex flex-col gap-8">
+      {/* Active phase header */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={phase.num}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+        >
+          <div className="text-[10px] tracking-[0.24em] uppercase font-mono text-ink-dim mb-2">
+            Phase {phase.num}
+          </div>
+          <h3
+            className="font-serif font-medium tracking-tight text-[clamp(1.75rem,7vw,2.25rem)] leading-[1.05] mb-3"
+            style={{ color: "rgb(243 244 246)" }}
+          >
+            {phase.title}
+          </h3>
+          <p className="font-sans text-ink-muted text-[15px] leading-[1.6]">
+            {phase.body}
+          </p>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Demo */}
+      <div>
+        <RightMockup activeIndex={activeIndex} />
+      </div>
+
+      {/* Dots */}
+      <div className="flex items-center justify-center gap-1.5">
+        {PHASES.map((p, i) => (
+          <button
+            key={p.num}
+            type="button"
+            aria-label={`Show phase ${p.num}`}
+            onClick={() => onSelect(i)}
+            className="rounded-full transition-all duration-300"
+            style={{
+              width: i === activeIndex ? 18 : 5,
+              height: 5,
+              background:
+                i === activeIndex
+                  ? "rgba(255,255,255,0.85)"
+                  : "rgba(255,255,255,0.22)",
+            }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -114,7 +211,7 @@ function LeftRail({ activeIndex }: { activeIndex: number }) {
           return (
             <div
               key={phase.num}
-              className="border-t py-5 sm:py-6 transition-colors duration-500"
+              className={`${i === 0 ? "" : "border-t"} py-5 sm:py-6 transition-colors duration-500`}
               style={{
                 borderColor: isActive
                   ? "rgba(255,255,255,0.15)"

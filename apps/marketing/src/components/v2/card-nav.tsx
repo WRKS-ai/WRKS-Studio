@@ -37,8 +37,8 @@ export function CardNav({
   items,
   className = "",
   ease = "power3.out",
-  ctaLabel = "Get WRKS",
-  ctaHref = "#waitlist",
+  ctaLabel = "Get started",
+  ctaHref = "/sign-up",
 }: CardNavProps) {
   const [isHamburgerOpen, setIsHamburgerOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);

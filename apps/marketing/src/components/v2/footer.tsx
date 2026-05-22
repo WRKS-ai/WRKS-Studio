@@ -8,7 +8,7 @@ const PRODUCT_LINKS = [
 ];
 
 const COMPANY_LINKS = [
-  { label: "Founding cohort", href: "#waitlist" },
+  { label: "Newsletter", href: "#newsletter" },
   { label: "Contact", href: "mailto:contact@slightwrks.com" },
   { label: "Press", href: "#" },
 ];

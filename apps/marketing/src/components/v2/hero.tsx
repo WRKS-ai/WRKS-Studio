@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import { SIGN_UP_URL } from "@/lib/urls";
 import { MagicRings } from "./magic-rings";
 import { Button } from "./button";
 
@@ -52,7 +53,7 @@ export function Hero() {
         >
           <span className="size-1.5 rounded-full bg-emerald-400/80 animate-pulse" />
           <span className="text-[10px] tracking-[0.22em] uppercase text-ink-muted font-sans">
-            Founding cohort · early 2026
+            Now in early access
           </span>
         </motion.div>
 
@@ -89,8 +90,8 @@ export function Hero() {
           transition={{ delay: 0.6, duration: 0.6 }}
           className="mt-10 flex flex-col sm:flex-row items-center gap-3"
         >
-          <Button variant="primary" size="lg" withArrow href="#waitlist">
-            Join the waitlist
+          <Button variant="primary" size="lg" withArrow href={SIGN_UP_URL}>
+            Get started
           </Button>
           <Button variant="ghost" size="lg" href="#nova">
             Talk to Nova

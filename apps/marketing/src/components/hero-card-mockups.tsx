@@ -84,7 +84,7 @@ function MockupCard({
       </div>
 
       {/* Inner card */}
-      <div className="mx-4 rounded-2xl overflow-hidden border border-white/[0.08] bg-[#0d0d12] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]">
+      <div className="mx-4 mb-4 sm:mb-0 rounded-2xl overflow-hidden border border-white/[0.08] bg-[#0d0d12] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]">
         {/* Photo — clean except for one small pill */}
         <div className="aspect-square relative overflow-hidden">
           <img
@@ -102,11 +102,11 @@ function MockupCard({
         </div>
 
         {/* Caption — exactly two lines, every card */}
-        <div className="px-4 py-3.5">
+        <div className="px-4 pt-3 pb-4 sm:py-3.5">
           <div className="font-serif italic text-white text-[15px] leading-tight">
             {captionTitle}
           </div>
-          <div className="mt-1.5 text-[9px] font-mono text-white/45 tracking-[0.14em] uppercase truncate">
+          <div className="hidden sm:block mt-1.5 text-[9px] font-mono text-white/45 tracking-[0.14em] uppercase truncate">
             {captionMeta}
           </div>
         </div>

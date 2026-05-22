@@ -60,7 +60,7 @@ const CARDS: Card[] = [
   },
 ];
 
-/* visual offsets per relative slot ( -2 … 2 ) */
+/* visual offsets per relative slot ( -2 … 2 ) — desktop */
 const SLOT = [
   { rotY: 42, x: -490, z: -240, opacity: 0.22, scale: 0.78, blur: 5 }, // -2
   { rotY: 24, x: -280, z: -110, opacity: 0.65, scale: 0.9, blur: 2 }, // -1
@@ -69,12 +69,35 @@ const SLOT = [
   { rotY: -42, x: 490, z: -240, opacity: 0.22, scale: 0.78, blur: 5 }, // 2
 ];
 
+/* tighter offsets so adjacent cards just peek on mobile */
+const SLOT_MOBILE = [
+  { rotY: 36, x: -200, z: -200, opacity: 0.0, scale: 0.78, blur: 6 }, // -2 hidden
+  { rotY: 22, x: -130, z: -100, opacity: 0.55, scale: 0.86, blur: 2.5 }, // -1 peek
+  { rotY: 0, x: 0, z: 0, opacity: 1, scale: 1, blur: 0 }, // 0 center
+  { rotY: -22, x: 130, z: -100, opacity: 0.55, scale: 0.86, blur: 2.5 }, // 1 peek
+  { rotY: -36, x: 200, z: -200, opacity: 0.0, scale: 0.78, blur: 6 }, // 2 hidden
+];
+
 const AUTO_MS = 5200;
+
+function useIsMobile() {
+  const [m, setM] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const handle = () => setM(mq.matches);
+    handle();
+    mq.addEventListener("change", handle);
+    return () => mq.removeEventListener("change", handle);
+  }, []);
+  return m;
+}
 
 export function HeroCarousel() {
   const [active, setActive] = useState(0);
   const reduced = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+  const slots = isMobile ? SLOT_MOBILE : SLOT;
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
@@ -156,7 +179,7 @@ export function HeroCarousel() {
       </motion.div>
 
       <motion.div
-        className="relative h-[440px] sm:h-[500px] lg:h-[580px] flex items-center justify-center"
+        className="relative h-[380px] sm:h-[500px] lg:h-[580px] flex items-center justify-center"
         style={{
           perspective: "1800px",
           rotateY: tiltY,
@@ -167,7 +190,7 @@ export function HeroCarousel() {
         {CARDS.map((card, i) => {
           const slot = slotFor(i);
           if (Math.abs(slot) > 2) return null;
-          const s = SLOT[slot + 2]!;
+          const s = slots[slot + 2]!;
           const isCenter = slot === 0;
           return (
             <motion.div
@@ -187,7 +210,7 @@ export function HeroCarousel() {
                 opacity: { duration: 1.4, ease: [0.22, 1, 0.36, 1] },
                 filter: { duration: 1.4, ease: [0.22, 1, 0.36, 1] },
               }}
-              className="absolute w-[320px] sm:w-[360px] lg:w-[420px] aspect-[3/4] select-none pointer-events-none"
+              className="absolute w-[240px] sm:w-[360px] lg:w-[420px] aspect-[3/4] select-none pointer-events-none"
               style={{ transformStyle: "preserve-3d", zIndex: 5 - Math.abs(slot) }}
             >
               <CarouselCard card={card} featured={isCenter} />
@@ -195,6 +218,27 @@ export function HeroCarousel() {
           );
         })}
       </motion.div>
+
+      {/* Pagination dots — mobile-only, communicates 5-card carousel */}
+      <div className="sm:hidden mt-6 flex items-center justify-center gap-1.5">
+        {CARDS.map((c, i) => (
+          <button
+            key={c.kind}
+            type="button"
+            aria-label={`Show ${c.kind} card`}
+            onClick={() => setActive(i)}
+            className="rounded-full transition-all duration-300"
+            style={{
+              width: i === active ? 18 : 5,
+              height: 5,
+              background:
+                i === active
+                  ? "rgba(255,255,255,0.85)"
+                  : "rgba(255,255,255,0.22)",
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }

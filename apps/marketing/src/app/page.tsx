@@ -1,135 +1,78 @@
-import { Architecture } from "@/components/architecture";
-import { Details } from "@/components/details";
-import { FAQ } from "@/components/faq";
-import { Hero } from "@/components/hero";
-import { HowItWorks } from "@/components/how-it-works";
-import { NovaPill } from "@/components/nova-pill";
-import { Pricing } from "@/components/pricing";
-import { ScrollProgress } from "@/components/scroll-progress";
-import { TrustStrip } from "@/components/trust-strip";
-import { Waitlist } from "@/components/waitlist";
-import { WhatItBuilds } from "@/components/what-it-builds";
+import type { Metadata } from "next";
+import { MeshGradient } from "@/components/mesh-gradient";
+import { StarField } from "@/components/star-field";
+import { BrandMarquee } from "@/components/v2/brand-marquee";
+import { CardNav, type CardNavItem } from "@/components/v2/card-nav";
+import { Connections } from "@/components/v2/connections";
+import { Footer } from "@/components/v2/footer";
+import { Hero } from "@/components/v2/hero";
+import { HowItWorks } from "@/components/v2/how-it-works";
+import { Manifesto } from "@/components/v2/manifesto";
+import { Memory } from "@/components/v2/memory";
+import { Newsletter } from "@/components/v2/newsletter";
+import { Nova } from "@/components/v2/nova";
+import { Pricing } from "@/components/v2/pricing";
+import { WhatItBuilds } from "@/components/v2/what-it-builds";
+import { SIGN_UP_URL } from "@/lib/urls";
+
+const NAV_ITEMS: CardNavItem[] = [
+  {
+    label: "Product",
+    bgColor: "#1a1426",
+    textColor: "#ffffff",
+    links: [
+      { label: "What it builds", href: "#builds", ariaLabel: "What Nova builds" },
+      { label: "How it works", href: "#how", ariaLabel: "How it works" },
+      { label: "Try Nova", href: "#nova", ariaLabel: "Try Nova demo" },
+    ],
+  },
+  {
+    label: "Why WRKS",
+    bgColor: "#0f1a2b",
+    textColor: "#ffffff",
+    links: [
+      { label: "Memory & personality", href: "#memory", ariaLabel: "Memory and personality" },
+      { label: "Connections", href: "#connections", ariaLabel: "Connections" },
+      { label: "Trust gates", href: "#memory", ariaLabel: "Trust gates" },
+    ],
+  },
+  {
+    label: "Company",
+    bgColor: "#15192c",
+    textColor: "#ffffff",
+    links: [
+      { label: "Newsletter", href: "#newsletter", ariaLabel: "Newsletter" },
+      { label: "Contact", href: "mailto:contact@slightwrks.com", ariaLabel: "Contact" },
+      { label: "Privacy", href: "#", ariaLabel: "Privacy policy" },
+    ],
+  },
+];
+
+export const metadata: Metadata = {
+  title: "WRKS Studio — The Connected Business Nervous System",
+  description:
+    "A personalized AI agent that builds your business outputs — websites, ads, social, copy, SEO. Just say what you need, from your phone.",
+};
 
 export default function Home() {
   return (
-    <main className="flex flex-col">
-      <ScrollProgress />
-      <NovaPill />
-      <Nav />
+    <main className="relative flex flex-col overflow-x-clip">
+      <StarField />
+      <MeshGradient />
+
+      <CardNav items={NAV_ITEMS} ctaLabel="Get started" ctaHref={SIGN_UP_URL} />
       <Hero />
-      <TrustStrip />
-      <HowItWorks />
-      <Details />
+
       <WhatItBuilds />
-      <Architecture />
+      <Nova />
+      <Manifesto />
+      <HowItWorks />
+      <Connections />
+      <Memory />
       <Pricing />
-      <FAQ />
-      <Waitlist />
+      <Newsletter />
+      <BrandMarquee />
       <Footer />
     </main>
-  );
-}
-
-function Nav() {
-  return (
-    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-canvas/70 border-b border-line">
-      <div className="max-w-screen-xl mx-auto px-6 lg:px-8 h-14 flex items-center justify-between">
-        <span className="font-serif text-lg tracking-tight">
-          WRKS<span className="text-ink-muted"> Studio</span>
-        </span>
-        <div className="hidden sm:flex items-center gap-7 text-sm font-sans text-ink-muted">
-          <a href="#how" className="hover:text-ink transition-colors">
-            How it works
-          </a>
-          <a href="#pricing" className="hover:text-ink transition-colors">
-            Pricing
-          </a>
-        </div>
-        <a
-          href="#waitlist"
-          className="inline-flex items-center gap-1.5 rounded-full bg-ink text-canvas text-sm font-sans font-medium h-9 px-4 hover:opacity-90 transition-opacity"
-        >
-          Join waitlist
-          <span aria-hidden>→</span>
-        </a>
-      </div>
-    </nav>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="py-16 px-6 lg:px-8 border-t border-line">
-      <div className="max-w-screen-xl mx-auto">
-        <div className="grid sm:grid-cols-[1.4fr_1fr_1fr_1fr] gap-10 mb-12">
-          <div>
-            <span className="font-serif text-xl tracking-tight">
-              WRKS<span className="text-ink-muted"> Studio</span>
-            </span>
-            <p className="mt-3 text-sm text-ink-muted font-sans max-w-xs leading-relaxed">
-              The connected business nervous system. One agent. Five
-              deliverables. Live from your phone.
-            </p>
-          </div>
-          <FooterCol
-            title="Product"
-            links={[
-              { label: "How it works", href: "#how" },
-              { label: "Pricing", href: "#pricing" },
-              { label: "Waitlist", href: "#waitlist" },
-            ]}
-          />
-          <FooterCol
-            title="Company"
-            links={[
-              { label: "About", href: "#" },
-              { label: "Contact", href: "mailto:contact@slightwrks.com" },
-            ]}
-          />
-          <FooterCol
-            title="Legal"
-            links={[
-              { label: "Privacy", href: "#" },
-              { label: "Terms", href: "#" },
-            ]}
-          />
-        </div>
-        <div className="pt-8 border-t border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-ink-dim font-sans">
-          <span>A SlightWrks platform · © 2026</span>
-          <span className="flex items-center gap-2">
-            <span className="size-1.5 rounded-full bg-emerald-400/80 animate-pulse" />
-            Founding cohort onboarding
-          </span>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
-function FooterCol({
-  title,
-  links,
-}: {
-  title: string;
-  links: { label: string; href: string }[];
-}) {
-  return (
-    <div>
-      <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-sans mb-4">
-        {title}
-      </div>
-      <ul className="space-y-2.5 text-sm font-sans">
-        {links.map((l) => (
-          <li key={l.label}>
-            <a
-              href={l.href}
-              className="text-ink-muted hover:text-ink transition-colors"
-            >
-              {l.label}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }

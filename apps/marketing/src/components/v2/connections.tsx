@@ -74,14 +74,14 @@ export function Connections() {
   return (
     <section
       id="connections"
-      className="relative py-32 sm:py-40 px-6 lg:px-8"
+      className="relative py-[60px] sm:py-[140px] px-6 lg:px-8"
       style={{
         borderTop: "1px solid rgba(255,255,255,0.05)",
         background: "rgba(255,255,255,0.012)",
       }}
     >
       <div className="relative max-w-screen-xl mx-auto">
-        <div className="text-center mb-16 sm:mb-20">
+        <div className="text-center mb-20 sm:mb-28">
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             whileInView={{ opacity: 1, y: 0 }}
