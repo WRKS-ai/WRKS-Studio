@@ -4,6 +4,29 @@ import { motion } from "motion/react";
 
 type Provider = "google" | "apple";
 
+export function OAuthRow({
+  onGoogle,
+  onApple,
+}: {
+  onGoogle?: () => void;
+  onApple?: () => void;
+}) {
+  return (
+    <div className="space-y-2.5">
+      <OAuthButton
+        provider="google"
+        label="Continue with Google"
+        onClick={onGoogle}
+      />
+      <OAuthButton
+        provider="apple"
+        label="Continue with Apple"
+        onClick={onApple}
+      />
+    </div>
+  );
+}
+
 export function OAuthButton({
   provider,
   label,
@@ -21,45 +44,6 @@ export function OAuthButton({
       whileTap={{ scale: 0.985 }}
       transition={{ type: "spring", stiffness: 380, damping: 22 }}
       className="group relative w-full h-11 rounded-[10px] border border-white/[0.10] bg-white/[0.02] hover:border-white/[0.22] hover:bg-white/[0.04] transition-colors text-[14px] font-sans font-medium text-ink flex items-center justify-center gap-2.5"
-    >
-      <ProviderIcon provider={provider} />
-      {label}
-    </motion.button>
-  );
-}
-
-export function OAuthRow({
-  onGoogle,
-  onApple,
-}: {
-  onGoogle?: () => void;
-  onApple?: () => void;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-2.5">
-      <CompactOAuthButton provider="google" label="Google" onClick={onGoogle} />
-      <CompactOAuthButton provider="apple" label="Apple" onClick={onApple} />
-    </div>
-  );
-}
-
-function CompactOAuthButton({
-  provider,
-  label,
-  onClick,
-}: {
-  provider: Provider;
-  label: string;
-  onClick?: () => void;
-}) {
-  return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      whileHover={{ y: -1 }}
-      whileTap={{ scale: 0.985 }}
-      transition={{ type: "spring", stiffness: 380, damping: 22 }}
-      className="group relative h-11 rounded-[10px] border border-white/[0.10] bg-white/[0.02] hover:border-white/[0.22] hover:bg-white/[0.04] transition-colors text-[13.5px] font-sans font-medium text-ink flex items-center justify-center gap-2"
     >
       <ProviderIcon provider={provider} />
       {label}

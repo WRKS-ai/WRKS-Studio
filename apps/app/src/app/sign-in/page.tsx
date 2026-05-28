@@ -12,24 +12,20 @@ export const metadata: Metadata = {
 export default function SignInPage() {
   return (
     <AuthShell
-      eyebrow="Welcome back"
-      heading="Sign in to WRKS."
-      subheading="Pick up exactly where you left off."
-      altCtaText="No account yet?"
+      heading="Sign in to WRKS Studio"
+      subheading="Pick up where you left off."
+      altCtaText="New here?"
       altCtaHref="/sign-up"
-      altCtaLabel="Create one"
-      brandQuote="I shipped a landing page from the salon chair."
-      brandAttribution="Hannah Park"
-      brandLocation="Hannah's Hair · Toronto"
+      altCtaLabel="Create an account →"
     >
       <OAuthRow />
 
       <div className="my-5">
-        <Divider label="or with email" />
+        <Divider label="or continue with email" />
       </div>
 
       <MagicLinkForm
-        cta="Continue with email"
+        cta="Sign in with email"
         sentTitle="Check your inbox"
         sentBody="We sent you a magic link. Open it on this device to sign in."
       />
