@@ -38,12 +38,14 @@ const ITEMS: GlassIconItem[] = [
     ),
   },
   {
-    label: "Email",
+    label: "Website",
     color: "linear-gradient(135deg, hsl(178, 75%, 50%), hsl(195, 80%, 50%))",
     icon: (
       <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2.5" y="5" width="19" height="14" rx="2" />
-        <path d="m3 7 9 6.5L21 7" />
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M3 8h18" />
+        <circle cx="6.5" cy="6" r="0.5" fill="currentColor" />
+        <circle cx="8.5" cy="6" r="0.5" fill="currentColor" />
       </svg>
     ),
   },
@@ -59,12 +61,13 @@ const ITEMS: GlassIconItem[] = [
     ),
   },
   {
-    label: "Analytics",
-    color: "linear-gradient(135deg, hsl(343, 80%, 60%), hsl(325, 80%, 55%))",
+    label: "Ad assets",
+    color: "linear-gradient(135deg, hsl(28, 90%, 60%), hsl(15, 85%, 55%))",
     icon: (
       <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 3v18h18" />
-        <path d="M7 15l3.5-4 3 3 5-6" />
+        <path d="M3 5h12l6 4v6l-6 4H3z" />
+        <path d="M3 9h12" />
+        <path d="M3 15h12" />
       </svg>
     ),
   },

@@ -19,11 +19,11 @@ const TIERS: Tier[] = [
     name: "Starter",
     price: "$97",
     billing: "per month",
-    blurb: "One business. Founding cohort pricing locked in.",
+    blurb: "One business. Full agent. All five deliverables.",
     features: [
-      "1 business profile",
-      "5 deliverable types",
-      "All 6 channels",
+      "1 active business profile",
+      "All 5 deliverable types",
+      "All connections (Social · CRM · Stripe)",
       "Brand memory & voice",
       "Email support",
     ],
@@ -33,9 +33,9 @@ const TIERS: Tier[] = [
     name: "Growth",
     price: "$197",
     billing: "per month",
-    blurb: "For owners running two brands or side projects.",
+    blurb: "For owners running two or three brands.",
     features: [
-      "2 business profiles",
+      "Up to 3 active business profiles",
       "Everything in Starter",
       "Priority queue",
       "Higher media quotas",
@@ -47,11 +47,11 @@ const TIERS: Tier[] = [
     name: "Pro",
     price: "$497",
     billing: "per month",
-    blurb: "The sweet spot. Most founding cohort lands here.",
+    blurb: "The sweet spot — and where most operators land.",
     features: [
-      "5 business profiles",
+      "Up to 8 active business profiles",
       "Everything in Growth",
-      "Custom brand framework tuning",
+      "Custom agent personality",
       "Faster previews",
       "Priority human support",
     ],
@@ -62,11 +62,11 @@ const TIERS: Tier[] = [
     name: "Agency",
     price: "$997",
     billing: "per month",
-    blurb: "For agencies and operators running client roosters.",
+    blurb: "For agencies and operators running client rosters.",
     features: [
-      "15 business profiles",
+      "Unlimited active business profiles",
       "Everything in Pro",
-      "White-label staging links",
+      "White-label options",
       "Team seats",
       "Dedicated onboarding",
     ],
@@ -113,8 +113,8 @@ export function Pricing() {
             className="mt-6 max-w-xl mx-auto text-ink-muted text-[clamp(0.95rem,1.3vw,1.05rem)] leading-[1.6]"
           >
             Pick the tier by how many businesses you run — not by how
-            much you use Nova. Founding cohort rates are locked in for
-            life.
+            much you use it. No rate limits inside a tier. Free trial on
+            every plan.
           </motion.p>
         </div>
 
@@ -168,7 +168,7 @@ export function Pricing() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="mt-10 text-center text-[12px] text-ink-dim font-mono tracking-[0.06em]"
         >
-          All tiers · unlimited usage · no rate limits · 14-day refund.
+          Free trial · no credit card · no rate limits · cancel anytime.
         </motion.div>
       </div>
     </section>

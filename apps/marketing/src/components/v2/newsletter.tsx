@@ -4,49 +4,30 @@ import { motion } from "motion/react";
 import { useState, type FormEvent } from "react";
 import { StarBorder } from "./star-border";
 
-const SUBSCRIBER_COUNT = 1247;
-
-const RECENT_ISSUES = [
+const TOPICS = [
   {
-    number: "012",
-    title: "How Nova learns your brand voice in 3 prompts",
-    date: "May 18, 2026",
-    readTime: "4 min",
-    tag: "Inside the agent",
+    title: "The WRKS frameworks we ship under",
+    detail: "The proven structure behind every landing page, post, and ad",
+    tag: "Frameworks",
     tone: "from-violet-400 to-fuchsia-500",
-    isNew: true,
   },
   {
-    number: "011",
-    title: "Why we ship five deliverables, not one",
-    date: "May 11, 2026",
-    readTime: "6 min",
-    tag: "Product thinking",
+    title: "Build logs from real businesses",
+    detail: "What we shipped this week and what we learned",
+    tag: "Ship logs",
     tone: "from-sky-400 to-indigo-500",
   },
   {
-    number: "010",
-    title: "Building a multi-tenant agent from scratch",
-    date: "May 4, 2026",
-    readTime: "9 min",
+    title: "Engineering the agent layer",
+    detail: "Orchestration, memory, latency — how the moat is built",
     tag: "Engineering",
     tone: "from-emerald-400 to-teal-500",
   },
   {
-    number: "009",
-    title: "The framework we use for every landing page",
-    date: "Apr 27, 2026",
-    readTime: "7 min",
-    tag: "Frameworks",
+    title: "Field stories from operators",
+    detail: "How a hairdresser, a cafe, and a leather brand actually use this",
+    tag: "Field",
     tone: "from-amber-400 to-orange-500",
-  },
-  {
-    number: "008",
-    title: "What a phone-first business OS actually means",
-    date: "Apr 20, 2026",
-    readTime: "5 min",
-    tag: "Vision",
-    tone: "from-rose-400 to-pink-500",
   },
 ];
 
@@ -211,37 +192,29 @@ function NewsletterDashboard() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono">
-            Subscribers · live
+            What you&rsquo;ll get
           </div>
-          <div className="mt-1.5 flex items-baseline gap-1.5">
-            <span className="font-serif text-[44px] sm:text-[52px] text-white font-medium leading-none tabular-nums">
-              <CountUp to={SUBSCRIBER_COUNT} />
-            </span>
-            <span className="font-mono text-white/45 text-base">readers</span>
-          </div>
-          <div className="text-[11px] text-white/55 mt-1">
-            +84 in the last 30 days
+          <div className="mt-2 font-serif text-[28px] sm:text-[32px] text-white font-medium leading-[1.1] tracking-tight max-w-[280px]">
+            One short read.{" "}
+            <span className="italic text-ink-muted">Every Friday.</span>
           </div>
         </div>
         <div className="flex items-center gap-1.5 text-[9px] tracking-[0.22em] uppercase text-emerald-300/90 font-sans font-medium pt-1">
           <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          Growing
+          Live
         </div>
       </div>
 
-      {/* Recent issues */}
+      {/* Topics */}
       <div className="flex items-center justify-between mb-3">
         <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono">
-          Recent issues
+          The four threads
         </div>
-        <span className="text-[9px] font-mono text-white/40">
-          read the archive →
-        </span>
       </div>
 
       <div className="space-y-1.5">
-        {RECENT_ISSUES.map((issue, i) => (
-          <IssueRow key={issue.number} {...issue} index={i} />
+        {TOPICS.map((topic, i) => (
+          <TopicRow key={topic.tag} {...topic} index={i} />
         ))}
       </div>
 
@@ -249,33 +222,27 @@ function NewsletterDashboard() {
         className="mt-5 pt-4 flex items-center justify-between text-[9px] tracking-widest uppercase text-white/40 font-mono"
         style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <span>Next issue · Friday 9am</span>
+        <span>Issue 001 · launching soon</span>
         <span className="text-violet-300/80 flex items-center gap-1">
           <span className="size-1 rounded-full bg-violet-400" />
-          Issue #013
+          Free
         </span>
       </div>
     </div>
   );
 }
 
-function IssueRow({
-  number,
+function TopicRow({
   title,
-  date,
-  readTime,
+  detail,
   tag,
   tone,
-  isNew,
   index,
 }: {
-  number: string;
   title: string;
-  date: string;
-  readTime: string;
+  detail: string;
   tag: string;
   tone: string;
-  isNew?: boolean;
   index: number;
 }) {
   return (
@@ -290,86 +257,29 @@ function IssueRow({
       }}
       className="relative flex items-center gap-3 rounded-lg px-3 py-2.5 overflow-hidden"
       style={{
-        background: isNew ? "rgba(167,139,250,0.04)" : "rgba(255,255,255,0.015)",
-        border: `1px solid ${
-          isNew ? "rgba(167,139,250,0.18)" : "rgba(255,255,255,0.05)"
-        }`,
+        background: "rgba(255,255,255,0.015)",
+        border: "1px solid rgba(255,255,255,0.05)",
       }}
     >
-      {isNew && (
-        <motion.span
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: "rgba(167,139,250,0.10)" }}
-          animate={{ opacity: [0.6, 0, 0.6, 0] }}
-          transition={{
-            duration: 3.5,
-            repeat: Infinity,
-            delay: 0.8,
-            ease: "easeInOut",
-          }}
-        />
-      )}
       <div
-        className={`relative size-7 rounded-full bg-gradient-to-br ${tone} shrink-0 flex items-center justify-center`}
+        className={`relative size-7 rounded-full bg-gradient-to-br ${tone} shrink-0`}
         style={{
           boxShadow:
             "inset 0 -3px 6px rgba(0,0,0,0.25), inset 0 1.5px 3px rgba(255,255,255,0.18)",
         }}
-      >
-        <span className="text-[9px] font-mono font-bold text-white/95">
-          {number}
-        </span>
-      </div>
+      />
       <div className="relative flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[12px] text-white font-sans font-semibold truncate">
-            {title}
-          </span>
-          {isNew && (
-            <span className="text-[7px] tracking-[0.22em] uppercase text-violet-300 font-sans font-bold shrink-0">
-              new
-            </span>
-          )}
+        <div className="text-[12px] text-white font-sans font-semibold truncate">
+          {title}
         </div>
         <div className="text-[10px] text-white/50 font-mono truncate">
-          {tag} · {date}
+          {detail}
         </div>
       </div>
-      <div className="relative text-[9px] font-mono text-white/35 shrink-0 tabular-nums">
-        {readTime}
+      <div className="relative text-[9px] tracking-[0.18em] uppercase text-violet-200/55 font-sans shrink-0">
+        {tag}
       </div>
     </motion.div>
-  );
-}
-
-function CountUp({ to }: { to: number }) {
-  const [value, setValue] = useState(0);
-  const [hasStarted, setHasStarted] = useState(false);
-
-  return (
-    <motion.span
-      onViewportEnter={() => {
-        if (hasStarted) return;
-        setHasStarted(true);
-        const duration = 1400;
-        const steps = 60;
-        const stepMs = duration / steps;
-        const increment = Math.ceil(to / steps);
-        let v = 0;
-        const id = setInterval(() => {
-          v += increment;
-          if (v >= to) {
-            setValue(to);
-            clearInterval(id);
-            return;
-          }
-          setValue(v);
-        }, stepMs);
-      }}
-      viewport={{ once: true }}
-    >
-      {value.toLocaleString()}
-    </motion.span>
   );
 }
 

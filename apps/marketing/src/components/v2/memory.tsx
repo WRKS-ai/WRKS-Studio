@@ -288,11 +288,11 @@ function TrustVisual() {
 function ConnectionsVisual() {
   const channels = [
     { label: "IG", bg: "linear-gradient(135deg, #f472b6, #d946ef)" },
-    { label: "Web", bg: "linear-gradient(135deg, #38bdf8, #6366f1)" },
-    { label: "Stripe", bg: "linear-gradient(135deg, #a78bfa, #6366f1)" },
-    { label: "Email", bg: "linear-gradient(135deg, #fbbf24, #f59e0b)" },
+    { label: "FB", bg: "linear-gradient(135deg, #60a5fa, #2563eb)" },
+    { label: "LI", bg: "linear-gradient(135deg, #38bdf8, #0284c7)" },
+    { label: "Web", bg: "linear-gradient(135deg, #a78bfa, #6366f1)" },
+    { label: "Stripe", bg: "linear-gradient(135deg, #818cf8, #6366f1)" },
     { label: "CRM", bg: "linear-gradient(135deg, #34d399, #14b8a6)" },
-    { label: "Cal", bg: "linear-gradient(135deg, #f472b6, #ec4899)" },
   ];
   return (
     <div className="grid grid-cols-3 gap-2 w-full max-w-[180px] mx-auto">

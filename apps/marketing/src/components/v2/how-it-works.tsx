@@ -794,7 +794,7 @@ function ShippedView() {
     { name: "Instagram", out: "hannahshair", tone: "rose" as const },
     { name: "Website", out: "hannahshair.com", tone: "sky" as const },
     { name: "Stripe", out: "HANNAH20", tone: "violet" as const },
-    { name: "Email list", out: "1,247 subscribers", tone: "amber" as const },
+    { name: "LinkedIn", out: "Hannah Park", tone: "amber" as const },
     { name: "CRM", out: "HubSpot", tone: "emerald" as const },
     { name: "Booking", out: "Cal.com", tone: "rose" as const },
   ];
