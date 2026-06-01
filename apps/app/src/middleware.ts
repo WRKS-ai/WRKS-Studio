@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
 // Public routes don't require a session.
 const isPublicRoute = createRouteMatcher([
@@ -13,7 +14,18 @@ const isPublicRoute = createRouteMatcher([
   "/verify(.*)",
 ]);
 
+// If a signed-in user lands here, route them into the studio instead of
+// showing the sign-in/sign-up form (which would fail with Clerk's
+// "You're already signed in.").
+const isAuthEntryRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)"]);
+
 export default clerkMiddleware(async (auth, req) => {
+  const { userId } = await auth();
+
+  if (userId && isAuthEntryRoute(req)) {
+    return NextResponse.redirect(new URL("/onboarding/personality", req.url));
+  }
+
   if (!isPublicRoute(req)) {
     await auth.protect();
   }
