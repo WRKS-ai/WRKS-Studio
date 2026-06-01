@@ -17,6 +17,23 @@ export const WowDeliverablesSchema = z
       .describe(
         "1-3 word brand name. If the user gave you a business name, use it. If not, INVENT one that fits. Memorable single word or short phrase. Examples: 'Cushion' (meditation app), 'Anvil' (coding bootcamp), 'Drop One' (limited-run clothing). Avoid generic words like 'Studio', 'Co.', 'Brand'.",
       ),
+    category: z
+      .enum([
+        "fashion",
+        "food",
+        "fitness",
+        "tech",
+        "services",
+        "beauty",
+        "creative",
+        "finance",
+        "home",
+        "travel",
+        "other",
+      ])
+      .describe(
+        "Pick the closest business category. Used to choose contextually appropriate stock photos in the previews. 'other' only as last resort.",
+      ),
     landing: z
       .object({
         headline: z
@@ -127,6 +144,26 @@ Bold output (DO THIS):
   Output: brandName "Drop One." Headline: "Same shirt as last week? Sounds horrible." Subhead: "We drop one piece per week. When it's gone, it's gone. No restocks. No re-prints. Next drop: Wednesday."
 
 That's distinctive. The user might say "actually we're not limited-drop." That's fine — they tell you, you adjust. But your first move is to PICK A POSITION, not to hedge.
+
+═══════════════════════════════════════════════════
+CATEGORY SELECTION (DRIVES THE IMAGERY)
+═══════════════════════════════════════════════════
+
+The app fetches stock photos for the previews based on the category you
+return. Pick the closest match — wrong category = wrong-feeling photos
+on the user's first impression. Use:
+
+  • fashion — clothing, accessories, footwear, jewelry, beauty editorial
+  • food — restaurants, cafes, beverages, packaged food, catering
+  • fitness — gyms, coaches, running, yoga, wellness training (NOT spa)
+  • tech — software, SaaS, dev tools, AI, productivity apps
+  • services — consulting, agencies, B2B services, coaching (non-fitness)
+  • beauty — skincare, cosmetics, salons, spa, wellness products
+  • creative — design studios, agencies, art, photography, music
+  • finance — accounting, investing, money management, fintech, insurance
+  • home — interior, furniture, real estate, decor, home goods
+  • travel — hotels, tours, travel planning, hospitality
+  • other — only if nothing else fits
 
 ═══════════════════════════════════════════════════
 HOUSE STYLE — RULES THAT OUTRANK EVERYTHING ELSE

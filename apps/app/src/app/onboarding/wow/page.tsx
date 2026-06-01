@@ -10,6 +10,7 @@ import {
   type Personality,
   type PersonalityId,
 } from "@/lib/personalities";
+import { photos, type WowCategory } from "@/lib/wow-photos";
 import { VOICES, type VoiceId } from "@/lib/voices";
 
 // /onboarding/wow — the brief's "first wow" moment (Section 3.1):
@@ -25,6 +26,7 @@ const INTAKE_KEY = "wrks-onboarding-intake";
 
 type WowDeliverables = {
   brandName: string;
+  category: WowCategory;
   landing: {
     headline: string;
     subhead: string;
@@ -382,6 +384,7 @@ function ReadyState({
   reduced: boolean;
 }) {
   const brandName = deliverables.brandName;
+  const pix = photos(deliverables.category, brandName);
   return (
     <motion.div
       initial={reduced ? false : { opacity: 0 }}
@@ -455,6 +458,8 @@ function ReadyState({
           personality={personality}
           brandName={brandName}
           data={deliverables.landing}
+          heroImage={pix.heroLandscape}
+          featuredImages={pix.featured}
         />
       </DeliverableSection>
 
@@ -469,6 +474,7 @@ function ReadyState({
             personality={personality}
             brandName={brandName}
             caption={deliverables.social.instagram}
+            image={pix.instagramSquare}
           />
           <TwitterPreview
             personality={personality}
@@ -494,6 +500,7 @@ function ReadyState({
           personality={personality}
           brandName={brandName}
           data={deliverables.ad}
+          image={pix.adHero}
         />
       </DeliverableSection>
 
@@ -575,10 +582,14 @@ function LandingPreview({
   personality,
   brandName,
   data,
+  heroImage,
+  featuredImages,
 }: {
   personality: Personality;
   brandName: string;
   data: WowDeliverables["landing"];
+  heroImage: string;
+  featuredImages: string[];
 }) {
   const slug =
     brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "yourbusiness";
@@ -640,85 +651,133 @@ function LandingPreview({
         </div>
       </div>
 
-      {/* Hero */}
-      <div className="px-6 sm:px-12 py-12 sm:py-16 text-center">
-        <h2 className="font-serif font-medium tracking-tight text-[clamp(1.75rem,3.6vw,2.75rem)] leading-[1.05] text-ink max-w-3xl mx-auto">
-          {data.headline}
-        </h2>
-        <p className="mt-5 text-[14px] sm:text-[15px] text-ink-muted leading-relaxed max-w-xl mx-auto">
-          {data.subhead}
-        </p>
+      {/* Two-column hero — copy on left, photo on right */}
+      <div className="grid grid-cols-1 md:grid-cols-[1.05fr_1fr] gap-0 md:gap-0">
+        <div className="px-6 sm:px-10 py-12 sm:py-16 text-left flex flex-col justify-center">
+          <h2 className="font-serif font-medium tracking-tight text-[clamp(1.625rem,3.4vw,2.625rem)] leading-[1.05] text-ink">
+            {data.headline}
+          </h2>
+          <p className="mt-5 text-[14px] sm:text-[15px] text-ink-muted leading-relaxed max-w-md">
+            {data.subhead}
+          </p>
 
-        <button
-          type="button"
-          className="mt-8 inline-flex items-center gap-2 h-11 px-6 rounded-full font-sans font-medium text-[14px] text-canvas transition-transform hover:scale-[1.02]"
+          <button
+            type="button"
+            className="mt-8 inline-flex items-center gap-2 h-11 px-6 rounded-full font-sans font-medium text-[14px] text-canvas transition-transform hover:scale-[1.02] self-start"
+            style={{
+              background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
+              boxShadow: `0 8px 24px -8px ${personality.glow}`,
+            }}
+          >
+            {data.primaryCta}
+            <span aria-hidden>→</span>
+          </button>
+
+          <ul className="mt-10 flex flex-col gap-2.5 max-w-md">
+            {data.valueBullets.map((bullet, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-3 text-[13px] sm:text-[14px] text-ink-muted leading-snug"
+              >
+                <span
+                  aria-hidden
+                  className="mt-1 shrink-0 size-4 rounded-full flex items-center justify-center"
+                  style={{
+                    background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
+                  }}
+                >
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M5 13l4 4L19 7"
+                      stroke="white"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span>{bullet}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Hero photo — fills the right side */}
+        <div
+          className="relative min-h-[280px] md:min-h-[440px]"
           style={{
-            background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-            boxShadow: `0 8px 24px -8px ${personality.glow}`,
+            background: `linear-gradient(135deg, ${personality.glow} 0%, rgba(0,0,0,0.4) 100%)`,
           }}
         >
-          {data.primaryCta}
-          <span aria-hidden>→</span>
-        </button>
-
-        <ul className="mt-10 flex flex-col gap-2.5 max-w-md mx-auto text-left">
-          {data.valueBullets.map((bullet, i) => (
-            <li
-              key={i}
-              className="flex items-start gap-3 text-[13px] sm:text-[14px] text-ink-muted leading-snug"
-            >
-              <span
-                aria-hidden
-                className="mt-1 shrink-0 size-4 rounded-full flex items-center justify-center"
-                style={{
-                  background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-                }}
-              >
-                <svg
-                  width="9"
-                  height="9"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden
-                >
-                  <path
-                    d="M5 13l4 4L19 7"
-                    stroke="white"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-              <span>{bullet}</span>
-            </li>
-          ))}
-        </ul>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={heroImage}
+            alt={`${brandName} hero`}
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.opacity = "0";
+            }}
+          />
+          {/* Brand-tint overlay — makes the photo feel cohesive with the
+              page's accent color */}
+          <div
+            aria-hidden
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(225deg, transparent 0%, ${personality.accentDeep}33 100%)`,
+            }}
+          />
+        </div>
       </div>
 
-      {/* Featured strip — placeholder gradient tiles, sells the
-          "this is a real site" feeling */}
+      {/* Featured strip — 3 real photos with overlay labels */}
       <div
         className="px-6 sm:px-12 pt-2 pb-10"
         style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
       >
-        <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono mb-4 mt-6 text-center">
-          Featured
+        <div className="flex items-center justify-between mb-5 mt-6">
+          <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono">
+            New in
+          </div>
+          <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono">
+            View all →
+          </div>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          {[0, 1, 2].map((i) => (
+          {featuredImages.map((src, i) => (
             <div
               key={i}
-              className="aspect-[3/4] rounded-lg"
+              className="relative aspect-[3/4] rounded-lg overflow-hidden group"
               style={{
-                background: `radial-gradient(circle at ${30 + i * 20}% ${
-                  25 + i * 15
-                }%, ${personality.glow} 0%, transparent ${60 - i * 5}%), linear-gradient(${
-                  135 + i * 20
-                }deg, ${personality.accentDeep}55 0%, rgba(255,255,255,0.02) 100%)`,
+                background: `linear-gradient(135deg, ${personality.accentDeep}55 0%, rgba(0,0,0,0.5) 100%)`,
               }}
-              aria-hidden
-            />
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                loading="lazy"
+                className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.opacity = "0";
+                }}
+              />
+              {/* Subtle gradient at the bottom for label legibility */}
+              <div
+                aria-hidden
+                className="absolute inset-x-0 bottom-0 h-1/2"
+                style={{
+                  background:
+                    "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)",
+                }}
+              />
+              <div className="absolute inset-x-0 bottom-0 p-3 flex items-end justify-between text-[11px] font-mono text-white">
+                <span className="uppercase tracking-wider">
+                  {brandName} · 0{i + 1}
+                </span>
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -742,10 +801,12 @@ function InstagramPreview({
   personality,
   brandName,
   caption,
+  image,
 }: {
   personality: Personality;
   brandName: string;
   caption: string;
+  image: string;
 }) {
   const handle = `@${brandName.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
   return (
@@ -770,12 +831,22 @@ function InstagramPreview({
         <span className="ml-auto text-ink-dim text-[18px] leading-none">⋯</span>
       </div>
       <div
-        className="aspect-square w-full"
+        className="relative aspect-square w-full"
         style={{
-          background: `radial-gradient(circle at 30% 30%, ${personality.glow} 0%, transparent 65%), radial-gradient(circle at 70% 70%, ${personality.accentDeep}33 0%, transparent 60%), rgba(255,255,255,0.02)`,
+          background: `linear-gradient(135deg, ${personality.accentDeep}55 0%, rgba(0,0,0,0.5) 100%)`,
         }}
-        aria-hidden
-      />
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={image}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.opacity = "0";
+          }}
+        />
+      </div>
       <div className="px-4 py-3 flex items-center gap-3 text-[16px]">
         <span>♡</span>
         <span>💬</span>
@@ -899,10 +970,12 @@ function AdPreview({
   personality,
   brandName,
   data,
+  image,
 }: {
   personality: Personality;
   brandName: string;
   data: WowDeliverables["ad"];
+  image: string;
 }) {
   const slug =
     brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "yourbusiness";
@@ -942,17 +1015,37 @@ function AdPreview({
           </p>
         </div>
 
-        {/* Hero image */}
+        {/* Hero image with headline overlay */}
         <div
-          className="aspect-[16/9] w-full flex items-end p-6"
+          className="relative aspect-[16/9] w-full"
           style={{
-            background: `radial-gradient(circle at 30% 30%, ${personality.glow} 0%, transparent 60%), radial-gradient(circle at 70% 70%, ${personality.accentDeep}55 0%, transparent 55%), linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)`,
+            background: `linear-gradient(135deg, ${personality.accentDeep}66 0%, rgba(0,0,0,0.6) 100%)`,
           }}
-          aria-hidden
         >
-          <h3 className="font-serif font-medium tracking-tight text-[clamp(1.25rem,2.4vw,1.875rem)] leading-tight text-ink max-w-md">
-            {data.headline}
-          </h3>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={image}
+            alt=""
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.opacity = "0";
+            }}
+          />
+          {/* Dark gradient for headline legibility */}
+          <div
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 h-3/4"
+            style={{
+              background:
+                "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)",
+            }}
+          />
+          <div className="absolute inset-0 flex items-end p-6">
+            <h3 className="font-serif font-medium tracking-tight text-[clamp(1.25rem,2.4vw,1.875rem)] leading-tight text-white max-w-md drop-shadow-lg">
+              {data.headline}
+            </h3>
+          </div>
         </div>
 
         {/* CTA bar */}
