@@ -90,20 +90,24 @@ export async function POST(req: Request) {
     const brandSlug =
       deliv.brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "studio";
 
-    // Three parallel Pexels calls instead of six:
-    //   - hero + 3 featured tiles all use heroImageQuery → one search,
-    //     slice 4 distinct photos from the result pool (was 4 dup calls)
-    //   - Instagram: its own square query
-    //   - Ad: its own landscape query
-    // The landing right column is portrait-shaped, so the hero photo
-    // is requested in portrait orientation (was landscape, which got
-    // its right side cropped to fit).
-    const [heroAndFeatured, [instagramSquare], [adHero]] = await Promise.all([
+    // Four parallel Pexels calls — split because the hero is now a
+    // full-bleed 16:9 landscape and the featured tiles below are 3:4
+    // portraits. Different orientations need different searches; same
+    // brand+query in different orientations rarely returns overlapping
+    // photos so de-dupe is natural.
+    const [[heroLandscape], featured, [instagramSquare], [adHero]] = await Promise.all([
+      pexelsSearchN(
+        deliv.heroImageQuery,
+        "landscape",
+        1,
+        `${brandSlug}-hero`,
+        { w: 1200, h: 675 },
+      ),
       pexelsSearchN(
         deliv.heroImageQuery,
         "portrait",
-        4,
-        `${brandSlug}-hero`,
+        3,
+        `${brandSlug}-feat`,
         { w: 600, h: 800 },
       ),
       pexelsSearchN(
@@ -121,8 +125,6 @@ export async function POST(req: Request) {
         { w: 1200, h: 675 },
       ),
     ]);
-
-    const [heroLandscape, ...featured] = heroAndFeatured;
 
     // Silence unused-var lint for the convenience wrapper
     void pexelsSearch;
