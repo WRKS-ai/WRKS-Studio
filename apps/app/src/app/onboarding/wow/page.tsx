@@ -10,7 +10,7 @@ import {
   type Personality,
   type PersonalityId,
 } from "@/lib/personalities";
-import { photos, type WowCategory } from "@/lib/wow-photos";
+import { type WowCategory } from "@/lib/wow-photos";
 import { VOICES, type VoiceId } from "@/lib/voices";
 
 // /onboarding/wow — the brief's "first wow" moment (Section 3.1):
@@ -48,10 +48,17 @@ type WowDeliverables = {
   };
 };
 
+type WowImages = {
+  heroLandscape: string;
+  featured: string[];
+  instagramSquare: string;
+  adHero: string;
+};
+
 type State =
   | { kind: "loading" }
   | { kind: "error"; message: string }
-  | { kind: "ready"; deliverables: WowDeliverables };
+  | { kind: "ready"; deliverables: WowDeliverables; images: WowImages };
 
 const LOADING_LINES: Record<PersonalityId, string> = {
   maven: "Drafting.",
@@ -164,8 +171,13 @@ export default function WowPage() {
         }
         const data = (await res.json()) as {
           deliverables: WowDeliverables;
+          images: WowImages;
         };
-        setState({ kind: "ready", deliverables: data.deliverables });
+        setState({
+          kind: "ready",
+          deliverables: data.deliverables,
+          images: data.images,
+        });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -223,6 +235,7 @@ export default function WowPage() {
               personality={personality}
               agentName={agentName}
               deliverables={state.deliverables}
+              images={state.images}
               onContinue={() => router.push("/onboarding/connect")}
               onRegenerate={() => setAttempt((a) => a + 1)}
               reduced={!!reduced}
@@ -375,6 +388,7 @@ function ReadyState({
   personality,
   agentName,
   deliverables,
+  images,
   onContinue,
   onRegenerate,
   reduced,
@@ -382,16 +396,13 @@ function ReadyState({
   personality: Personality;
   agentName: string;
   deliverables: WowDeliverables;
+  images: WowImages;
   onContinue: () => void;
   onRegenerate: () => void;
   reduced: boolean;
 }) {
   const brandName = deliverables.brandName;
-  const pix = photos(brandName, {
-    heroQuery: deliverables.heroImageQuery,
-    instagramQuery: deliverables.instagramImageQuery,
-    adQuery: deliverables.adImageQuery,
-  });
+  const pix = images;
   return (
     <motion.div
       initial={reduced ? false : { opacity: 0 }}
@@ -470,30 +481,33 @@ function ReadyState({
         />
       </DeliverableSection>
 
-      {/* DELIVERABLE 2 — Social posts */}
+      {/* DELIVERABLE 2 — Social posts. IG on the left (image-heavy, taller),
+          Twitter + LinkedIn stacked on the right. Stacks vertically on mobile. */}
       <DeliverableSection
         label="Social posts"
         index={1}
         reduced={reduced}
       >
-        <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 items-start">
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-start">
           <InstagramPreview
             personality={personality}
             brandName={brandName}
             caption={deliverables.social.instagram}
             image={pix.instagramSquare}
           />
-          <TwitterPreview
-            personality={personality}
-            brandName={brandName}
-            text={deliverables.social.twitter}
-          />
-          <LinkedInPreview
-            personality={personality}
-            agentName={agentName}
-            brandName={brandName}
-            text={deliverables.social.linkedin}
-          />
+          <div className="flex flex-col gap-4 sm:gap-5">
+            <TwitterPreview
+              personality={personality}
+              brandName={brandName}
+              text={deliverables.social.twitter}
+            />
+            <LinkedInPreview
+              personality={personality}
+              agentName={agentName}
+              brandName={brandName}
+              text={deliverables.social.linkedin}
+            />
+          </div>
         </div>
       </DeliverableSection>
 

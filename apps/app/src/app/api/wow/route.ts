@@ -7,6 +7,7 @@ import {
   WOW_SYSTEM_PROMPT,
   WowDeliverablesSchema,
 } from "@/lib/wow-prompt";
+import { pexelsSearch } from "@/lib/pexels";
 
 // POST /api/wow
 // Takes a user's intake answers (personality, name, business, audience,
@@ -85,8 +86,66 @@ export async function POST(req: Request) {
       );
     }
 
+    const deliv = response.parsed_output;
+    const brandSlug =
+      deliv.brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "studio";
+
+    // Fetch all six images from Pexels (with Lorem Flickr fallback if no
+    // PEXELS_API_KEY set). In parallel — adds ~200-600ms to the request.
+    const [
+      heroLandscape,
+      featured0,
+      featured1,
+      featured2,
+      instagramSquare,
+      adHero,
+    ] = await Promise.all([
+      pexelsSearch(
+        deliv.heroImageQuery,
+        "landscape",
+        `${brandSlug}-hero`,
+        { w: 1200, h: 600 },
+      ),
+      pexelsSearch(
+        deliv.heroImageQuery,
+        "portrait",
+        `${brandSlug}-feat-1`,
+        { w: 600, h: 800 },
+      ),
+      pexelsSearch(
+        deliv.heroImageQuery,
+        "portrait",
+        `${brandSlug}-feat-2`,
+        { w: 600, h: 800 },
+      ),
+      pexelsSearch(
+        deliv.heroImageQuery,
+        "portrait",
+        `${brandSlug}-feat-3`,
+        { w: 600, h: 800 },
+      ),
+      pexelsSearch(
+        deliv.instagramImageQuery,
+        "square",
+        `${brandSlug}-ig`,
+        { w: 800, h: 800 },
+      ),
+      pexelsSearch(
+        deliv.adImageQuery,
+        "landscape",
+        `${brandSlug}-ad`,
+        { w: 1200, h: 675 },
+      ),
+    ]);
+
     return NextResponse.json({
-      deliverables: response.parsed_output,
+      deliverables: deliv,
+      images: {
+        heroLandscape,
+        featured: [featured0, featured1, featured2],
+        instagramSquare,
+        adHero,
+      },
       usage: {
         input: response.usage.input_tokens,
         output: response.usage.output_tokens,
