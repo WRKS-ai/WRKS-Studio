@@ -602,13 +602,20 @@ function DeliverableSection({
 // Light-mode tokens — real platforms (Instagram, X, LinkedIn, Meta ads,
 // most landing pages) are predominantly white/light. Dark previews
 // read as gloomy mockups, not real product output.
-const LIGHT_BG = "#fafaf6";          // warm off-white for the landing page
+const LIGHT_BG = "#f7f2e8";          // warm cream (editorial paper tone)
 const LIGHT_BG_WHITE = "#ffffff";    // pure white for the social platforms
-const LIGHT_INK = "#0e0e10";         // near-black for headings
-const LIGHT_INK_MUTED = "#4a4a52";   // body / secondary text
-const LIGHT_INK_DIM = "#86868b";     // meta text
-const LIGHT_BORDER = "rgba(0,0,0,0.08)";
-const LIGHT_BORDER_SOFT = "rgba(0,0,0,0.05)";
+const LIGHT_BG_DEEP = "#efe9dc";     // slightly darker room tone for chapter shifts
+const LIGHT_BG_HIGH = "#fbf7ee";     // slightly lighter room tone
+const LIGHT_INK = "#0e0c08";         // near-black, warm
+const LIGHT_INK_MUTED = "#4a443c";   // body / secondary text
+const LIGHT_INK_DIM = "#827a6e";     // meta text
+const LIGHT_BORDER = "rgba(14,12,8,0.10)";
+const LIGHT_BORDER_SOFT = "rgba(14,12,8,0.06)";
+
+// Inline SVG noise for the "film grain" overlay — single biggest
+// per-byte upgrade for editorial feel per the design research.
+const NOISE_SVG =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC44IiBudW1PY3RhdmVzPSIzIiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI24pIi8+PC9zdmc+";
 
 function LandingPreview({
   personality,
@@ -623,19 +630,38 @@ function LandingPreview({
   heroImage: string;
   featuredImages: string[];
 }) {
+  // Pexels portraits will always look generic for arbitrary businesses,
+  // so per the design research we're using them as one supporting hero
+  // (mid-scroll, duotone-washed) and *replacing* the featured photo
+  // grid with typographic principle cards — Stripe Press style.
+  void featuredImages;
+
   const slug =
     brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "yourbusiness";
+
   return (
     <div
-      className="w-full rounded-2xl overflow-hidden"
+      className="relative w-full rounded-2xl overflow-hidden"
       style={{
         background: LIGHT_BG,
-        boxShadow: `0 60px 120px -40px ${personality.glow}, 0 40px 80px -30px rgba(0,0,0,0.55)`,
+        boxShadow: `0 80px 160px -60px ${personality.glow}, 0 50px 100px -40px rgba(0,0,0,0.6)`,
       }}
     >
-      {/* macOS browser chrome — stays dark */}
+      {/* Page-wide noise grain — single biggest editorial signal */}
       <div
-        className="flex items-center gap-3 px-4 py-3"
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-10 opacity-[0.07]"
+        style={{
+          backgroundImage: `url(${NOISE_SVG})`,
+          backgroundRepeat: "repeat",
+          backgroundSize: "200px 200px",
+          mixBlendMode: "multiply",
+        }}
+      />
+
+      {/* macOS browser chrome */}
+      <div
+        className="relative flex items-center gap-3 px-4 py-3"
         style={{ background: "#2a2a2c", borderBottom: "1px solid #18181a" }}
       >
         <div className="flex items-center gap-1.5">
@@ -652,374 +678,487 @@ function LandingPreview({
         <div className="w-12" aria-hidden />
       </div>
 
-      {/* Editorial nav — refined, minimal */}
+      {/* Hairline-only nav — minimal, refined */}
       <header
-        className="flex items-center justify-between px-6 sm:px-12 py-4 text-[12px]"
-        style={{ borderBottom: `1px solid ${LIGHT_BORDER_SOFT}` }}
+        className="relative flex items-center justify-between px-6 sm:px-14 py-5"
+        style={{ borderBottom: `1px solid ${LIGHT_BORDER}` }}
       >
-        <div className="flex items-center gap-2 font-serif">
+        <span
+          className="font-serif tracking-tight"
+          style={{
+            color: LIGHT_INK,
+            fontSize: "clamp(1rem,1.2vw,1.125rem)",
+            letterSpacing: "-0.02em",
+          }}
+        >
+          {brandName}
           <span
-            className="size-1.5 rounded-full"
+            aria-hidden
+            className="inline-block ml-1.5 size-1.5 rounded-full align-middle"
+            style={{ background: personality.accent }}
+          />
+        </span>
+        <nav
+          className="hidden sm:flex items-center gap-9"
+          style={{
+            color: LIGHT_INK_MUTED,
+            fontSize: "11px",
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          <span>Index</span>
+          <span>Studio</span>
+          <span>Contact</span>
+        </nav>
+        <span
+          className="font-mono uppercase tracking-[0.22em]"
+          style={{ color: LIGHT_INK_DIM, fontSize: "11px" }}
+        >
+          Vol. 01
+        </span>
+      </header>
+
+      {/* ============== HERO — TYPE-LED, NO ABOVE-FOLD PHOTO ============== */}
+      <section
+        className="relative px-6 sm:px-14 pt-20 sm:pt-32 pb-20 sm:pb-28 text-left"
+        style={{ background: LIGHT_BG_HIGH }}
+      >
+        {/* Tiny mono label */}
+        <div
+          className="font-mono uppercase mb-12 sm:mb-16 flex items-center gap-3"
+          style={{
+            color: LIGHT_INK_DIM,
+            fontSize: "11px",
+            letterSpacing: "0.32em",
+          }}
+        >
+          <span
+            className="inline-block h-px w-8"
             style={{ background: personality.accent }}
             aria-hidden
           />
-          <span
-            className="font-medium tracking-tight text-[15px]"
-            style={{ color: LIGHT_INK }}
-          >
-            {brandName}
-          </span>
+          <span>01 — Now showing</span>
         </div>
-        <nav
-          className="hidden sm:flex items-center gap-7 font-sans text-[12.5px]"
-          style={{ color: LIGHT_INK_MUTED }}
-        >
-          <span>Shop</span>
-          <span>Editorial</span>
-          <span>Stockists</span>
-          <span>About</span>
-        </nav>
-        <div
-          className="flex items-center gap-3.5"
-          style={{ color: LIGHT_INK_MUTED }}
-        >
-          <SearchIcon />
-          <AccountIcon />
-          <CartIcon />
-        </div>
-      </header>
 
-      {/* HERO — editorial-style centered headline, full width */}
-      <section className="px-6 sm:px-16 pt-16 pb-10 sm:pt-24 sm:pb-14 text-center">
-        <div
-          className="text-[10px] tracking-[0.32em] uppercase font-mono mb-7"
-          style={{ color: LIGHT_INK_DIM }}
-        >
-          <span>The Edit</span>
-          <span className="mx-2.5" aria-hidden>
-            ·
-          </span>
-          <span style={{ color: personality.accent }}>Available now</span>
-        </div>
+        {/* The headline IS the hero. Massive. Serif. Single brand-tone. */}
         <h1
-          className="font-serif font-medium tracking-tight leading-[0.94] text-[clamp(2.5rem,5.8vw,5rem)] max-w-4xl mx-auto"
-          style={{ color: LIGHT_INK }}
+          className="font-serif font-medium max-w-[16ch]"
+          style={{
+            color: LIGHT_INK,
+            fontSize: "clamp(2.75rem, 7.5vw, 6rem)",
+            lineHeight: 0.94,
+            letterSpacing: "-0.025em",
+          }}
         >
           {data.headline}
         </h1>
+
+        {/* Subhead — italic serif, restrained scale */}
         <p
-          className="mt-8 max-w-2xl mx-auto font-serif italic leading-snug text-[clamp(1.0625rem,1.5vw,1.3125rem)]"
-          style={{ color: LIGHT_INK_MUTED }}
+          className="mt-10 sm:mt-12 font-serif italic max-w-[42ch]"
+          style={{
+            color: LIGHT_INK_MUTED,
+            fontSize: "clamp(1.125rem, 1.5vw, 1.375rem)",
+            lineHeight: 1.45,
+          }}
         >
           {data.subhead}
         </p>
-        <div className="mt-10 flex items-center justify-center">
+
+        {/* CTA is a text link with arrow, not a button. Aesop move. */}
+        <div className="mt-12 sm:mt-14 flex items-center gap-12">
           <button
             type="button"
-            className="inline-flex items-center gap-2.5 h-12 px-8 rounded-full font-sans font-medium text-[14px] text-white transition-transform hover:scale-[1.02]"
+            className="group inline-flex items-center gap-3 font-serif transition-all"
             style={{
-              background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-              boxShadow: `0 16px 40px -12px ${personality.glow}`,
+              color: LIGHT_INK,
+              fontSize: "clamp(0.9375rem, 1.1vw, 1.0625rem)",
+              borderBottom: `1px solid ${LIGHT_INK}`,
+              paddingBottom: "4px",
             }}
           >
-            {data.primaryCta}
-            <span aria-hidden>→</span>
+            <span>{data.primaryCta}</span>
+            <span
+              aria-hidden
+              className="transition-transform group-hover:translate-x-1"
+              style={{ color: personality.accent }}
+            >
+              →
+            </span>
           </button>
+          <span
+            className="font-mono uppercase"
+            style={{
+              color: LIGHT_INK_DIM,
+              fontSize: "11px",
+              letterSpacing: "0.22em",
+            }}
+          >
+            Limited series
+          </span>
         </div>
       </section>
 
-      {/* Full-bleed hero photo with photo caption — cinematic */}
-      <div className="px-6 sm:px-12 pb-14 sm:pb-20">
-        <div
-          className="relative w-full overflow-hidden rounded-md"
-          style={{
-            aspectRatio: "16 / 9",
-            background: `linear-gradient(135deg, ${personality.accent}22 0%, ${personality.accentDeep}33 100%)`,
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={heroImage}
-            alt={`${brandName} hero`}
-            loading="lazy"
-            className="absolute inset-0 w-full h-full object-cover"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.opacity = "0";
-            }}
-          />
-          {/* Soft bottom gradient for caption legibility */}
+      <Hairline accent={personality.accent} />
+
+      {/* ============== HERO PHOTO — DUOTONE WASH, MID-SCROLL ============== */}
+      <section
+        className="relative px-6 sm:px-14 py-14 sm:py-20"
+        style={{ background: LIGHT_BG }}
+      >
+        <div className="flex items-end justify-between mb-8 sm:mb-10">
           <div
-            aria-hidden
-            className="absolute inset-x-0 bottom-0 h-1/3"
+            className="font-mono uppercase"
             style={{
-              background:
-                "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)",
+              color: LIGHT_INK_DIM,
+              fontSize: "11px",
+              letterSpacing: "0.32em",
             }}
-          />
-          <div className="absolute bottom-4 left-5 sm:bottom-6 sm:left-7 right-5 sm:right-7 flex items-end justify-between text-white">
-            <div className="text-[10px] tracking-[0.24em] uppercase font-mono opacity-90">
-              {brandName} <span aria-hidden>·</span> The Edit
-            </div>
-            <div className="text-[10px] tracking-[0.24em] uppercase font-mono opacity-70">
-              01 of 03
-            </div>
+          >
+            Plate 01 — The opening still
+          </div>
+          <div
+            className="font-mono uppercase"
+            style={{
+              color: LIGHT_INK_DIM,
+              fontSize: "11px",
+              letterSpacing: "0.22em",
+            }}
+          >
+            {brandName}
           </div>
         </div>
-      </div>
+        <DuotonePhoto
+          src={heroImage}
+          alt={`${brandName} editorial still`}
+          accent={personality.accent}
+          accentDeep={personality.accentDeep}
+          aspectRatio="16 / 9"
+        />
+      </section>
 
-      {/* Value bullets — editorial 3-column row with numbered labels */}
+      <Hairline accent={personality.accent} />
+
+      {/* ============== THREE PRINCIPLES — TYPOGRAPHIC, NOT PHOTOS ============== */}
       <section
-        className="px-6 sm:px-12 py-14 sm:py-16 grid grid-cols-1 md:grid-cols-3 gap-x-10 gap-y-8"
-        style={{ borderTop: `1px solid ${LIGHT_BORDER_SOFT}` }}
+        className="relative grid grid-cols-1 md:grid-cols-3"
+        style={{ background: LIGHT_BG_DEEP }}
       >
-        {data.valueBullets.map((bullet, i) => (
-          <div key={i} className="text-left">
+        {data.valueBullets.slice(0, 3).map((bullet, i) => (
+          <div
+            key={i}
+            className="relative px-6 sm:px-10 py-14 sm:py-20"
+            style={{
+              background:
+                i === 0 ? LIGHT_BG_HIGH : i === 1 ? LIGHT_BG : LIGHT_BG_DEEP,
+              borderRight:
+                i < 2 ? `1px solid ${LIGHT_BORDER}` : undefined,
+            }}
+          >
             <div
-              className="text-[11px] tracking-[0.32em] uppercase font-mono mb-3"
-              style={{ color: personality.accent }}
+              className="font-mono uppercase mb-10"
+              style={{
+                color: personality.accent,
+                fontSize: "11px",
+                letterSpacing: "0.32em",
+              }}
             >
-              0{i + 1}
+              0{i + 1} — Principle
             </div>
             <p
-              className="font-serif leading-snug text-[clamp(1rem,1.3vw,1.125rem)]"
-              style={{ color: LIGHT_INK }}
+              className="font-serif"
+              style={{
+                color: LIGHT_INK,
+                fontSize: "clamp(1.125rem, 1.5vw, 1.375rem)",
+                lineHeight: 1.35,
+                letterSpacing: "-0.005em",
+              }}
             >
+              <span
+                aria-hidden
+                className="font-serif italic mr-1 align-top"
+                style={{
+                  color: personality.accent,
+                  fontSize: "1.5em",
+                  lineHeight: 0,
+                }}
+              >
+                &ldquo;
+              </span>
               {bullet}
             </p>
           </div>
         ))}
       </section>
 
-      {/* Featured — asymmetric magazine-style grid */}
-      <section
-        className="px-6 sm:px-12 py-14 sm:py-16"
-        style={{ borderTop: `1px solid ${LIGHT_BORDER_SOFT}` }}
-      >
-        <div className="flex items-end justify-between mb-8 sm:mb-10">
-          <div>
-            <div
-              className="text-[10px] tracking-[0.32em] uppercase font-mono mb-3"
-              style={{ color: LIGHT_INK_DIM }}
-            >
-              From the studio
-            </div>
-            <h2
-              className="font-serif tracking-tight leading-[1.05] text-[clamp(1.5rem,2.6vw,2.125rem)]"
-              style={{ color: LIGHT_INK }}
-            >
-              Currently in rotation.
-            </h2>
-          </div>
-          <div
-            className="text-[11px] tracking-[0.22em] uppercase font-mono pb-1.5"
-            style={{ color: LIGHT_INK_MUTED }}
-          >
-            See all →
-          </div>
-        </div>
+      <Hairline accent={personality.accent} />
 
-        {/* Asymmetric grid — 1 tall left, 2 stacked right */}
-        <div
-          className="grid grid-cols-1 md:grid-cols-[1.5fr_1fr] gap-3 sm:gap-4"
-          style={{ aspectRatio: "11 / 7" }}
-        >
-          <FeaturedCard
-            image={featuredImages[0]!}
-            personality={personality}
-            label={`${brandName} · No. 01`}
-            tagline="The opening piece"
-            large
-          />
-          <div className="grid grid-rows-2 gap-3 sm:gap-4">
-            <FeaturedCard
-              image={featuredImages[1]!}
-              personality={personality}
-              label={`${brandName} · No. 02`}
-              tagline="Just landed"
-            />
-            <FeaturedCard
-              image={featuredImages[2]!}
-              personality={personality}
-              label={`${brandName} · No. 03`}
-              tagline="Limited run"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Newsletter */}
+      {/* ============== MANIFESTO — ONE BIG TYPOGRAPHIC STATEMENT ============== */}
       <section
-        className="px-6 sm:px-12 py-16 sm:py-20 text-center"
-        style={{
-          background: "#f0eee8",
-          borderTop: `1px solid ${LIGHT_BORDER_SOFT}`,
-        }}
+        className="relative px-6 sm:px-14 py-20 sm:py-28"
+        style={{ background: LIGHT_BG_HIGH }}
       >
         <div
-          className="text-[10px] tracking-[0.32em] uppercase font-mono mb-4"
-          style={{ color: LIGHT_INK_DIM }}
+          className="font-mono uppercase mb-10"
+          style={{
+            color: LIGHT_INK_DIM,
+            fontSize: "11px",
+            letterSpacing: "0.32em",
+          }}
         >
-          The newsletter
+          Manifesto · No. 1
         </div>
-        <h3
-          className="font-serif tracking-tight leading-[1.02] text-[clamp(1.875rem,3.2vw,2.75rem)] max-w-2xl mx-auto"
-          style={{ color: LIGHT_INK }}
-        >
-          Quietly delivered.
-          <br />
-          When something arrives.
-        </h3>
         <p
-          className="mt-5 max-w-md mx-auto text-[14px] font-serif italic leading-snug"
-          style={{ color: LIGHT_INK_MUTED }}
+          className="font-serif italic max-w-[28ch]"
+          style={{
+            color: LIGHT_INK,
+            fontSize: "clamp(1.875rem, 4vw, 3rem)",
+            lineHeight: 1.1,
+            letterSpacing: "-0.015em",
+          }}
         >
-          No noise. No abandoned-cart emails. Just the work, when it&rsquo;s ready.
+          {data.subhead}
         </p>
         <div
-          className="mt-8 max-w-md mx-auto flex items-center gap-1 px-1.5 py-1 rounded-full"
-          style={{ background: "white", border: `1px solid ${LIGHT_BORDER}` }}
+          className="mt-10 font-mono uppercase flex items-center gap-3"
+          style={{
+            color: LIGHT_INK_DIM,
+            fontSize: "11px",
+            letterSpacing: "0.32em",
+          }}
         >
-          <input
-            type="email"
-            placeholder="you@email.com"
-            disabled
-            className="flex-1 bg-transparent border-0 outline-none text-[14px] py-2 px-3"
-            style={{ color: LIGHT_INK }}
-          />
-          <button
-            type="button"
-            className="h-9 px-5 rounded-full text-[11px] tracking-[0.18em] uppercase font-mono text-white"
-            style={{ background: LIGHT_INK }}
-          >
-            Subscribe
-          </button>
-        </div>
-      </section>
-
-      {/* Footer — refined dark band */}
-      <footer
-        className="px-6 sm:px-12 py-7 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-0 items-center text-[10px] tracking-[0.22em] uppercase font-mono"
-        style={{ background: "#15151a", color: "#9a9aa3" }}
-      >
-        <div className="flex items-center gap-2 justify-self-start">
           <span
-            className="size-1.5 rounded-full"
+            className="inline-block h-px w-8"
             style={{ background: personality.accent }}
             aria-hidden
           />
-          <span>© {brandName}</span>
+          <span>Signed — {brandName}</span>
         </div>
-        <div className="sm:justify-self-center flex items-center gap-5">
-          <span>Instagram</span>
-          <span>Editorial</span>
-          <span>Contact</span>
+      </section>
+
+      <Hairline accent={personality.accent} />
+
+      {/* ============== NEWSLETTER — RESTRAINED, NOT CARD-LIKE ============== */}
+      <section
+        className="relative px-6 sm:px-14 py-20 sm:py-28"
+        style={{ background: LIGHT_BG_DEEP }}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr] gap-10 sm:gap-16 items-end">
+          <div>
+            <div
+              className="font-mono uppercase mb-8"
+              style={{
+                color: LIGHT_INK_DIM,
+                fontSize: "11px",
+                letterSpacing: "0.32em",
+              }}
+            >
+              Correspondence
+            </div>
+            <h3
+              className="font-serif font-medium"
+              style={{
+                color: LIGHT_INK,
+                fontSize: "clamp(2rem, 4vw, 3.25rem)",
+                lineHeight: 0.96,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Quietly delivered.
+              <br />
+              <span style={{ color: personality.accent }} className="italic">
+                When something arrives.
+              </span>
+            </h3>
+          </div>
+          <div>
+            <p
+              className="font-serif italic mb-8 max-w-[34ch]"
+              style={{
+                color: LIGHT_INK_MUTED,
+                fontSize: "1rem",
+                lineHeight: 1.5,
+              }}
+            >
+              No noise. No abandoned-cart sequences. Just the work, when it&rsquo;s ready.
+            </p>
+            <div
+              className="flex items-center gap-3 pb-3"
+              style={{ borderBottom: `1px solid ${LIGHT_INK}` }}
+            >
+              <input
+                type="email"
+                placeholder="your@email"
+                disabled
+                className="flex-1 bg-transparent border-0 outline-none font-serif"
+                style={{
+                  color: LIGHT_INK,
+                  fontSize: "1rem",
+                }}
+              />
+              <button
+                type="button"
+                className="group inline-flex items-center gap-2 font-mono uppercase"
+                style={{
+                  color: LIGHT_INK,
+                  fontSize: "11px",
+                  letterSpacing: "0.22em",
+                }}
+              >
+                <span>Subscribe</span>
+                <span
+                  aria-hidden
+                  style={{ color: personality.accent }}
+                  className="transition-transform group-hover:translate-x-0.5"
+                >
+                  →
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="sm:justify-self-end">{slug}.com</div>
+      </section>
+
+      {/* ============== FOOTER — DEEP, EDITORIAL ============== */}
+      <footer
+        className="relative px-6 sm:px-14 py-10"
+        style={{
+          background: "#0a0908",
+          color: "#9a948a",
+        }}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-0 items-end">
+          <div>
+            <div
+              className="font-serif"
+              style={{
+                color: "#f0eadd",
+                fontSize: "1.25rem",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {brandName}
+              <span
+                aria-hidden
+                className="inline-block ml-1.5 size-1.5 rounded-full align-middle"
+                style={{ background: personality.accent }}
+              />
+            </div>
+            <div
+              className="mt-3 font-mono uppercase"
+              style={{
+                fontSize: "10px",
+                letterSpacing: "0.32em",
+              }}
+            >
+              © {brandName}, Vol. 01
+            </div>
+          </div>
+          <div
+            className="sm:justify-self-center flex items-center gap-7 font-mono uppercase"
+            style={{
+              fontSize: "10px",
+              letterSpacing: "0.28em",
+            }}
+          >
+            <span>Instagram</span>
+            <span>Editorial</span>
+            <span>Contact</span>
+          </div>
+          <div
+            className="sm:justify-self-end font-mono uppercase"
+            style={{
+              fontSize: "10px",
+              letterSpacing: "0.28em",
+            }}
+          >
+            {slug}.com
+          </div>
+        </div>
       </footer>
     </div>
   );
 }
 
-function FeaturedCard({
-  image,
-  personality,
-  label,
-  tagline,
-  large,
-}: {
-  image: string;
-  personality: Personality;
-  label: string;
-  tagline: string;
-  large?: boolean;
-}) {
+// Hairline divider with a soft accent-color bloom on top — Linear's
+// signature move. Replaces card borders throughout the preview.
+function Hairline({ accent }: { accent: string }) {
   return (
-    <div
-      className="relative h-full rounded-md overflow-hidden group"
-      style={{
-        background: `linear-gradient(135deg, ${personality.accent}22 0%, ${personality.accentDeep}33 100%)`,
-      }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={image}
-        alt=""
-        loading="lazy"
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        onError={(e) => {
-          (e.currentTarget as HTMLImageElement).style.opacity = "0";
-        }}
+    <div className="relative" aria-hidden>
+      <div
+        className="h-px w-full"
+        style={{ background: LIGHT_BORDER }}
       />
       <div
-        aria-hidden
-        className="absolute inset-x-0 bottom-0 h-2/3"
+        className="absolute inset-x-0 top-0 h-px pointer-events-none"
         style={{
-          background:
-            "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)",
+          background: accent,
+          opacity: 0.35,
+          filter: "blur(6px)",
         }}
       />
-      <div
-        className={`absolute bottom-0 left-0 right-0 ${
-          large ? "p-5 sm:p-6" : "p-3.5 sm:p-4"
-        } flex items-end justify-between text-white`}
-      >
-        <div className="min-w-0">
-          <div
-            className={`tracking-[0.24em] uppercase font-mono opacity-80 ${
-              large ? "text-[10px]" : "text-[9px]"
-            }`}
-          >
-            {label}
-          </div>
-          <div
-            className={`mt-1 font-serif italic leading-snug ${
-              large ? "text-[clamp(0.9375rem,1.3vw,1.125rem)]" : "text-[12.5px]"
-            }`}
-          >
-            {tagline}
-          </div>
-        </div>
-        <span
-          aria-hidden
-          className={large ? "text-[22px]" : "text-[16px]"}
-        >
-          →
-        </span>
-      </div>
     </div>
   );
 }
 
-function AccountIcon() {
+// Photo wrapper with grayscale + brand-color duotone + grain.
+// Turns 4 random stock photos into one chromatic identity.
+function DuotonePhoto({
+  src,
+  alt,
+  accent,
+  accentDeep,
+  aspectRatio,
+}: {
+  src: string;
+  alt: string;
+  accent: string;
+  accentDeep: string;
+  aspectRatio: string;
+}) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.6" />
-      <path
-        d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
+    <div
+      className="relative w-full overflow-hidden rounded-sm"
+      style={{
+        aspectRatio,
+        background: LIGHT_BG_DEEP,
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{
+          filter: "grayscale(1) contrast(1.05) brightness(0.95)",
+        }}
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).style.opacity = "0";
+        }}
       />
-    </svg>
-  );
-}
-
-// Inline SVG icons (lighter than emoji on light backgrounds, more "real")
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M20 20l-3-3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-function CartIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M3 5h2l2.5 11h11L21 8H7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="9" cy="20" r="1.3" fill="currentColor" />
-      <circle cx="17" cy="20" r="1.3" fill="currentColor" />
-    </svg>
+      {/* Brand-color duotone overlay */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
+          mixBlendMode: "color",
+          opacity: 0.72,
+        }}
+      />
+      {/* Soft warm tone underneath the cool side */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(135deg, transparent 0%, rgba(247,242,232,0.18) 100%)`,
+          mixBlendMode: "soft-light",
+        }}
+      />
+    </div>
   );
 }
 
