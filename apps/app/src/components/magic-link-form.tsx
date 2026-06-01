@@ -133,9 +133,15 @@ export function MagicLinkForm({
           <button
             type="submit"
             disabled={!email.trim() || stage === "sending" || !isLoaded}
+            aria-busy={stage === "sending" || !isLoaded}
             className="group relative w-full h-11 rounded-[10px] bg-ink text-canvas text-[14px] font-sans font-semibold inline-flex items-center justify-center gap-2 transition-all hover:bg-white disabled:bg-white/[0.08] disabled:text-ink-dim disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
           >
-            {stage === "sending" ? (
+            {!isLoaded ? (
+              <>
+                <Spinner />
+                Loading…
+              </>
+            ) : stage === "sending" ? (
               <>
                 <Spinner />
                 Sending…

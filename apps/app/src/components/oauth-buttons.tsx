@@ -2,6 +2,7 @@
 
 import { useSignIn, useSignUp } from "@clerk/nextjs";
 import { motion } from "motion/react";
+import { useState } from "react";
 
 type Mode = "sign-in" | "sign-up";
 type Provider = "google" | "apple";
@@ -39,9 +40,26 @@ export function OAuthButton({
   const { isLoaded: signInLoaded, signIn } = useSignIn();
   const { isLoaded: signUpLoaded, signUp } = useSignUp();
   const isLoaded = mode === "sign-in" ? signInLoaded : signUpLoaded;
+  const [redirecting, setRedirecting] = useState(false);
 
   const onClick = async () => {
-    if (!isLoaded) return;
+    // Clerk SDK still booting — give visual feedback. Re-check 200ms later
+    // so the user doesn't have to click again once it's ready.
+    if (!isLoaded) {
+      setRedirecting(true);
+      const start = Date.now();
+      const poll = setInterval(() => {
+        const ready = mode === "sign-in" ? signInLoaded : signUpLoaded;
+        if (ready || Date.now() - start > 8000) {
+          clearInterval(poll);
+          if (ready) onClick();
+          else setRedirecting(false);
+        }
+      }, 150);
+      return;
+    }
+
+    setRedirecting(true);
     const strategy = `oauth_${provider}` as "oauth_google" | "oauth_apple";
     const redirectUrl = `${window.location.origin}/sso-callback`;
     const redirectUrlComplete = "/onboarding/personality";
@@ -62,22 +80,63 @@ export function OAuthButton({
       }
     } catch (err) {
       console.error(`OAuth ${provider} error:`, err);
+      setRedirecting(false);
     }
   };
+
+  const showSpinner = !isLoaded || redirecting;
 
   return (
     <motion.button
       type="button"
       onClick={onClick}
-      disabled={!isLoaded}
-      whileHover={{ y: -1 }}
-      whileTap={{ scale: 0.985 }}
+      disabled={redirecting}
+      aria-busy={redirecting}
+      whileHover={!redirecting ? { y: -1 } : undefined}
+      whileTap={!redirecting ? { scale: 0.985 } : undefined}
       transition={{ type: "spring", stiffness: 380, damping: 22 }}
-      className="group relative w-full h-11 rounded-[10px] border border-white/[0.10] bg-white/[0.02] hover:border-white/[0.22] hover:bg-white/[0.04] transition-colors text-[14px] font-sans font-medium text-ink flex items-center justify-center gap-2.5 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+      className="group relative w-full h-11 rounded-[10px] border border-white/[0.10] bg-white/[0.02] hover:border-white/[0.22] hover:bg-white/[0.04] transition-colors text-[14px] font-sans font-medium text-ink flex items-center justify-center gap-2.5 disabled:opacity-80 disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
     >
-      <ProviderIcon provider={provider} />
-      {label}
+      {showSpinner ? <Spinner /> : <ProviderIcon provider={provider} />}
+      {redirecting ? (!isLoaded ? "Loading…" : "Redirecting…") : label}
     </motion.button>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+      className="text-ink-muted"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        stroke="currentColor"
+        strokeOpacity="0.3"
+        strokeWidth="2.5"
+      />
+      <path
+        d="M21 12a9 9 0 0 0-9-9"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from="0 12 12"
+          to="360 12 12"
+          dur="0.9s"
+          repeatCount="indefinite"
+        />
+      </path>
+    </svg>
   );
 }
 
