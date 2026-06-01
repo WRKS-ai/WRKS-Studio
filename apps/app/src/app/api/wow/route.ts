@@ -94,8 +94,8 @@ export async function POST(req: Request) {
       },
     });
   } catch (err) {
-    const isDev = process.env.NODE_ENV !== "production";
-
+    // TEMP: surface error detail in prod too so we can debug the
+    // first-ship wow page failures. Revert once stable.
     if (err instanceof Anthropic.RateLimitError) {
       return NextResponse.json(
         { error: "Rate limited. Try again in a moment." },
@@ -103,16 +103,12 @@ export async function POST(req: Request) {
       );
     }
     if (err instanceof Anthropic.APIError) {
-      // Surface the underlying error in dev so we can see *why* Anthropic
-      // rejected the call (bad model, bad schema, bad key, etc.)
       console.error(
         `[api/wow] Anthropic ${err.status} ${err.type}: ${err.message}`,
       );
       return NextResponse.json(
         {
-          error: isDev
-            ? `Anthropic ${err.status}: ${err.message}`
-            : "Generation failed. Try again.",
+          error: `Anthropic ${err.status} ${err.type}: ${err.message}`,
           type: err.type,
           status: err.status,
         },
@@ -122,9 +118,7 @@ export async function POST(req: Request) {
     console.error("[api/wow] unexpected error:", err);
     return NextResponse.json(
       {
-        error: isDev
-          ? `Unexpected: ${err instanceof Error ? err.message : String(err)}`
-          : "Something went wrong.",
+        error: `Unexpected: ${err instanceof Error ? err.message : String(err)}`,
       },
       { status: 500 },
     );
