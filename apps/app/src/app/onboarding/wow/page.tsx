@@ -384,6 +384,14 @@ function ErrorState({
 /* ============================================================
  * READY — three deliverables in staging-style preview frames
  * ============================================================ */
+type DeliverableTab = "website" | "social" | "advertising";
+
+const TABS: { id: DeliverableTab; label: string; mono: string }[] = [
+  { id: "website", label: "Website", mono: "01" },
+  { id: "social", label: "Social posts", mono: "02" },
+  { id: "advertising", label: "Advertising", mono: "03" },
+];
+
 function ReadyState({
   personality,
   agentName,
@@ -403,6 +411,26 @@ function ReadyState({
 }) {
   const brandName = deliverables.brandName;
   const pix = images;
+  const [tab, setTab] = useState<DeliverableTab>("website");
+
+  // Arrow-key navigation between tabs
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const idx = TABS.findIndex((t) => t.id === tab);
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setTab(TABS[(idx + 1) % TABS.length]!.id);
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setTab(TABS[(idx - 1 + TABS.length) % TABS.length]!.id);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tab]);
+
+  const tabIdx = TABS.findIndex((t) => t.id === tab);
+
   return (
     <motion.div
       initial={reduced ? false : { opacity: 0 }}
@@ -411,14 +439,13 @@ function ReadyState({
       transition={{ duration: 0.6 }}
       className="w-full flex flex-col items-center"
     >
-      {/* Agent presence */}
+      {/* ============== HEADER ============== */}
       <PersonalityIcon personality={personality} size="sm" />
       <div className="mt-3 font-serif italic text-[14px] text-ink-muted">
         {agentName} <span className="text-ink-dim">·</span> {personality.name}
       </div>
 
-      {/* Hero heading — blur-in word by word */}
-      <h1 className="mt-10 font-serif font-medium tracking-tight text-[clamp(2.25rem,4.5vw,3.75rem)] leading-[0.98] text-ink">
+      <h1 className="mt-10 font-serif font-medium tracking-tight text-[clamp(2.25rem,4.5vw,3.75rem)] leading-[0.98] text-ink text-center">
         {READY_HEADING.map((word, i) => (
           <motion.span
             key={`${word}-${i}`}
@@ -440,11 +467,11 @@ function ReadyState({
         initial={reduced ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.65, duration: 0.7, ease: "easeOut" }}
-        className="mt-5 max-w-xl text-[15px] sm:text-base text-ink-muted leading-relaxed font-serif italic"
+        className="mt-5 max-w-xl text-[15px] sm:text-base text-ink-muted leading-relaxed font-serif italic text-center"
       >
         Drafting as{" "}
         <span className="text-ink not-italic font-medium">{brandName}</span>.
-        Not the angle you wanted? Have me try again.
+        Three pieces, one campaign — switch between them below.
       </motion.p>
 
       {/* Regenerate */}
@@ -463,74 +490,171 @@ function ReadyState({
         }}
       >
         <span>Regenerate</span>
-        <span aria-hidden style={{ color: personality.accent }}>↻</span>
+        <span aria-hidden style={{ color: personality.accent }}>
+          ↻
+        </span>
       </motion.button>
 
-      {/* DELIVERABLE 1 — Landing page */}
-      <DeliverableSection
-        label="Landing page"
-        index={0}
-        reduced={reduced}
+      {/* ============== TAB NAVIGATION ============== */}
+      <motion.div
+        initial={reduced ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.0, duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+        className="mt-14 sm:mt-16 w-full max-w-[820px]"
       >
-        <LandingPreview
-          personality={personality}
-          brandName={brandName}
-          data={deliverables.landing}
-          heroImage={pix.heroLandscape}
-          featuredImages={pix.featured}
-        />
-      </DeliverableSection>
-
-      {/* DELIVERABLE 2 — Social posts. IG on the left (image-heavy, taller),
-          Twitter + LinkedIn stacked on the right. Stacks vertically on mobile. */}
-      <DeliverableSection
-        label="Social posts"
-        index={1}
-        reduced={reduced}
-      >
-        <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-start">
-          <InstagramPreview
-            personality={personality}
-            brandName={brandName}
-            caption={deliverables.social.instagram}
-            image={pix.instagramSquare}
-          />
-          <div className="flex flex-col gap-4 sm:gap-5">
-            <TwitterPreview
-              personality={personality}
-              brandName={brandName}
-              text={deliverables.social.twitter}
-            />
-            <LinkedInPreview
-              personality={personality}
-              agentName={agentName}
-              brandName={brandName}
-              text={deliverables.social.linkedin}
-            />
-          </div>
+        <div
+          className="flex items-end justify-center gap-0 sm:gap-2 border-b"
+          style={{ borderColor: "rgba(255,255,255,0.08)" }}
+        >
+          {TABS.map((t) => {
+            const isActive = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className="group relative flex items-baseline gap-3 px-4 sm:px-6 pb-4 sm:pb-5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-t-md"
+                style={{ color: isActive ? "rgb(245 245 245)" : "rgba(245,245,245,0.45)" }}
+              >
+                <span
+                  className="text-[10px] tracking-[0.28em] uppercase font-mono"
+                  style={{
+                    color: isActive ? personality.accent : "rgba(245,245,245,0.35)",
+                  }}
+                >
+                  {t.mono}
+                </span>
+                <span className="font-serif text-[clamp(0.9375rem,1.2vw,1.0625rem)] tracking-tight">
+                  {t.label}
+                </span>
+                {isActive && (
+                  <motion.span
+                    layoutId="tab-underline"
+                    className="absolute -bottom-px left-0 right-0 h-[2px]"
+                    style={{ background: personality.accent }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
-      </DeliverableSection>
+        <div
+          className="mt-3 flex items-center justify-between text-[10px] tracking-[0.22em] uppercase font-mono"
+          style={{ color: "rgba(245,245,245,0.35)" }}
+        >
+          <span>
+            {String(tabIdx + 1).padStart(2, "0")} of{" "}
+            {String(TABS.length).padStart(2, "0")}
+          </span>
+          <span aria-hidden>← → to navigate</span>
+        </div>
+      </motion.div>
 
-      {/* DELIVERABLE 3 — Ad creative */}
-      <DeliverableSection
-        label="Ad creative"
-        index={2}
-        reduced={reduced}
-      >
-        <AdPreview
-          personality={personality}
-          brandName={brandName}
-          data={deliverables.ad}
-          image={pix.adHero}
-        />
-      </DeliverableSection>
+      {/* ============== ACTIVE DELIVERABLE ============== */}
+      <div className="mt-10 sm:mt-12 w-full">
+        <AnimatePresence mode="wait">
+          {tab === "website" && (
+            <motion.div
+              key="website"
+              initial={reduced ? false : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduced ? undefined : { opacity: 0, y: -8 }}
+              transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+            >
+              <LandingPreview
+                personality={personality}
+                brandName={brandName}
+                data={deliverables.landing}
+                heroImage={pix.heroLandscape}
+                featuredImages={pix.featured}
+              />
+            </motion.div>
+          )}
 
-      {/* Continue */}
+          {tab === "social" && (
+            <motion.div
+              key="social"
+              initial={reduced ? false : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduced ? undefined : { opacity: 0, y: -8 }}
+              transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-start"
+            >
+              <InstagramPreview
+                personality={personality}
+                brandName={brandName}
+                caption={deliverables.social.instagram}
+                image={pix.instagramSquare}
+              />
+              <div className="flex flex-col gap-4 sm:gap-5">
+                <TwitterPreview
+                  personality={personality}
+                  brandName={brandName}
+                  text={deliverables.social.twitter}
+                />
+                <LinkedInPreview
+                  personality={personality}
+                  agentName={agentName}
+                  brandName={brandName}
+                  text={deliverables.social.linkedin}
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {tab === "advertising" && (
+            <motion.div
+              key="advertising"
+              initial={reduced ? false : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduced ? undefined : { opacity: 0, y: -8 }}
+              transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+            >
+              <AdPreview
+                personality={personality}
+                brandName={brandName}
+                data={deliverables.ad}
+                image={pix.adHero}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ============== PREV / NEXT ============== */}
+      <div className="mt-10 sm:mt-12 flex items-center justify-center gap-6">
+        <button
+          type="button"
+          onClick={() =>
+            setTab(TABS[(tabIdx - 1 + TABS.length) % TABS.length]!.id)
+          }
+          className="group inline-flex items-center gap-2.5 px-3 py-2 text-[12px] tracking-[0.22em] uppercase font-mono text-ink-dim hover:text-ink-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md"
+        >
+          <span aria-hidden>←</span>
+          <span>Previous</span>
+        </button>
+        <span
+          className="text-[10px] tracking-[0.22em] uppercase font-mono"
+          style={{ color: "rgba(245,245,245,0.25)" }}
+        >
+          {TABS[tabIdx]!.label}
+        </span>
+        <button
+          type="button"
+          onClick={() => setTab(TABS[(tabIdx + 1) % TABS.length]!.id)}
+          className="group inline-flex items-center gap-2.5 px-3 py-2 text-[12px] tracking-[0.22em] uppercase font-mono text-ink-dim hover:text-ink-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md"
+        >
+          <span>Next</span>
+          <span aria-hidden>→</span>
+        </button>
+      </div>
+
+      {/* ============== CONTINUE ============== */}
       <motion.div
         initial={reduced ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 2.2, duration: 0.7 }}
-        className="mt-16 sm:mt-20 h-12 flex items-center justify-center"
+        transition={{ delay: 1.6, duration: 0.7 }}
+        className="mt-14 sm:mt-16 h-12 flex items-center justify-center"
       >
         <motion.button
           type="button"
@@ -558,40 +682,6 @@ function ReadyState({
         Nothing is published yet — these are drafts only
       </p>
     </motion.div>
-  );
-}
-
-function DeliverableSection({
-  label,
-  index,
-  reduced,
-  children,
-}: {
-  label: string;
-  index: number;
-  reduced: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <motion.section
-      initial={reduced ? false : { opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        delay: 1.0 + index * 0.25,
-        duration: 0.8,
-        ease: [0.2, 0.7, 0.2, 1],
-      }}
-      className="w-full mt-16 sm:mt-20"
-    >
-      <div className="flex items-center justify-center gap-3 mb-8 sm:mb-10">
-        <span className="h-px w-12 bg-white/10" aria-hidden />
-        <span className="text-[10px] tracking-[0.28em] uppercase text-ink-dim font-mono">
-          {label}
-        </span>
-        <span className="h-px w-12 bg-white/10" aria-hidden />
-      </div>
-      {children}
-    </motion.section>
   );
 }
 
