@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { OnboardingShell } from "@/components/onboarding-shell";
 import { PersonalityIcon } from "@/components/personality-icon";
 import {
@@ -392,14 +392,6 @@ function ErrorState({
 /* ============================================================
  * READY — three deliverables in staging-style preview frames
  * ============================================================ */
-type DeliverableTab = "website" | "social" | "advertising";
-
-const TABS: { id: DeliverableTab; label: string; mono: string }[] = [
-  { id: "website", label: "Website", mono: "01" },
-  { id: "social", label: "Social posts", mono: "02" },
-  { id: "advertising", label: "Advertising", mono: "03" },
-];
-
 function ReadyState({
   personality,
   agentName,
@@ -419,25 +411,8 @@ function ReadyState({
 }) {
   const brandName = deliverables.brandName;
   const pix = images;
-  const [tab, setTab] = useState<DeliverableTab>("website");
-
-  // Arrow-key navigation between tabs
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const idx = TABS.findIndex((t) => t.id === tab);
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        setTab(TABS[(idx + 1) % TABS.length]!.id);
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        setTab(TABS[(idx - 1 + TABS.length) % TABS.length]!.id);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [tab]);
-
-  const tabIdx = TABS.findIndex((t) => t.id === tab);
+  const handleSlug =
+    brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "brand";
 
   return (
     <motion.div
@@ -503,198 +478,122 @@ function ReadyState({
         </span>
       </motion.button>
 
-      {/* ============== TAB NAVIGATION ============== */}
+      {/* ============== ACT ONE — ON THE WEB ============== */}
+      <ChapterDivider
+        index="01"
+        label="On the web"
+        sublabel="Your homepage, ready to launch"
+        accent={personality.accent}
+        reduced={reduced}
+      />
       <motion.div
-        initial={reduced ? false : { opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.0, duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-        className="mt-14 sm:mt-16 w-full max-w-[820px]"
+        initial={reduced ? false : { opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.8, ease: [0.2, 0.7, 0.2, 1] }}
+        className="w-full"
       >
-        <div
-          className="flex items-end justify-center gap-0 sm:gap-2 border-b"
-          style={{ borderColor: "rgba(255,255,255,0.08)" }}
-        >
-          {TABS.map((t) => {
-            const isActive = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className="group relative flex items-baseline gap-3 px-4 sm:px-6 pb-4 sm:pb-5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-t-md"
-                style={{ color: isActive ? "rgb(245 245 245)" : "rgba(245,245,245,0.45)" }}
-              >
-                <span
-                  className="text-[10px] tracking-[0.28em] uppercase font-mono"
-                  style={{
-                    color: isActive ? personality.accent : "rgba(245,245,245,0.35)",
-                  }}
-                >
-                  {t.mono}
-                </span>
-                <span className="font-serif text-[clamp(0.9375rem,1.2vw,1.0625rem)] tracking-tight">
-                  {t.label}
-                </span>
-                {isActive && (
-                  <motion.span
-                    layoutId="tab-underline"
-                    className="absolute -bottom-px left-0 right-0 h-[2px]"
-                    style={{ background: personality.accent }}
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <div
-          className="mt-3 flex items-center justify-between text-[10px] tracking-[0.22em] uppercase font-mono"
-          style={{ color: "rgba(245,245,245,0.35)" }}
-        >
-          <span>
-            {String(tabIdx + 1).padStart(2, "0")} of{" "}
-            {String(TABS.length).padStart(2, "0")}
-          </span>
-          <span aria-hidden>← → to navigate</span>
-        </div>
+        <MacBookFrame>
+          <LandingPreview
+            personality={personality}
+            brandName={brandName}
+            data={deliverables.landing}
+            heroImage={pix.heroLandscape}
+            featuredImages={pix.featured}
+          />
+        </MacBookFrame>
+        <p className="mt-6 text-center text-[10px] tracking-[0.22em] uppercase font-mono text-ink-dim">
+          Scroll inside the screen to see the whole page
+        </p>
       </motion.div>
 
-      {/* ============== ACTIVE DELIVERABLE ============== */}
-      <div className="mt-10 sm:mt-12 w-full">
-        <AnimatePresence mode="wait">
-          {tab === "website" && (
-            <motion.div
-              key="website"
-              initial={reduced ? false : { opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduced ? undefined : { opacity: 0, y: -8 }}
-              transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
-            >
-              <MacBookFrame>
-                <LandingPreview
-                  personality={personality}
-                  brandName={brandName}
-                  data={deliverables.landing}
-                  heroImage={pix.heroLandscape}
-                  featuredImages={pix.featured}
-                />
-              </MacBookFrame>
-              <p
-                className="mt-6 text-center text-[10px] tracking-[0.22em] uppercase font-mono text-ink-dim"
-              >
-                Scroll inside the screen to see the whole page
-              </p>
-            </motion.div>
-          )}
-
-          {tab === "social" && (
-            <motion.div
-              key="social"
-              initial={reduced ? false : { opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduced ? undefined : { opacity: 0, y: -8 }}
-              transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-6 items-start"
-            >
-              <div className="flex flex-col items-center">
-                <IPhoneFrame width={280} shadowGlow={personality.glow}>
-                  <InstagramMini
-                    handle={(brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "brand")}
-                    caption={deliverables.social.instagram}
-                    image={pix.instagramSquare}
-                    accent={personality.accent}
-                    accentDeep={personality.accentDeep}
-                  />
-                </IPhoneFrame>
-                <p className="mt-5 text-[10px] tracking-[0.22em] uppercase font-mono text-ink-dim">
-                  Instagram
-                </p>
-              </div>
-              <div className="flex flex-col items-center">
-                <IPhoneFrame width={280} shadowGlow={personality.glow}>
-                  <XMini
-                    brandName={brandName}
-                    handle={`@${brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "brand"}`}
-                    text={deliverables.social.twitter}
-                    accent={personality.accent}
-                    accentDeep={personality.accentDeep}
-                  />
-                </IPhoneFrame>
-                <p className="mt-5 text-[10px] tracking-[0.22em] uppercase font-mono text-ink-dim">
-                  X / Twitter
-                </p>
-              </div>
-              <div className="flex flex-col items-center">
-                <IPhoneFrame width={280} shadowGlow={personality.glow}>
-                  <LinkedInMini
-                    agentName={agentName}
-                    brandName={brandName}
-                    text={deliverables.social.linkedin}
-                    accent={personality.accent}
-                    accentDeep={personality.accentDeep}
-                  />
-                </IPhoneFrame>
-                <p className="mt-5 text-[10px] tracking-[0.22em] uppercase font-mono text-ink-dim">
-                  LinkedIn
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {tab === "advertising" && (
-            <motion.div
-              key="advertising"
-              initial={reduced ? false : { opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduced ? undefined : { opacity: 0, y: -8 }}
-              transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
-              className="flex flex-col items-center"
-            >
-              <IPhoneFrame width={320} shadowGlow={personality.glow}>
-                <FacebookAdInFeed
-                  brandName={brandName}
-                  adData={deliverables.ad}
-                  adImage={pix.adHero}
-                  accent={personality.accent}
-                  accentDeep={personality.accentDeep}
-                />
-              </IPhoneFrame>
-              <p
-                className="mt-6 text-center text-[10px] tracking-[0.22em] uppercase font-mono text-ink-dim max-w-md"
-              >
-                Your ad in a real Facebook feed scroll — sponsored, in context
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* ============== PREV / NEXT ============== */}
-      <div className="mt-10 sm:mt-12 flex items-center justify-center gap-6">
-        <button
-          type="button"
-          onClick={() =>
-            setTab(TABS[(tabIdx - 1 + TABS.length) % TABS.length]!.id)
-          }
-          className="group inline-flex items-center gap-2.5 px-3 py-2 text-[12px] tracking-[0.22em] uppercase font-mono text-ink-dim hover:text-ink-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md"
+      {/* ============== ACT TWO — IN THE FEED ============== */}
+      <ChapterDivider
+        index="02"
+        label="In the feed"
+        sublabel="Three posts, three platforms, one voice"
+        accent={personality.accent}
+        reduced={reduced}
+      />
+      <motion.div
+        initial={reduced ? false : { opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.15 }}
+        transition={{ duration: 0.8, ease: [0.2, 0.7, 0.2, 1] }}
+        className="w-full grid grid-cols-1 md:grid-cols-3 gap-10 sm:gap-6 items-start"
+      >
+        <PhoneInLineup
+          width={260}
+          glow={personality.glow}
+          label="Instagram"
+          rotate={-1.5}
         >
-          <span aria-hidden>←</span>
-          <span>Previous</span>
-        </button>
-        <span
-          className="text-[10px] tracking-[0.22em] uppercase font-mono"
-          style={{ color: "rgba(245,245,245,0.25)" }}
+          <InstagramMini
+            handle={handleSlug}
+            caption={deliverables.social.instagram}
+            image={pix.instagramSquare}
+            accent={personality.accent}
+            accentDeep={personality.accentDeep}
+          />
+        </PhoneInLineup>
+        <PhoneInLineup
+          width={260}
+          glow={personality.glow}
+          label="X / Twitter"
+          rotate={0}
         >
-          {TABS[tabIdx]!.label}
-        </span>
-        <button
-          type="button"
-          onClick={() => setTab(TABS[(tabIdx + 1) % TABS.length]!.id)}
-          className="group inline-flex items-center gap-2.5 px-3 py-2 text-[12px] tracking-[0.22em] uppercase font-mono text-ink-dim hover:text-ink-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md"
+          <XMini
+            brandName={brandName}
+            handle={`@${handleSlug}`}
+            text={deliverables.social.twitter}
+            accent={personality.accent}
+            accentDeep={personality.accentDeep}
+          />
+        </PhoneInLineup>
+        <PhoneInLineup
+          width={260}
+          glow={personality.glow}
+          label="LinkedIn"
+          rotate={1.5}
         >
-          <span>Next</span>
-          <span aria-hidden>→</span>
-        </button>
-      </div>
+          <LinkedInMini
+            agentName={agentName}
+            brandName={brandName}
+            text={deliverables.social.linkedin}
+            accent={personality.accent}
+            accentDeep={personality.accentDeep}
+          />
+        </PhoneInLineup>
+      </motion.div>
+
+      {/* ============== ACT THREE — IN THE WILD ============== */}
+      <ChapterDivider
+        index="03"
+        label="In the wild"
+        sublabel="Your ad, scrolling past someone right now"
+        accent={personality.accent}
+        reduced={reduced}
+      />
+      <motion.div
+        initial={reduced ? false : { opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.8, ease: [0.2, 0.7, 0.2, 1] }}
+        className="w-full flex flex-col items-center"
+      >
+        <IPhoneFrame width={320} shadowGlow={personality.glow}>
+          <FacebookAdInFeed
+            brandName={brandName}
+            adData={deliverables.ad}
+            adImage={pix.adHero}
+            accent={personality.accent}
+            accentDeep={personality.accentDeep}
+          />
+        </IPhoneFrame>
+        <p className="mt-6 text-center text-[10px] tracking-[0.22em] uppercase font-mono text-ink-dim max-w-md">
+          Sponsored, in context — between two real feed posts
+        </p>
+      </motion.div>
 
       {/* ============== CONTINUE ============== */}
       <motion.div
@@ -729,6 +628,96 @@ function ReadyState({
         Nothing is published yet — these are drafts only
       </p>
     </motion.div>
+  );
+}
+
+/* ============================================================
+ * Editorial chapter divider — replaces "Section heading"
+ * ============================================================ */
+function ChapterDivider({
+  index,
+  label,
+  sublabel,
+  accent,
+  reduced,
+}: {
+  index: string;
+  label: string;
+  sublabel: string;
+  accent: string;
+  reduced: boolean;
+}) {
+  return (
+    <motion.div
+      initial={reduced ? false : { opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.4 }}
+      transition={{ duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
+      className="w-full mt-24 sm:mt-32 mb-12 sm:mb-16 flex flex-col items-center text-center"
+    >
+      {/* Hairline with bloom */}
+      <div className="relative w-full max-w-[480px] mb-10">
+        <div className="h-px w-full bg-white/10" aria-hidden />
+        <div
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-px pointer-events-none"
+          style={{
+            background: accent,
+            opacity: 0.4,
+            filter: "blur(6px)",
+          }}
+        />
+      </div>
+      <div className="flex items-center gap-4 mb-4">
+        <span
+          className="text-[10px] tracking-[0.32em] uppercase font-mono"
+          style={{ color: accent }}
+        >
+          Act {index}
+        </span>
+        <span
+          className="h-px w-12 inline-block"
+          style={{ background: "rgba(255,255,255,0.15)" }}
+          aria-hidden
+        />
+        <span className="font-serif text-[clamp(1.5rem,2.2vw,1.875rem)] text-ink tracking-tight leading-none">
+          {label}
+        </span>
+      </div>
+      <p className="font-serif italic text-[clamp(0.875rem,1vw,1rem)] text-ink-muted">
+        {sublabel}
+      </p>
+    </motion.div>
+  );
+}
+
+/* ============================================================
+ * iPhone with a slight tilt + label below, for the social lineup
+ * ============================================================ */
+function PhoneInLineup({
+  children,
+  width,
+  glow,
+  label,
+  rotate,
+}: {
+  children: ReactNode;
+  width: number;
+  glow: string;
+  label: string;
+  rotate: number;
+}) {
+  return (
+    <div className="flex flex-col items-center">
+      <div style={{ transform: `rotate(${rotate}deg)`, transformOrigin: "bottom center" }}>
+        <IPhoneFrame width={width} shadowGlow={glow}>
+          {children}
+        </IPhoneFrame>
+      </div>
+      <p className="mt-6 text-[10px] tracking-[0.22em] uppercase font-mono text-ink-dim">
+        {label}
+      </p>
+    </div>
   );
 }
 
