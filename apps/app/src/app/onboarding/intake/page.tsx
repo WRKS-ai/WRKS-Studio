@@ -18,27 +18,28 @@ const INTAKE_KEY = "wrks-onboarding-intake";
 
 type Turn = { question: string; answer: string };
 
-// Per brief Section 2.2 each personality has a distinct tone. Same
-// three dimensions (business, audience, differentiator) — different
-// phrasing.
+// Three dimensions per brief Section 3.1: what you do, who you serve,
+// what makes you different. Each personality phrases the same three
+// questions in their own voice. The answers feed the wow deliverables
+// (landing page, social posts, ad creative).
 const PROMPTS: Record<
   PersonalityId,
   { questions: [string, string, string]; acks: [string, string, string]; closing: string }
 > = {
   maven: {
     questions: [
-      "Your business — what is it?",
-      "Who do you serve?",
-      "Why you, not the rest?",
+      "What's your business?",
+      "Who's it for?",
+      "What's your edge?",
     ],
     acks: ["Logged.", "Got it.", "Noted."],
     closing: "Enough. Building your first deliverables now.",
   },
   sage: {
     questions: [
-      "Tell me about your business — what do you do, and what drew you to it?",
-      "Who are you doing this for? Who do you want to help?",
-      "What makes your approach genuinely different from others in this space?",
+      "Tell me about your business — what do you do?",
+      "And who are you doing this for?",
+      "What makes your approach genuinely different from others doing similar work?",
     ],
     acks: [
       "That's a good place to start.",
@@ -49,9 +50,9 @@ const PROMPTS: Record<
   },
   spark: {
     questions: [
-      "Okay! Tell me about your thing — what do you do?",
+      "Tell me what you do!",
       "Who's it for?",
-      "What makes it yours?",
+      "What makes you the one to do it?",
     ],
     acks: ["Love it.", "Got it!", "Yes — that's the magic."],
     closing: "Yes! Wait til you see what I've got cooking.",
@@ -59,8 +60,8 @@ const PROMPTS: Record<
   echo: {
     questions: [
       "Walk me through what you do.",
-      "Who buys it? Who do you serve?",
-      "What's your edge — what makes you the pick over anyone else?",
+      "And who's buying it?",
+      "What's your edge — what makes you the pick over anyone else doing this?",
     ],
     acks: [
       "Tracking with you.",
