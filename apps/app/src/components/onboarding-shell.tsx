@@ -17,7 +17,7 @@ export function OnboardingShell({
   totalSteps: number;
   stepLabel: string;
   heading: string;
-  subheading?: string;
+  subheading?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
 }) {
