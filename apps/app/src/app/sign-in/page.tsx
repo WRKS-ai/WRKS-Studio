@@ -18,13 +18,14 @@ export default function SignInPage() {
       altCtaHref="/sign-up"
       altCtaLabel="Create an account →"
     >
-      <OAuthRow />
+      <OAuthRow mode="sign-in" />
 
       <div className="my-5">
         <Divider label="or continue with email" />
       </div>
 
       <MagicLinkForm
+        mode="sign-in"
         cta="Sign in with email"
         sentTitle="Check your inbox"
         sentBody="We sent you a magic link. Open it on this device to sign in."

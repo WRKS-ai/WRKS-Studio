@@ -38,13 +38,14 @@ export default function SignUpPage() {
         </span>
       }
     >
-      <OAuthRow />
+      <OAuthRow mode="sign-up" />
 
       <div className="my-5">
         <Divider label="or continue with email" />
       </div>
 
       <MagicLinkForm
+        mode="sign-up"
         cta="Create account"
         sentTitle="One last step"
         sentBody="We sent a confirmation link. Tap it on this device to claim your account."

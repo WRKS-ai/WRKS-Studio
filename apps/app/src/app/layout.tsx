@@ -1,3 +1,4 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
@@ -30,13 +31,29 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+    <ClerkProvider
+      appearance={{
+        variables: {
+          colorPrimary: "#a78bfa",
+          colorBackground: "#08080a",
+          colorInputBackground: "rgba(255,255,255,0.03)",
+          colorInputText: "#f5f5f5",
+          colorText: "#f5f5f5",
+          colorTextSecondary: "#a3a3a3",
+          colorNeutral: "#f5f5f5",
+          fontFamily: "var(--font-geist-sans)",
+          borderRadius: "10px",
+        },
+      }}
     >
-      <body className="min-h-full flex flex-col bg-canvas text-ink">
-        {children}
-      </body>
-    </html>
+      <html
+        lang="en"
+        className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+      >
+        <body className="min-h-full flex flex-col bg-canvas text-ink">
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

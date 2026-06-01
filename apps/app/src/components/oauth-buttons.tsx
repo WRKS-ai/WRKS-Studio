@@ -1,49 +1,79 @@
 "use client";
 
+import { useSignIn, useSignUp } from "@clerk/nextjs";
 import { motion } from "motion/react";
 
+type Mode = "sign-in" | "sign-up";
 type Provider = "google" | "apple";
 
-export function OAuthRow({
-  onGoogle,
-  onApple,
-}: {
-  onGoogle?: () => void;
-  onApple?: () => void;
-}) {
+const APPLE_ENABLED = false; // flip true once we have an Apple Developer account configured in Clerk
+
+export function OAuthRow({ mode }: { mode: Mode }) {
   return (
     <div className="space-y-2.5">
       <OAuthButton
+        mode={mode}
         provider="google"
         label="Continue with Google"
-        onClick={onGoogle}
       />
-      <OAuthButton
-        provider="apple"
-        label="Continue with Apple"
-        onClick={onApple}
-      />
+      {APPLE_ENABLED && (
+        <OAuthButton
+          mode={mode}
+          provider="apple"
+          label="Continue with Apple"
+        />
+      )}
     </div>
   );
 }
 
 export function OAuthButton({
+  mode,
   provider,
   label,
-  onClick,
 }: {
+  mode: Mode;
   provider: Provider;
   label: string;
-  onClick?: () => void;
 }) {
+  const { isLoaded: signInLoaded, signIn } = useSignIn();
+  const { isLoaded: signUpLoaded, signUp } = useSignUp();
+  const isLoaded = mode === "sign-in" ? signInLoaded : signUpLoaded;
+
+  const onClick = async () => {
+    if (!isLoaded) return;
+    const strategy = `oauth_${provider}` as "oauth_google" | "oauth_apple";
+    const redirectUrl = `${window.location.origin}/sso-callback`;
+    const redirectUrlComplete = "/onboarding/personality";
+
+    try {
+      if (mode === "sign-in") {
+        await signIn?.authenticateWithRedirect({
+          strategy,
+          redirectUrl,
+          redirectUrlComplete,
+        });
+      } else {
+        await signUp?.authenticateWithRedirect({
+          strategy,
+          redirectUrl,
+          redirectUrlComplete,
+        });
+      }
+    } catch (err) {
+      console.error(`OAuth ${provider} error:`, err);
+    }
+  };
+
   return (
     <motion.button
       type="button"
       onClick={onClick}
+      disabled={!isLoaded}
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.985 }}
       transition={{ type: "spring", stiffness: 380, damping: 22 }}
-      className="group relative w-full h-11 rounded-[10px] border border-white/[0.10] bg-white/[0.02] hover:border-white/[0.22] hover:bg-white/[0.04] transition-colors text-[14px] font-sans font-medium text-ink flex items-center justify-center gap-2.5"
+      className="group relative w-full h-11 rounded-[10px] border border-white/[0.10] bg-white/[0.02] hover:border-white/[0.22] hover:bg-white/[0.04] transition-colors text-[14px] font-sans font-medium text-ink flex items-center justify-center gap-2.5 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
     >
       <ProviderIcon provider={provider} />
       {label}
