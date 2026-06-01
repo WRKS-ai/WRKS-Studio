@@ -1,9 +1,8 @@
 // Stock photo selection for the wow page previews.
 //
-// Lorem Flickr serves a real, category-matched photo from Flickr based
-// on a tag string. No API key needed. The `lock` seed makes the photo
-// stable across renders (same seed = same photo), so when the user
-// regenerates we get fresh photos but each render is consistent.
+// We use Lorem Flickr (no API key) with search queries that Claude
+// picks per-deliverable. Single-keyword queries work best — Flickr
+// has more photos under each broad tag, and intersections are noisy.
 
 export type WowCategory =
   | "fashion"
@@ -18,46 +17,43 @@ export type WowCategory =
   | "travel"
   | "other";
 
-// Each entry is a Lorem Flickr tag string — comma-separated keywords
-// that bias the photo selection toward the right vibe for that category.
-// We avoid super-narrow tags (which can return zero matches) and stick
-// to broadly-photographed concepts.
-// Single, photogenic tags give Lorem Flickr a tighter, more on-category
-// match than comma-stacked tag intersections. The keyword must be one
-// that Flickr has a lot of well-shot photos under.
-const TAG_SET: Record<WowCategory, string> = {
-  fashion: "clothing",
-  food: "restaurant",
-  fitness: "gym",
-  tech: "macbook",
-  services: "skyscraper",
-  beauty: "skincare",
-  creative: "design",
-  finance: "wallstreet",
-  home: "interior",
-  travel: "hotel",
-  other: "architecture",
-};
+function safeTag(query: string): string {
+  // Normalize: strip non-alphanumeric, collapse to comma-separated tags
+  return query
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 3) // cap to 3 tags max
+    .join(",");
+}
 
-function flickr(category: WowCategory, seed: string, w: number, h: number) {
-  const tags = TAG_SET[category];
+function flickr(query: string, seed: string, w: number, h: number) {
+  const tags = safeTag(query) || "minimal";
   const safeSeed = encodeURIComponent(seed.slice(0, 32));
   return `https://loremflickr.com/${w}/${h}/${encodeURIComponent(tags)}?lock=${safeSeed}`;
 }
 
-// Each preview surface gets its own deterministic seed off (brandName, role)
-// so the same render always returns the same photo, while a different brand
-// or a different role pulls a different one.
-export function photos(category: WowCategory, brandName: string) {
+export type PhotoQueries = {
+  heroQuery: string;
+  instagramQuery: string;
+  adQuery: string;
+};
+
+// Each preview surface gets its own seed off brand+role so the same
+// render is consistent across the page (same render = same photo) but
+// different brands or a regenerate pulls different photos.
+export function photos(brandName: string, queries: PhotoQueries) {
   const base = brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "studio";
   return {
-    heroLandscape: flickr(category, `${base}-hero`, 1200, 600),
+    heroLandscape: flickr(queries.heroQuery, `${base}-hero`, 1200, 600),
     featured: [
-      flickr(category, `${base}-feat-1`, 600, 800),
-      flickr(category, `${base}-feat-2`, 600, 800),
-      flickr(category, `${base}-feat-3`, 600, 800),
+      flickr(queries.heroQuery, `${base}-feat-1`, 600, 800),
+      flickr(queries.heroQuery, `${base}-feat-2`, 600, 800),
+      flickr(queries.heroQuery, `${base}-feat-3`, 600, 800),
     ],
-    instagramSquare: flickr(category, `${base}-ig`, 800, 800),
-    adHero: flickr(category, `${base}-ad`, 1200, 675),
+    instagramSquare: flickr(queries.instagramQuery, `${base}-ig`, 800, 800),
+    adHero: flickr(queries.adQuery, `${base}-ad`, 1200, 675),
   };
 }

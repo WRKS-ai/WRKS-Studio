@@ -27,6 +27,9 @@ const INTAKE_KEY = "wrks-onboarding-intake";
 type WowDeliverables = {
   brandName: string;
   category: WowCategory;
+  heroImageQuery: string;
+  instagramImageQuery: string;
+  adImageQuery: string;
   landing: {
     headline: string;
     subhead: string;
@@ -384,7 +387,11 @@ function ReadyState({
   reduced: boolean;
 }) {
   const brandName = deliverables.brandName;
-  const pix = photos(deliverables.category, brandName);
+  const pix = photos(brandName, {
+    heroQuery: deliverables.heroImageQuery,
+    instagramQuery: deliverables.instagramImageQuery,
+    adQuery: deliverables.adImageQuery,
+  });
   return (
     <motion.div
       initial={reduced ? false : { opacity: 0 }}
@@ -469,7 +476,7 @@ function ReadyState({
         index={1}
         reduced={reduced}
       >
-        <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+        <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 items-start">
           <InstagramPreview
             personality={personality}
             brandName={brandName}

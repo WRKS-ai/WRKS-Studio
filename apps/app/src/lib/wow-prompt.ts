@@ -34,6 +34,21 @@ export const WowDeliverablesSchema = z
       .describe(
         "Pick the closest business category. Used to choose contextually appropriate stock photos in the previews. 'other' only as last resort.",
       ),
+    heroImageQuery: z
+      .string()
+      .describe(
+        "1-3 word stock photo search query for the LANDING PAGE hero photo. Pick a SPECIFIC, photogenic subject for this exact business. Single tags hit denser photo pools and look better than long phrases. Examples: 'fashion editorial' (clothing brand), 'coffee shop' (cafe), 'law library' (lawyer), 'modern office' (consultant), 'gym equipment' (fitness coach), 'minimalist workspace' (software product).",
+      ),
+    instagramImageQuery: z
+      .string()
+      .describe(
+        "1-3 word stock photo search query for the INSTAGRAM post image. Should be more lifestyle / mood / closeup than the landing hero. Examples: 'clothing flatlay', 'latte art', 'law books', 'business meeting', 'yoga mat', 'macbook desk'.",
+      ),
+    adImageQuery: z
+      .string()
+      .describe(
+        "1-3 word stock photo search query for the AD hero photo. Should be eye-catching, scroll-stopping. Examples: 'fashion model', 'restaurant interior', 'courthouse', 'startup team', 'fitness training', 'tech conference'.",
+      ),
     landing: z
       .object({
         headline: z
