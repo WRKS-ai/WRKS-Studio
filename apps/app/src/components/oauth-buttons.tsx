@@ -2,10 +2,11 @@
 
 import { useSignIn, useSignUp } from "@clerk/nextjs";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Mode = "sign-in" | "sign-up";
 type Provider = "google" | "apple";
+type Status = "idle" | "waiting-sdk" | "redirecting" | "error";
 
 const APPLE_ENABLED = false; // flip true once we have an Apple Developer account configured in Clerk
 
@@ -40,67 +41,102 @@ export function OAuthButton({
   const { isLoaded: signInLoaded, signIn } = useSignIn();
   const { isLoaded: signUpLoaded, signUp } = useSignUp();
   const isLoaded = mode === "sign-in" ? signInLoaded : signUpLoaded;
-  const [redirecting, setRedirecting] = useState(false);
 
-  const onClick = async () => {
-    // Clerk SDK still booting — give visual feedback. Re-check 200ms later
-    // so the user doesn't have to click again once it's ready.
-    if (!isLoaded) {
-      setRedirecting(true);
-      const start = Date.now();
-      const poll = setInterval(() => {
-        const ready = mode === "sign-in" ? signInLoaded : signUpLoaded;
-        if (ready || Date.now() - start > 8000) {
-          clearInterval(poll);
-          if (ready) onClick();
-          else setRedirecting(false);
-        }
-      }, 150);
+  const [status, setStatus] = useState<Status>("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const fireRedirect = useCallback(async () => {
+    setStatus("redirecting");
+    setErrorMsg(null);
+
+    const helper = mode === "sign-in" ? signIn : signUp;
+    if (!helper) {
+      setErrorMsg("Auth provider didn't initialise. Refresh the page and try again.");
+      setStatus("error");
       return;
     }
 
-    setRedirecting(true);
     const strategy = `oauth_${provider}` as "oauth_google" | "oauth_apple";
     const redirectUrl = `${window.location.origin}/sso-callback`;
     const redirectUrlComplete = "/onboarding/personality";
 
     try {
-      if (mode === "sign-in") {
-        await signIn?.authenticateWithRedirect({
-          strategy,
-          redirectUrl,
-          redirectUrlComplete,
-        });
-      } else {
-        await signUp?.authenticateWithRedirect({
-          strategy,
-          redirectUrl,
-          redirectUrlComplete,
-        });
-      }
-    } catch (err) {
-      console.error(`OAuth ${provider} error:`, err);
-      setRedirecting(false);
+      await helper.authenticateWithRedirect({
+        strategy,
+        redirectUrl,
+        redirectUrlComplete,
+      });
+      // On success the browser navigates away — anything below won't run.
+    } catch (err: unknown) {
+      const msg = extractClerkError(
+        err,
+        `Couldn't open ${provider === "google" ? "Google" : "Apple"} sign-in. Try again.`,
+      );
+      setErrorMsg(msg);
+      setStatus("error");
     }
+  }, [mode, provider, signIn, signUp]);
+
+  // The fix: when the SDK loads AFTER a queued click, fire the redirect via
+  // a real React effect that re-runs with fresh scope. No polling, no stale
+  // closures.
+  useEffect(() => {
+    if (status === "waiting-sdk" && isLoaded) {
+      void fireRedirect();
+    }
+  }, [status, isLoaded, fireRedirect]);
+
+  const onClick = () => {
+    if (status === "redirecting" || status === "waiting-sdk") return;
+    if (!isLoaded) {
+      setStatus("waiting-sdk");
+      return;
+    }
+    void fireRedirect();
   };
 
-  const showSpinner = !isLoaded || redirecting;
+  const isBusy = status === "waiting-sdk" || status === "redirecting";
 
   return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      disabled={redirecting}
-      aria-busy={redirecting}
-      whileHover={!redirecting ? { y: -1 } : undefined}
-      whileTap={!redirecting ? { scale: 0.985 } : undefined}
-      transition={{ type: "spring", stiffness: 380, damping: 22 }}
-      className="group relative w-full h-11 rounded-[10px] border border-white/[0.10] bg-white/[0.02] hover:border-white/[0.22] hover:bg-white/[0.04] transition-colors text-[14px] font-sans font-medium text-ink flex items-center justify-center gap-2.5 disabled:opacity-80 disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-    >
-      {showSpinner ? <Spinner /> : <ProviderIcon provider={provider} />}
-      {redirecting ? (!isLoaded ? "Loading…" : "Redirecting…") : label}
-    </motion.button>
+    <div>
+      <motion.button
+        type="button"
+        onClick={onClick}
+        disabled={isBusy}
+        aria-busy={isBusy}
+        whileHover={!isBusy ? { y: -1 } : undefined}
+        whileTap={!isBusy ? { scale: 0.985 } : undefined}
+        transition={{ type: "spring", stiffness: 380, damping: 22 }}
+        className="group relative w-full h-11 rounded-[10px] border border-white/[0.10] bg-white/[0.02] hover:border-white/[0.22] hover:bg-white/[0.04] transition-colors text-[14px] font-sans font-medium text-ink flex items-center justify-center gap-2.5 disabled:opacity-80 disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+      >
+        {isBusy ? <Spinner /> : <ProviderIcon provider={provider} />}
+        {status === "waiting-sdk"
+          ? "Loading…"
+          : status === "redirecting"
+            ? "Redirecting…"
+            : label}
+      </motion.button>
+      {status === "error" && errorMsg && (
+        <p
+          role="alert"
+          className="mt-2 text-[12px] text-rose-300/90 font-sans leading-snug"
+        >
+          {errorMsg}
+        </p>
+      )}
+    </div>
   );
+}
+
+function extractClerkError(err: unknown, fallback: string): string {
+  if (typeof err === "object" && err !== null && "errors" in err) {
+    const errors = (err as { errors: Array<{ longMessage?: string; message?: string }> }).errors;
+    if (Array.isArray(errors) && errors.length > 0) {
+      return errors[0]!.longMessage ?? errors[0]!.message ?? fallback;
+    }
+  }
+  if (err instanceof Error) return err.message || fallback;
+  return fallback;
 }
 
 function Spinner() {
