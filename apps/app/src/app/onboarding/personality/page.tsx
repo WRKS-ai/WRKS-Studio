@@ -6,8 +6,8 @@ import { useEffect, useState } from "react";
 import { OnboardingShell } from "@/components/onboarding-shell";
 import {
   PersonalityChip,
-  PersonalityOrb,
-} from "@/components/personality-orb";
+  PersonalityIcon,
+} from "@/components/personality-icon";
 import {
   PERSONALITIES,
   type PersonalityId,
@@ -85,7 +85,7 @@ export default function PersonalityPage() {
     >
       {/* Stage — big orb + name + tagline + sample quote */}
       <div className="flex flex-col items-center text-center min-h-[480px] sm:min-h-[560px]">
-        <PersonalityOrb personality={activeP} />
+        <PersonalityIcon personality={activeP} size="lg" />
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -123,7 +123,7 @@ export default function PersonalityPage() {
               <span
                 aria-hidden
                 className="absolute -left-3 -top-2 font-serif text-[36px] leading-none select-none"
-                style={{ color: activeP.ring, opacity: 0.6 }}
+                style={{ color: activeP.accent, opacity: 0.6 }}
               >
                 &ldquo;
               </span>
@@ -133,7 +133,7 @@ export default function PersonalityPage() {
               <span
                 aria-hidden
                 className="absolute -right-3 -bottom-3 font-serif text-[36px] leading-none select-none"
-                style={{ color: activeP.ring, opacity: 0.6 }}
+                style={{ color: activeP.accent, opacity: 0.6 }}
               >
                 &rdquo;
               </span>

@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { OnboardingShell } from "@/components/onboarding-shell";
-import { PersonalityOrb } from "@/components/personality-orb";
+import { PersonalityIcon } from "@/components/personality-icon";
 import {
   PERSONALITIES,
   type PersonalityId,
@@ -109,7 +109,7 @@ export default function NamePage() {
     >
       <div className="flex flex-col items-center text-center min-h-[420px] sm:min-h-[500px]">
         {/* Small orb with personality's motion */}
-        <PersonalityOrb personality={personality} size="md" />
+        <PersonalityIcon personality={personality} size="md" />
 
         {/* Agent introduces itself */}
         <motion.div
@@ -122,7 +122,7 @@ export default function NamePage() {
             <span
               aria-hidden
               className="text-[18px] mr-1"
-              style={{ color: personality.ring, opacity: 0.7 }}
+              style={{ color: personality.accent, opacity: 0.7 }}
             >
               &ldquo;
             </span>
@@ -130,7 +130,7 @@ export default function NamePage() {
             <span
               aria-hidden
               className="text-[18px] ml-1"
-              style={{ color: personality.ring, opacity: 0.7 }}
+              style={{ color: personality.accent, opacity: 0.7 }}
             >
               &rdquo;
             </span>
@@ -157,13 +157,13 @@ export default function NamePage() {
               spellCheck={false}
               aria-label="Agent name"
               className="w-full bg-transparent border-0 outline-none text-center font-serif font-medium tracking-tight text-[clamp(2.25rem,3.5vw,3rem)] leading-[1.05] text-ink placeholder:text-ink-dim/40 transition-colors pt-2 pb-3"
-              style={{ caretColor: personality.ring }}
+              style={{ caretColor: personality.accent }}
             />
             {/* Underline that brightens with focus + content */}
             <div
               className="h-px transition-all duration-300"
               style={{
-                background: `linear-gradient(to right, transparent 0%, ${trimmed ? personality.ring : "rgba(255,255,255,0.12)"} 50%, transparent 100%)`,
+                background: `linear-gradient(to right, transparent 0%, ${trimmed ? personality.accent : "rgba(255,255,255,0.12)"} 50%, transparent 100%)`,
                 opacity: trimmed ? 0.85 : 0.5,
               }}
             />
@@ -213,7 +213,7 @@ export default function NamePage() {
                         : "rgba(255,255,255,0.02)",
                       border: `1px solid ${
                         isPicked
-                          ? personality.ring
+                          ? personality.accent
                           : "rgba(255,255,255,0.08)"
                       }`,
                       color: isPicked
