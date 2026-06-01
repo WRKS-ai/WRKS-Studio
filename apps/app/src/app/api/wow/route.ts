@@ -7,7 +7,7 @@ import {
   WOW_SYSTEM_PROMPT,
   WowDeliverablesSchema,
 } from "@/lib/wow-prompt";
-import { pexelsSearch } from "@/lib/pexels";
+import { pexelsSearch, pexelsSearchN } from "@/lib/pexels";
 
 // POST /api/wow
 // Takes a user's intake answers (personality, name, business, audience,
@@ -90,61 +90,50 @@ export async function POST(req: Request) {
     const brandSlug =
       deliv.brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "studio";
 
-    // Fetch all six images from Pexels (with Lorem Flickr fallback if no
-    // PEXELS_API_KEY set). In parallel — adds ~200-600ms to the request.
-    const [
-      heroLandscape,
-      featured0,
-      featured1,
-      featured2,
-      instagramSquare,
-      adHero,
-    ] = await Promise.all([
-      pexelsSearch(
+    // Three parallel Pexels calls instead of six:
+    //   - hero + 3 featured tiles all use heroImageQuery → one search,
+    //     slice 4 distinct photos from the result pool (was 4 dup calls)
+    //   - Instagram: its own square query
+    //   - Ad: its own landscape query
+    // The landing right column is portrait-shaped, so the hero photo
+    // is requested in portrait orientation (was landscape, which got
+    // its right side cropped to fit).
+    const [heroAndFeatured, [instagramSquare], [adHero]] = await Promise.all([
+      pexelsSearchN(
         deliv.heroImageQuery,
-        "landscape",
+        "portrait",
+        4,
         `${brandSlug}-hero`,
-        { w: 1200, h: 600 },
-      ),
-      pexelsSearch(
-        deliv.heroImageQuery,
-        "portrait",
-        `${brandSlug}-feat-1`,
         { w: 600, h: 800 },
       ),
-      pexelsSearch(
-        deliv.heroImageQuery,
-        "portrait",
-        `${brandSlug}-feat-2`,
-        { w: 600, h: 800 },
-      ),
-      pexelsSearch(
-        deliv.heroImageQuery,
-        "portrait",
-        `${brandSlug}-feat-3`,
-        { w: 600, h: 800 },
-      ),
-      pexelsSearch(
+      pexelsSearchN(
         deliv.instagramImageQuery,
         "square",
+        1,
         `${brandSlug}-ig`,
         { w: 800, h: 800 },
       ),
-      pexelsSearch(
+      pexelsSearchN(
         deliv.adImageQuery,
         "landscape",
+        1,
         `${brandSlug}-ad`,
         { w: 1200, h: 675 },
       ),
     ]);
 
+    const [heroLandscape, ...featured] = heroAndFeatured;
+
+    // Silence unused-var lint for the convenience wrapper
+    void pexelsSearch;
+
     return NextResponse.json({
       deliverables: deliv,
       images: {
-        heroLandscape,
-        featured: [featured0, featured1, featured2],
-        instagramSquare,
-        adHero,
+        heroLandscape: heroLandscape!,
+        featured,
+        instagramSquare: instagramSquare!,
+        adHero: adHero!,
       },
       usage: {
         input: response.usage.input_tokens,
