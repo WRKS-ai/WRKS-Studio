@@ -33,43 +33,59 @@ export function VoiceCard({
     }
   }, [isPlaying]);
 
-  const togglePlay = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!audioRef.current) {
-      audioRef.current = new Audio(voice.sample);
-      audioRef.current.addEventListener("ended", () => {
-        setState("idle");
-        onPlayChange({ playing: false, voiceId: voice.id });
-      });
-      audioRef.current.addEventListener("error", () => {
-        setState("missing");
-        onPlayChange({ playing: false, voiceId: voice.id });
-      });
-      audioRef.current.addEventListener("loadedmetadata", () => {
-        setDuration(audioRef.current?.duration ?? null);
-      });
-    }
-
-    if (!audioRef.current.paused) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+  const ensureAudio = () => {
+    if (audioRef.current) return audioRef.current;
+    const el = new Audio(voice.sample);
+    el.addEventListener("ended", () => {
       setState("idle");
       onPlayChange({ playing: false, voiceId: voice.id });
-      return;
-    }
+    });
+    el.addEventListener("error", () => {
+      setState("missing");
+      onPlayChange({ playing: false, voiceId: voice.id });
+    });
+    el.addEventListener("loadedmetadata", () => {
+      setDuration(el.duration);
+    });
+    audioRef.current = el;
+    return el;
+  };
 
+  const playFromStart = () => {
+    const el = ensureAudio();
+    el.currentTime = 0;
     setState("loading");
     onPlayChange({ playing: true, voiceId: voice.id });
-    audioRef.current
-      .play()
+    el.play()
       .then(() => setState("playing"))
       .catch((err) => {
-        // Most likely: file 404 (sample not generated yet) or autoplay block
-        if (audioRef.current?.error?.code === 4) setState("missing");
+        if (el.error?.code === 4) setState("missing");
         else setState("error");
         onPlayChange({ playing: false, voiceId: voice.id });
         console.warn(`Voice "${voice.id}" sample failed:`, err);
       });
+  };
+
+  const stop = () => {
+    const el = audioRef.current;
+    if (el) {
+      el.pause();
+      el.currentTime = 0;
+    }
+    setState("idle");
+    onPlayChange({ playing: false, voiceId: voice.id });
+  };
+
+  // Whole-card click: select + play together. If already playing this card,
+  // stop. This collapses the previous "two click targets" confusion — there's
+  // now exactly one obvious interaction.
+  const handleCardClick = () => {
+    onSelect();
+    if (state === "playing" || state === "loading") {
+      stop();
+    } else {
+      playFromStart();
+    }
   };
 
   const cardSelected = selected;
@@ -78,17 +94,21 @@ export function VoiceCard({
     <motion.div
       role="button"
       tabIndex={0}
-      onClick={onSelect}
+      onClick={handleCardClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onSelect();
+          handleCardClick();
         }
       }}
       whileHover={reduced ? undefined : { y: -2 }}
       transition={{ type: "spring", stiffness: 380, damping: 24 }}
       aria-pressed={cardSelected}
-      aria-label={`${voice.name} — ${voice.tagline}`}
+      aria-label={
+        state === "playing"
+          ? `Stop ${voice.name} sample`
+          : `Play ${voice.name} sample — ${voice.tagline}`
+      }
       className="group relative rounded-2xl p-5 sm:p-6 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 transition-colors"
       style={{
         background: cardSelected
@@ -127,12 +147,10 @@ export function VoiceCard({
       )}
 
       <div className="flex items-start gap-4">
-        {/* Play button */}
-        <button
-          type="button"
-          onClick={togglePlay}
-          aria-label={state === "playing" ? `Stop ${voice.name}` : `Play ${voice.name} sample`}
-          className="relative shrink-0 size-12 rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+        {/* Play indicator — visual only; whole card is the click target */}
+        <div
+          aria-hidden
+          className="relative shrink-0 size-12 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 group-active:scale-95"
           style={{
             background: `linear-gradient(135deg, ${voice.accent} 0%, ${voice.accentDeep} 100%)`,
             boxShadow:
@@ -169,7 +187,7 @@ export function VoiceCard({
               ))}
             </>
           )}
-        </button>
+        </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between gap-3">
