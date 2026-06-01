@@ -170,14 +170,39 @@ export default function IntakePage() {
   return (
     <OnboardingShell tint={personality.glow}>
       <div className="w-full max-w-[760px] flex flex-col items-center text-center">
-        {/* Act label */}
+        {/* Step indicator */}
         <motion.div
           initial={reduced ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-          className="text-[10px] tracking-[0.28em] uppercase text-ink-dim font-mono mb-6 sm:mb-8"
+          className="text-[10px] tracking-[0.28em] uppercase text-ink-dim font-mono mb-2"
         >
-          Act Four · Talk to {agentName}
+          Act Four of Four · Talk to {agentName}
+        </motion.div>
+
+        {/* Progress dots */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+          className="flex items-center gap-2 mt-3 mb-8 sm:mb-10"
+        >
+          {[0, 1, 2, 3].map((i) => (
+            <span
+              key={i}
+              className="block rounded-full transition-all duration-300"
+              style={{
+                width: i === 3 ? 26 : 8,
+                height: 3,
+                background:
+                  i < 3
+                    ? personality.accent
+                    : i === 3
+                      ? "rgba(255,255,255,0.65)"
+                      : "rgba(255,255,255,0.18)",
+              }}
+            />
+          ))}
         </motion.div>
 
         {/* Agent presence — small but alive at the top */}
@@ -342,27 +367,12 @@ export default function IntakePage() {
           </motion.div>
         )}
 
-        {/* Progress dots */}
-        <div className="mt-10 flex items-center justify-center gap-1.5">
-          {[0, 1, 2].map((i) => {
-            const done = i < turns.length;
-            const active = i === turns.length && !isDone;
-            return (
-              <div
-                key={i}
-                className="h-[3px] rounded-full transition-all duration-500"
-                style={{
-                  width: active ? 28 : 10,
-                  background: done
-                    ? personality.accent
-                    : active
-                      ? "rgba(255,255,255,0.4)"
-                      : "rgba(255,255,255,0.1)",
-                }}
-              />
-            );
-          })}
-        </div>
+        {/* Question count — text, not dots (act-dots already at top) */}
+        {!isDone && (
+          <p className="mt-10 text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono">
+            Question {Math.min(turns.length + 1, 3)} of 3
+          </p>
+        )}
 
         {/* Inline back + continue */}
         <motion.div

@@ -64,14 +64,39 @@ export default function VoicePage() {
   return (
     <OnboardingShell tint={(selectedVoiceObj ?? personality).glow}>
       <div className="w-full max-w-[820px] flex flex-col items-center text-center">
-        {/* Act label */}
+        {/* Step indicator */}
         <motion.div
           initial={reduced ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-          className="text-[10px] tracking-[0.28em] uppercase text-ink-dim font-mono mb-6 sm:mb-8"
+          className="text-[10px] tracking-[0.28em] uppercase text-ink-dim font-mono mb-2"
         >
-          Act Three · Give {agentName} a voice
+          Act Three of Four · Give {agentName} a voice
+        </motion.div>
+
+        {/* Progress dots */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+          className="flex items-center gap-2 mt-3 mb-8 sm:mb-10"
+        >
+          {[0, 1, 2, 3].map((i) => (
+            <span
+              key={i}
+              className="block rounded-full transition-all duration-300"
+              style={{
+                width: i === 2 ? 26 : 8,
+                height: 3,
+                background:
+                  i < 2
+                    ? personality.accent
+                    : i === 2
+                      ? "rgba(255,255,255,0.65)"
+                      : "rgba(255,255,255,0.18)",
+              }}
+            />
+          ))}
         </motion.div>
 
         {/* Hero heading */}
