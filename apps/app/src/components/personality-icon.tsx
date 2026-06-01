@@ -1,371 +1,550 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import type { Personality } from "@/lib/personalities";
+import { motion, useReducedMotion } from "motion/react";
+import { useMemo } from "react";
+import type { Personality, PersonalityId } from "@/lib/personalities";
 
-type Size = "lg" | "md" | "sm";
+// Atmospheric orbs, not flat icons. Each personality is rendered as a
+// dimensional living sphere — multi-stop radial gradient, internal
+// highlight, halo glow, and motion signature that matches the agent's
+// character. The orb is the agent's presence.
 
-const SIZES: Record<Size, { container: string; svg: number; halo: string; haloBlur: string }> = {
-  lg: { container: "size-[220px] sm:size-[260px]", svg: 220, halo: "size-[400px] sm:size-[480px]", haloBlur: "blur(50px)" },
-  md: { container: "size-[140px] sm:size-[160px]", svg: 140, halo: "size-[280px] sm:size-[320px]", haloBlur: "blur(36px)" },
-  sm: { container: "size-12 sm:size-14", svg: 56, halo: "size-20 sm:size-24", haloBlur: "blur(14px)" },
+export type OrbSize = "xs" | "sm" | "md" | "lg" | "xl";
+
+const SIZE_PX: Record<OrbSize, number> = {
+  xs: 44,
+  sm: 72,
+  md: 130,
+  lg: 220,
+  xl: 300,
 };
 
-/* Big hero glyph. Crossfades when the active personality changes. */
+const HALO_RATIO = 2.3;
+
+function seeded(seed: number) {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => (s = (s * 16807) % 2147483647) / 2147483647;
+}
+
+// Router — picks the right orb per personality.
 export function PersonalityIcon({
   personality,
   size = "lg",
 }: {
   personality: Personality;
-  size?: Size;
+  size?: OrbSize;
 }) {
+  const px = SIZE_PX[size];
+  switch (personality.id) {
+    case "maven":
+      return <MavenOrb px={px} size={size} />;
+    case "sage":
+      return <SageOrb px={px} size={size} />;
+    case "spark":
+      return <SparkOrb px={px} size={size} />;
+    case "echo":
+      return <EchoOrb px={px} size={size} />;
+  }
+}
+
+// `personality.id`-keyed convenience so consumers don't need the full obj
+export function PersonalityOrbById({
+  id,
+  size = "lg",
+}: {
+  id: PersonalityId;
+  size?: OrbSize;
+}) {
+  // We pass a stub Personality because the orbs only use id; but this
+  // signature would only be used internally. Skipping for now.
+  void id;
+  void size;
+  return null;
+}
+
+/* ============================================================
+ * MAVEN — Cobalt-violet sphere. Sharp pulse. Upward sparks.
+ * Direct/Formal/Brief — quick rhythmic beat, focused light.
+ * ============================================================ */
+function MavenOrb({ px, size }: { px: number; size: OrbSize }) {
   const reduced = useReducedMotion();
-  const s = SIZES[size];
+  const showParticles = size !== "xs" && size !== "sm";
+  const particleCount = size === "xl" ? 9 : size === "lg" ? 7 : 5;
+  const particles = useMemo(() => {
+    const rand = seeded(101);
+    return Array.from({ length: particleCount }, (_, i) => ({
+      delay: i * 0.18 + rand() * 0.3,
+      offsetX: -25 + rand() * 50,
+      drift: px * 0.85 + rand() * px * 0.35,
+      duration: 1.4 + rand() * 0.6,
+    }));
+  }, [px, particleCount]);
 
   return (
     <div
-      className={`relative ${s.container} flex items-center justify-center`}
+      className="relative inline-block"
+      style={{ width: px, height: px }}
+      aria-label="Maven"
+      role="img"
     >
-      {/* Soft halo */}
+      {/* Halo — sharp, focused */}
       <motion.div
-        key={`${personality.id}-halo`}
         aria-hidden
-        className={`absolute ${s.halo} rounded-full pointer-events-none`}
+        className="absolute rounded-full pointer-events-none"
         style={{
-          background: `radial-gradient(circle, ${personality.glow} 0%, ${personality.glow.replace(/[\d.]+\)$/, "0.08)")} 35%, transparent 65%)`,
-          filter: s.haloBlur,
+          width: px * HALO_RATIO,
+          height: px * HALO_RATIO,
+          left: (-px * (HALO_RATIO - 1)) / 2,
+          top: (-px * (HALO_RATIO - 1)) / 2,
+          background:
+            "radial-gradient(circle, rgba(167,139,250,0.55) 0%, rgba(109,40,217,0.18) 32%, transparent 62%)",
+          filter: `blur(${Math.max(20, px * 0.16)}px)`,
         }}
-        initial={{ opacity: 0 }}
         animate={
           reduced
-            ? { opacity: personality.motion.intensity * 0.8 }
-            : {
-                opacity: [
-                  personality.motion.intensity * 0.6,
-                  personality.motion.intensity,
-                  personality.motion.intensity * 0.6,
-                ],
-                scale: [0.95, 1.04, 0.95],
-              }
+            ? { opacity: 0.55 }
+            : { opacity: [0.4, 0.72, 0.4], scale: [0.96, 1.05, 0.96] }
         }
-        exit={{ opacity: 0 }}
         transition={{
-          duration: personality.motion.duration * 1.6,
-          repeat: reduced ? 0 : Infinity,
-          ease: "easeInOut",
+          duration: 1.7,
+          repeat: Infinity,
+          ease: [0.32, 0, 0.32, 1],
         }}
       />
 
-      {/* The glyph itself — cross-fade between personalities */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={`${personality.id}-glyph`}
-          initial={reduced ? false : { opacity: 0, scale: 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={reduced ? undefined : { opacity: 0, scale: 1.05 }}
-          transition={{ duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }}
-          className="relative"
-        >
-          <Glyph personality={personality} svgSize={s.svg} reduced={!!reduced} />
-        </motion.div>
-      </AnimatePresence>
+      {/* Sphere — radial gradient with offset highlight light source */}
+      <motion.div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle at 32% 28%, #e7daff 0%, #c4a8ff 12%, #a78bfa 32%, #6d28d9 72%, #2e1065 100%)",
+          boxShadow: [
+            "inset -8px -16px 32px rgba(46,16,101,0.65)",
+            "inset 5px 6px 18px rgba(231,218,255,0.22)",
+            `0 0 ${Math.max(20, px * 0.22)}px rgba(167,139,250,0.4)`,
+          ].join(", "),
+        }}
+        animate={reduced ? undefined : { scale: [1, 1.03, 1] }}
+        transition={{
+          duration: 1.7,
+          repeat: Infinity,
+          ease: [0.32, 0, 0.32, 1],
+        }}
+      />
+
+      {/* Highlight — top-left specular */}
+      <div
+        aria-hidden
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: px * 0.4,
+          height: px * 0.3,
+          left: px * 0.18,
+          top: px * 0.14,
+          background:
+            "radial-gradient(ellipse, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.18) 40%, transparent 75%)",
+          filter: `blur(${Math.max(4, px * 0.04)}px)`,
+        }}
+      />
+
+      {/* Upward sparks */}
+      {showParticles &&
+        !reduced &&
+        particles.map((p, i) => (
+          <motion.span
+            key={i}
+            aria-hidden
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: 2,
+              height: 2,
+              left: `calc(50% + ${p.offsetX}px)`,
+              top: "60%",
+              background: "rgba(216,196,255,1)",
+              boxShadow: "0 0 6px rgba(167,139,250,0.9)",
+            }}
+            initial={{ y: 0, opacity: 0 }}
+            animate={{ y: -p.drift, opacity: [0, 1, 0] }}
+            transition={{
+              duration: p.duration,
+              delay: p.delay,
+              repeat: Infinity,
+              ease: "easeOut",
+            }}
+          />
+        ))}
     </div>
   );
 }
 
-function Glyph({
-  personality,
-  svgSize,
-  reduced,
-}: {
-  personality: Personality;
-  svgSize: number;
-  reduced: boolean;
-}) {
-  switch (personality.iconType) {
-    case "arrow":
-      return <ArrowGlyph personality={personality} svgSize={svgSize} reduced={reduced} />;
-    case "lens":
-      return <LensGlyph personality={personality} svgSize={svgSize} reduced={reduced} />;
-    case "starburst":
-      return <StarburstGlyph personality={personality} svgSize={svgSize} reduced={reduced} />;
-    case "pulse":
-      return <PulseGlyph personality={personality} svgSize={svgSize} reduced={reduced} />;
-  }
-}
-
 /* ============================================================
- * MAVEN — Arrow / Peak
- * Sharp upward kinetic. Quick rhythmic bounce.
+ * SAGE — Emerald nebula. Slow breath. Drifting motes.
+ * Encouraging/Formal/Detailed — patient observer.
  * ============================================================ */
-function ArrowGlyph({
-  personality,
-  svgSize,
-  reduced,
-}: {
-  personality: Personality;
-  svgSize: number;
-  reduced: boolean;
-}) {
-  return (
-    <motion.svg
-      width={svgSize}
-      height={svgSize}
-      viewBox="0 0 100 100"
-      aria-label={`${personality.name} avatar — arrow`}
-      role="img"
-      animate={reduced ? undefined : { y: [0, -3, 0] }}
-      transition={{
-        duration: personality.motion.duration,
-        repeat: Infinity,
-        ease: personality.motion.ease as [number, number, number, number],
-      }}
-    >
-      <defs>
-        <linearGradient id={`mv-grad-${personality.id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={personality.accent} stopOpacity="1" />
-          <stop offset="100%" stopColor={personality.accentDeep} stopOpacity="1" />
-        </linearGradient>
-      </defs>
-      {/* Subtle shadow puck */}
-      <ellipse cx="50" cy="92" rx="22" ry="2.5" fill={personality.accentDeep} opacity="0.35" />
-      {/* Arrow body — peak with thick stem */}
-      <path
-        d="M50 8 L82 50 L66 50 L66 86 L34 86 L34 50 L18 50 Z"
-        fill={`url(#mv-grad-${personality.id})`}
-      />
-      {/* Specular highlight */}
-      <path
-        d="M50 14 L70 40 L62 40 L62 78 L52 78 L52 40 L46 40 Z"
-        fill="white"
-        opacity="0.18"
-      />
-    </motion.svg>
-  );
-}
+function SageOrb({ px, size }: { px: number; size: OrbSize }) {
+  const reduced = useReducedMotion();
+  const showParticles = size !== "xs" && size !== "sm";
+  const particleCount = size === "xl" ? 22 : size === "lg" ? 16 : 10;
+  const particles = useMemo(() => {
+    const rand = seeded(202);
+    return Array.from({ length: particleCount }, (_, i) => {
+      const angle = rand() * Math.PI * 2;
+      const radius = px * 0.55 + rand() * px * 0.5;
+      return {
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius,
+        size: 1 + rand() * 1.4,
+        duration: 5 + rand() * 4,
+        delay: i * 0.3 + rand() * 1,
+        opacity: 0.4 + rand() * 0.4,
+      };
+    });
+  }, [px, particleCount]);
 
-/* ============================================================
- * SAGE — Lens / Open eye
- * Patient observer. Slow blink.
- * ============================================================ */
-function LensGlyph({
-  personality,
-  svgSize,
-  reduced,
-}: {
-  personality: Personality;
-  svgSize: number;
-  reduced: boolean;
-}) {
   return (
-    <svg
-      width={svgSize}
-      height={svgSize}
-      viewBox="0 0 100 100"
-      aria-label={`${personality.name} avatar — lens`}
+    <div
+      className="relative inline-block"
+      style={{ width: px, height: px }}
+      aria-label="Sage"
       role="img"
     >
-      <defs>
-        <radialGradient id={`sg-grad-${personality.id}`} cx="50%" cy="40%" r="55%">
-          <stop offset="0%" stopColor="white" stopOpacity="0.4" />
-          <stop offset="55%" stopColor={personality.accent} stopOpacity="1" />
-          <stop offset="100%" stopColor={personality.accentDeep} stopOpacity="1" />
-        </radialGradient>
-      </defs>
-      {/* Outer lens almond — stroke */}
-      <path
-        d="M8 50 Q50 12, 92 50 Q50 88, 8 50 Z"
-        fill="none"
-        stroke={personality.accent}
-        strokeWidth="2.4"
-        strokeLinejoin="round"
+      {/* Halo — soft, wide */}
+      <motion.div
+        aria-hidden
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: px * HALO_RATIO,
+          height: px * HALO_RATIO,
+          left: (-px * (HALO_RATIO - 1)) / 2,
+          top: (-px * (HALO_RATIO - 1)) / 2,
+          background:
+            "radial-gradient(circle, rgba(52,211,153,0.45) 0%, rgba(4,120,87,0.18) 35%, transparent 65%)",
+          filter: `blur(${Math.max(28, px * 0.22)}px)`,
+        }}
+        animate={
+          reduced
+            ? { opacity: 0.5 }
+            : { opacity: [0.4, 0.6, 0.4], scale: [0.97, 1.03, 0.97] }
+        }
+        transition={{ duration: 5.2, repeat: Infinity, ease: "easeInOut" }}
       />
-      {/* Inner iris */}
-      <motion.circle
-        cx="50"
-        cy="50"
-        r="22"
-        fill={`url(#sg-grad-${personality.id})`}
+
+      {/* Sphere — soft emerald */}
+      <motion.div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle at 36% 30%, #c8f7e3 0%, #6ee7b7 14%, #34d399 35%, #047857 75%, #022c22 100%)",
+          boxShadow: [
+            "inset -8px -16px 32px rgba(2,44,34,0.55)",
+            "inset 6px 7px 22px rgba(200,247,227,0.22)",
+            `0 0 ${Math.max(22, px * 0.24)}px rgba(52,211,153,0.35)`,
+          ].join(", "),
+        }}
+        animate={reduced ? undefined : { scale: [1, 1.018, 1] }}
+        transition={{ duration: 5.2, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Inner iris — slow chromatic shift, like an attentive eye */}
+      <motion.div
+        aria-hidden
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: px * 0.32,
+          height: px * 0.32,
+          left: px * 0.34,
+          top: px * 0.34,
+          background:
+            "radial-gradient(circle, rgba(255,255,255,0.4) 0%, rgba(110,231,183,0.5) 40%, transparent 80%)",
+          filter: `blur(${Math.max(3, px * 0.025)}px)`,
+        }}
         animate={
           reduced
             ? undefined
-            : { scaleY: [1, 1, 0.05, 1, 1] }
+            : { x: [0, px * 0.04, -px * 0.04, 0], y: [0, -px * 0.02, px * 0.02, 0] }
         }
-        style={{ transformOrigin: "50px 50px" }}
-        transition={{
-          duration: personality.motion.duration,
-          repeat: Infinity,
-          times: [0, 0.85, 0.92, 0.97, 1],
-          ease: "easeInOut",
-        }}
+        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
       />
+
       {/* Highlight */}
-      <circle cx="44" cy="44" r="5" fill="white" opacity="0.55" />
-    </svg>
-  );
-}
-
-/* ============================================================
- * SPARK — Starburst
- * Energetic 8-point burst. Gentle rotation + twinkle.
- * ============================================================ */
-function StarburstGlyph({
-  personality,
-  svgSize,
-  reduced,
-}: {
-  personality: Personality;
-  svgSize: number;
-  reduced: boolean;
-}) {
-  return (
-    <motion.svg
-      width={svgSize}
-      height={svgSize}
-      viewBox="0 0 100 100"
-      aria-label={`${personality.name} avatar — starburst`}
-      role="img"
-      animate={reduced ? undefined : { rotate: [0, 8, 0, -8, 0] }}
-      transition={{
-        duration: personality.motion.duration * 2.5,
-        repeat: Infinity,
-        ease: "easeInOut",
-      }}
-    >
-      <defs>
-        <radialGradient id={`sp-grad-${personality.id}`} cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="white" stopOpacity="0.5" />
-          <stop offset="40%" stopColor={personality.accent} stopOpacity="1" />
-          <stop offset="100%" stopColor={personality.accentDeep} stopOpacity="1" />
-        </radialGradient>
-      </defs>
-      <g fill={personality.accent}>
-        {/* 4 long main rays (cardinal directions) */}
-        <path d="M50 5 L54 46 L46 46 Z" />
-        <path d="M50 95 L46 54 L54 54 Z" />
-        <path d="M5 50 L46 46 L46 54 Z" />
-        <path d="M95 50 L54 54 L54 46 Z" />
-        {/* 4 shorter diagonal rays */}
-        <path d="M22 22 L46 44 L44 46 Z" opacity="0.85" />
-        <path d="M78 22 L56 44 L54 46 Z" opacity="0.85" />
-        <path d="M22 78 L46 56 L44 54 Z" opacity="0.85" />
-        <path d="M78 78 L54 54 L56 56 Z" opacity="0.85" />
-      </g>
-      {/* Center bulb */}
-      <motion.circle
-        cx="50"
-        cy="50"
-        r="14"
-        fill={`url(#sp-grad-${personality.id})`}
-        animate={reduced ? undefined : { scale: [1, 1.12, 1] }}
-        style={{ transformOrigin: "50px 50px" }}
-        transition={{
-          duration: personality.motion.duration,
-          repeat: Infinity,
-          ease: personality.motion.ease as [number, number, number, number],
+      <div
+        aria-hidden
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: px * 0.45,
+          height: px * 0.35,
+          left: px * 0.16,
+          top: px * 0.12,
+          background:
+            "radial-gradient(ellipse, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.12) 45%, transparent 75%)",
+          filter: `blur(${Math.max(5, px * 0.05)}px)`,
         }}
       />
-    </motion.svg>
+
+      {/* Drifting motes — many, slow, ambient */}
+      {showParticles &&
+        !reduced &&
+        particles.map((p, i) => (
+          <motion.span
+            key={i}
+            aria-hidden
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: p.size,
+              height: p.size,
+              left: `calc(50% + ${p.x}px)`,
+              top: `calc(50% + ${p.y}px)`,
+              background: "rgba(167,243,208,0.85)",
+              boxShadow: "0 0 4px rgba(52,211,153,0.6)",
+            }}
+            animate={{
+              opacity: [0, p.opacity, 0],
+              x: [0, 6, -3, 0],
+              y: [0, -6, 3, 0],
+            }}
+            transition={{
+              duration: p.duration,
+              delay: p.delay,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        ))}
+    </div>
   );
 }
 
 /* ============================================================
- * ECHO — Concentric pulses
- * Layered rhythmic resonance.
+ * SPARK — Rose corona. Warm flicker. Outward bursts.
+ * Encouraging/Casual/Brief — friendly, energetic, flame-like.
  * ============================================================ */
-function PulseGlyph({
-  personality,
-  svgSize,
-  reduced,
-}: {
-  personality: Personality;
-  svgSize: number;
-  reduced: boolean;
-}) {
+function SparkOrb({ px, size }: { px: number; size: OrbSize }) {
+  const reduced = useReducedMotion();
+  const showParticles = size !== "xs" && size !== "sm";
+  const particleCount = size === "xl" ? 14 : size === "lg" ? 10 : 7;
+  const particles = useMemo(() => {
+    const rand = seeded(303);
+    return Array.from({ length: particleCount }, (_, i) => {
+      const angle = (i / particleCount) * Math.PI * 2 + rand() * 0.4;
+      const distance = px * 0.7 + rand() * px * 0.4;
+      return {
+        angle,
+        distance,
+        size: 1.5 + rand() * 1.2,
+        delay: i * 0.15 + rand() * 0.3,
+        duration: 1.8 + rand() * 0.6,
+      };
+    });
+  }, [px, particleCount]);
+
   return (
-    <svg
-      width={svgSize}
-      height={svgSize}
-      viewBox="0 0 100 100"
-      aria-label={`${personality.name} avatar — pulse`}
+    <div
+      className="relative inline-block"
+      style={{ width: px, height: px }}
+      aria-label="Spark"
       role="img"
     >
-      <defs>
-        <radialGradient id={`ec-grad-${personality.id}`} cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="white" stopOpacity="0.55" />
-          <stop offset="50%" stopColor={personality.accent} stopOpacity="1" />
-          <stop offset="100%" stopColor={personality.accentDeep} stopOpacity="1" />
-        </radialGradient>
-      </defs>
-      {/* Outer 3 pulse rings — emanating */}
-      {[0, 1, 2].map((i) => (
-        <motion.circle
-          key={i}
-          cx="50"
-          cy="50"
-          r="14"
-          fill="none"
-          stroke={personality.accent}
-          strokeWidth="2"
-          initial={{ opacity: 0, scale: 1 }}
-          animate={reduced ? { opacity: 0.45 } : { opacity: [0.7, 0, 0.7], scale: [1, 3.2, 1] }}
-          style={{ transformOrigin: "50px 50px" }}
-          transition={{
-            duration: personality.motion.duration,
-            repeat: Infinity,
-            delay: i * personality.motion.delay,
-            ease: "easeOut",
-          }}
-        />
-      ))}
-      {/* Central solid orb */}
-      <circle cx="50" cy="50" r="14" fill={`url(#ec-grad-${personality.id})`} />
-      {/* Specular highlight */}
-      <circle cx="46" cy="46" r="3" fill="white" opacity="0.7" />
-    </svg>
+      {/* Halo — warm, irregular flicker */}
+      <motion.div
+        aria-hidden
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: px * HALO_RATIO,
+          height: px * HALO_RATIO,
+          left: (-px * (HALO_RATIO - 1)) / 2,
+          top: (-px * (HALO_RATIO - 1)) / 2,
+          background:
+            "radial-gradient(circle, rgba(244,114,182,0.55) 0%, rgba(190,24,93,0.2) 35%, transparent 64%)",
+          filter: `blur(${Math.max(24, px * 0.2)}px)`,
+        }}
+        animate={
+          reduced
+            ? { opacity: 0.65 }
+            : { opacity: [0.5, 0.85, 0.55, 0.75, 0.5], scale: [0.97, 1.06, 0.99, 1.04, 0.97] }
+        }
+        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Sphere — warm rose with bright core */}
+      <motion.div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle at 38% 32%, #ffe4f1 0%, #fbcfe8 12%, #f472b6 32%, #be185d 72%, #500724 100%)",
+          boxShadow: [
+            "inset -8px -16px 32px rgba(80,7,36,0.55)",
+            "inset 6px 7px 22px rgba(255,228,241,0.3)",
+            `0 0 ${Math.max(22, px * 0.24)}px rgba(244,114,182,0.45)`,
+          ].join(", "),
+        }}
+        animate={
+          reduced
+            ? undefined
+            : { scale: [1, 1.045, 0.985, 1.025, 1] }
+        }
+        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Highlight — bright, sparky */}
+      <div
+        aria-hidden
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: px * 0.38,
+          height: px * 0.3,
+          left: px * 0.2,
+          top: px * 0.14,
+          background:
+            "radial-gradient(ellipse, rgba(255,255,255,0.7) 0%, rgba(255,228,241,0.25) 40%, transparent 75%)",
+          filter: `blur(${Math.max(4, px * 0.04)}px)`,
+        }}
+      />
+
+      {/* Outward bursts — radial sparks */}
+      {showParticles &&
+        !reduced &&
+        particles.map((p, i) => {
+          const x = Math.cos(p.angle) * p.distance;
+          const y = Math.sin(p.angle) * p.distance;
+          return (
+            <motion.span
+              key={i}
+              aria-hidden
+              className="absolute rounded-full pointer-events-none"
+              style={{
+                width: p.size,
+                height: p.size,
+                left: "50%",
+                top: "50%",
+                background: "rgba(255,228,241,0.95)",
+                boxShadow: "0 0 6px rgba(244,114,182,0.9)",
+              }}
+              initial={{ x: 0, y: 0, opacity: 0 }}
+              animate={{ x: [0, x], y: [0, y], opacity: [0, 1, 0] }}
+              transition={{
+                duration: p.duration,
+                delay: p.delay,
+                repeat: Infinity,
+                ease: "easeOut",
+              }}
+            />
+          );
+        })}
+    </div>
   );
 }
 
 /* ============================================================
- * Chip — mini selector with the same icon, smaller
+ * ECHO — Cobalt sonar. Steady ripples. Layered resonance.
+ * Direct/Casual/Detailed — shows the work as it goes.
  * ============================================================ */
-export function PersonalityChip({
-  personality,
-  selected,
-  onSelect,
-}: {
-  personality: Personality;
-  selected: boolean;
-  onSelect: () => void;
-}) {
+function EchoOrb({ px, size }: { px: number; size: OrbSize }) {
   const reduced = useReducedMotion();
+  const showRings = size !== "xs";
+  const ringCount = 3;
+
   return (
-    <motion.button
-      type="button"
-      onClick={onSelect}
-      whileHover={reduced ? undefined : { y: -2 }}
-      whileTap={{ scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 380, damping: 24 }}
-      className="group relative flex flex-col items-center gap-2.5 px-3 py-3 sm:px-4 sm:py-4 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 transition-colors"
-      style={{
-        background: selected ? "rgba(255,255,255,0.04)" : "transparent",
-        border: `1px solid ${selected ? personality.accent : "transparent"}`,
-      }}
-      aria-pressed={selected}
-      aria-label={`Select ${personality.name}`}
+    <div
+      className="relative inline-block"
+      style={{ width: px, height: px }}
+      aria-label="Echo"
+      role="img"
     >
-      <div className="relative">
-        <PersonalityIcon personality={personality} size="sm" />
-      </div>
-      <span
-        className="font-sans text-[12px] tracking-[0.04em] transition-colors duration-200"
+      {/* Halo — deep cobalt glow */}
+      <motion.div
+        aria-hidden
+        className="absolute rounded-full pointer-events-none"
         style={{
-          color: selected ? "rgb(243 244 246)" : "rgba(255,255,255,0.45)",
-          fontWeight: selected ? 600 : 500,
+          width: px * HALO_RATIO,
+          height: px * HALO_RATIO,
+          left: (-px * (HALO_RATIO - 1)) / 2,
+          top: (-px * (HALO_RATIO - 1)) / 2,
+          background:
+            "radial-gradient(circle, rgba(96,165,250,0.4) 0%, rgba(30,64,175,0.18) 35%, transparent 62%)",
+          filter: `blur(${Math.max(28, px * 0.22)}px)`,
         }}
-      >
-        {personality.name}
-      </span>
-    </motion.button>
+        animate={
+          reduced
+            ? { opacity: 0.5 }
+            : { opacity: [0.4, 0.6, 0.4] }
+        }
+        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Concentric sonar rings — the personality's signature */}
+      {showRings &&
+        !reduced &&
+        Array.from({ length: ringCount }).map((_, i) => (
+          <motion.span
+            key={i}
+            aria-hidden
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              left: "50%",
+              top: "50%",
+              width: px,
+              height: px,
+              marginLeft: -px / 2,
+              marginTop: -px / 2,
+              border: "1.5px solid rgba(96,165,250,0.6)",
+            }}
+            initial={{ scale: 1, opacity: 0 }}
+            animate={{ scale: [1, 1.85], opacity: [0.75, 0] }}
+            transition={{
+              duration: 3,
+              delay: i * 1,
+              repeat: Infinity,
+              ease: "easeOut",
+            }}
+          />
+        ))}
+
+      {/* Sphere — deep, steady */}
+      <motion.div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle at 36% 30%, #dbeafe 0%, #93c5fd 14%, #60a5fa 34%, #1e40af 75%, #0c1f4d 100%)",
+          boxShadow: [
+            "inset -8px -16px 32px rgba(12,31,77,0.6)",
+            "inset 6px 7px 22px rgba(219,234,254,0.22)",
+            `0 0 ${Math.max(20, px * 0.2)}px rgba(96,165,250,0.4)`,
+          ].join(", "),
+        }}
+        animate={reduced ? undefined : { scale: [1, 1.025, 1] }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Highlight */}
+      <div
+        aria-hidden
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: px * 0.42,
+          height: px * 0.32,
+          left: px * 0.18,
+          top: px * 0.14,
+          background:
+            "radial-gradient(ellipse, rgba(255,255,255,0.5) 0%, rgba(219,234,254,0.18) 42%, transparent 75%)",
+          filter: `blur(${Math.max(5, px * 0.045)}px)`,
+        }}
+      />
+
+      {/* Center dot — a small brighter core */}
+      <div
+        aria-hidden
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: Math.max(3, px * 0.06),
+          height: Math.max(3, px * 0.06),
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          background: "rgba(219,234,254,0.85)",
+          boxShadow: "0 0 8px rgba(96,165,250,0.9)",
+        }}
+      />
+    </div>
   );
 }

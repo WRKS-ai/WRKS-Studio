@@ -102,14 +102,14 @@ export default function NamePage() {
           They&rsquo;ll answer to anything. Pick something you&rsquo;d love to say out loud.
         </motion.p>
 
-        {/* Personality icon — the agent waiting to be named */}
+        {/* Personality orb — the agent waiting to be named */}
         <motion.div
-          initial={reduced ? false : { opacity: 0, scale: 0.92 }}
+          initial={reduced ? false : { opacity: 0, scale: 0.88 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.7, duration: 0.8, ease: [0.2, 0.7, 0.2, 1] }}
-          className="mt-10 sm:mt-14"
+          transition={{ delay: 0.7, duration: 0.9, ease: [0.2, 0.7, 0.2, 1] }}
+          className="mt-12 sm:mt-16"
         >
-          <PersonalityIcon personality={personality} size="md" />
+          <PersonalityIcon personality={personality} size="lg" />
         </motion.div>
 
         {/* Hero-scale name input — no card, no border, just an underline */}
