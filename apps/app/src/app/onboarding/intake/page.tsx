@@ -15,11 +15,13 @@ const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
 const VOICE_KEY = "wrks-onboarding-voice";
 const INTAKE_KEY = "wrks-onboarding-intake";
+const PLAY_INTRO_KEY = "wrks-onboarding-play-intro";
 
 type Turn = { question: string; answer: string };
 
-// Per brief Section 2.2 each personality has a distinct tone. Same three
-// dimensions (business, audience, differentiator) — different phrasing.
+// Per brief Section 2.2 each personality has a distinct tone. Same
+// three dimensions (business, audience, differentiator) — different
+// phrasing.
 const PROMPTS: Record<
   PersonalityId,
   { questions: [string, string, string]; acks: [string, string, string]; closing: string }
@@ -80,7 +82,6 @@ export default function IntakePage() {
   const [thinking, setThinking] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Hydrate from previous steps — bounce back if any are missing.
   useEffect(() => {
     const p = localStorage.getItem(PERSONALITY_KEY) as PersonalityId | null;
     if (!p || !PERSONALITIES.some((x) => x.id === p)) {
@@ -99,12 +100,26 @@ export default function IntakePage() {
     }
     setPersonalityId(p);
     setAgentName(n);
+
+    // Wow handoff — play the agent intro once, in their chosen voice.
+    const playIntroId = sessionStorage.getItem(PLAY_INTRO_KEY) as VoiceId | null;
+    if (playIntroId && VOICES.some((x) => x.id === playIntroId)) {
+      sessionStorage.removeItem(PLAY_INTRO_KEY);
+      const voice = VOICES.find((x) => x.id === playIntroId)!;
+      // Small delay so it lines up with the heading entrance
+      setTimeout(() => {
+        const el = new Audio(voice.sample);
+        el.volume = 0.85;
+        el.play().catch(() => {
+          // Autoplay blocked — silent fail, not critical
+        });
+      }, 700);
+    }
   }, [router]);
 
-  // Refocus composer after each agent "thinking" pause.
   useEffect(() => {
     if (personalityId && !thinking) {
-      const t = setTimeout(() => textareaRef.current?.focus(), 280);
+      const t = setTimeout(() => textareaRef.current?.focus(), 400);
       return () => clearTimeout(t);
     }
   }, [personalityId, turns.length, thinking]);
@@ -153,134 +168,132 @@ export default function IntakePage() {
   };
 
   return (
-    <OnboardingShell
-      step={4}
-      totalSteps={4}
-      stepLabel={`Step 4 · Talk to ${agentName}`}
-      heading={`Talk to ${agentName}.`}
-      subheading={`Three questions in your own words. By the end you'll see what ${agentName} can make for your business.`}
-      footer={
-        <>
-          <button
-            type="button"
-            onClick={() => router.push("/onboarding/voice")}
-            className="text-[12px] text-ink-dim hover:text-ink-muted transition-colors font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-[6px] px-1 py-0.5 -mx-1"
-          >
-            ← Back
-          </button>
-          <motion.button
-            type="button"
-            onClick={onContinue}
-            disabled={!isDone}
-            whileHover={isDone ? { x: 2 } : undefined}
-            whileTap={isDone ? { scale: 0.98 } : undefined}
-            transition={{ type: "spring", stiffness: 380, damping: 22 }}
-            className="h-11 px-5 rounded-[10px] bg-ink text-canvas text-[14px] font-sans font-semibold inline-flex items-center gap-2 transition-all hover:bg-white disabled:bg-white/[0.08] disabled:text-ink-dim disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-          >
-            {isDone ? "Show me what you've made" : `${turns.length} of 3 answered`}
-            <span aria-hidden>→</span>
-          </motion.button>
-        </>
-      }
-    >
-      {/* Agent presence — matches the voice step's anchor */}
-      <div className="flex flex-col items-center text-center mb-8 sm:mb-10">
-        <PersonalityIcon personality={personality} size="sm" />
-        <div className="mt-3 text-[11px] tracking-[0.22em] uppercase text-ink-dim font-mono">
-          {personality.name} · {agentName}
-        </div>
-      </div>
+    <OnboardingShell tint={personality.glow}>
+      <div className="w-full max-w-[760px] flex flex-col items-center text-center">
+        {/* Act label */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+          className="text-[10px] tracking-[0.28em] uppercase text-ink-dim font-mono mb-6 sm:mb-8"
+        >
+          Act Four · Talk to {agentName}
+        </motion.div>
 
-      {/* History — small, dim, scrollable as it grows */}
-      {turns.length > 0 && (
-        <div className="mb-8 sm:mb-10 max-w-[640px] mx-auto flex flex-col gap-5">
-          <AnimatePresence initial={false}>
-            {turns.map((t, i) => (
+        {/* Agent presence — small but alive at the top */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0, scale: 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
+          className="flex flex-col items-center"
+        >
+          <PersonalityIcon personality={personality} size="sm" />
+          <div className="mt-3 font-serif italic text-[14px] text-ink-muted">
+            {agentName} <span className="text-ink-dim">·</span> {personality.name}
+          </div>
+        </motion.div>
+
+        {/* History — small, dim, above the current question */}
+        {turns.length > 0 && (
+          <div className="mt-10 sm:mt-12 w-full max-w-[640px] flex flex-col gap-6 text-left">
+            <AnimatePresence initial={false}>
+              {turns.map((t, i) => (
+                <motion.div
+                  key={i}
+                  initial={reduced ? false : { opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
+                  className="space-y-1.5"
+                >
+                  <p className="text-[11px] tracking-[0.18em] uppercase text-ink-dim font-mono">
+                    {agentName} asked
+                  </p>
+                  <p className="font-serif italic text-[15px] text-ink-muted leading-snug">
+                    {t.question}
+                  </p>
+                  <p className="font-serif text-[16px] text-ink/90 leading-relaxed pt-1">
+                    {t.answer}
+                  </p>
+                  {(i < turns.length - 1 || !thinking) && (
+                    <motion.p
+                      initial={reduced ? false : { opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.15, duration: 0.4 }}
+                      className="font-serif italic text-[13px] pt-1"
+                      style={{ color: personality.accent }}
+                    >
+                      {prompts.acks[i]}
+                    </motion.p>
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* Current question or closing — hero scale, blur-in */}
+        <div className="mt-10 sm:mt-14 w-full">
+          <AnimatePresence mode="wait">
+            {thinking ? (
               <motion.div
-                key={i}
-                initial={reduced ? false : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
-                className="space-y-2"
+                key="typing"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-center justify-center gap-2 h-[80px]"
+                aria-live="polite"
+                aria-label={`${agentName} is thinking`}
               >
-                <p className="text-[12px] text-ink-dim font-sans italic">
-                  {t.question}
-                </p>
-                <p className="text-[14px] text-ink-muted font-serif leading-relaxed">
-                  {t.answer}
-                </p>
-                {/* Acknowledgement appears once the agent has "thought" */}
-                {(i < turns.length - 1 || (i === turns.length - 1 && !thinking)) && (
-                  <motion.p
-                    initial={reduced ? false : { opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.15, duration: 0.4 }}
-                    className="text-[12px] font-sans italic"
-                    style={{ color: personality.accent }}
-                  >
-                    {prompts.acks[i]}
-                  </motion.p>
-                )}
+                {[0, 1, 2].map((i) => (
+                  <motion.span
+                    key={i}
+                    className="size-2 rounded-full"
+                    style={{ background: personality.accent }}
+                    animate={
+                      reduced
+                        ? { opacity: 0.6 }
+                        : { opacity: [0.3, 1, 0.3], y: [0, -4, 0] }
+                    }
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      delay: i * 0.18,
+                      ease: "easeInOut",
+                    }}
+                  />
+                ))}
               </motion.div>
-            ))}
+            ) : (
+              <motion.h2
+                key={`q-${currentIndex}`}
+                initial={
+                  reduced
+                    ? false
+                    : { opacity: 0, y: 14, filter: "blur(8px)" }
+                }
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={
+                  reduced
+                    ? undefined
+                    : { opacity: 0, y: -8, filter: "blur(6px)" }
+                }
+                transition={{ duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
+                className="font-serif font-medium tracking-tight text-[clamp(1.75rem,3.4vw,2.625rem)] leading-[1.08] text-ink max-w-[20ch] mx-auto"
+              >
+                {currentQuestion}
+              </motion.h2>
+            )}
           </AnimatePresence>
         </div>
-      )}
 
-      {/* Current question — or thinking dots — or closing line */}
-      <div className="max-w-[640px] mx-auto">
-        <AnimatePresence mode="wait">
-          {thinking ? (
-            <motion.div
-              key="typing"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="flex items-center gap-2 h-[60px]"
-              aria-live="polite"
-              aria-label={`${agentName} is thinking`}
-            >
-              {[0, 1, 2].map((i) => (
-                <motion.span
-                  key={i}
-                  className="size-2 rounded-full"
-                  style={{ background: personality.accent }}
-                  animate={
-                    reduced
-                      ? { opacity: 0.6 }
-                      : { opacity: [0.3, 1, 0.3], y: [0, -3, 0] }
-                  }
-                  transition={{
-                    duration: 1,
-                    repeat: Infinity,
-                    delay: i * 0.18,
-                    ease: "easeInOut",
-                  }}
-                />
-              ))}
-            </motion.div>
-          ) : (
-            <motion.h2
-              key={`q-${currentIndex}`}
-              initial={reduced ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduced ? undefined : { opacity: 0, y: -4 }}
-              transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
-              className="font-serif font-medium tracking-tight text-[clamp(1.4rem,2.2vw,1.85rem)] leading-snug text-ink"
-            >
-              {currentQuestion}
-            </motion.h2>
-          )}
-        </AnimatePresence>
-
-        {/* Composer — hidden once intake is complete */}
+        {/* Composer — no card, no border. Just text on the stage. */}
         {!isDone && (
           <motion.div
-            initial={reduced ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: thinking ? 0.4 : 1, y: 0 }}
-            transition={{ duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }}
-            className="mt-6 relative"
+            initial={reduced ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: thinking ? 0.3 : 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+            className="mt-8 sm:mt-10 w-full max-w-[640px] relative"
           >
             <textarea
               ref={textareaRef}
@@ -291,54 +304,55 @@ export default function IntakePage() {
               rows={3}
               placeholder="Type as much or as little as you like…"
               aria-label="Your answer"
-              className="w-full resize-none rounded-2xl px-4 py-3.5 pr-14 bg-white/[0.03] border border-white/[0.07] text-ink text-[15px] font-sans leading-relaxed placeholder:text-ink-dim/60 outline-none transition-colors focus:border-white/15 focus:bg-white/[0.04] disabled:opacity-50"
+              className="w-full resize-none bg-transparent border-0 outline-none text-center font-serif text-[clamp(1.0625rem,1.4vw,1.25rem)] text-ink leading-relaxed placeholder:text-ink-dim/45 placeholder:italic disabled:opacity-50 pt-2 pb-4"
               style={{ caretColor: personality.accent }}
             />
-            <button
-              type="button"
-              onClick={() => void onSend()}
-              disabled={!canSend}
-              aria-label="Send answer"
-              className="absolute right-3 bottom-3 size-9 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+            <div
+              className="h-px transition-all duration-500"
               style={{
-                background: canSend
-                  ? `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`
-                  : "rgba(255,255,255,0.06)",
-                boxShadow: canSend
-                  ? `0 6px 16px -6px ${personality.glow}`
-                  : "none",
+                background: `linear-gradient(to right, transparent 0%, ${trimmedAnswer ? personality.accent : "rgba(255,255,255,0.15)"} 50%, transparent 100%)`,
+                opacity: trimmedAnswer ? 0.9 : 0.4,
+                transform: trimmedAnswer ? "scaleX(1)" : "scaleX(0.7)",
+                transformOrigin: "center",
               }}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden
-              >
-                <path
-                  d="M5 12l14 0M13 6l6 6-6 6"
-                  stroke={canSend ? "white" : "rgba(255,255,255,0.5)"}
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
+            />
+
+            {/* Send hint — subtle, replaces the chunky button */}
+            <div className="mt-4 flex items-center justify-center gap-4 h-6">
+              {canSend ? (
+                <motion.button
+                  type="button"
+                  onClick={() => void onSend()}
+                  initial={reduced ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  whileHover={reduced ? undefined : { x: 3 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="group inline-flex items-center gap-2.5 text-[12px] tracking-[0.18em] uppercase font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md px-1.5 py-1"
+                  style={{ color: personality.accent }}
+                >
+                  <span>Send</span>
+                  <span aria-hidden>↵</span>
+                </motion.button>
+              ) : (
+                <span className="text-[10px] tracking-[0.18em] uppercase text-ink-dim font-mono">
+                  Press Enter to send · Shift + Enter for a new line
+                </span>
+              )}
+            </div>
           </motion.div>
         )}
 
         {/* Progress dots */}
-        <div className="mt-8 flex items-center justify-center gap-1.5">
+        <div className="mt-10 flex items-center justify-center gap-1.5">
           {[0, 1, 2].map((i) => {
             const done = i < turns.length;
             const active = i === turns.length && !isDone;
             return (
               <div
                 key={i}
-                className="h-1 rounded-full transition-all duration-300"
+                className="h-[3px] rounded-full transition-all duration-500"
                 style={{
-                  width: active ? 24 : 8,
+                  width: active ? 28 : 10,
                   background: done
                     ? personality.accent
                     : active
@@ -350,17 +364,45 @@ export default function IntakePage() {
           })}
         </div>
 
-        {/* Hint, only at the very start */}
-        {turns.length === 0 && !thinking && (
-          <motion.p
-            initial={reduced ? false : { opacity: 0 }}
-            animate={{ opacity: 0.6 }}
-            transition={{ delay: 0.7, duration: 0.6 }}
-            className="mt-5 text-center text-[11px] tracking-[0.18em] uppercase text-ink-dim font-mono"
+        {/* Inline back + continue */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8, duration: 0.6 }}
+          className="mt-10 sm:mt-12 h-12 flex items-center justify-center gap-8"
+        >
+          <button
+            type="button"
+            onClick={() => router.push("/onboarding/voice")}
+            className="text-[12px] tracking-[0.18em] uppercase text-ink-dim hover:text-ink-muted transition-colors font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md px-1.5 py-1"
           >
-            Press Enter to send · Shift + Enter for a new line
-          </motion.p>
-        )}
+            ← Back
+          </button>
+          {isDone && (
+            <motion.button
+              type="button"
+              onClick={onContinue}
+              initial={reduced ? false : { opacity: 0, x: -4 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.35, ease: [0.2, 0.7, 0.2, 1] }}
+              whileHover={reduced ? undefined : { x: 4 }}
+              whileTap={{ scale: 0.98 }}
+              className="group inline-flex items-center gap-3 font-serif text-[clamp(1.125rem,1.6vw,1.375rem)] text-ink hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md px-2 py-1"
+            >
+              <span>
+                Show me what you&rsquo;ve{" "}
+                <span style={{ color: personality.accent }}>made</span>
+              </span>
+              <motion.span
+                aria-hidden
+                animate={reduced ? undefined : { x: [0, 3, 0] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+              >
+                →
+              </motion.span>
+            </motion.button>
+          )}
+        </motion.div>
       </div>
     </OnboardingShell>
   );

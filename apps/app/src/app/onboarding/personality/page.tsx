@@ -1,13 +1,10 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { OnboardingShell } from "@/components/onboarding-shell";
-import {
-  PersonalityChip,
-  PersonalityIcon,
-} from "@/components/personality-icon";
+import { PersonalityIcon } from "@/components/personality-icon";
 import {
   PERSONALITIES,
   type PersonalityId,
@@ -16,11 +13,12 @@ import {
 const STORAGE_KEY = "wrks-onboarding-personality";
 const DEFAULT_ID: PersonalityId = "sage";
 
+const HEADING = ["Pick", "the", "one", "that", "feels", "right."];
+
 export default function PersonalityPage() {
   const router = useRouter();
-  // What's currently on stage (always shows a personality — defaults to one)
+  const reduced = useReducedMotion();
   const [active, setActive] = useState<PersonalityId>(DEFAULT_ID);
-  // Whether the user has actually committed to a pick (vs just previewing)
   const [committed, setCommitted] = useState<PersonalityId | null>(null);
 
   useEffect(() => {
@@ -43,127 +41,169 @@ export default function PersonalityPage() {
   };
 
   const activeP = PERSONALITIES.find((p) => p.id === active)!;
-  const isCommitted = committed === active;
 
   return (
-    <OnboardingShell
-      step={1}
-      totalSteps={4}
-      stepLabel="Step 1 · Meet your agent"
-      heading="Pick the one that feels right."
-      subheading="Each personality talks, decides, and shows up differently. Your agent will adapt to how you actually work — but this is who they are at heart."
-      footer={
-        <>
-          <div className="text-[12px] text-ink-dim font-sans">
-            {committed ? (
-              <span>
-                Going with{" "}
-                <span className="text-ink">
-                  {
-                    PERSONALITIES.find((p) => p.id === committed)?.name
-                  }
-                </span>
-              </span>
-            ) : (
-              <span>Tap one to meet them</span>
-            )}
-          </div>
-          <motion.button
-            type="button"
-            onClick={onContinue}
-            disabled={!committed}
-            whileHover={committed ? { x: 2 } : undefined}
-            whileTap={committed ? { scale: 0.98 } : undefined}
-            transition={{ type: "spring", stiffness: 380, damping: 22 }}
-            className="h-11 px-5 rounded-[10px] bg-ink text-canvas text-[14px] font-sans font-semibold inline-flex items-center gap-2 transition-all hover:bg-white disabled:bg-white/[0.08] disabled:text-ink-dim disabled:cursor-not-allowed"
-          >
-            Continue
-            <span aria-hidden>→</span>
-          </motion.button>
-        </>
-      }
-    >
-      {/* Stage — big orb + name + tagline + sample quote */}
-      <div className="flex flex-col items-center text-center min-h-[480px] sm:min-h-[560px]">
-        <PersonalityIcon personality={activeP} size="lg" />
+    <OnboardingShell tint={activeP.glow}>
+      <div className="w-full max-w-[1100px] flex flex-col items-center text-center">
+        {/* Act label — tiny, ambient, not a progress bar */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+          className="text-[10px] tracking-[0.28em] uppercase text-ink-dim font-mono mb-6 sm:mb-8"
+        >
+          Act One · Meet your agent
+        </motion.div>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeP.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
-            className="mt-4 max-w-[440px]"
-          >
-            <h2 className="font-serif font-medium tracking-tight text-[clamp(2.25rem,3vw,2.75rem)] leading-[1.02] text-ink">
-              {activeP.name}
-            </h2>
-            <p className="mt-2 text-[15px] text-ink-muted leading-relaxed">
-              {activeP.tagline}
-            </p>
+        {/* Hero heading — blur-in, word by word, matches marketing hero */}
+        <h1 className="font-serif font-medium tracking-tight text-[clamp(2.5rem,5.5vw,4.5rem)] leading-[0.98] text-ink max-w-[14ch]">
+          {HEADING.map((word, i) => (
+            <motion.span
+              key={`${word}-${i}`}
+              initial={
+                reduced
+                  ? false
+                  : { opacity: 0, y: 18, filter: "blur(10px)" }
+              }
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{
+                delay: 0.1 + i * 0.06,
+                duration: 0.8,
+                ease: [0.2, 0.7, 0.2, 1],
+              }}
+              className="inline-block mr-[0.25em]"
+            >
+              {word}
+            </motion.span>
+          ))}
+        </h1>
 
-            <div className="mt-5 flex items-center justify-center gap-1.5 flex-wrap">
-              {activeP.traits.map((t) => (
-                <span
-                  key={t}
-                  className="px-2 py-1 rounded-full text-[10px] tracking-[0.16em] uppercase font-sans font-medium text-ink-muted"
-                  style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                  }}
-                >
-                  {t}
-                </span>
-              ))}
-            </div>
+        {/* Subheading */}
+        <motion.p
+          initial={reduced ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55, duration: 0.7, ease: "easeOut" }}
+          className="mt-5 max-w-xl text-[15px] sm:text-base text-ink-muted leading-relaxed"
+        >
+          Each one talks, decides, and shows up differently. Tap to meet them.
+        </motion.p>
 
-            {/* Sample quote */}
-            <div className="mt-7 relative">
-              <span
-                aria-hidden
-                className="absolute -left-3 -top-2 font-serif text-[36px] leading-none select-none"
-                style={{ color: activeP.accent, opacity: 0.6 }}
-              >
-                &ldquo;
-              </span>
-              <p className="font-serif italic text-[clamp(1rem,1.4vw,1.125rem)] text-ink/90 leading-snug px-4">
-                {activeP.sample}
+        {/* Active glyph + identity — the stage */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.75, duration: 0.8, ease: [0.2, 0.7, 0.2, 1] }}
+          className="mt-10 sm:mt-14 flex flex-col items-center"
+        >
+          <PersonalityIcon personality={activeP} size="md" />
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeP.id}
+              initial={reduced ? false : { opacity: 0, y: 10, filter: "blur(6px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={reduced ? undefined : { opacity: 0, y: -6, filter: "blur(4px)" }}
+              transition={{ duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }}
+              className="mt-6 max-w-[480px]"
+            >
+              <h2 className="font-serif font-medium tracking-tight text-[clamp(1.875rem,3vw,2.5rem)] leading-[1.02] text-ink">
+                {activeP.name}
+              </h2>
+              <p className="mt-2 font-serif italic text-[clamp(1.05rem,1.4vw,1.25rem)] text-ink-muted leading-snug">
+                {activeP.tagline}
               </p>
-              <span
-                aria-hidden
-                className="absolute -right-3 -bottom-3 font-serif text-[36px] leading-none select-none"
-                style={{ color: activeP.accent, opacity: 0.6 }}
+
+              {/* Sample quote, in the agent's voice */}
+              <p className="mt-6 font-serif italic text-[clamp(0.95rem,1.2vw,1.0625rem)] text-ink/85 leading-relaxed">
+                <span
+                  aria-hidden
+                  className="font-serif text-[1.25em]"
+                  style={{ color: activeP.accent, opacity: 0.7 }}
+                >
+                  &ldquo;
+                </span>
+                {activeP.sample}
+                <span
+                  aria-hidden
+                  className="font-serif text-[1.25em]"
+                  style={{ color: activeP.accent, opacity: 0.7 }}
+                >
+                  &rdquo;
+                </span>
+              </p>
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
+
+        {/* The cast — 4 interactive glyphs */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.0, duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
+          className="mt-12 sm:mt-14 grid grid-cols-4 gap-1 sm:gap-3 w-full max-w-[560px]"
+        >
+          {PERSONALITIES.map((p) => {
+            const isActive = active === p.id;
+            return (
+              <motion.button
+                key={p.id}
+                type="button"
+                onClick={() => onSelect(p.id)}
+                whileHover={reduced ? undefined : { y: -3 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: "spring", stiffness: 380, damping: 24 }}
+                aria-pressed={committed === p.id}
+                aria-label={`Select ${p.name}`}
+                className="group relative flex flex-col items-center gap-2.5 py-3 px-1 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 transition-opacity"
+                style={{ opacity: isActive ? 1 : 0.45 }}
               >
-                &rdquo;
+                <PersonalityIcon personality={p} size="sm" />
+                <span
+                  className="font-serif tracking-tight text-[15px] sm:text-base transition-colors duration-200"
+                  style={{ color: isActive ? "rgb(245 245 245)" : "rgba(245,245,245,0.7)" }}
+                >
+                  {p.name}
+                </span>
+              </motion.button>
+            );
+          })}
+        </motion.div>
+
+        {/* Inline continue — text link, not a button bar */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.25, duration: 0.6 }}
+          className="mt-12 sm:mt-14 h-12 flex items-center justify-center"
+        >
+          {committed ? (
+            <motion.button
+              type="button"
+              onClick={onContinue}
+              whileHover={reduced ? undefined : { x: 4 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 380, damping: 22 }}
+              className="group inline-flex items-center gap-3 font-serif text-[clamp(1.125rem,1.6vw,1.375rem)] text-ink hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md px-2 py-1"
+            >
+              <span>
+                Continue as{" "}
+                <span style={{ color: activeP.accent }}>{activeP.name}</span>
               </span>
-            </div>
-
-            {/* Commit hint when previewing without committing */}
-            {!isCommitted && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.6, duration: 0.4 }}
-                className="mt-6 text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono"
+              <motion.span
+                aria-hidden
+                animate={reduced ? undefined : { x: [0, 3, 0] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                className="text-[1em]"
               >
-                Tap their name below to pick {activeP.name}
-              </motion.div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* Selector chips — bottom row */}
-      <div className="mt-10 sm:mt-12 grid grid-cols-4 gap-2 sm:gap-3 max-w-[480px] mx-auto">
-        {PERSONALITIES.map((p) => (
-          <PersonalityChip
-            key={p.id}
-            personality={p}
-            selected={committed === p.id}
-            onSelect={() => onSelect(p.id)}
-          />
-        ))}
+                →
+              </motion.span>
+            </motion.button>
+          ) : (
+            <p className="text-[12px] tracking-[0.22em] uppercase text-ink-dim font-mono">
+              Tap a name to choose
+            </p>
+          )}
+        </motion.div>
       </div>
     </OnboardingShell>
   );
