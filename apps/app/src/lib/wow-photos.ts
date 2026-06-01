@@ -22,18 +22,21 @@ export type WowCategory =
 // that bias the photo selection toward the right vibe for that category.
 // We avoid super-narrow tags (which can return zero matches) and stick
 // to broadly-photographed concepts.
+// Single, photogenic tags give Lorem Flickr a tighter, more on-category
+// match than comma-stacked tag intersections. The keyword must be one
+// that Flickr has a lot of well-shot photos under.
 const TAG_SET: Record<WowCategory, string> = {
-  fashion: "fashion,clothing,minimal",
-  food: "food,plate,restaurant",
-  fitness: "fitness,workout,gym",
-  tech: "workspace,laptop,minimal",
-  services: "office,professional,minimal",
-  beauty: "beauty,skincare,minimal",
-  creative: "design,art,workspace",
-  finance: "office,minimal,architecture",
-  home: "interior,home,minimal",
-  travel: "travel,landscape,minimal",
-  other: "minimal,modern,abstract",
+  fashion: "clothing",
+  food: "restaurant",
+  fitness: "gym",
+  tech: "macbook",
+  services: "skyscraper",
+  beauty: "skincare",
+  creative: "design",
+  finance: "wallstreet",
+  home: "interior",
+  travel: "hotel",
+  other: "architecture",
 };
 
 function flickr(category: WowCategory, seed: string, w: number, h: number) {

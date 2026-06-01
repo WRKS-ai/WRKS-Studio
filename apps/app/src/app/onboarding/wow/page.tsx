@@ -578,6 +578,17 @@ function DeliverableSection({
  * PREVIEW FRAMES
  * ============================================================ */
 
+// Light-mode tokens — real platforms (Instagram, X, LinkedIn, Meta ads,
+// most landing pages) are predominantly white/light. Dark previews
+// read as gloomy mockups, not real product output.
+const LIGHT_BG = "#fafaf6";          // warm off-white for the landing page
+const LIGHT_BG_WHITE = "#ffffff";    // pure white for the social platforms
+const LIGHT_INK = "#0e0e10";         // near-black for headings
+const LIGHT_INK_MUTED = "#4a4a52";   // body / secondary text
+const LIGHT_INK_DIM = "#86868b";     // meta text
+const LIGHT_BORDER = "rgba(0,0,0,0.08)";
+const LIGHT_BORDER_SOFT = "rgba(0,0,0,0.05)";
+
 function LandingPreview({
   personality,
   brandName,
@@ -597,37 +608,36 @@ function LandingPreview({
     <div
       className="w-full rounded-2xl overflow-hidden"
       style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow: `0 30px 80px -30px ${personality.glow}, 0 0 0 1px rgba(255,255,255,0.02)`,
+        background: LIGHT_BG,
+        boxShadow: `0 50px 100px -40px ${personality.glow}, 0 30px 60px -30px rgba(0,0,0,0.5)`,
       }}
     >
-      {/* Browser chrome */}
+      {/* Browser chrome (stays dark — it's the macOS Safari frame) */}
       <div
         className="flex items-center gap-3 px-4 py-3"
         style={{
-          background: "rgba(255,255,255,0.03)",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          background: "#2a2a2c",
+          borderBottom: "1px solid #18181a",
         }}
       >
         <div className="flex items-center gap-1.5">
-          <span className="size-2.5 rounded-full bg-red-400/60" />
-          <span className="size-2.5 rounded-full bg-yellow-400/60" />
-          <span className="size-2.5 rounded-full bg-green-400/60" />
+          <span className="size-2.5 rounded-full bg-red-500/90" />
+          <span className="size-2.5 rounded-full bg-yellow-500/90" />
+          <span className="size-2.5 rounded-full bg-green-500/90" />
         </div>
         <div
-          className="flex-1 max-w-md mx-auto rounded-md px-3 py-1 text-[11px] font-mono text-ink-dim text-center"
-          style={{ background: "rgba(255,255,255,0.04)" }}
+          className="flex-1 max-w-md mx-auto rounded-md px-3 py-1 text-[11px] font-mono text-center"
+          style={{ background: "#3a3a3c", color: "#a0a0a8" }}
         >
           🔒 {slug}.com
         </div>
         <div className="w-12" aria-hidden />
       </div>
 
-      {/* Site nav strip — makes it feel like a real site */}
+      {/* Site nav */}
       <div
-        className="flex items-center justify-between px-6 sm:px-10 py-3 text-[12px]"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+        className="flex items-center justify-between px-6 sm:px-10 py-3.5 text-[12px]"
+        style={{ borderBottom: `1px solid ${LIGHT_BORDER_SOFT}` }}
       >
         <div className="flex items-center gap-2 font-serif">
           <span
@@ -635,53 +645,69 @@ function LandingPreview({
             style={{ background: personality.accent }}
             aria-hidden
           />
-          <span className="font-medium tracking-tight text-ink">
+          <span
+            className="font-medium tracking-tight"
+            style={{ color: LIGHT_INK }}
+          >
             {brandName}
           </span>
         </div>
-        <div className="hidden sm:flex items-center gap-5 font-sans text-ink-muted">
+        <div
+          className="hidden sm:flex items-center gap-5 font-sans"
+          style={{ color: LIGHT_INK_MUTED }}
+        >
           <span>Shop</span>
           <span>About</span>
           <span>Journal</span>
         </div>
-        <div className="flex items-center gap-3 text-ink-muted font-sans">
-          <span aria-hidden>⌕</span>
-          <span aria-hidden>♡</span>
-          <span aria-hidden>⊞</span>
+        <div
+          className="flex items-center gap-3 font-sans"
+          style={{ color: LIGHT_INK_MUTED }}
+        >
+          <SearchIcon />
+          <HeartOutlineIcon />
+          <CartIcon />
         </div>
       </div>
 
       {/* Two-column hero — copy on left, photo on right */}
-      <div className="grid grid-cols-1 md:grid-cols-[1.05fr_1fr] gap-0 md:gap-0">
-        <div className="px-6 sm:px-10 py-12 sm:py-16 text-left flex flex-col justify-center">
-          <h2 className="font-serif font-medium tracking-tight text-[clamp(1.625rem,3.4vw,2.625rem)] leading-[1.05] text-ink">
+      <div className="grid grid-cols-1 md:grid-cols-[1.05fr_1fr]">
+        <div className="px-6 sm:px-10 py-14 sm:py-20 text-left flex flex-col justify-center">
+          <h2
+            className="font-serif font-medium tracking-tight text-[clamp(1.875rem,4vw,3.25rem)] leading-[1.02]"
+            style={{ color: LIGHT_INK }}
+          >
             {data.headline}
           </h2>
-          <p className="mt-5 text-[14px] sm:text-[15px] text-ink-muted leading-relaxed max-w-md">
+          <p
+            className="mt-6 text-[15px] sm:text-base leading-relaxed max-w-md"
+            style={{ color: LIGHT_INK_MUTED }}
+          >
             {data.subhead}
           </p>
 
           <button
             type="button"
-            className="mt-8 inline-flex items-center gap-2 h-11 px-6 rounded-full font-sans font-medium text-[14px] text-canvas transition-transform hover:scale-[1.02] self-start"
+            className="mt-9 inline-flex items-center gap-2 h-12 px-7 rounded-full font-sans font-medium text-[14px] text-white transition-transform hover:scale-[1.02] self-start"
             style={{
               background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-              boxShadow: `0 8px 24px -8px ${personality.glow}`,
+              boxShadow: `0 12px 32px -10px ${personality.glow}`,
             }}
           >
             {data.primaryCta}
             <span aria-hidden>→</span>
           </button>
 
-          <ul className="mt-10 flex flex-col gap-2.5 max-w-md">
+          <ul className="mt-10 flex flex-col gap-3 max-w-md">
             {data.valueBullets.map((bullet, i) => (
               <li
                 key={i}
-                className="flex items-start gap-3 text-[13px] sm:text-[14px] text-ink-muted leading-snug"
+                className="flex items-start gap-3 text-[14px] leading-snug"
+                style={{ color: LIGHT_INK_MUTED }}
               >
                 <span
                   aria-hidden
-                  className="mt-1 shrink-0 size-4 rounded-full flex items-center justify-center"
+                  className="mt-0.5 shrink-0 size-4 rounded-full flex items-center justify-center"
                   style={{
                     background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
                   }}
@@ -704,9 +730,9 @@ function LandingPreview({
 
         {/* Hero photo — fills the right side */}
         <div
-          className="relative min-h-[280px] md:min-h-[440px]"
+          className="relative min-h-[320px] md:min-h-[520px]"
           style={{
-            background: `linear-gradient(135deg, ${personality.glow} 0%, rgba(0,0,0,0.4) 100%)`,
+            background: `linear-gradient(135deg, ${personality.accent}22 0%, ${personality.accentDeep}33 100%)`,
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -719,28 +745,25 @@ function LandingPreview({
               (e.currentTarget as HTMLImageElement).style.opacity = "0";
             }}
           />
-          {/* Brand-tint overlay — makes the photo feel cohesive with the
-              page's accent color */}
-          <div
-            aria-hidden
-            className="absolute inset-0"
-            style={{
-              background: `linear-gradient(225deg, transparent 0%, ${personality.accentDeep}33 100%)`,
-            }}
-          />
         </div>
       </div>
 
-      {/* Featured strip — 3 real photos with overlay labels */}
+      {/* Featured strip */}
       <div
-        className="px-6 sm:px-12 pt-2 pb-10"
-        style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
+        className="px-6 sm:px-12 pt-8 pb-12"
+        style={{ borderTop: `1px solid ${LIGHT_BORDER_SOFT}` }}
       >
-        <div className="flex items-center justify-between mb-5 mt-6">
-          <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono">
+        <div className="flex items-center justify-between mb-6">
+          <div
+            className="text-[10px] tracking-[0.22em] uppercase font-mono"
+            style={{ color: LIGHT_INK_DIM }}
+          >
             New in
           </div>
-          <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono">
+          <div
+            className="text-[10px] tracking-[0.22em] uppercase font-mono"
+            style={{ color: LIGHT_INK_MUTED }}
+          >
             View all →
           </div>
         </div>
@@ -750,7 +773,7 @@ function LandingPreview({
               key={i}
               className="relative aspect-[3/4] rounded-lg overflow-hidden group"
               style={{
-                background: `linear-gradient(135deg, ${personality.accentDeep}55 0%, rgba(0,0,0,0.5) 100%)`,
+                background: `linear-gradient(135deg, ${personality.accent}22 0%, ${personality.accentDeep}33 100%)`,
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -763,13 +786,12 @@ function LandingPreview({
                   (e.currentTarget as HTMLImageElement).style.opacity = "0";
                 }}
               />
-              {/* Subtle gradient at the bottom for label legibility */}
               <div
                 aria-hidden
                 className="absolute inset-x-0 bottom-0 h-1/2"
                 style={{
                   background:
-                    "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)",
+                    "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)",
                 }}
               />
               <div className="absolute inset-x-0 bottom-0 p-3 flex items-end justify-between text-[11px] font-mono text-white">
@@ -782,18 +804,50 @@ function LandingPreview({
         </div>
       </div>
 
-      {/* Footer line */}
+      {/* Footer */}
       <div
-        className="px-6 sm:px-12 py-4 flex items-center justify-between text-[10px] font-mono text-ink-dim"
+        className="px-6 sm:px-12 py-4 flex items-center justify-between text-[10px] font-mono"
         style={{
-          background: "rgba(255,255,255,0.015)",
-          borderTop: "1px solid rgba(255,255,255,0.05)",
+          background: "#f0efea",
+          color: LIGHT_INK_DIM,
+          borderTop: `1px solid ${LIGHT_BORDER_SOFT}`,
         }}
       >
         <span>© {brandName}</span>
         <span>{slug}.com</span>
       </div>
     </div>
+  );
+}
+
+// Inline SVG icons (lighter than emoji on light backgrounds, more "real")
+function SearchIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M20 20l-3-3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+function HeartOutlineIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function CartIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M3 5h2l2.5 11h11L21 8H7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="9" cy="20" r="1.3" fill="currentColor" />
+      <circle cx="17" cy="20" r="1.3" fill="currentColor" />
+    </svg>
   );
 }
 
@@ -808,33 +862,51 @@ function InstagramPreview({
   caption: string;
   image: string;
 }) {
-  const handle = `@${brandName.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+  const handleText = brandName.toLowerCase().replace(/[^a-z0-9]/g, "");
   return (
     <div
       className="w-full rounded-2xl overflow-hidden flex flex-col text-left"
       style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: LIGHT_BG_WHITE,
+        boxShadow: `0 30px 60px -30px ${personality.glow}, 0 20px 40px -20px rgba(0,0,0,0.5)`,
       }}
     >
-      <div className="flex items-center gap-2.5 px-4 py-3">
+      <div className="flex items-center gap-2.5 px-3.5 py-2.5">
         <div
-          className="size-7 rounded-full"
+          className="size-8 rounded-full p-[1.5px]"
           style={{
-            background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
+            background:
+              "conic-gradient(from 0deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888, #f09433)",
           }}
           aria-hidden
-        />
-        <span className="font-sans text-[13px] text-ink font-medium">
-          {handle.replace("@", "")}
+        >
+          <div
+            className="size-full rounded-full"
+            style={{
+              background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
+              border: "1.5px solid white",
+            }}
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div
+            className="font-sans text-[13px] font-semibold leading-tight"
+            style={{ color: LIGHT_INK }}
+          >
+            {handleText}
+          </div>
+        </div>
+        <span
+          aria-hidden
+          className="text-[18px] leading-none"
+          style={{ color: LIGHT_INK }}
+        >
+          ⋯
         </span>
-        <span className="ml-auto text-ink-dim text-[18px] leading-none">⋯</span>
       </div>
       <div
         className="relative aspect-square w-full"
-        style={{
-          background: `linear-gradient(135deg, ${personality.accentDeep}55 0%, rgba(0,0,0,0.5) 100%)`,
-        }}
+        style={{ background: "#f5f5f5" }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -847,19 +919,72 @@ function InstagramPreview({
           }}
         />
       </div>
-      <div className="px-4 py-3 flex items-center gap-3 text-[16px]">
-        <span>♡</span>
-        <span>💬</span>
-        <span>📤</span>
-        <span className="ml-auto">🔖</span>
-      </div>
-      <div className="px-4 pb-4 text-[13px] text-ink leading-relaxed">
-        <span className="font-sans font-medium mr-1.5">
-          {handle.replace("@", "")}
+      <div
+        className="px-3.5 pt-2.5 flex items-center gap-3.5"
+        style={{ color: LIGHT_INK }}
+      >
+        <IgHeartIcon />
+        <IgCommentIcon />
+        <IgShareIcon />
+        <span className="ml-auto">
+          <IgBookmarkIcon />
         </span>
-        <span className="text-ink-muted whitespace-pre-wrap">{caption}</span>
+      </div>
+      <div
+        className="px-3.5 pt-2 text-[13px] font-semibold leading-tight"
+        style={{ color: LIGHT_INK }}
+      >
+        2,847 likes
+      </div>
+      <div
+        className="px-3.5 pt-1.5 pb-3.5 text-[13px] leading-snug"
+        style={{ color: LIGHT_INK }}
+      >
+        <span className="font-semibold mr-1.5">{handleText}</span>
+        <span className="whitespace-pre-wrap">{caption}</span>
       </div>
     </div>
+  );
+}
+
+// Instagram-style action icons (closer to real platform UI)
+function IgHeartIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function IgCommentIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function IgShareIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M22 2L11 13" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IgBookmarkIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -877,39 +1002,119 @@ function TwitterPreview({
     <div
       className="w-full rounded-2xl p-4 flex flex-col gap-3 text-left"
       style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: LIGHT_BG_WHITE,
+        boxShadow: `0 30px 60px -30px ${personality.glow}, 0 20px 40px -20px rgba(0,0,0,0.5)`,
       }}
     >
       <div className="flex items-start gap-3">
         <div
-          className="size-10 rounded-full shrink-0"
+          className="size-11 rounded-full shrink-0"
           style={{
             background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
           }}
           aria-hidden
         />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-sans font-semibold text-[14px] text-ink">
+          <div className="flex items-center gap-1.5 flex-wrap leading-tight">
+            <span
+              className="font-sans font-bold text-[15px]"
+              style={{ color: LIGHT_INK }}
+            >
               {brandName}
             </span>
-            <span className="text-ink-dim text-[13px]">{handle}</span>
-            <span className="text-ink-dim text-[13px]">·</span>
-            <span className="text-ink-dim text-[13px]">2h</span>
+            <span
+              className="text-[14px]"
+              style={{ color: LIGHT_INK_DIM }}
+            >
+              {handle}
+            </span>
+            <span style={{ color: LIGHT_INK_DIM }} className="text-[14px]">
+              ·
+            </span>
+            <span
+              className="text-[14px]"
+              style={{ color: LIGHT_INK_DIM }}
+            >
+              2h
+            </span>
           </div>
-          <p className="mt-1.5 text-[14px] text-ink leading-snug whitespace-pre-wrap">
+          <p
+            className="mt-1 text-[15px] leading-snug whitespace-pre-wrap"
+            style={{ color: LIGHT_INK }}
+          >
             {text}
           </p>
         </div>
       </div>
-      <div className="flex items-center justify-around text-ink-dim text-[14px] pt-1.5">
-        <span>💬 12</span>
-        <span>↻ 38</span>
-        <span>♡ 214</span>
-        <span>📊</span>
+      <div
+        className="flex items-center justify-between pt-2 text-[13px]"
+        style={{ color: LIGHT_INK_DIM }}
+      >
+        <span className="flex items-center gap-1.5">
+          <XCommentIcon />
+          12
+        </span>
+        <span className="flex items-center gap-1.5">
+          <XRetweetIcon />
+          38
+        </span>
+        <span className="flex items-center gap-1.5">
+          <XHeartIcon />
+          214
+        </span>
+        <span className="flex items-center gap-1.5">
+          <XViewsIcon />
+          8.4K
+        </span>
+        <span>
+          <XShareIcon />
+        </span>
       </div>
     </div>
+  );
+}
+
+function XCommentIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M3 5v11a2 2 0 0 0 2 2h4l3 3 3-3h4a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function XRetweetIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M17 2l4 4-4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M7 22l-4-4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+function XHeartIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function XViewsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 20V10M10 20V4M16 20v-8M22 20v-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+function XShareIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 3v12M12 3l4 4M12 3l-4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -928,41 +1133,124 @@ function LinkedInPreview({
     <div
       className="w-full rounded-2xl flex flex-col text-left overflow-hidden"
       style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: LIGHT_BG_WHITE,
+        boxShadow: `0 30px 60px -30px ${personality.glow}, 0 20px 40px -20px rgba(0,0,0,0.5)`,
       }}
     >
-      <div className="flex items-start gap-2.5 p-4">
+      <div className="flex items-start gap-3 p-4">
         <div
-          className="size-11 rounded-full shrink-0"
+          className="size-12 rounded-full shrink-0"
           style={{
             background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
           }}
           aria-hidden
         />
         <div className="min-w-0 flex-1">
-          <div className="font-sans font-semibold text-[14px] text-ink">
+          <div
+            className="font-sans font-semibold text-[14px] leading-tight"
+            style={{ color: LIGHT_INK }}
+          >
             {agentName}
           </div>
-          <div className="text-ink-dim text-[11.5px]">
-            Founder, {brandName} · 2h
+          <div
+            className="text-[12px] leading-tight mt-0.5"
+            style={{ color: LIGHT_INK_MUTED }}
+          >
+            Founder, {brandName}
+          </div>
+          <div
+            className="text-[11.5px] mt-0.5 flex items-center gap-1"
+            style={{ color: LIGHT_INK_DIM }}
+          >
+            <span>2h</span>
+            <span>·</span>
+            <span aria-hidden>🌐</span>
           </div>
         </div>
+        <span
+          aria-hidden
+          className="text-[20px] leading-none"
+          style={{ color: LIGHT_INK_MUTED }}
+        >
+          ⋯
+        </span>
       </div>
       <div className="px-4 pb-3">
-        <p className="text-[13.5px] text-ink leading-relaxed whitespace-pre-wrap">
+        <p
+          className="text-[14px] leading-relaxed whitespace-pre-wrap"
+          style={{ color: LIGHT_INK }}
+        >
           {text}
         </p>
       </div>
       <div
-        className="px-4 py-2.5 flex items-center gap-5 text-ink-dim text-[12px]"
-        style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
+        className="px-4 py-1.5 flex items-center gap-3 text-[11.5px]"
+        style={{
+          color: LIGHT_INK_DIM,
+          borderTop: `1px solid ${LIGHT_BORDER_SOFT}`,
+        }}
       >
-        <span>👍 Like</span>
-        <span>💬 Comment</span>
-        <span>↻ Repost</span>
+        <span className="flex items-center gap-1">
+          <span
+            className="size-4 rounded-full flex items-center justify-center text-white text-[8px]"
+            style={{ background: "#0a66c2" }}
+          >
+            👍
+          </span>
+          <span>184</span>
+        </span>
+        <span className="ml-auto">42 comments · 6 reposts</span>
+      </div>
+      <div
+        className="px-4 py-2 flex items-center justify-around text-[13px] font-semibold"
+        style={{
+          color: LIGHT_INK_MUTED,
+          borderTop: `1px solid ${LIGHT_BORDER_SOFT}`,
+        }}
+      >
+        <span className="flex items-center gap-1.5">
+          <LiThumbIcon /> Like
+        </span>
+        <span className="flex items-center gap-1.5">
+          <LiCommentIcon /> Comment
+        </span>
+        <span className="flex items-center gap-1.5">
+          <LiRepostIcon /> Repost
+        </span>
+        <span className="flex items-center gap-1.5">
+          <LiSendIcon /> Send
+        </span>
       </div>
     </div>
+  );
+}
+
+function LiThumbIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M7 22V10M3 14v6a2 2 0 0 0 2 2h10.4a2 2 0 0 0 2-1.6L19 11a2 2 0 0 0-2-2.4h-4.6L13 4a2 2 0 0 0-2-2 2 2 0 0 0-2 2L7 9.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function LiCommentIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function LiRepostIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function LiSendIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -984,33 +1272,50 @@ function AdPreview({
       <div
         className="w-full rounded-2xl overflow-hidden flex flex-col text-left"
         style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: `0 30px 80px -30px ${personality.glow}, 0 0 0 1px rgba(255,255,255,0.02)`,
+          background: LIGHT_BG_WHITE,
+          boxShadow: `0 50px 100px -40px ${personality.glow}, 0 30px 60px -30px rgba(0,0,0,0.5)`,
         }}
       >
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3">
           <div
-            className="size-9 rounded-full"
+            className="size-10 rounded-full"
             style={{
               background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
             }}
             aria-hidden
           />
           <div className="min-w-0">
-            <div className="font-sans font-semibold text-[13px] text-ink">
+            <div
+              className="font-sans font-semibold text-[14px] leading-tight"
+              style={{ color: LIGHT_INK }}
+            >
               {brandName}
             </div>
-            <div className="text-[11px] tracking-tight text-ink-dim flex items-center gap-1.5">
-              Sponsored <span aria-hidden>·</span> <span aria-hidden>🌐</span>
+            <div
+              className="text-[11.5px] tracking-tight flex items-center gap-1 mt-0.5"
+              style={{ color: LIGHT_INK_DIM }}
+            >
+              <span>Sponsored</span>
+              <span aria-hidden>·</span>
+              <span aria-hidden>🌐</span>
             </div>
           </div>
+          <span
+            aria-hidden
+            className="ml-auto text-[20px] leading-none"
+            style={{ color: LIGHT_INK_MUTED }}
+          >
+            ⋯
+          </span>
         </div>
 
         {/* Body copy */}
         <div className="px-4 pb-3">
-          <p className="text-[14px] text-ink leading-relaxed whitespace-pre-wrap">
+          <p
+            className="text-[14px] leading-relaxed whitespace-pre-wrap"
+            style={{ color: LIGHT_INK }}
+          >
             {data.body}
           </p>
         </div>
@@ -1019,7 +1324,7 @@ function AdPreview({
         <div
           className="relative aspect-[16/9] w-full"
           style={{
-            background: `linear-gradient(135deg, ${personality.accentDeep}66 0%, rgba(0,0,0,0.6) 100%)`,
+            background: `linear-gradient(135deg, ${personality.accent}22 0%, ${personality.accentDeep}33 100%)`,
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1032,47 +1337,61 @@ function AdPreview({
               (e.currentTarget as HTMLImageElement).style.opacity = "0";
             }}
           />
-          {/* Dark gradient for headline legibility */}
           <div
             aria-hidden
             className="absolute inset-x-0 bottom-0 h-3/4"
             style={{
               background:
-                "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)",
+                "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)",
             }}
           />
-          <div className="absolute inset-0 flex items-end p-6">
-            <h3 className="font-serif font-medium tracking-tight text-[clamp(1.25rem,2.4vw,1.875rem)] leading-tight text-white max-w-md drop-shadow-lg">
+          <div className="absolute inset-0 flex items-end p-5">
+            <h3 className="font-serif font-medium tracking-tight text-[clamp(1.25rem,2.4vw,1.875rem)] leading-tight text-white max-w-md">
               {data.headline}
             </h3>
           </div>
         </div>
 
-        {/* CTA bar */}
+        {/* CTA bar (Meta ad style — gray strip with URL + button) */}
         <div
           className="flex items-center justify-between px-4 py-3"
-          style={{
-            background: "rgba(255,255,255,0.025)",
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-          }}
+          style={{ background: "#f0f2f5" }}
         >
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] uppercase tracking-wider text-ink-dim font-mono">
+            <div
+              className="text-[11px] uppercase tracking-wider font-mono"
+              style={{ color: LIGHT_INK_DIM }}
+            >
               {slug}.com
             </div>
-            <div className="text-[13px] font-sans text-ink truncate">
+            <div
+              className="text-[14px] font-sans font-medium truncate"
+              style={{ color: LIGHT_INK }}
+            >
               {data.headline}
             </div>
           </div>
           <button
             type="button"
-            className="shrink-0 inline-flex items-center h-9 px-4 rounded-md font-sans font-medium text-[13px] text-canvas"
+            className="shrink-0 inline-flex items-center h-9 px-4 rounded-md font-sans font-medium text-[13px] text-white"
             style={{
               background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
             }}
           >
             {data.cta}
           </button>
+        </div>
+
+        {/* Reaction bar — completes the "real ad" feel */}
+        <div
+          className="flex items-center justify-between px-4 py-2.5 text-[12px]"
+          style={{
+            color: LIGHT_INK_DIM,
+            borderTop: `1px solid ${LIGHT_BORDER_SOFT}`,
+          }}
+        >
+          <span>👍❤️🔥 1.2K</span>
+          <span>184 comments · 38 shares</span>
         </div>
       </div>
     </div>
