@@ -15,7 +15,6 @@ const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
 const VOICE_KEY = "wrks-onboarding-voice";
 const INTAKE_KEY = "wrks-onboarding-intake";
-const PLAY_INTRO_KEY = "wrks-onboarding-play-intro";
 
 type Turn = { question: string; answer: string };
 
@@ -100,21 +99,6 @@ export default function IntakePage() {
     }
     setPersonalityId(p);
     setAgentName(n);
-
-    // Wow handoff — play the agent intro once, in their chosen voice.
-    const playIntroId = sessionStorage.getItem(PLAY_INTRO_KEY) as VoiceId | null;
-    if (playIntroId && VOICES.some((x) => x.id === playIntroId)) {
-      sessionStorage.removeItem(PLAY_INTRO_KEY);
-      const voice = VOICES.find((x) => x.id === playIntroId)!;
-      // Small delay so it lines up with the heading entrance
-      setTimeout(() => {
-        const el = new Audio(voice.sample);
-        el.volume = 0.85;
-        el.play().catch(() => {
-          // Autoplay blocked — silent fail, not critical
-        });
-      }, 700);
-    }
   }, [router]);
 
   useEffect(() => {

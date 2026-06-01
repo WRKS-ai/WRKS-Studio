@@ -15,10 +15,6 @@ import { VOICES, type VoiceId } from "@/lib/voices";
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
 const VOICE_KEY = "wrks-onboarding-voice";
-// Set on continue — intake reads this flag, plays the agent intro on
-// mount, then clears the flag. This is the wow handoff between Act 3
-// and Act 4.
-const PLAY_INTRO_KEY = "wrks-onboarding-play-intro";
 
 const HEADING = ["How", "do", "they", "sound?"];
 
@@ -56,8 +52,6 @@ export default function VoicePage() {
   const onContinue = () => {
     if (!selectedVoice) return;
     localStorage.setItem(VOICE_KEY, selectedVoice);
-    // Tell intake page to play the agent intro on mount
-    sessionStorage.setItem(PLAY_INTRO_KEY, selectedVoice);
     router.push("/onboarding/intake");
   };
 
