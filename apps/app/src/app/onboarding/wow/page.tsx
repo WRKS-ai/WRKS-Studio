@@ -24,6 +24,7 @@ const VOICE_KEY = "wrks-onboarding-voice";
 const INTAKE_KEY = "wrks-onboarding-intake";
 
 type WowDeliverables = {
+  brandName: string;
   landing: {
     headline: string;
     subhead: string;
@@ -218,6 +219,7 @@ export default function WowPage() {
               agentName={agentName}
               deliverables={state.deliverables}
               onContinue={() => router.push("/onboarding/connect")}
+              onRegenerate={() => setAttempt((a) => a + 1)}
               reduced={!!reduced}
             />
           )}
@@ -369,14 +371,17 @@ function ReadyState({
   agentName,
   deliverables,
   onContinue,
+  onRegenerate,
   reduced,
 }: {
   personality: Personality;
   agentName: string;
   deliverables: WowDeliverables;
   onContinue: () => void;
+  onRegenerate: () => void;
   reduced: boolean;
 }) {
+  const brandName = deliverables.brandName;
   return (
     <motion.div
       initial={reduced ? false : { opacity: 0 }}
@@ -416,8 +421,29 @@ function ReadyState({
         transition={{ delay: 0.65, duration: 0.7, ease: "easeOut" }}
         className="mt-5 max-w-xl text-[15px] sm:text-base text-ink-muted leading-relaxed font-serif italic"
       >
-        Three real outputs, drafted from what you told me. Use them as-is, refine them, or ask for a different angle.
+        Drafting as{" "}
+        <span className="text-ink not-italic font-medium">{brandName}</span>.
+        Not the angle you wanted? Have me try again.
       </motion.p>
+
+      {/* Regenerate */}
+      <motion.button
+        type="button"
+        onClick={onRegenerate}
+        initial={reduced ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.95, duration: 0.5 }}
+        whileHover={reduced ? undefined : { y: -1 }}
+        whileTap={{ scale: 0.97 }}
+        className="mt-5 inline-flex items-center gap-2 px-4 h-9 rounded-full text-[12px] tracking-[0.18em] uppercase font-mono text-ink-muted hover:text-ink transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+        style={{
+          background: "rgba(255,255,255,0.025)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        <span>Regenerate</span>
+        <span aria-hidden style={{ color: personality.accent }}>↻</span>
+      </motion.button>
 
       {/* DELIVERABLE 1 — Landing page */}
       <DeliverableSection
@@ -427,7 +453,7 @@ function ReadyState({
       >
         <LandingPreview
           personality={personality}
-          agentName={agentName}
+          brandName={brandName}
           data={deliverables.landing}
         />
       </DeliverableSection>
@@ -441,17 +467,18 @@ function ReadyState({
         <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
           <InstagramPreview
             personality={personality}
-            agentName={agentName}
+            brandName={brandName}
             caption={deliverables.social.instagram}
           />
           <TwitterPreview
             personality={personality}
-            agentName={agentName}
+            brandName={brandName}
             text={deliverables.social.twitter}
           />
           <LinkedInPreview
             personality={personality}
             agentName={agentName}
+            brandName={brandName}
             text={deliverables.social.linkedin}
           />
         </div>
@@ -463,7 +490,11 @@ function ReadyState({
         index={2}
         reduced={reduced}
       >
-        <AdPreview personality={personality} data={deliverables.ad} />
+        <AdPreview
+          personality={personality}
+          brandName={brandName}
+          data={deliverables.ad}
+        />
       </DeliverableSection>
 
       {/* Continue */}
@@ -542,14 +573,15 @@ function DeliverableSection({
 
 function LandingPreview({
   personality,
-  agentName,
+  brandName,
   data,
 }: {
   personality: Personality;
-  agentName: string;
+  brandName: string;
   data: WowDeliverables["landing"];
 }) {
-  const slug = agentName.toLowerCase().replace(/[^a-z0-9]/g, "") || "studio";
+  const slug =
+    brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "yourbusiness";
   return (
     <div
       className="w-full rounded-2xl overflow-hidden"
@@ -581,20 +613,35 @@ function LandingPreview({
         <div className="w-12" aria-hidden />
       </div>
 
-      {/* Page body */}
-      <div className="px-6 sm:px-12 py-12 sm:py-16 text-center">
-        {/* Tiny header brand */}
-        <div className="flex items-center justify-center gap-2 mb-10">
+      {/* Site nav strip — makes it feel like a real site */}
+      <div
+        className="flex items-center justify-between px-6 sm:px-10 py-3 text-[12px]"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+      >
+        <div className="flex items-center gap-2 font-serif">
           <span
             className="size-2 rounded-full"
             style={{ background: personality.accent }}
             aria-hidden
           />
-          <span className="font-serif text-[13px] tracking-tight text-ink-muted">
-            {agentName}
+          <span className="font-medium tracking-tight text-ink">
+            {brandName}
           </span>
         </div>
+        <div className="hidden sm:flex items-center gap-5 font-sans text-ink-muted">
+          <span>Shop</span>
+          <span>About</span>
+          <span>Journal</span>
+        </div>
+        <div className="flex items-center gap-3 text-ink-muted font-sans">
+          <span aria-hidden>⌕</span>
+          <span aria-hidden>♡</span>
+          <span aria-hidden>⊞</span>
+        </div>
+      </div>
 
+      {/* Hero */}
+      <div className="px-6 sm:px-12 py-12 sm:py-16 text-center">
         <h2 className="font-serif font-medium tracking-tight text-[clamp(1.75rem,3.6vw,2.75rem)] leading-[1.05] text-ink max-w-3xl mx-auto">
           {data.headline}
         </h2>
@@ -648,20 +695,59 @@ function LandingPreview({
           ))}
         </ul>
       </div>
+
+      {/* Featured strip — placeholder gradient tiles, sells the
+          "this is a real site" feeling */}
+      <div
+        className="px-6 sm:px-12 pt-2 pb-10"
+        style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
+      >
+        <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono mb-4 mt-6 text-center">
+          Featured
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="aspect-[3/4] rounded-lg"
+              style={{
+                background: `radial-gradient(circle at ${30 + i * 20}% ${
+                  25 + i * 15
+                }%, ${personality.glow} 0%, transparent ${60 - i * 5}%), linear-gradient(${
+                  135 + i * 20
+                }deg, ${personality.accentDeep}55 0%, rgba(255,255,255,0.02) 100%)`,
+              }}
+              aria-hidden
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Footer line */}
+      <div
+        className="px-6 sm:px-12 py-4 flex items-center justify-between text-[10px] font-mono text-ink-dim"
+        style={{
+          background: "rgba(255,255,255,0.015)",
+          borderTop: "1px solid rgba(255,255,255,0.05)",
+        }}
+      >
+        <span>© {brandName}</span>
+        <span>{slug}.com</span>
+      </div>
     </div>
   );
 }
 
 function InstagramPreview({
   personality,
-  agentName,
+  brandName,
   caption,
 }: {
   personality: Personality;
-  agentName: string;
+  brandName: string;
   caption: string;
 }) {
-  const handle = `@${agentName.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+  const handle = `@${brandName.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
   return (
     <div
       className="w-full rounded-2xl overflow-hidden flex flex-col text-left"
@@ -708,14 +794,14 @@ function InstagramPreview({
 
 function TwitterPreview({
   personality,
-  agentName,
+  brandName,
   text,
 }: {
   personality: Personality;
-  agentName: string;
+  brandName: string;
   text: string;
 }) {
-  const handle = `@${agentName.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+  const handle = `@${brandName.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
   return (
     <div
       className="w-full rounded-2xl p-4 flex flex-col gap-3 text-left"
@@ -735,7 +821,7 @@ function TwitterPreview({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-sans font-semibold text-[14px] text-ink">
-              {agentName}
+              {brandName}
             </span>
             <span className="text-ink-dim text-[13px]">{handle}</span>
             <span className="text-ink-dim text-[13px]">·</span>
@@ -759,10 +845,12 @@ function TwitterPreview({
 function LinkedInPreview({
   personality,
   agentName,
+  brandName,
   text,
 }: {
   personality: Personality;
   agentName: string;
+  brandName: string;
   text: string;
 }) {
   return (
@@ -786,7 +874,7 @@ function LinkedInPreview({
             {agentName}
           </div>
           <div className="text-ink-dim text-[11.5px]">
-            Founder · 2h
+            Founder, {brandName} · 2h
           </div>
         </div>
       </div>
@@ -809,11 +897,15 @@ function LinkedInPreview({
 
 function AdPreview({
   personality,
+  brandName,
   data,
 }: {
   personality: Personality;
+  brandName: string;
   data: WowDeliverables["ad"];
 }) {
+  const slug =
+    brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "yourbusiness";
   return (
     <div className="w-full max-w-[640px] mx-auto">
       <div
@@ -835,7 +927,7 @@ function AdPreview({
           />
           <div className="min-w-0">
             <div className="font-sans font-semibold text-[13px] text-ink">
-              Your business
+              {brandName}
             </div>
             <div className="text-[11px] tracking-tight text-ink-dim flex items-center gap-1.5">
               Sponsored <span aria-hidden>·</span> <span aria-hidden>🌐</span>
@@ -873,7 +965,7 @@ function AdPreview({
         >
           <div className="min-w-0 flex-1">
             <div className="text-[11px] uppercase tracking-wider text-ink-dim font-mono">
-              yourbusiness.com
+              {slug}.com
             </div>
             <div className="text-[13px] font-sans text-ink truncate">
               {data.headline}

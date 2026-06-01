@@ -10,15 +10,16 @@ import {
 
 // POST /api/wow
 // Takes a user's intake answers (personality, name, business, audience,
-// differentiator) and returns three first-session deliverables: a
+// differentiator) and returns four first-session outputs: a brand name,
 // landing page hero block, three social posts (Instagram / X / LinkedIn),
-// and one paid ad. Powered by Claude Haiku 4.5 — fast and cheap enough
-// to run on every wow page mount.
+// and one paid ad. Powered by Claude Sonnet 4.6 — Haiku produced safe,
+// generic output for thin inputs; Sonnet gives the creative-director
+// quality the brief's wow moment needs.
 //
-// Caching: the system prompt (templates + house style + examples) is the
-// same across all users, marked `cache_control: ephemeral` so the prefix
-// caches once Haiku 4.5's 4096-token minimum is hit. The per-user payload
-// (the intake answers) lives in the user message — invalidates nothing.
+// Caching: the system prompt is the same across all users, marked
+// `cache_control: ephemeral` so the prefix caches once Sonnet 4.6's
+// 2048-token minimum is hit. The per-user payload (the intake answers)
+// lives in the user message — invalidates nothing.
 
 const BodySchema = z.object({
   personalityId: z.enum(["maven", "sage", "spark", "echo"]),
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
 
   try {
     const response = await client.messages.parse({
-      model: "claude-haiku-4-5",
+      model: "claude-sonnet-4-6",
       max_tokens: 2048,
       system: [
         {
