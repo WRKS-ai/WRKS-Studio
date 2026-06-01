@@ -630,16 +630,13 @@ function LandingPreview({
       className="w-full rounded-2xl overflow-hidden"
       style={{
         background: LIGHT_BG,
-        boxShadow: `0 50px 100px -40px ${personality.glow}, 0 30px 60px -30px rgba(0,0,0,0.5)`,
+        boxShadow: `0 60px 120px -40px ${personality.glow}, 0 40px 80px -30px rgba(0,0,0,0.55)`,
       }}
     >
-      {/* Browser chrome (stays dark — it's the macOS Safari frame) */}
+      {/* macOS browser chrome — stays dark */}
       <div
         className="flex items-center gap-3 px-4 py-3"
-        style={{
-          background: "#2a2a2c",
-          borderBottom: "1px solid #18181a",
-        }}
+        style={{ background: "#2a2a2c", borderBottom: "1px solid #18181a" }}
       >
         <div className="flex items-center gap-1.5">
           <span className="size-2.5 rounded-full bg-red-500/90" />
@@ -655,104 +652,88 @@ function LandingPreview({
         <div className="w-12" aria-hidden />
       </div>
 
-      {/* Site nav */}
-      <div
-        className="flex items-center justify-between px-6 sm:px-10 py-3.5 text-[12px]"
+      {/* Editorial nav — refined, minimal */}
+      <header
+        className="flex items-center justify-between px-6 sm:px-12 py-4 text-[12px]"
         style={{ borderBottom: `1px solid ${LIGHT_BORDER_SOFT}` }}
       >
         <div className="flex items-center gap-2 font-serif">
           <span
-            className="size-2 rounded-full"
+            className="size-1.5 rounded-full"
             style={{ background: personality.accent }}
             aria-hidden
           />
           <span
-            className="font-medium tracking-tight"
+            className="font-medium tracking-tight text-[15px]"
             style={{ color: LIGHT_INK }}
           >
             {brandName}
           </span>
         </div>
-        <div
-          className="hidden sm:flex items-center gap-5 font-sans"
+        <nav
+          className="hidden sm:flex items-center gap-7 font-sans text-[12.5px]"
           style={{ color: LIGHT_INK_MUTED }}
         >
           <span>Shop</span>
+          <span>Editorial</span>
+          <span>Stockists</span>
           <span>About</span>
-          <span>Journal</span>
-        </div>
+        </nav>
         <div
-          className="flex items-center gap-3 font-sans"
+          className="flex items-center gap-3.5"
           style={{ color: LIGHT_INK_MUTED }}
         >
           <SearchIcon />
-          <HeartOutlineIcon />
+          <AccountIcon />
           <CartIcon />
         </div>
-      </div>
+      </header>
 
-      {/* Two-column hero — copy on left, photo on right */}
-      <div className="grid grid-cols-1 md:grid-cols-[1.05fr_1fr]">
-        <div className="px-6 sm:px-10 py-14 sm:py-20 text-left flex flex-col justify-center">
-          <h2
-            className="font-serif font-medium tracking-tight text-[clamp(1.875rem,4vw,3.25rem)] leading-[1.02]"
-            style={{ color: LIGHT_INK }}
-          >
-            {data.headline}
-          </h2>
-          <p
-            className="mt-6 text-[15px] sm:text-base leading-relaxed max-w-md"
-            style={{ color: LIGHT_INK_MUTED }}
-          >
-            {data.subhead}
-          </p>
-
+      {/* HERO — editorial-style centered headline, full width */}
+      <section className="px-6 sm:px-16 pt-16 pb-10 sm:pt-24 sm:pb-14 text-center">
+        <div
+          className="text-[10px] tracking-[0.32em] uppercase font-mono mb-7"
+          style={{ color: LIGHT_INK_DIM }}
+        >
+          <span>The Edit</span>
+          <span className="mx-2.5" aria-hidden>
+            ·
+          </span>
+          <span style={{ color: personality.accent }}>Available now</span>
+        </div>
+        <h1
+          className="font-serif font-medium tracking-tight leading-[0.94] text-[clamp(2.5rem,5.8vw,5rem)] max-w-4xl mx-auto"
+          style={{ color: LIGHT_INK }}
+        >
+          {data.headline}
+        </h1>
+        <p
+          className="mt-8 max-w-2xl mx-auto font-serif italic leading-snug text-[clamp(1.0625rem,1.5vw,1.3125rem)]"
+          style={{ color: LIGHT_INK_MUTED }}
+        >
+          {data.subhead}
+        </p>
+        <div className="mt-10 flex items-center justify-center">
           <button
             type="button"
-            className="mt-9 inline-flex items-center gap-2 h-12 px-7 rounded-full font-sans font-medium text-[14px] text-white transition-transform hover:scale-[1.02] self-start"
+            className="inline-flex items-center gap-2.5 h-12 px-8 rounded-full font-sans font-medium text-[14px] text-white transition-transform hover:scale-[1.02]"
             style={{
               background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-              boxShadow: `0 12px 32px -10px ${personality.glow}`,
+              boxShadow: `0 16px 40px -12px ${personality.glow}`,
             }}
           >
             {data.primaryCta}
             <span aria-hidden>→</span>
           </button>
-
-          <ul className="mt-10 flex flex-col gap-3 max-w-md">
-            {data.valueBullets.map((bullet, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-3 text-[14px] leading-snug"
-                style={{ color: LIGHT_INK_MUTED }}
-              >
-                <span
-                  aria-hidden
-                  className="mt-0.5 shrink-0 size-4 rounded-full flex items-center justify-center"
-                  style={{
-                    background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-                  }}
-                >
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M5 13l4 4L19 7"
-                      stroke="white"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-                <span>{bullet}</span>
-              </li>
-            ))}
-          </ul>
         </div>
+      </section>
 
-        {/* Hero photo — fills the right side */}
+      {/* Full-bleed hero photo with photo caption — cinematic */}
+      <div className="px-6 sm:px-12 pb-14 sm:pb-20">
         <div
-          className="relative min-h-[320px] md:min-h-[520px]"
+          className="relative w-full overflow-hidden rounded-md"
           style={{
+            aspectRatio: "16 / 9",
             background: `linear-gradient(135deg, ${personality.accent}22 0%, ${personality.accentDeep}33 100%)`,
           }}
         >
@@ -766,78 +747,260 @@ function LandingPreview({
               (e.currentTarget as HTMLImageElement).style.opacity = "0";
             }}
           />
+          {/* Soft bottom gradient for caption legibility */}
+          <div
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 h-1/3"
+            style={{
+              background:
+                "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)",
+            }}
+          />
+          <div className="absolute bottom-4 left-5 sm:bottom-6 sm:left-7 right-5 sm:right-7 flex items-end justify-between text-white">
+            <div className="text-[10px] tracking-[0.24em] uppercase font-mono opacity-90">
+              {brandName} <span aria-hidden>·</span> The Edit
+            </div>
+            <div className="text-[10px] tracking-[0.24em] uppercase font-mono opacity-70">
+              01 of 03
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Featured strip */}
-      <div
-        className="px-6 sm:px-12 pt-8 pb-12"
+      {/* Value bullets — editorial 3-column row with numbered labels */}
+      <section
+        className="px-6 sm:px-12 py-14 sm:py-16 grid grid-cols-1 md:grid-cols-3 gap-x-10 gap-y-8"
         style={{ borderTop: `1px solid ${LIGHT_BORDER_SOFT}` }}
       >
-        <div className="flex items-center justify-between mb-6">
-          <div
-            className="text-[10px] tracking-[0.22em] uppercase font-mono"
-            style={{ color: LIGHT_INK_DIM }}
-          >
-            New in
+        {data.valueBullets.map((bullet, i) => (
+          <div key={i} className="text-left">
+            <div
+              className="text-[11px] tracking-[0.32em] uppercase font-mono mb-3"
+              style={{ color: personality.accent }}
+            >
+              0{i + 1}
+            </div>
+            <p
+              className="font-serif leading-snug text-[clamp(1rem,1.3vw,1.125rem)]"
+              style={{ color: LIGHT_INK }}
+            >
+              {bullet}
+            </p>
+          </div>
+        ))}
+      </section>
+
+      {/* Featured — asymmetric magazine-style grid */}
+      <section
+        className="px-6 sm:px-12 py-14 sm:py-16"
+        style={{ borderTop: `1px solid ${LIGHT_BORDER_SOFT}` }}
+      >
+        <div className="flex items-end justify-between mb-8 sm:mb-10">
+          <div>
+            <div
+              className="text-[10px] tracking-[0.32em] uppercase font-mono mb-3"
+              style={{ color: LIGHT_INK_DIM }}
+            >
+              From the studio
+            </div>
+            <h2
+              className="font-serif tracking-tight leading-[1.05] text-[clamp(1.5rem,2.6vw,2.125rem)]"
+              style={{ color: LIGHT_INK }}
+            >
+              Currently in rotation.
+            </h2>
           </div>
           <div
-            className="text-[10px] tracking-[0.22em] uppercase font-mono"
+            className="text-[11px] tracking-[0.22em] uppercase font-mono pb-1.5"
             style={{ color: LIGHT_INK_MUTED }}
           >
-            View all →
+            See all →
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          {featuredImages.map((src, i) => (
-            <div
-              key={i}
-              className="relative aspect-[3/4] rounded-lg overflow-hidden group"
-              style={{
-                background: `linear-gradient(135deg, ${personality.accent}22 0%, ${personality.accentDeep}33 100%)`,
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt=""
-                loading="lazy"
-                className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.opacity = "0";
-                }}
-              />
-              <div
-                aria-hidden
-                className="absolute inset-x-0 bottom-0 h-1/2"
-                style={{
-                  background:
-                    "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)",
-                }}
-              />
-              <div className="absolute inset-x-0 bottom-0 p-3 flex items-end justify-between text-[11px] font-mono text-white">
-                <span className="uppercase tracking-wider">
-                  {brandName} · 0{i + 1}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Footer */}
-      <div
-        className="px-6 sm:px-12 py-4 flex items-center justify-between text-[10px] font-mono"
+        {/* Asymmetric grid — 1 tall left, 2 stacked right */}
+        <div
+          className="grid grid-cols-1 md:grid-cols-[1.5fr_1fr] gap-3 sm:gap-4"
+          style={{ aspectRatio: "11 / 7" }}
+        >
+          <FeaturedCard
+            image={featuredImages[0]!}
+            personality={personality}
+            label={`${brandName} · No. 01`}
+            tagline="The opening piece"
+            large
+          />
+          <div className="grid grid-rows-2 gap-3 sm:gap-4">
+            <FeaturedCard
+              image={featuredImages[1]!}
+              personality={personality}
+              label={`${brandName} · No. 02`}
+              tagline="Just landed"
+            />
+            <FeaturedCard
+              image={featuredImages[2]!}
+              personality={personality}
+              label={`${brandName} · No. 03`}
+              tagline="Limited run"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Newsletter */}
+      <section
+        className="px-6 sm:px-12 py-16 sm:py-20 text-center"
         style={{
-          background: "#f0efea",
-          color: LIGHT_INK_DIM,
+          background: "#f0eee8",
           borderTop: `1px solid ${LIGHT_BORDER_SOFT}`,
         }}
       >
-        <span>© {brandName}</span>
-        <span>{slug}.com</span>
+        <div
+          className="text-[10px] tracking-[0.32em] uppercase font-mono mb-4"
+          style={{ color: LIGHT_INK_DIM }}
+        >
+          The newsletter
+        </div>
+        <h3
+          className="font-serif tracking-tight leading-[1.02] text-[clamp(1.875rem,3.2vw,2.75rem)] max-w-2xl mx-auto"
+          style={{ color: LIGHT_INK }}
+        >
+          Quietly delivered.
+          <br />
+          When something arrives.
+        </h3>
+        <p
+          className="mt-5 max-w-md mx-auto text-[14px] font-serif italic leading-snug"
+          style={{ color: LIGHT_INK_MUTED }}
+        >
+          No noise. No abandoned-cart emails. Just the work, when it&rsquo;s ready.
+        </p>
+        <div
+          className="mt-8 max-w-md mx-auto flex items-center gap-1 px-1.5 py-1 rounded-full"
+          style={{ background: "white", border: `1px solid ${LIGHT_BORDER}` }}
+        >
+          <input
+            type="email"
+            placeholder="you@email.com"
+            disabled
+            className="flex-1 bg-transparent border-0 outline-none text-[14px] py-2 px-3"
+            style={{ color: LIGHT_INK }}
+          />
+          <button
+            type="button"
+            className="h-9 px-5 rounded-full text-[11px] tracking-[0.18em] uppercase font-mono text-white"
+            style={{ background: LIGHT_INK }}
+          >
+            Subscribe
+          </button>
+        </div>
+      </section>
+
+      {/* Footer — refined dark band */}
+      <footer
+        className="px-6 sm:px-12 py-7 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-0 items-center text-[10px] tracking-[0.22em] uppercase font-mono"
+        style={{ background: "#15151a", color: "#9a9aa3" }}
+      >
+        <div className="flex items-center gap-2 justify-self-start">
+          <span
+            className="size-1.5 rounded-full"
+            style={{ background: personality.accent }}
+            aria-hidden
+          />
+          <span>© {brandName}</span>
+        </div>
+        <div className="sm:justify-self-center flex items-center gap-5">
+          <span>Instagram</span>
+          <span>Editorial</span>
+          <span>Contact</span>
+        </div>
+        <div className="sm:justify-self-end">{slug}.com</div>
+      </footer>
+    </div>
+  );
+}
+
+function FeaturedCard({
+  image,
+  personality,
+  label,
+  tagline,
+  large,
+}: {
+  image: string;
+  personality: Personality;
+  label: string;
+  tagline: string;
+  large?: boolean;
+}) {
+  return (
+    <div
+      className="relative h-full rounded-md overflow-hidden group"
+      style={{
+        background: `linear-gradient(135deg, ${personality.accent}22 0%, ${personality.accentDeep}33 100%)`,
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={image}
+        alt=""
+        loading="lazy"
+        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).style.opacity = "0";
+        }}
+      />
+      <div
+        aria-hidden
+        className="absolute inset-x-0 bottom-0 h-2/3"
+        style={{
+          background:
+            "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)",
+        }}
+      />
+      <div
+        className={`absolute bottom-0 left-0 right-0 ${
+          large ? "p-5 sm:p-6" : "p-3.5 sm:p-4"
+        } flex items-end justify-between text-white`}
+      >
+        <div className="min-w-0">
+          <div
+            className={`tracking-[0.24em] uppercase font-mono opacity-80 ${
+              large ? "text-[10px]" : "text-[9px]"
+            }`}
+          >
+            {label}
+          </div>
+          <div
+            className={`mt-1 font-serif italic leading-snug ${
+              large ? "text-[clamp(0.9375rem,1.3vw,1.125rem)]" : "text-[12.5px]"
+            }`}
+          >
+            {tagline}
+          </div>
+        </div>
+        <span
+          aria-hidden
+          className={large ? "text-[22px]" : "text-[16px]"}
+        >
+          →
+        </span>
       </div>
     </div>
+  );
+}
+
+function AccountIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -847,18 +1010,6 @@ function SearchIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
       <path d="M20 20l-3-3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-function HeartOutlineIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
     </svg>
   );
 }
