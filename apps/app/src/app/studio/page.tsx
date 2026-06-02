@@ -226,7 +226,7 @@ export default function StudioPage() {
                   key={t.id}
                   type="button"
                   onClick={() => setActiveId(t.id)}
-                  className="relative shrink-0 h-10 px-4 rounded-lg inline-flex items-center gap-2.5 transition-colors"
+                  className="relative shrink-0 h-11 px-4 rounded-lg inline-flex items-center gap-2.5 transition-colors"
                   style={{
                     background: isActive
                       ? "rgba(255,255,255,0.06)"
@@ -236,17 +236,17 @@ export default function StudioPage() {
                       : "1px solid transparent",
                     color: isActive
                       ? "rgba(245,245,247,1)"
-                      : "rgba(245,245,247,0.55)",
+                      : "rgba(245,245,247,0.6)",
                   }}
                 >
                   <span
                     style={{
-                      color: isActive ? accent : "rgba(245,245,247,0.5)",
+                      color: isActive ? accent : "rgba(245,245,247,0.55)",
                     }}
                   >
-                    <t.Icon size={16} />
+                    <t.Icon size={17} />
                   </span>
-                  <span className="text-[14px] font-medium">{t.label}</span>
+                  <span className="text-[15px] font-medium">{t.label}</span>
                   {isActive && (
                     <span
                       className="size-1.5 rounded-full"
@@ -264,9 +264,9 @@ export default function StudioPage() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              className="h-9 px-3.5 rounded-lg text-[13px] font-medium transition-colors hover:bg-white/[0.05]"
+              className="h-10 px-4 rounded-lg text-[14px] font-medium transition-colors hover:bg-white/[0.05]"
               style={{
-                color: "rgba(245,245,247,0.75)",
+                color: "rgba(245,245,247,0.8)",
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
@@ -274,9 +274,9 @@ export default function StudioPage() {
             </button>
             <button
               type="button"
-              className="h-9 px-3.5 rounded-lg text-[13px] font-medium transition-colors hover:bg-white/[0.05]"
+              className="h-10 px-4 rounded-lg text-[14px] font-medium transition-colors hover:bg-white/[0.05]"
               style={{
-                color: "rgba(245,245,247,0.75)",
+                color: "rgba(245,245,247,0.8)",
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
@@ -284,7 +284,7 @@ export default function StudioPage() {
             </button>
             <button
               type="button"
-              className="h-9 px-4 rounded-lg text-[13px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              className="h-10 px-5 rounded-lg text-[14px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
               style={{
                 background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
                 boxShadow: `0 8px 24px -8px ${glow}`,
@@ -296,21 +296,23 @@ export default function StudioPage() {
         </div>
 
         {/* Deliverable metadata strip */}
-        <div className="shrink-0 px-8 py-3 flex items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
+        <div className="shrink-0 px-8 py-4 flex items-center justify-between gap-6">
+          <div className="flex items-baseline gap-3.5">
             <h2
-              className="text-[22px] font-medium tracking-tight"
+              className="font-serif font-medium tracking-tight"
               style={{
-                color: "rgba(245,245,247,0.95)",
-                letterSpacing: "-0.01em",
+                fontSize: 28,
+                color: "rgba(245,245,247,0.98)",
+                letterSpacing: "-0.02em",
+                lineHeight: 1.1,
               }}
             >
               {labelFor(activeId)}
             </h2>
             <span
-              className="text-[12.5px]"
+              className="text-[13.5px]"
               style={{
-                color: "rgba(245,245,247,0.45)",
+                color: "rgba(245,245,247,0.5)",
                 fontFamily: "var(--font-mono)",
               }}
             >
@@ -323,9 +325,9 @@ export default function StudioPage() {
               label={thinking ? "Refining" : "In sync"}
             />
             <span
-              className="text-[12.5px]"
+              className="text-[13px]"
               style={{
-                color: "rgba(245,245,247,0.45)",
+                color: "rgba(245,245,247,0.5)",
                 fontFamily: "var(--font-mono)",
               }}
             >
@@ -395,7 +397,7 @@ export default function StudioPage() {
       >
         {/* Inspector header — orb + name */}
         <div
-          className="shrink-0 px-6 pt-6 pb-5 flex flex-col items-center text-center relative overflow-hidden"
+          className="shrink-0 px-6 pt-7 pb-6 flex flex-col items-center text-center relative overflow-hidden"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
         >
           {/* Soft accent wash behind orb */}
@@ -410,18 +412,20 @@ export default function StudioPage() {
             <PersonalityIcon personality={personality} size="md" />
           </div>
           <h3
-            className="relative mt-5 text-[20px] font-serif font-medium tracking-tight"
+            className="relative mt-7 font-serif font-medium tracking-tight"
             style={{
+              fontSize: 30,
+              lineHeight: 1.05,
               color: "rgba(245,245,247,0.98)",
-              letterSpacing: "-0.01em",
+              letterSpacing: "-0.025em",
             }}
           >
             {agentName}
           </h3>
           <div
-            className="relative mt-1.5 text-[12.5px] flex items-center gap-2"
+            className="relative mt-3 text-[13.5px] flex items-center gap-2"
             style={{
-              color: "rgba(245,245,247,0.55)",
+              color: "rgba(245,245,247,0.6)",
               fontFamily: "var(--font-mono)",
             }}
           >
@@ -566,15 +570,15 @@ function Composer({
         placeholder={`Tell ${agentName} what to change…`}
         disabled={thinking}
         rows={3}
-        className="w-full bg-transparent border-0 outline-none resize-none px-4 pt-4 pb-2 text-[15px] leading-relaxed placeholder:text-white/35 disabled:opacity-50"
+        className="w-full bg-transparent border-0 outline-none resize-none px-5 pt-5 pb-2 text-[16.5px] leading-relaxed placeholder:text-white/35 disabled:opacity-50"
         style={{
           color: "rgba(245,245,247,1)",
           caretColor: personality.accent,
           fontFamily: "var(--font-sans)",
-          minHeight: 96,
+          minHeight: 108,
         }}
       />
-      <div className="flex items-center justify-between px-2.5 pb-2.5">
+      <div className="flex items-center justify-between px-3 pb-3">
         <div className="flex items-center gap-1">
           <ComposerIconButton title="Attach context">
             <PlusIcon />
@@ -591,11 +595,11 @@ function Composer({
             <MicIcon />
           </ComposerIconButton>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span
-            className="text-[11px] tracking-[0.18em] uppercase"
+            className="text-[12px] tracking-[0.18em] uppercase"
             style={{
-              color: "rgba(245,245,247,0.4)",
+              color: "rgba(245,245,247,0.45)",
               fontFamily: "var(--font-mono)",
             }}
           >
@@ -605,7 +609,7 @@ function Composer({
             type="button"
             onClick={onSubmit}
             disabled={!hasText || thinking}
-            className="h-9 px-4 rounded-lg inline-flex items-center gap-2 text-[13px] font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-transform hover:scale-[1.03] active:scale-[0.97]"
+            className="h-10 px-5 rounded-lg inline-flex items-center gap-2 text-[14.5px] font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-transform hover:scale-[1.03] active:scale-[0.97]"
             style={{
               background: hasText
                 ? `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`
@@ -651,9 +655,9 @@ function ComposerIconButton({
       onMouseDown={onMouseDown}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}
-      className="size-9 rounded-lg grid place-items-center transition-all hover:bg-white/[0.05]"
+      className="size-10 rounded-lg grid place-items-center transition-all hover:bg-white/[0.05]"
       style={{
-        color: active && accent ? accent : "rgba(245,245,247,0.6)",
+        color: active && accent ? accent : "rgba(245,245,247,0.65)",
         background: active && accent ? `${accent}1f` : "transparent",
         boxShadow: active && glow ? `0 0 0 1px ${accent}55, 0 0 12px ${glow}` : "none",
       }}
@@ -686,7 +690,7 @@ function ChatBubble({
         className="flex justify-end"
       >
         <div
-          className="px-3.5 py-2.5 rounded-2xl rounded-tr-md max-w-[88%] text-[14px] leading-relaxed"
+          className="px-4 py-3 rounded-2xl rounded-tr-md max-w-[88%] text-[15.5px] leading-relaxed"
           style={{
             background: "rgba(255,255,255,0.06)",
             color: "rgba(245,245,247,0.95)",
@@ -702,14 +706,14 @@ function ChatBubble({
       initial={reduced ? false : { opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="flex items-start gap-2.5"
+      className="flex items-start gap-3"
     >
-      <div className="shrink-0 mt-0.5">
+      <div className="shrink-0 mt-1">
         <PersonalityIcon personality={personality} size="xs" />
       </div>
       <div className="flex-1 min-w-0">
         <div
-          className="text-[11px] tracking-[0.2em] uppercase mb-1"
+          className="text-[12px] tracking-[0.2em] uppercase mb-1.5"
           style={{
             color: personality.accent,
             fontFamily: "var(--font-mono)",
@@ -718,8 +722,8 @@ function ChatBubble({
           {agentName}
         </div>
         <p
-          className="font-serif text-[14.5px] leading-relaxed"
-          style={{ color: "rgba(245,245,247,0.88)" }}
+          className="font-serif text-[16.5px] leading-[1.45]"
+          style={{ color: "rgba(245,245,247,0.92)" }}
         >
           {line.text}
         </p>
@@ -774,30 +778,30 @@ function EmptyTranscript({
   return (
     <div className="flex flex-col gap-3 pt-1">
       <div
-        className="text-[11px] tracking-[0.2em] uppercase"
+        className="text-[12px] tracking-[0.2em] uppercase"
         style={{
-          color: "rgba(245,245,247,0.4)",
+          color: "rgba(245,245,247,0.45)",
           fontFamily: "var(--font-mono)",
         }}
       >
         Try asking
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2.5">
         {suggestions.map((s) => (
           <button
             key={s}
             type="button"
             onClick={() => onPick(s)}
-            className="text-left px-3.5 py-2.5 rounded-xl text-[14px] transition-all hover:bg-white/[0.04] flex items-center justify-between group"
+            className="text-left px-4 py-3 rounded-xl text-[15.5px] transition-all hover:bg-white/[0.04] flex items-center justify-between group"
             style={{
               background: "rgba(255,255,255,0.02)",
               border: "1px solid rgba(255,255,255,0.06)",
-              color: "rgba(245,245,247,0.88)",
+              color: "rgba(245,245,247,0.9)",
             }}
           >
             <span className="font-serif">{s}</span>
             <span
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-[13px]"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-[15px]"
               style={{ color: personality.accent }}
             >
               →
@@ -845,7 +849,7 @@ function EmptyCanvas({
 function StatusDot({ color, label }: { color: string; label: string }) {
   return (
     <div
-      className="inline-flex items-center gap-2 px-2.5 h-7 rounded-md"
+      className="inline-flex items-center gap-2 px-3 h-8 rounded-md"
       style={{
         background: "rgba(255,255,255,0.04)",
         border: "1px solid rgba(255,255,255,0.06)",
@@ -856,9 +860,9 @@ function StatusDot({ color, label }: { color: string; label: string }) {
         style={{ background: color, boxShadow: `0 0 6px ${color}` }}
       />
       <span
-        className="text-[12px] font-medium"
+        className="text-[13px] font-medium"
         style={{
-          color: "rgba(245,245,247,0.75)",
+          color: "rgba(245,245,247,0.8)",
           fontFamily: "var(--font-mono)",
         }}
       >
@@ -985,56 +989,70 @@ function CompactLanding({
 }) {
   return (
     <div className="size-full bg-[#fbf7ee] flex flex-col">
-      <div className="flex items-center justify-between px-8 py-3 border-b border-black/5">
-        <span className="font-serif text-[14px] text-[#0e0c08] flex items-center gap-1.5">
+      <div className="flex items-center justify-between px-8 py-3 border-b border-black/5 shrink-0">
+        <span className="font-serif text-[15px] text-[#0e0c08] flex items-center gap-2">
           <span
             className="size-1.5 rounded-full"
             style={{ background: personality.accent }}
           />
           {brandName}
         </span>
-        <div className="flex gap-5 text-[10px] uppercase tracking-[0.22em] font-mono text-[#827a6e]">
+        <div className="flex gap-6 text-[11px] uppercase tracking-[0.22em] font-mono text-[#827a6e]">
           <span>Index</span>
           <span>Studio</span>
           <span>Contact</span>
         </div>
-        <span className="text-[10px] uppercase tracking-[0.22em] font-mono text-[#827a6e]">
+        <span className="text-[11px] uppercase tracking-[0.22em] font-mono text-[#827a6e]">
           Vol. 01
         </span>
       </div>
-      <div className="px-12 py-12 text-left flex-1">
-        <div
-          className="text-[10px] tracking-[0.32em] uppercase font-mono mb-6 flex items-center gap-3"
-          style={{ color: "#827a6e" }}
-        >
-          <span
-            className="inline-block h-px w-8"
-            style={{ background: personality.accent }}
-          />
-          <span>Now showing</span>
+      <div className="grid flex-1 min-h-0" style={{ gridTemplateColumns: "1.15fr 0.85fr" }}>
+        <div className="px-10 py-9 text-left flex flex-col justify-center">
+          <div
+            className="text-[11px] tracking-[0.32em] uppercase font-mono mb-5 flex items-center gap-3"
+            style={{ color: "#827a6e" }}
+          >
+            <span
+              className="inline-block h-px w-8"
+              style={{ background: personality.accent }}
+            />
+            <span>Now showing</span>
+          </div>
+          <h1
+            className="font-serif font-medium text-[clamp(1.625rem,3.6vw,2.5rem)] leading-[1] text-[#0e0c08] max-w-[17ch]"
+            style={{ letterSpacing: "-0.025em" }}
+          >
+            {data.headline}
+          </h1>
+          <p className="mt-5 font-serif italic text-[clamp(0.9375rem,1.25vw,1.0625rem)] text-[#4a443c] max-w-[36ch] leading-relaxed">
+            {data.subhead}
+          </p>
+          <button
+            className="mt-6 inline-flex items-center gap-2 text-[#0e0c08] font-serif border-b border-[#0e0c08] pb-1 text-[15px] self-start"
+            type="button"
+          >
+            <span>{data.primaryCta}</span>
+            <span style={{ color: personality.accent }}>→</span>
+          </button>
         </div>
-        <h1
-          className="font-serif font-medium text-[clamp(1.875rem,4vw,3rem)] leading-[0.95] text-[#0e0c08] max-w-[16ch]"
-          style={{ letterSpacing: "-0.025em" }}
-        >
-          {data.headline}
-        </h1>
-        <p className="mt-6 font-serif italic text-[clamp(0.9375rem,1.3vw,1.0625rem)] text-[#4a443c] max-w-[40ch]">
-          {data.subhead}
-        </p>
-        <button
-          className="mt-7 inline-flex items-center gap-2 text-[#0e0c08] font-serif border-b border-[#0e0c08] pb-1 text-[14px]"
-          type="button"
-        >
-          <span>{data.primaryCta}</span>
-          <span style={{ color: personality.accent }}>→</span>
-        </button>
+        <div className="relative overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={heroImage}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+          />
+        </div>
       </div>
-      <div className="px-12 pb-10 grid grid-cols-3 gap-5">
+      <div
+        className="px-10 py-5 grid grid-cols-3 gap-6 shrink-0"
+        style={{ borderTop: "1px solid rgba(14,12,8,0.06)" }}
+      >
         {data.valueBullets.slice(0, 3).map((bullet, i) => (
           <div key={i}>
             <div
-              className="text-[10px] tracking-[0.32em] uppercase font-mono mb-2"
+              className="text-[10px] tracking-[0.32em] uppercase font-mono mb-1.5"
               style={{ color: personality.accent }}
             >
               0{i + 1}
@@ -1045,15 +1063,6 @@ function CompactLanding({
           </div>
         ))}
       </div>
-      <div className="aspect-[16/9] w-full">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={heroImage}
-          alt=""
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
-      </div>
     </div>
   );
 }
@@ -1063,14 +1072,14 @@ function CompactLanding({
  * ============================================================ */
 function PlusIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
 function MicIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect x="9" y="3" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" />
       <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>

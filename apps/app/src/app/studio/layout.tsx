@@ -138,11 +138,11 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
         <div className="px-4 pt-5 pb-3">
           <button
             type="button"
-            className="w-full h-12 rounded-xl px-3 inline-flex items-center gap-3 transition-colors hover:bg-white/[0.04]"
+            className="w-full h-14 rounded-xl px-3.5 inline-flex items-center gap-3 transition-colors hover:bg-white/[0.04]"
             style={{ border: "1px solid rgba(255,255,255,0.07)" }}
           >
             <span
-              className="size-7 rounded-lg grid place-items-center text-[13px] font-semibold"
+              className="size-8 rounded-lg grid place-items-center text-[14px] font-semibold"
               style={{
                 background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
                 color: "white",
@@ -153,14 +153,14 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
             </span>
             <div className="flex-1 text-left leading-tight min-w-0">
               <div
-                className="text-[14.5px] font-medium truncate"
+                className="text-[15.5px] font-medium truncate"
                 style={{ color: "rgba(245,245,247,0.95)" }}
               >
                 {brandName}
               </div>
               <div
-                className="text-[11.5px] tracking-[0.06em]"
-                style={{ color: "rgba(245,245,247,0.45)" }}
+                className="text-[12.5px] tracking-[0.04em] mt-0.5"
+                style={{ color: "rgba(245,245,247,0.5)" }}
               >
                 WRKS Workspace
               </div>
@@ -208,27 +208,27 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
         {/* Bottom: agent identity card */}
         <div className="px-3 pb-4">
           <div
-            className="rounded-xl px-3 py-3 flex items-center gap-3"
+            className="rounded-xl px-3.5 py-3.5 flex items-center gap-3.5"
             style={{
-              background: "rgba(255,255,255,0.02)",
+              background: "rgba(255,255,255,0.025)",
               border: "1px solid rgba(255,255,255,0.06)",
             }}
           >
-            <div className="shrink-0">
-              <div className="scale-[0.34] origin-left -ml-2">
+            <div className="shrink-0 size-11 grid place-items-center">
+              <div className="scale-[0.38] origin-center">
                 <PersonalityIcon personality={personality} size="md" />
               </div>
             </div>
-            <div className="-ml-7 flex-1 min-w-0">
+            <div className="flex-1 min-w-0">
               <div
-                className="text-[13.5px] font-medium truncate"
+                className="text-[15px] font-medium truncate"
                 style={{ color: "rgba(245,245,247,0.95)" }}
               >
                 {agentName || "Agent"}
               </div>
               <div
-                className="text-[11.5px] tracking-[0.06em] flex items-center gap-1.5"
-                style={{ color: "rgba(245,245,247,0.5)" }}
+                className="text-[12.5px] tracking-[0.04em] flex items-center gap-1.5 mt-0.5"
+                style={{ color: "rgba(245,245,247,0.55)" }}
               >
                 <span
                   className="size-1.5 rounded-full"
@@ -247,26 +247,26 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
       <div className="flex-1 h-full flex flex-col min-w-0">
         {/* TOP BAR */}
         <header
-          className="shrink-0 h-14 px-6 flex items-center justify-between gap-6"
+          className="shrink-0 h-16 px-7 flex items-center justify-between gap-6"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
         >
           {/* Breadcrumb */}
-          <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             <span
-              className="text-[13px]"
-              style={{ color: "rgba(245,245,247,0.45)" }}
+              className="text-[14px]"
+              style={{ color: "rgba(245,245,247,0.5)" }}
             >
               {brandName}
             </span>
             <span style={{ color: "rgba(245,245,247,0.25)" }}>/</span>
             <span
-              className="text-[14.5px] font-medium truncate"
-              style={{ color: "rgba(245,245,247,0.95)" }}
+              className="text-[16px] font-medium truncate"
+              style={{ color: "rgba(245,245,247,0.98)" }}
             >
               {labelForPath(pathname)}
             </span>
             <span
-              className="ml-2 px-2 py-0.5 rounded-md text-[10.5px] tracking-[0.18em] uppercase"
+              className="ml-2 px-2.5 py-1 rounded-md text-[11.5px] tracking-[0.16em] uppercase"
               style={{
                 background: `${accent}1f`,
                 color: accent,
@@ -282,21 +282,21 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="h-9 px-3 rounded-lg inline-flex items-center gap-2 transition-colors hover:bg-white/[0.05]"
+              className="h-10 px-3.5 rounded-lg inline-flex items-center gap-2.5 transition-colors hover:bg-white/[0.05]"
               style={{ border: "1px solid rgba(255,255,255,0.08)" }}
             >
               <SearchIcon />
               <span
-                className="text-[12.5px]"
-                style={{ color: "rgba(245,245,247,0.55)" }}
+                className="text-[14px]"
+                style={{ color: "rgba(245,245,247,0.65)" }}
               >
                 Search
               </span>
               <span
-                className="px-1.5 py-0.5 rounded text-[10.5px]"
+                className="px-1.5 py-0.5 rounded text-[11.5px]"
                 style={{
                   background: "rgba(255,255,255,0.06)",
-                  color: "rgba(245,245,247,0.55)",
+                  color: "rgba(245,245,247,0.6)",
                   fontFamily: "var(--font-mono)",
                 }}
               >
@@ -306,17 +306,17 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
 
             <Link
               href="/studio/plans"
-              className="h-9 px-3 rounded-lg inline-flex items-center gap-2 transition-colors hover:bg-white/[0.05]"
+              className="h-10 px-3.5 rounded-lg inline-flex items-center gap-2.5 transition-colors hover:bg-white/[0.05]"
               style={{ border: "1px solid rgba(255,255,255,0.08)" }}
             >
               <span
-                className="text-[12.5px] font-medium"
-                style={{ color: "rgba(245,245,247,0.85)" }}
+                className="text-[14px] font-medium"
+                style={{ color: "rgba(245,245,247,0.9)" }}
               >
                 Starter
               </span>
               <span
-                className="text-[12px]"
+                className="text-[13.5px] font-medium"
                 style={{ color: accent }}
               >
                 Upgrade
@@ -339,11 +339,11 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
                   e.stopPropagation();
                   setProfileOpen((v) => !v);
                 }}
-                className="size-9 rounded-full grid place-items-center transition-transform hover:scale-105"
+                className="size-10 rounded-full grid place-items-center transition-transform hover:scale-105"
                 style={{
                   background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
                   color: "white",
-                  fontSize: 13,
+                  fontSize: 15,
                   fontWeight: 600,
                   boxShadow: `0 4px 12px -2px ${glow}`,
                 }}
@@ -454,9 +454,9 @@ function labelForPath(pathname: string) {
 function SidebarSection({ label }: { label: string }) {
   return (
     <div
-      className="px-3 pt-3 pb-2 text-[10.5px] tracking-[0.22em] uppercase"
+      className="px-3 pt-3 pb-2 text-[11.5px] tracking-[0.2em] uppercase"
       style={{
-        color: "rgba(245,245,247,0.35)",
+        color: "rgba(245,245,247,0.4)",
         fontFamily: "var(--font-mono)",
       }}
     >
@@ -485,12 +485,12 @@ function SidebarLink({
   return (
     <Link
       href={href}
-      className="relative h-10 px-3 rounded-lg flex items-center gap-3 transition-colors group"
+      className="relative h-11 px-3 rounded-lg flex items-center gap-3 transition-colors group"
       style={{
         background: isActive ? "rgba(255,255,255,0.045)" : "transparent",
         color: isActive
           ? "rgba(245,245,247,1)"
-          : "rgba(245,245,247,0.65)",
+          : "rgba(245,245,247,0.7)",
       }}
     >
       {isActive && (
@@ -503,15 +503,15 @@ function SidebarLink({
           }}
         />
       )}
-      <span style={{ color: isActive ? accent : "rgba(245,245,247,0.5)" }}>
-        <Icon size={17} />
+      <span style={{ color: isActive ? accent : "rgba(245,245,247,0.55)" }}>
+        <Icon size={18} />
       </span>
-      <span className="text-[14.5px] font-medium flex-1">{label}</span>
+      <span className="text-[15px] font-medium flex-1">{label}</span>
       {shortcut && !isActive && (
         <span
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-[10.5px] px-1 rounded"
+          className="opacity-0 group-hover:opacity-100 transition-opacity text-[11.5px] px-1.5 rounded"
           style={{
-            color: "rgba(245,245,247,0.45)",
+            color: "rgba(245,245,247,0.5)",
             background: "rgba(255,255,255,0.05)",
             fontFamily: "var(--font-mono)",
           }}
