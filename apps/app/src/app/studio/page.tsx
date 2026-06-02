@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StageBackdrop } from "@/components/stage-backdrop";
 import { PersonalityIcon } from "@/components/personality-icon";
 import {
@@ -11,33 +11,29 @@ import {
   type PersonalityId,
 } from "@/lib/personalities";
 import { VOICES, type VoiceId } from "@/lib/voices";
+import {
+  FacebookAdInFeed,
+  InstagramMini,
+  IPhoneFrame,
+  LinkedInMini,
+  MacBookFrame,
+  XMini,
+} from "@/components/wow-mockups";
 
-// /studio — the talk-to-your-agent home, per Google Stitch reference.
-// Sidebar lists the user's work (the deliverables they just generated
-// in /onboarding/wow plus future work). Main area is a massive prompt
-// input with personality-accent glow — the entire product loop runs
-// through this input.
+// /studio — the talk-to-build voice-first surface.
+// Per design research (Pi.ai, ChatGPT 2025, Hume, Apple Siri):
+// - Deliverable owns the canvas (artifact-first)
+// - Agent is ambient: small breathing orb bottom-right + bottom-edge bloom
+// - Voice/talk is the input (hold space, or click & hold the mic)
+// - Live transcript as subtitle overlay, not chat panel
+// - Apple palette + edge-bloom only during agent-active moments
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
 const VOICE_KEY = "wrks-onboarding-voice";
 const STUDIO_KEY = "wrks-studio-deliverables";
 
-type DeliverableKind =
-  | "landing"
-  | "instagram"
-  | "twitter"
-  | "linkedin"
-  | "ad";
-
-type StudioDeliverable = {
-  id: DeliverableKind;
-  title: string;
-  subtitle: string;
-  thumbnail: string;
-  thumbnailIsImage: boolean;
-  body: string;
-};
+type DeliverableKind = "landing" | "instagram" | "twitter" | "linkedin" | "ad";
 
 type StoredWowPayload = {
   deliverables: {
@@ -60,37 +56,37 @@ type StoredWowPayload = {
   createdAt: string;
 };
 
-const SUGGESTION_PROMPTS = [
-  "Tighten the landing headline",
-  "Make the Instagram post 30% shorter",
-  "Try a different angle for the ad",
-  "Write three more X posts in this voice",
-  "Draft a launch email",
-];
+type StripeItem = {
+  id: DeliverableKind;
+  title: string;
+  thumbnail: string;
+  isImage: boolean;
+};
+
+type ChatLine = {
+  role: "user" | "agent";
+  text: string;
+};
 
 export default function StudioPage() {
   const router = useRouter();
   const reduced = useReducedMotion();
 
-  const [personalityId, setPersonalityId] = useState<PersonalityId | null>(
-    null,
-  );
+  const [personalityId, setPersonalityId] = useState<PersonalityId | null>(null);
   const [agentName, setAgentName] = useState<string>("");
   const [voiceId, setVoiceId] = useState<VoiceId | null>(null);
   const [stored, setStored] = useState<StoredWowPayload | null>(null);
 
-  const [tab, setTab] = useState<"work" | "library">("work");
-  const [search, setSearch] = useState("");
-  const [activeDeliverable, setActiveDeliverable] =
-    useState<DeliverableKind | null>(null);
-  const [input, setInput] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [transcript, setTranscript] = useState<
-    { role: "user" | "agent"; text: string; at: string }[]
-  >([]);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [activeId, setActiveId] = useState<DeliverableKind>("landing");
+  const [talking, setTalking] = useState(false); // hold-to-talk is active
+  const [composing, setComposing] = useState(""); // current typed/transcribed text
+  const [thinking, setThinking] = useState(false); // waiting on /api/refine
+  const [chatLines, setChatLines] = useState<ChatLine[]>([]);
+  const [flashFields, setFlashFields] = useState<Set<string>>(new Set());
 
-  // Hydrate everything from localStorage
+  const composingRef = useRef<HTMLInputElement>(null);
+
+  // Hydrate from localStorage on mount
   useEffect(() => {
     const p = localStorage.getItem(PERSONALITY_KEY) as PersonalityId | null;
     if (!p || !PERSONALITIES.some((x) => x.id === p)) {
@@ -116,7 +112,7 @@ export default function StudioPage() {
       try {
         setStored(JSON.parse(raw) as StoredWowPayload);
       } catch {
-        // ignore malformed
+        // ignore
       }
     }
   }, [router]);
@@ -126,77 +122,52 @@ export default function StudioPage() {
     : null;
   const voice = voiceId ? VOICES.find((v) => v.id === voiceId)! : null;
 
-  // Convert the stored wow payload into the sidebar deliverables list
-  const deliverables = useMemo<StudioDeliverable[]>(() => {
+  const stripe = useMemo<StripeItem[]>(() => {
     if (!stored) return [];
     const { deliverables: d, images: i } = stored;
     return [
       {
         id: "landing",
         title: "Landing page",
-        subtitle: d.landing.headline,
         thumbnail: i.heroLandscape,
-        thumbnailIsImage: true,
-        body: `${d.landing.headline}\n\n${d.landing.subhead}\n\nCTA: ${d.landing.primaryCta}\n\n• ${d.landing.valueBullets.join("\n• ")}`,
+        isImage: true,
       },
       {
         id: "instagram",
-        title: "Instagram post",
-        subtitle: "Sponsored · Today",
+        title: "Instagram",
         thumbnail: i.instagramSquare,
-        thumbnailIsImage: true,
-        body: d.social.instagram,
+        isImage: true,
       },
       {
         id: "twitter",
-        title: "X / Twitter post",
-        subtitle: "@" + (d.brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "brand"),
+        title: "X / Twitter",
         thumbnail: "",
-        thumbnailIsImage: false,
-        body: d.social.twitter,
+        isImage: false,
       },
       {
         id: "linkedin",
-        title: "LinkedIn post",
-        subtitle: "From your founder profile",
+        title: "LinkedIn",
         thumbnail: "",
-        thumbnailIsImage: false,
-        body: d.social.linkedin,
+        isImage: false,
       },
       {
         id: "ad",
-        title: "Ad creative",
-        subtitle: d.ad.headline,
+        title: "Paid ad",
         thumbnail: i.adHero,
-        thumbnailIsImage: true,
-        body: `${d.ad.headline}\n\n${d.ad.body}\n\nCTA: ${d.ad.cta}`,
+        isImage: true,
       },
     ];
   }, [stored]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return deliverables;
-    return deliverables.filter(
-      (d) =>
-        d.title.toLowerCase().includes(q) ||
-        d.subtitle.toLowerCase().includes(q) ||
-        d.body.toLowerCase().includes(q),
-    );
-  }, [deliverables, search]);
+  // Submit the composed message
+  const onSubmit = useCallback(async () => {
+    const message = composing.trim();
+    if (!message || thinking) return;
 
-  if (!personality || !voice) return null;
-
-  const onSubmit = async () => {
-    const message = input.trim();
-    if (!message || submitting) return;
-
-    setSubmitting(true);
-    setTranscript((t) => [
-      ...t,
-      { role: "user", text: message, at: new Date().toISOString() },
-    ]);
-    setInput("");
+    setChatLines((c) => [...c.slice(-3), { role: "user", text: message }]);
+    setComposing("");
+    setTalking(false);
+    setThinking(true);
 
     try {
       const res = await fetch("/api/refine", {
@@ -206,7 +177,7 @@ export default function StudioPage() {
           personalityId,
           agentName,
           instruction: message,
-          activeDeliverable,
+          activeDeliverable: activeId,
           stored,
         }),
       });
@@ -215,26 +186,51 @@ export default function StudioPage() {
         | { error: string };
 
       if ("error" in data) {
-        setTranscript((t) => [
-          ...t,
-          {
-            role: "agent",
-            text: `Couldn't do that — ${data.error}`,
-            at: new Date().toISOString(),
-          },
+        setChatLines((c) => [
+          ...c.slice(-3),
+          { role: "agent", text: data.error },
         ]);
       } else {
-        setTranscript((t) => [
-          ...t,
-          { role: "agent", text: data.reply, at: new Date().toISOString() },
+        setChatLines((c) => [
+          ...c.slice(-3),
+          { role: "agent", text: data.reply },
         ]);
-        // If the agent returned updated deliverables, merge + persist
         if (data.updated && stored) {
+          // Track which fields changed for the visual flash
+          const changed = new Set<string>();
+          if (data.updated.landing) {
+            for (const k of Object.keys(data.updated.landing)) {
+              changed.add(`landing.${k}`);
+            }
+          }
+          if (data.updated.social) {
+            for (const k of Object.keys(data.updated.social)) {
+              changed.add(`social.${k}`);
+            }
+          }
+          if (data.updated.ad) {
+            for (const k of Object.keys(data.updated.ad)) {
+              changed.add(`ad.${k}`);
+            }
+          }
+          setFlashFields(changed);
+          // Clear the flash after 2 seconds
+          setTimeout(() => setFlashFields(new Set()), 2000);
+
           const merged: StoredWowPayload = {
             ...stored,
             deliverables: {
               ...stored.deliverables,
               ...data.updated,
+              landing: {
+                ...stored.deliverables.landing,
+                ...data.updated.landing,
+              },
+              social: {
+                ...stored.deliverables.social,
+                ...data.updated.social,
+              },
+              ad: { ...stored.deliverables.ad, ...data.updated.ad },
             },
           };
           setStored(merged);
@@ -243,628 +239,826 @@ export default function StudioPage() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Network error";
-      setTranscript((t) => [
-        ...t,
-        {
-          role: "agent",
-          text: `Couldn't do that — ${msg}`,
-          at: new Date().toISOString(),
-        },
-      ]);
+      setChatLines((c) => [...c.slice(-3), { role: "agent", text: msg }]);
     } finally {
-      setSubmitting(false);
-      // Refocus the input for fast follow-up
-      setTimeout(() => inputRef.current?.focus(), 80);
+      setThinking(false);
     }
-  };
+  }, [composing, thinking, personalityId, agentName, activeId, stored]);
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void onSubmit();
-    }
-  };
+  // Keyboard: hold space to talk (anywhere on page, except typing in inputs)
+  useEffect(() => {
+    const isEditable = (el: EventTarget | null) =>
+      el instanceof HTMLElement &&
+      (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    const onDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" && !isEditable(e.target) && !e.repeat) {
+        e.preventDefault();
+        setTalking(true);
+        setTimeout(() => composingRef.current?.focus(), 50);
+      }
+      if (e.code === "Escape") {
+        setTalking(false);
+        setComposing("");
+      }
+    };
+    const onUp = (e: KeyboardEvent) => {
+      if (e.code === "Space" && !isEditable(e.target)) {
+        e.preventDefault();
+        if (composing.trim()) {
+          void onSubmit();
+        } else {
+          setTalking(false);
+        }
+      }
+    };
+    window.addEventListener("keydown", onDown);
+    window.addEventListener("keyup", onUp);
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup", onUp);
+    };
+  }, [composing, onSubmit]);
 
-  const onSuggestion = (s: string) => {
-    setInput(s);
-    inputRef.current?.focus();
-  };
+  if (!personality || !voice) return null;
+
+  const agentActive = talking || thinking;
+  const dimmed = agentActive;
+  const activeDeliverableData = stored
+    ? activeDeliverableContent(activeId, stored)
+    : null;
 
   return (
-    <main className="relative min-h-screen flex bg-canvas overflow-hidden">
+    <main className="relative min-h-screen bg-canvas overflow-hidden">
       <StageBackdrop tint={personality.glow} />
 
-      {/* ============== SIDEBAR ============== */}
-      <Sidebar
+      {/* ============== TOP BAR (dims when voice active) ============== */}
+      <motion.header
+        animate={{ opacity: dimmed ? 0.35 : 1 }}
+        transition={{ duration: 0.4 }}
+        className="relative z-20 flex items-center justify-between px-6 sm:px-10 py-4"
+      >
+        <div className="flex items-center gap-2.5">
+          <span
+            className="size-2.5 rounded-full"
+            style={{
+              background:
+                "linear-gradient(135deg, #ffffff 0%, #a5b4fc 60%, #6366f1 100%)",
+              boxShadow: "0 0 10px rgba(165,180,252,0.5)",
+            }}
+            aria-hidden
+          />
+          <span className="font-serif text-[15px] tracking-tight text-ink">
+            WRKS<span className="text-ink-muted"> Studio</span>
+          </span>
+          <span
+            className="ml-1.5 px-2 py-0.5 rounded-full text-[9px] tracking-[0.18em] uppercase font-mono"
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              color: "rgba(245,245,245,0.55)",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            Beta
+          </span>
+        </div>
+        <div className="flex items-center gap-4 text-[12px] font-sans text-ink-muted">
+          <button className="hover:text-ink transition-colors">Connect</button>
+          <button className="hover:text-ink transition-colors">Docs</button>
+          <div
+            className="size-8 rounded-full"
+            style={{
+              background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
+            }}
+            aria-label={`${agentName} avatar`}
+          />
+        </div>
+      </motion.header>
+
+      {/* ============== MAIN STAGE ============== */}
+      <div className="relative flex">
+        {/* Left thumbnail strip */}
+        <DeliverableStripe
+          items={stripe}
+          activeId={activeId}
+          accent={personality.accent}
+          accentDeep={personality.accentDeep}
+          dimmed={dimmed}
+          onSelect={(id) => setActiveId(id)}
+          reduced={!!reduced}
+        />
+
+        {/* Center stage — the active deliverable */}
+        <div className="flex-1 flex items-center justify-center px-6 py-8 sm:py-12 min-h-[calc(100vh-72px)]">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeId}
+              initial={reduced ? false : { opacity: 0, y: 10, filter: "blur(8px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={reduced ? undefined : { opacity: 0, y: -6, filter: "blur(6px)" }}
+              transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+              className="w-full flex items-center justify-center"
+            >
+              {activeDeliverableData ? (
+                <ActiveDeliverable
+                  kind={activeId}
+                  personality={personality}
+                  agentName={agentName}
+                  stored={stored!}
+                  flashFields={flashFields}
+                />
+              ) : (
+                <EmptyState onContinue={() => router.push("/onboarding/personality")} />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* ============== AMBIENT ORB (bottom-right, breathing) ============== */}
+      <AmbientOrb personality={personality} active={agentActive} reduced={!!reduced} />
+
+      {/* ============== BOTTOM-EDGE BLOOM (Apple-style) ============== */}
+      <EdgeBloom active={agentActive} reduced={!!reduced} />
+
+      {/* ============== SUBTITLE BAR (bottom-center, voice input) ============== */}
+      <SubtitleBar
         personality={personality}
         agentName={agentName}
         voiceName={voice.name}
-        tab={tab}
-        onTabChange={setTab}
-        search={search}
-        onSearchChange={setSearch}
-        deliverables={filtered}
-        activeDeliverable={activeDeliverable}
-        onSelectDeliverable={(id) =>
-          setActiveDeliverable(activeDeliverable === id ? null : id)
+        talking={talking}
+        thinking={thinking}
+        composing={composing}
+        chatLines={chatLines}
+        onComposingChange={setComposing}
+        onStart={() => {
+          setTalking(true);
+          setTimeout(() => composingRef.current?.focus(), 50);
+        }}
+        onCancel={() => {
+          setTalking(false);
+          setComposing("");
+        }}
+        onSubmit={() => void onSubmit()}
+        composingRef={composingRef}
+        activeTitle={
+          stripe.find((s) => s.id === activeId)?.title ?? "deliverable"
         }
         reduced={!!reduced}
       />
-
-      {/* ============== MAIN ============== */}
-      <section className="relative flex-1 flex flex-col">
-        {/* Top bar */}
-        <TopBar agentName={agentName} personality={personality} />
-
-        <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 py-8 sm:py-12 overflow-y-auto">
-          <div className="w-full max-w-[820px] flex flex-col items-center">
-            {/* Welcome heading */}
-            <motion.h1
-              initial={reduced ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
-              className="font-serif font-medium tracking-tight leading-[0.96] text-[clamp(2.25rem,4.5vw,4rem)] text-ink text-center mb-2"
-            >
-              Welcome back.
-            </motion.h1>
-            <motion.p
-              initial={reduced ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25, duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
-              className="font-serif italic text-[clamp(1.125rem,1.5vw,1.5rem)] text-ink-muted text-center mb-12"
-            >
-              What should we work on, {agentName}?
-            </motion.p>
-
-            {/* Transcript */}
-            {transcript.length > 0 && (
-              <div className="w-full mb-8 flex flex-col gap-4 max-h-[280px] overflow-y-auto pr-1">
-                {transcript.map((line, i) => (
-                  <motion.div
-                    key={i}
-                    initial={reduced ? false : { opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                    className={`flex gap-3 ${
-                      line.role === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    {line.role === "agent" && (
-                      <div className="shrink-0 mt-0.5">
-                        <PersonalityIcon personality={personality} size="xs" />
-                      </div>
-                    )}
-                    <div
-                      className={`max-w-[80%] text-[14px] leading-relaxed font-serif ${
-                        line.role === "user"
-                          ? "text-right text-ink"
-                          : "italic text-ink-muted"
-                      }`}
-                    >
-                      {line.text}
-                    </div>
-                  </motion.div>
-                ))}
-                {submitting && (
-                  <div className="flex gap-3 items-center">
-                    <PersonalityIcon personality={personality} size="xs" />
-                    <div className="flex items-center gap-1.5">
-                      {[0, 1, 2].map((i) => (
-                        <motion.span
-                          key={i}
-                          className="size-1.5 rounded-full"
-                          style={{ background: personality.accent }}
-                          animate={
-                            reduced
-                              ? { opacity: 0.6 }
-                              : { opacity: [0.3, 1, 0.3], y: [0, -2, 0] }
-                          }
-                          transition={{
-                            duration: 0.9,
-                            repeat: Infinity,
-                            delay: i * 0.15,
-                            ease: "easeInOut",
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* PROMPT INPUT — the hero element */}
-            <PromptInput
-              personality={personality}
-              agentName={agentName}
-              voiceName={voice.name}
-              value={input}
-              onChange={setInput}
-              onKeyDown={onKeyDown}
-              onSubmit={() => void onSubmit()}
-              submitting={submitting}
-              inputRef={inputRef}
-              activeDeliverable={
-                activeDeliverable
-                  ? deliverables.find((d) => d.id === activeDeliverable) ?? null
-                  : null
-              }
-              reduced={!!reduced}
-            />
-
-            {/* Suggestion pills */}
-            <motion.div
-              initial={reduced ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.7, duration: 0.6 }}
-              className="mt-6 flex items-center flex-wrap justify-center gap-2.5 max-w-[680px]"
-            >
-              {SUGGESTION_PROMPTS.map((s, i) => (
-                <motion.button
-                  key={i}
-                  type="button"
-                  onClick={() => onSuggestion(s)}
-                  whileHover={reduced ? undefined : { y: -1 }}
-                  whileTap={{ scale: 0.97 }}
-                  className="px-3.5 py-1.5 rounded-full text-[12.5px] font-sans text-ink-muted hover:text-ink transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-                  style={{
-                    background: "rgba(255,255,255,0.025)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                  }}
-                >
-                  {s}
-                </motion.button>
-              ))}
-            </motion.div>
-
-            {/* "Need inspiration" — meta */}
-            {deliverables.length === 0 && (
-              <p className="mt-12 text-[12px] tracking-[0.2em] uppercase text-ink-dim font-mono text-center">
-                No saved work yet — head back to{" "}
-                <button
-                  onClick={() => router.push("/onboarding/personality")}
-                  className="underline hover:text-ink-muted transition-colors"
-                >
-                  onboarding
-                </button>{" "}
-                to draft your first deliverables
-              </p>
-            )}
-          </div>
-        </div>
-      </section>
     </main>
   );
 }
 
 /* ============================================================
- * Sidebar (Stitch-style)
+ * Active deliverable rendering
  * ============================================================ */
-function Sidebar({
+function activeDeliverableContent(
+  kind: DeliverableKind,
+  stored: StoredWowPayload,
+): string {
+  switch (kind) {
+    case "landing":
+      return stored.deliverables.landing.headline;
+    case "instagram":
+      return stored.deliverables.social.instagram;
+    case "twitter":
+      return stored.deliverables.social.twitter;
+    case "linkedin":
+      return stored.deliverables.social.linkedin;
+    case "ad":
+      return stored.deliverables.ad.headline;
+  }
+}
+
+function ActiveDeliverable({
+  kind,
   personality,
   agentName,
-  voiceName,
-  tab,
-  onTabChange,
-  search,
-  onSearchChange,
-  deliverables,
-  activeDeliverable,
-  onSelectDeliverable,
-  reduced,
+  stored,
+  flashFields,
 }: {
+  kind: DeliverableKind;
   personality: Personality;
   agentName: string;
-  voiceName: string;
-  tab: "work" | "library";
-  onTabChange: (t: "work" | "library") => void;
-  search: string;
-  onSearchChange: (v: string) => void;
-  deliverables: StudioDeliverable[];
-  activeDeliverable: DeliverableKind | null;
-  onSelectDeliverable: (id: DeliverableKind) => void;
-  reduced: boolean;
+  stored: StoredWowPayload;
+  flashFields: Set<string>;
 }) {
+  const d = stored.deliverables;
+  const i = stored.images;
+  const handleSlug =
+    d.brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "brand";
+
+  const isFlashing = (path: string) =>
+    Array.from(flashFields).some((f) => f.startsWith(path));
+
+  if (kind === "landing") {
+    return (
+      <div
+        className="w-full max-w-[920px]"
+        style={{
+          outline: isFlashing("landing")
+            ? `2px solid ${personality.accent}`
+            : "none",
+          outlineOffset: "8px",
+          transition: "outline 0.4s ease",
+        }}
+      >
+        <MacBookFrame>
+          <CompactLanding
+            personality={personality}
+            brandName={d.brandName}
+            data={d.landing}
+            heroImage={i.heroLandscape}
+            featuredImages={i.featured}
+          />
+        </MacBookFrame>
+      </div>
+    );
+  }
+
+  if (kind === "instagram") {
+    return (
+      <div
+        style={{
+          outline: isFlashing("social.instagram")
+            ? `2px solid ${personality.accent}`
+            : "none",
+          outlineOffset: "12px",
+          transition: "outline 0.4s ease",
+          borderRadius: "44px",
+        }}
+      >
+        <IPhoneFrame width={320} shadowGlow={personality.glow}>
+          <InstagramMini
+            handle={handleSlug}
+            caption={d.social.instagram}
+            image={i.instagramSquare}
+            accent={personality.accent}
+            accentDeep={personality.accentDeep}
+          />
+        </IPhoneFrame>
+      </div>
+    );
+  }
+
+  if (kind === "twitter") {
+    return (
+      <div
+        style={{
+          outline: isFlashing("social.twitter")
+            ? `2px solid ${personality.accent}`
+            : "none",
+          outlineOffset: "12px",
+          transition: "outline 0.4s ease",
+          borderRadius: "44px",
+        }}
+      >
+        <IPhoneFrame width={320} shadowGlow={personality.glow}>
+          <XMini
+            brandName={d.brandName}
+            handle={`@${handleSlug}`}
+            text={d.social.twitter}
+            accent={personality.accent}
+            accentDeep={personality.accentDeep}
+          />
+        </IPhoneFrame>
+      </div>
+    );
+  }
+
+  if (kind === "linkedin") {
+    return (
+      <div
+        style={{
+          outline: isFlashing("social.linkedin")
+            ? `2px solid ${personality.accent}`
+            : "none",
+          outlineOffset: "12px",
+          transition: "outline 0.4s ease",
+          borderRadius: "44px",
+        }}
+      >
+        <IPhoneFrame width={320} shadowGlow={personality.glow}>
+          <LinkedInMini
+            agentName={agentName}
+            brandName={d.brandName}
+            text={d.social.linkedin}
+            accent={personality.accent}
+            accentDeep={personality.accentDeep}
+          />
+        </IPhoneFrame>
+      </div>
+    );
+  }
+
+  // ad
   return (
-    <aside
-      className="relative shrink-0 w-[280px] flex flex-col gap-5 p-5 sm:p-6 hidden md:flex"
+    <div
       style={{
-        background: "rgba(0,0,0,0.25)",
-        borderRight: "1px solid rgba(255,255,255,0.05)",
+        outline: isFlashing("ad")
+          ? `2px solid ${personality.accent}`
+          : "none",
+        outlineOffset: "12px",
+        transition: "outline 0.4s ease",
+        borderRadius: "44px",
       }}
     >
-      {/* Top — agent + brand */}
-      <div className="flex items-center gap-2.5">
-        <PersonalityIcon personality={personality} size="xs" />
-        <div className="min-w-0 flex-1">
-          <div className="font-serif text-[15px] tracking-tight text-ink leading-tight">
-            {agentName}
-          </div>
-          <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono mt-0.5">
-            {personality.name} · {voiceName}
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div
-        className="grid grid-cols-2 gap-1 p-1 rounded-full"
-        style={{ background: "rgba(255,255,255,0.04)" }}
-      >
-        {(["work", "library"] as const).map((t) => {
-          const isActive = tab === t;
-          return (
-            <button
-              key={t}
-              type="button"
-              onClick={() => onTabChange(t)}
-              className="relative h-8 rounded-full text-[12px] font-sans font-medium transition-colors"
-              style={{
-                color: isActive ? "rgb(245 245 245)" : "rgba(245,245,245,0.55)",
-              }}
-            >
-              {isActive && (
-                <motion.span
-                  layoutId="studio-tab-bg"
-                  className="absolute inset-0 rounded-full"
-                  style={{ background: "rgba(255,255,255,0.07)" }}
-                />
-              )}
-              <span className="relative">
-                {t === "work" ? "My work" : "Library"}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Search */}
-      <div
-        className="flex items-center gap-2 px-3 py-2 rounded-full"
-        style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.05)",
-        }}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <circle cx="11" cy="11" r="7" stroke="rgba(245,245,245,0.4)" strokeWidth="1.8" />
-          <path d="M20 20l-3-3" stroke="rgba(245,245,245,0.4)" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search your work"
-          className="flex-1 bg-transparent border-0 outline-none text-[13px] text-ink placeholder:text-ink-dim/60 font-sans"
+      <IPhoneFrame width={340} shadowGlow={personality.glow}>
+        <FacebookAdInFeed
+          brandName={d.brandName}
+          adData={d.ad}
+          adImage={i.adHero}
+          accent={personality.accent}
+          accentDeep={personality.accentDeep}
         />
-      </div>
-
-      {/* Section header */}
-      <div className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono mt-2">
-        {tab === "work" ? "Drafts · Today" : "Templates"}
-      </div>
-
-      {/* Deliverable list */}
-      <div className="flex-1 overflow-y-auto flex flex-col gap-1 -mx-1.5 px-1.5">
-        <AnimatePresence initial={false}>
-          {tab === "work" && deliverables.length === 0 && (
-            <p className="text-[12px] text-ink-dim font-sans">
-              No work yet. Use the prompt to draft something.
-            </p>
-          )}
-          {tab === "library" && (
-            <p className="text-[12px] text-ink-dim font-sans">
-              WRKS templates · coming soon
-            </p>
-          )}
-          {tab === "work" &&
-            deliverables.map((d, i) => {
-              const isActive = activeDeliverable === d.id;
-              return (
-                <motion.button
-                  key={d.id}
-                  type="button"
-                  onClick={() => onSelectDeliverable(d.id)}
-                  initial={reduced ? false : { opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    delay: 0.05 * i,
-                    duration: 0.4,
-                    ease: [0.2, 0.7, 0.2, 1],
-                  }}
-                  whileHover={reduced ? undefined : { x: 2 }}
-                  className="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors text-left outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-                  style={{
-                    background: isActive
-                      ? "rgba(255,255,255,0.045)"
-                      : "transparent",
-                    border: isActive
-                      ? `1px solid ${personality.accent}66`
-                      : "1px solid transparent",
-                  }}
-                >
-                  {/* Thumbnail */}
-                  <div
-                    className="shrink-0 size-9 rounded-md overflow-hidden"
-                    style={{
-                      background: `linear-gradient(135deg, ${personality.accent}33, ${personality.accentDeep}44)`,
-                    }}
-                  >
-                    {d.thumbnailIsImage && d.thumbnail ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={d.thumbnail}
-                        alt=""
-                        className="size-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div
-                        className="size-full flex items-center justify-center font-serif italic text-[11px]"
-                        style={{ color: personality.accent }}
-                      >
-                        {d.title[0]}
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div
-                      className="text-[12.5px] font-sans font-medium leading-tight truncate"
-                      style={{ color: "rgb(245 245 245)" }}
-                    >
-                      {d.title}
-                    </div>
-                    <div className="text-[11px] text-ink-dim font-sans truncate mt-0.5">
-                      {d.subtitle}
-                    </div>
-                  </div>
-                </motion.button>
-              );
-            })}
-        </AnimatePresence>
-      </div>
-    </aside>
+      </IPhoneFrame>
+    </div>
   );
 }
 
-/* ============================================================
- * Top bar
- * ============================================================ */
-function TopBar({
-  agentName,
+// Compact version of LandingPreview to fit inside MacBook
+function CompactLanding({
   personality,
+  brandName,
+  data,
+  heroImage,
 }: {
-  agentName: string;
   personality: Personality;
+  brandName: string;
+  data: StoredWowPayload["deliverables"]["landing"];
+  heroImage: string;
+  featuredImages: string[];
 }) {
   return (
-    <header
-      className="relative flex items-center justify-between px-6 sm:px-10 py-4 shrink-0"
-      style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-    >
-      <div className="flex items-center gap-2.5">
-        <span
-          className="relative size-2.5 rounded-full"
-          style={{
-            background:
-              "linear-gradient(135deg, #ffffff 0%, #a5b4fc 60%, #6366f1 100%)",
-            boxShadow: "0 0 10px rgba(165,180,252,0.5)",
-          }}
-        />
-        <span className="font-serif text-[15px] tracking-tight text-ink">
-          WRKS<span className="text-ink-muted"> Studio</span>
+    <div className="size-full bg-[#fbf7ee] flex flex-col">
+      <div className="flex items-center justify-between px-8 py-3 border-b border-black/5">
+        <span className="font-serif text-[14px] text-[#0e0c08] flex items-center gap-1.5">
+          <span
+            className="size-1.5 rounded-full"
+            style={{ background: personality.accent }}
+          />
+          {brandName}
         </span>
-        <span
-          className="ml-1.5 px-2 py-0.5 rounded-full text-[9px] tracking-[0.18em] uppercase font-mono"
-          style={{
-            background: "rgba(255,255,255,0.05)",
-            color: "rgba(245,245,245,0.55)",
-            border: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          Beta
+        <div className="flex gap-5 text-[11px] uppercase tracking-[0.22em] font-mono text-[#827a6e]">
+          <span>Index</span>
+          <span>Studio</span>
+          <span>Contact</span>
+        </div>
+        <span className="text-[11px] uppercase tracking-[0.22em] font-mono text-[#827a6e]">
+          Vol. 01
         </span>
       </div>
-      <div className="flex items-center gap-3 text-ink-muted">
-        <button
-          type="button"
-          className="text-[12px] font-sans hover:text-ink transition-colors"
+
+      <div className="px-12 py-16 text-left flex-1">
+        <div className="text-[10px] tracking-[0.32em] uppercase font-mono text-[#827a6e] mb-8 flex items-center gap-3">
+          <span
+            className="inline-block h-px w-8"
+            style={{ background: personality.accent }}
+          />
+          <span>Now showing</span>
+        </div>
+        <h1
+          className="font-serif font-medium text-[clamp(2rem,5vw,3.5rem)] leading-[0.95] text-[#0e0c08] max-w-[16ch]"
+          style={{ letterSpacing: "-0.025em" }}
         >
-          Docs
-        </button>
+          {data.headline}
+        </h1>
+        <p className="mt-8 font-serif italic text-[clamp(0.9375rem,1.3vw,1.125rem)] text-[#4a443c] max-w-[40ch]">
+          {data.subhead}
+        </p>
         <button
+          className="mt-8 inline-flex items-center gap-2 text-[#0e0c08] font-serif border-b border-[#0e0c08] pb-1 text-[15px]"
           type="button"
-          className="text-[12px] font-sans hover:text-ink transition-colors"
         >
-          Connect
+          <span>{data.primaryCta}</span>
+          <span style={{ color: personality.accent }}>→</span>
         </button>
-        <div
-          className="size-8 rounded-full"
-          style={{
-            background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-          }}
-          aria-label={`${agentName} avatar`}
+      </div>
+
+      <div className="px-12 pb-12 grid grid-cols-3 gap-6">
+        {data.valueBullets.slice(0, 3).map((bullet, i) => (
+          <div key={i}>
+            <div
+              className="text-[10px] tracking-[0.32em] uppercase font-mono mb-2"
+              style={{ color: personality.accent }}
+            >
+              0{i + 1}
+            </div>
+            <p className="font-serif text-[#0e0c08] text-[14px] leading-snug">
+              {bullet}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="aspect-[16/9] w-full">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={heroImage}
+          alt=""
+          className="w-full h-full object-cover"
+          loading="lazy"
         />
       </div>
-    </header>
+    </div>
+  );
+}
+
+function EmptyState({ onContinue }: { onContinue: () => void }) {
+  return (
+    <div className="text-center max-w-md">
+      <p className="font-serif text-[clamp(1.25rem,2vw,1.5rem)] text-ink-muted italic mb-4">
+        No work saved yet.
+      </p>
+      <button
+        onClick={onContinue}
+        className="text-[12px] tracking-[0.22em] uppercase font-mono text-ink-dim hover:text-ink transition-colors underline"
+      >
+        Head back to onboarding →
+      </button>
+    </div>
   );
 }
 
 /* ============================================================
- * Prompt input — the hero element
+ * Left thumbnail strip — slim, ambient
  * ============================================================ */
-function PromptInput({
+function DeliverableStripe({
+  items,
+  activeId,
+  accent,
+  accentDeep,
+  dimmed,
+  onSelect,
+  reduced,
+}: {
+  items: StripeItem[];
+  activeId: DeliverableKind;
+  accent: string;
+  accentDeep: string;
+  dimmed: boolean;
+  onSelect: (id: DeliverableKind) => void;
+  reduced: boolean;
+}) {
+  return (
+    <motion.aside
+      animate={{ opacity: dimmed ? 0.3 : 1 }}
+      transition={{ duration: 0.4 }}
+      className="relative z-10 shrink-0 w-[88px] flex flex-col items-center gap-3 py-6"
+    >
+      {items.map((item, i) => {
+        const isActive = activeId === item.id;
+        return (
+          <motion.button
+            key={item.id}
+            type="button"
+            onClick={() => onSelect(item.id)}
+            initial={reduced ? false : { opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.05 * i, duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
+            whileHover={reduced ? undefined : { scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            aria-label={item.title}
+            className="relative group size-14 rounded-2xl overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+            style={{
+              border: isActive
+                ? `1.5px solid ${accent}`
+                : "1px solid rgba(255,255,255,0.06)",
+              boxShadow: isActive
+                ? `0 8px 24px -8px ${accent}99, 0 0 0 4px ${accent}22`
+                : undefined,
+            }}
+          >
+            {item.isImage && item.thumbnail ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={item.thumbnail}
+                alt=""
+                className="size-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div
+                className="size-full flex items-center justify-center font-serif italic text-[18px]"
+                style={{
+                  background: `linear-gradient(135deg, ${accent}33, ${accentDeep}44)`,
+                  color: accent,
+                }}
+              >
+                {item.title[0]}
+              </div>
+            )}
+            {/* Active indicator dot */}
+            {isActive && (
+              <span
+                className="absolute -right-1 top-1/2 -translate-y-1/2 size-1.5 rounded-full"
+                style={{ background: accent }}
+                aria-hidden
+              />
+            )}
+            {/* Tooltip */}
+            <span
+              className="absolute left-full ml-3 top-1/2 -translate-y-1/2 whitespace-nowrap text-[11px] tracking-[0.18em] uppercase font-mono text-ink-muted opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+            >
+              {item.title}
+            </span>
+          </motion.button>
+        );
+      })}
+    </motion.aside>
+  );
+}
+
+/* ============================================================
+ * Ambient orb — bottom-right, breathing
+ * ============================================================ */
+function AmbientOrb({
   personality,
-  agentName,
-  voiceName,
-  value,
-  onChange,
-  onKeyDown,
-  onSubmit,
-  submitting,
-  inputRef,
-  activeDeliverable,
+  active,
   reduced,
 }: {
   personality: Personality;
-  agentName: string;
-  voiceName: string;
-  value: string;
-  onChange: (v: string) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  onSubmit: () => void;
-  submitting: boolean;
-  inputRef: React.RefObject<HTMLTextAreaElement | null>;
-  activeDeliverable: StudioDeliverable | null;
+  active: boolean;
   reduced: boolean;
 }) {
-  const placeholder = activeDeliverable
-    ? `Refine your ${activeDeliverable.title.toLowerCase()}…`
-    : `Ask ${agentName} to make or change anything…`;
-
-  const canSubmit = value.trim().length > 0 && !submitting;
-
   return (
     <motion.div
-      initial={reduced ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.45, duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
-      className="relative w-full"
+      animate={
+        reduced
+          ? undefined
+          : active
+            ? { scale: [1, 1.08, 1], opacity: 1 }
+            : { scale: [1, 1.03, 1], opacity: 0.85 }
+      }
+      transition={{
+        duration: active ? 1.6 : 3.5,
+        repeat: Infinity,
+        ease: "easeInOut",
+      }}
+      className="fixed bottom-8 right-8 z-30 pointer-events-none"
     >
-      {/* Glow border */}
-      <div
-        aria-hidden
-        className="absolute -inset-px rounded-[20px] pointer-events-none"
-        style={{
-          background: `linear-gradient(135deg, ${personality.accent}55 0%, ${personality.accentDeep}33 60%, transparent 100%)`,
-          filter: "blur(12px)",
-          opacity: 0.6,
-        }}
-      />
-      <div
-        className="relative rounded-[20px] backdrop-blur-sm"
-        style={{
-          background: "rgba(20,20,26,0.7)",
-          border: `1px solid ${personality.accent}33`,
-        }}
-      >
-        {/* Active deliverable chip */}
-        {activeDeliverable && (
-          <div
-            className="flex items-center gap-2 px-4 pt-3 pb-1 text-[11px] tracking-[0.18em] uppercase font-mono"
-            style={{ color: personality.accent }}
-          >
-            <span
-              className="inline-block size-1.5 rounded-full"
-              style={{ background: personality.accent }}
-              aria-hidden
-            />
-            <span>Refining · {activeDeliverable.title}</span>
-          </div>
-        )}
-
-        <textarea
-          ref={inputRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder={placeholder}
-          rows={3}
-          disabled={submitting}
-          aria-label="Talk to your agent"
-          className="w-full bg-transparent border-0 outline-none resize-none px-5 pt-4 pb-2 text-[15px] sm:text-base text-ink font-sans placeholder:text-ink-dim/55 leading-relaxed disabled:opacity-50"
-          style={{ caretColor: personality.accent }}
-        />
-
-        {/* Bottom toolbar */}
-        <div className="flex items-center justify-between px-3 pb-3 pt-1">
-          <div className="flex items-center gap-1.5">
-            <ToolbarButton title="Add context">
-              <PlusIcon />
-            </ToolbarButton>
-            <ToolbarButton title="Voice input (coming soon)" disabled>
-              <MicIcon />
-            </ToolbarButton>
-            <div
-              className="ml-1 px-3 h-8 rounded-full inline-flex items-center gap-2 text-[12px] font-sans"
-              style={{
-                background: "rgba(255,255,255,0.03)",
-                color: "rgba(245,245,245,0.7)",
-                border: "1px solid rgba(255,255,255,0.05)",
-              }}
-            >
-              <span
-                className="size-1.5 rounded-full"
-                style={{ background: personality.accent }}
-                aria-hidden
-              />
-              {voiceName} <span className="text-ink-dim">·</span>{" "}
-              {personality.name}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={!canSubmit}
-            aria-label="Send"
-            className="size-9 rounded-full inline-flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-            style={{
-              background: canSubmit
-                ? `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`
-                : "rgba(255,255,255,0.06)",
-              boxShadow: canSubmit ? `0 6px 16px -6px ${personality.glow}` : "none",
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M12 19V5M5 12l7-7 7 7"
-                stroke={canSubmit ? "white" : "rgba(255,255,255,0.5)"}
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
+      <PersonalityIcon personality={personality} size="sm" />
     </motion.div>
   );
 }
 
-function ToolbarButton({
-  children,
-  title,
-  disabled,
-}: {
-  children: React.ReactNode;
-  title: string;
-  disabled?: boolean;
-}) {
+/* ============================================================
+ * Apple-style edge bloom — bottom of screen when voice is active
+ * ============================================================ */
+function EdgeBloom({ active, reduced }: { active: boolean; reduced: boolean }) {
   return (
-    <button
-      type="button"
-      title={title}
-      disabled={disabled}
-      className="size-8 rounded-full inline-flex items-center justify-center text-ink-muted hover:text-ink hover:bg-white/[0.04] transition-colors disabled:opacity-40 disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+    <motion.div
+      aria-hidden
+      initial={{ opacity: 0 }}
+      animate={{ opacity: active ? 1 : 0 }}
+      transition={{ duration: 0.6 }}
+      className="pointer-events-none fixed inset-0 z-10"
     >
-      {children}
-    </button>
+      {/* Sharper inner glow */}
+      <motion.div
+        animate={reduced ? undefined : { rotate: 360 }}
+        transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-0"
+        style={{
+          background:
+            "conic-gradient(from 0deg, #BC82F3, #F5B9EA, #8D9FFF, #AA6EEE, #FF6778, #FFBA71, #C686FF, #BC82F3)",
+          filter: "blur(40px)",
+          maskImage:
+            "linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 35%)",
+          WebkitMaskImage:
+            "linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 35%)",
+          opacity: 0.6,
+        }}
+      />
+      {/* Softer outer */}
+      <motion.div
+        animate={reduced ? undefined : { rotate: -360 }}
+        transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-0"
+        style={{
+          background:
+            "conic-gradient(from 180deg, #F5B9EA, #8D9FFF, #BC82F3, #FFBA71, #FF6778, #C686FF, #F5B9EA)",
+          filter: "blur(80px)",
+          maskImage:
+            "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)",
+          WebkitMaskImage:
+            "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)",
+          opacity: 0.5,
+        }}
+      />
+    </motion.div>
   );
 }
 
-function PlusIcon() {
+/* ============================================================
+ * Subtitle bar — bottom-center, voice transcript + chat lines
+ * ============================================================ */
+function SubtitleBar({
+  personality,
+  agentName,
+  voiceName,
+  talking,
+  thinking,
+  composing,
+  chatLines,
+  onComposingChange,
+  onStart,
+  onCancel,
+  onSubmit,
+  composingRef,
+  activeTitle,
+  reduced,
+}: {
+  personality: Personality;
+  agentName: string;
+  voiceName: string;
+  talking: boolean;
+  thinking: boolean;
+  composing: string;
+  chatLines: ChatLine[];
+  onComposingChange: (v: string) => void;
+  onStart: () => void;
+  onCancel: () => void;
+  onSubmit: () => void;
+  composingRef: React.RefObject<HTMLInputElement | null>;
+  activeTitle: string;
+  reduced: boolean;
+}) {
+  const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSubmit();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
+    }
+  };
+
+  const latestAgent = chatLines
+    .slice()
+    .reverse()
+    .find((l) => l.role === "agent");
+
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    <div className="fixed bottom-0 inset-x-0 z-40 pointer-events-none flex flex-col items-center pb-8 gap-3">
+      {/* Recent agent reply — fades in/out as subtitle */}
+      <AnimatePresence>
+        {latestAgent && !talking && (
+          <motion.div
+            key={latestAgent.text}
+            initial={reduced ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.5 }}
+            className="max-w-[560px] text-center px-6"
+          >
+            <p className="font-serif italic text-[15px] text-ink-muted leading-snug">
+              <span style={{ color: personality.accent }}>{agentName}:</span>{" "}
+              {latestAgent.text}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* The input bar — pill */}
+      <motion.div
+        layout
+        className="pointer-events-auto"
+        animate={{
+          width: talking ? 720 : 280,
+        }}
+        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+        style={{ maxWidth: "calc(100vw - 32px)" }}
+      >
+        <div
+          className="relative rounded-full backdrop-blur-md flex items-center"
+          style={{
+            background: "rgba(20,20,26,0.65)",
+            border: `1px solid ${
+              talking ? personality.accent : "rgba(255,255,255,0.08)"
+            }`,
+            boxShadow: talking
+              ? `0 30px 60px -20px ${personality.glow}, 0 0 0 4px ${personality.accent}15`
+              : "0 16px 32px -16px rgba(0,0,0,0.6)",
+            padding: "8px",
+            transition: "box-shadow 0.4s, border-color 0.4s",
+          }}
+        >
+          {/* Left status label */}
+          {!talking ? (
+            <button
+              type="button"
+              onClick={onStart}
+              className="flex items-center gap-2.5 px-3 py-1.5 text-[12px] tracking-[0.18em] uppercase font-mono text-ink-muted hover:text-ink transition-colors flex-1 text-left"
+            >
+              <MicGlyph color={personality.accent} />
+              <span>Hold to talk · or press space</span>
+            </button>
+          ) : (
+            <>
+              <span
+                className="ml-3 mr-3 inline-flex items-center gap-1.5 shrink-0 text-[10px] tracking-[0.22em] uppercase font-mono"
+                style={{ color: personality.accent }}
+              >
+                <PulseDot color={personality.accent} reduced={reduced} />
+                {thinking ? "Thinking" : `Refining · ${activeTitle}`}
+              </span>
+              <input
+                ref={composingRef}
+                type="text"
+                value={composing}
+                onChange={(e) => onComposingChange(e.target.value)}
+                onKeyDown={onKey}
+                placeholder={`Tell ${agentName} what to change…`}
+                aria-label="Talk to your agent"
+                disabled={thinking}
+                className="flex-1 bg-transparent border-0 outline-none text-[15px] text-ink font-sans placeholder:text-ink-dim/60 px-1 py-1.5 disabled:opacity-50"
+                style={{ caretColor: personality.accent }}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={onCancel}
+                aria-label="Cancel"
+                className="shrink-0 size-8 rounded-full inline-flex items-center justify-center text-ink-dim hover:text-ink transition-colors"
+              >
+                <CloseGlyph />
+              </button>
+              <button
+                type="button"
+                onClick={onSubmit}
+                disabled={!composing.trim() || thinking}
+                aria-label="Send"
+                className="shrink-0 size-9 rounded-full inline-flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95"
+                style={{
+                  background: composing.trim()
+                    ? `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`
+                    : "rgba(255,255,255,0.06)",
+                  boxShadow: composing.trim()
+                    ? `0 6px 16px -4px ${personality.glow}`
+                    : undefined,
+                }}
+              >
+                <ArrowUpGlyph
+                  color={composing.trim() ? "white" : "rgba(255,255,255,0.4)"}
+                />
+              </button>
+            </>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Tiny voice/personality hint when idle */}
+      {!talking && (
+        <p className="text-[10px] tracking-[0.22em] uppercase font-mono text-ink-dim">
+          {voiceName} · {personality.name}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function MicGlyph({ color }: { color: string }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="9" y="3" width="6" height="12" rx="3" stroke={color} strokeWidth="1.8" />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
-function MicIcon() {
+function PulseDot({ color, reduced }: { color: string; reduced: boolean }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="9" y="3" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    <motion.span
+      animate={reduced ? undefined : { opacity: [0.4, 1, 0.4], scale: [1, 1.2, 1] }}
+      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+      className="size-1.5 rounded-full"
+      style={{ background: color }}
+    />
+  );
+}
+function ArrowUpGlyph({ color }: { color: string }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 19V5M5 12l7-7 7 7"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function CloseGlyph() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M6 6l12 12M6 18L18 6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
