@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PersonalityIcon } from "@/components/personality-icon";
 import {
   PERSONALITIES,
@@ -19,10 +19,11 @@ import {
   XMini,
 } from "@/components/wow-mockups";
 
-// /studio v4 — modern AI creative platform (Lovable / v0 / Granola energy).
-// Two big breathing zones: chat panel left (480px), work canvas right (flex).
-// Generous spacing throughout, ONE prominent personality orb (chat header),
-// big composer, large fonts. NOT a dense data dashboard.
+// /studio v5 — ported from Google Stitch design (2026-06-03).
+// One Iris orb top-right with last agent line in italic Fraunces. Lightbox
+// canvas dominates the screen with the active deliverable as an art object.
+// Gallery bar bottom + iconic HOLD-TO-TALK pill floating above it.
+// Composer slides up modally; voice (ElevenLabs) wires in later.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
@@ -52,22 +53,22 @@ type StoredWowPayload = {
   createdAt: string;
 };
 
-type ChatLine = { role: "user" | "agent"; text: string };
-
-const DELIVERABLE_TABS: { id: DeliverableKind; label: string }[] = [
-  { id: "landing", label: "Website" },
-  { id: "instagram", label: "Instagram" },
-  { id: "twitter", label: "X" },
-  { id: "linkedin", label: "LinkedIn" },
-  { id: "ad", label: "Ad" },
+const DELIVERABLE_TABS: {
+  id: DeliverableKind;
+  label: string;
+  Icon: (p: { size?: number }) => React.ReactElement;
+}[] = [
+  { id: "landing", label: "Website", Icon: BrowserIcon },
+  { id: "instagram", label: "Instagram", Icon: CameraIcon },
+  { id: "twitter", label: "X", Icon: XIcon },
+  { id: "linkedin", label: "LinkedIn", Icon: WorkIcon },
+  { id: "ad", label: "Ad", Icon: CampaignIcon },
 ];
 
 const SUGGESTIONS = [
   "Tighten the headline",
-  "Try a sharper angle",
+  "Sharper angle",
   "Make it 30% shorter",
-  "Match the brand voice better",
-  "Draft a launch email",
 ];
 
 export default function StudioPage() {
@@ -80,13 +81,14 @@ export default function StudioPage() {
   const [stored, setStored] = useState<StoredWowPayload | null>(null);
 
   const [activeId, setActiveId] = useState<DeliverableKind>("landing");
+  const [agentMessage, setAgentMessage] = useState<string>("");
   const [composing, setComposing] = useState("");
   const [thinking, setThinking] = useState(false);
-  const [chatLines, setChatLines] = useState<ChatLine[]>([]);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [listening, setListening] = useState(false);
   const [flashFields, setFlashFields] = useState<Set<string>>(new Set());
 
   const composerRef = useRef<HTMLTextAreaElement>(null);
-  const transcriptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const p = localStorage.getItem(PERSONALITY_KEY) as PersonalityId | null;
@@ -117,6 +119,21 @@ export default function StudioPage() {
     }
   }, [router]);
 
+  // Open composer on "/" key from anywhere; close on Esc.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "/" && !composerOpen) {
+        e.preventDefault();
+        setComposerOpen(true);
+        setTimeout(() => composerRef.current?.focus(), 30);
+      } else if (e.key === "Escape" && composerOpen) {
+        setComposerOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [composerOpen]);
+
   const personality = personalityId
     ? PERSONALITIES.find((p) => p.id === personalityId)!
     : null;
@@ -127,8 +144,8 @@ export default function StudioPage() {
     const message = composing.trim();
     if (!message || thinking) return;
 
-    setChatLines((c) => [...c, { role: "user", text: message }]);
     setComposing("");
+    setComposerOpen(false);
     setThinking(true);
 
     try {
@@ -148,9 +165,9 @@ export default function StudioPage() {
         | { error: string };
 
       if ("error" in data) {
-        setChatLines((c) => [...c, { role: "agent", text: data.error }]);
+        setAgentMessage(data.error);
       } else {
-        setChatLines((c) => [...c, { role: "agent", text: data.reply }]);
+        setAgentMessage(data.reply);
         if (data.updated && stored) {
           const changed = new Set<string>();
           if (data.updated.landing)
@@ -184,338 +201,602 @@ export default function StudioPage() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Network error";
-      setChatLines((c) => [...c, { role: "agent", text: msg }]);
+      setAgentMessage(msg);
     } finally {
       setThinking(false);
-      setTimeout(() => composerRef.current?.focus(), 50);
     }
   }, [composing, thinking, personalityId, agentName, activeId, stored]);
 
-  // Auto-scroll
-  useEffect(() => {
-    transcriptRef.current?.scrollTo({
-      top: transcriptRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [chatLines.length, thinking]);
-
   if (!personality || !voice) return null;
+
+  const accent = personality.accent;
+  const accentDeep = personality.accentDeep;
+  const glow = personality.glow;
 
   return (
     <div
-      className="fixed inset-0 grid"
+      className="fixed inset-0 overflow-hidden"
       style={{
         background: "#09090b",
         color: "rgba(245,245,247,1)",
-        gridTemplateColumns: "minmax(420px, 480px) 1fr",
         fontFamily: "var(--font-sans)",
       }}
     >
       {/* ============================================================
-          CHAT PANEL (LEFT) — agent identity + transcript + composer
+          AMBIENT BACKGROUND — warm room-tone wash
           ============================================================ */}
-      <aside
-        className="flex flex-col h-full overflow-hidden relative"
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
         style={{
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.018) 0%, rgba(0,0,0,0) 50%)",
-          borderRight: "1px solid rgba(255,255,255,0.05)",
+          background: `
+            radial-gradient(ellipse 70% 50% at 50% 30%, ${accent}08, transparent 70%),
+            radial-gradient(ellipse 50% 40% at 90% 20%, ${accent}12, transparent 60%)
+          `,
         }}
-      >
-        {/* Top brand row */}
-        <div className="px-8 pt-7 pb-2 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span
-              className="size-2 rounded-full"
+      />
+
+      {/* ============================================================
+          BLOOM OVERLAY — voice-active edge glow (Apple Intelligence)
+          ============================================================ */}
+      <AnimatePresence>
+        {(listening || thinking) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="absolute inset-0 pointer-events-none z-10"
+            aria-hidden
+          >
+            {/* Apple-bloom conic ring — full perimeter when speaking,
+                bottom-edge mask when listening. Palette per brief. */}
+            <div
+              className="absolute inset-0"
               style={{
-                background:
-                  "linear-gradient(135deg, #ffffff 0%, #a5b4fc 60%, #6366f1 100%)",
-                boxShadow: "0 0 10px rgba(165,180,252,0.5)",
+                background: `conic-gradient(
+                  from 0deg at 50% 50%,
+                  #BC82F3 0%,
+                  #F5B9EA 14%,
+                  #8D9FFF 28%,
+                  #FF6778 42%,
+                  #FFBA71 56%,
+                  #BC82F3 70%,
+                  #F5B9EA 84%,
+                  #8D9FFF 100%
+                )`,
+                opacity: 0.35,
+                filter: "blur(80px)",
+                mask: listening
+                  ? "linear-gradient(to top, black 0%, transparent 35%)"
+                  : "radial-gradient(ellipse 90% 90% at 50% 50%, transparent 60%, black 95%)",
+                WebkitMask: listening
+                  ? "linear-gradient(to top, black 0%, transparent 35%)"
+                  : "radial-gradient(ellipse 90% 90% at 50% 50%, transparent 60%, black 95%)",
+                animation: reduced
+                  ? undefined
+                  : "bloomSpin 18s linear infinite",
               }}
-              aria-hidden
             />
-            <span className="font-serif text-[16px] tracking-tight">
-              WRKS<span className="text-white/45"> Studio</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ============================================================
+          TOP BAR — brand + project id + utilities
+          ============================================================ */}
+      <header
+        className="absolute top-0 inset-x-0 z-40 px-10 py-5 flex items-center justify-between"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+      >
+        <h1
+          className="text-[15px] font-semibold tracking-[0.08em] uppercase"
+          style={{ fontFamily: "var(--font-sans)" }}
+        >
+          WRKS<span style={{ color: "rgba(245,245,247,0.5)" }}> Studio</span>
+        </h1>
+        <div className="flex items-center gap-6">
+          <div className="flex flex-col items-end leading-none">
+            <span
+              className="text-[11px] tracking-[0.15em] font-medium"
+              style={{
+                color: accent,
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              v.1.04 / ACTIVE
+            </span>
+            <span
+              className="text-[9.5px] tracking-[0.22em] uppercase mt-1"
+              style={{
+                color: "rgba(245,245,247,0.35)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              Project · {brandName}
             </span>
           </div>
-          <span
-            className="px-2 py-1 rounded-md text-[10px] tracking-[0.2em] uppercase"
-            style={{
-              background: "rgba(255,255,255,0.04)",
-              color: "rgba(255,255,255,0.5)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            Beta
-          </span>
+          <div className="flex items-center gap-2">
+            <UtilButton title="History">
+              <HistoryIcon />
+            </UtilButton>
+            <UtilButton title="Account">
+              <AccountIcon />
+            </UtilButton>
+          </div>
         </div>
+      </header>
 
-        {/* AGENT HEADER — large, centered, the heart of the chat */}
-        <div className="px-8 pt-8 pb-8 flex flex-col items-center text-center">
+      {/* ============================================================
+          IRIS — agent presence (top-right, prominent)
+          ============================================================ */}
+      <div className="absolute top-24 right-10 z-30 max-w-sm flex flex-col items-end gap-5">
+        {/* Orb */}
+        <div className="relative w-[88px] h-[88px]">
+          {/* Glow halo */}
           <motion.div
+            aria-hidden
+            className="absolute inset-[-30%] rounded-full"
+            style={{
+              background: `radial-gradient(circle at center, ${accent} 0%, ${accentDeep} 40%, transparent 70%)`,
+              filter: "blur(20px)",
+            }}
             animate={
-              reduced ? undefined : { scale: thinking ? [1, 1.04, 1] : [1, 1.02, 1] }
+              reduced
+                ? { opacity: 0.7 }
+                : thinking
+                  ? { opacity: [0.5, 1, 0.5], scale: [1, 1.15, 1] }
+                  : { opacity: [0.55, 0.85, 0.55], scale: [1, 1.08, 1] }
             }
             transition={{
-              duration: thinking ? 1.4 : 3.5,
+              duration: thinking ? 1.6 : 4,
               repeat: Infinity,
               ease: "easeInOut",
             }}
-          >
+          />
+          {/* Orb core — use PersonalityIcon at md for fidelity */}
+          <div className="relative size-full grid place-items-center">
             <PersonalityIcon personality={personality} size="md" />
-          </motion.div>
-          <h1
-            className="mt-6 font-serif font-medium tracking-tight text-[clamp(1.625rem,2vw,2rem)] leading-tight"
-            style={{ letterSpacing: "-0.01em" }}
-          >
-            {agentName}
-          </h1>
-          <div className="mt-1.5 flex items-center gap-2 text-[12px]">
-            <span style={{ color: personality.accent }}>●</span>
-            <span style={{ color: "rgba(245,245,247,0.6)" }}>
-              {personality.name} · {voice.name}
-            </span>
           </div>
-          <p
-            className="mt-5 font-serif italic max-w-[28ch] text-[14.5px] leading-relaxed"
-            style={{ color: "rgba(245,245,247,0.55)" }}
-          >
-            Tell me what to make or change. I&rsquo;ll show the diff in the
-            workspace.
-          </p>
         </div>
 
-        {/* TRANSCRIPT */}
-        <div
-          ref={transcriptRef}
-          className="flex-1 overflow-y-auto px-8 py-2 flex flex-col gap-5"
-          style={{ scrollbarWidth: "thin" }}
-        >
-          {chatLines.length === 0 ? (
-            <EmptyChatPrompt
-              personality={personality}
-              suggestions={SUGGESTIONS.slice(0, 3)}
-              onPick={(s) => {
-                setComposing(s);
-                composerRef.current?.focus();
+        {/* Agent line */}
+        <AnimatePresence mode="wait">
+          {agentMessage ? (
+            <motion.div
+              key={agentMessage}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.4 }}
+              className="text-right"
+            >
+              <div
+                className="text-[10px] tracking-[0.22em] uppercase mb-2"
+                style={{
+                  color: "rgba(245,245,247,0.45)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {agentName} ·{" "}
+                <span style={{ color: accent }}>{personality.name}</span>
+              </div>
+              <p
+                className="font-serif italic text-[17px] leading-[1.45] max-w-[34ch] ml-auto"
+                style={{ color: `${accent}e6` }}
+              >
+                &ldquo;{agentMessage}&rdquo;
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="idle"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="text-right"
+            >
+              <div
+                className="text-[10px] tracking-[0.22em] uppercase mb-2"
+                style={{
+                  color: "rgba(245,245,247,0.4)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {agentName} ·{" "}
+                <span style={{ color: accent }}>Listening</span>
+              </div>
+              <p
+                className="font-serif italic text-[15px] leading-relaxed max-w-[28ch] ml-auto"
+                style={{ color: "rgba(245,245,247,0.45)" }}
+              >
+                Press <kbd
+                  className="px-1.5 py-0.5 rounded text-[11px] not-italic align-middle"
+                  style={{
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    color: "rgba(245,245,247,0.7)",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >/</kbd> to talk, or hold the button below.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ============================================================
+          LIGHTBOX CANVAS — the active deliverable as art object
+          ============================================================ */}
+      <main
+        className="absolute inset-0 z-20 flex items-center justify-center px-12 pt-32 pb-48"
+        style={{ pointerEvents: "none" }}
+      >
+        {stored ? (
+          <div
+            className="relative w-full max-w-[1180px] mx-auto rounded-2xl"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(28,27,29,0.6) 0%, rgba(20,19,22,0.5) 100%)",
+              backdropFilter: "blur(40px)",
+              WebkitBackdropFilter: "blur(40px)",
+              border: "1px solid rgba(255,255,255,0.05)",
+              boxShadow:
+                "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 60px rgba(255,255,255,0.02), 0 40px 120px rgba(0,0,0,0.7)",
+              padding: "56px 48px",
+              pointerEvents: "auto",
+            }}
+          >
+            {/* Top hairline catching "ceiling light" */}
+            <div
+              aria-hidden
+              className="absolute top-0 left-0 right-0 h-px"
+              style={{
+                background:
+                  "linear-gradient(to right, transparent, rgba(255,255,255,0.12), transparent)",
               }}
             />
-          ) : (
-            chatLines.map((line, i) => (
-              <ChatBubble
-                key={i}
-                line={line}
-                personality={personality}
-                agentName={agentName}
-                reduced={!!reduced}
-              />
-            ))
-          )}
-          {thinking && (
-            <div className="flex items-center gap-3">
-              <PersonalityIcon personality={personality} size="xs" />
-              <div className="flex items-center gap-1.5 pt-1.5">
-                {[0, 1, 2].map((i) => (
-                  <motion.span
-                    key={i}
-                    className="size-1.5 rounded-full"
-                    style={{ background: personality.accent }}
-                    animate={
-                      reduced
-                        ? { opacity: 0.6 }
-                        : { opacity: [0.3, 1, 0.3], y: [0, -2, 0] }
-                    }
-                    transition={{
-                      duration: 0.9,
-                      repeat: Infinity,
-                      delay: i * 0.15,
-                      ease: "easeInOut",
-                    }}
-                  />
-                ))}
+            {/* Bottom emerald reflection */}
+            <div
+              aria-hidden
+              className="absolute bottom-0 left-0 right-0 h-px"
+              style={{
+                background: `linear-gradient(to right, transparent, ${accent}33, transparent)`,
+              }}
+            />
+
+            {/* Small status pill above the deliverable */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex">
+              <div
+                className="px-3 py-1 rounded-full text-[9.5px] tracking-[0.22em] uppercase backdrop-blur-md flex items-center gap-2"
+                style={{
+                  background: "rgba(9,9,11,0.85)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "rgba(245,245,247,0.55)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                <span
+                  className="size-1.5 rounded-full"
+                  style={{
+                    background: accent,
+                    boxShadow: `0 0 8px ${accent}`,
+                  }}
+                />
+                <span>Now showing · {labelFor(activeId)}</span>
               </div>
             </div>
-          )}
-        </div>
 
-        {/* SUGGESTION PILLS */}
-        {chatLines.length > 0 && (
-          <div className="px-8 pt-3 pb-3 overflow-x-auto">
-            <div className="flex items-center gap-2 min-w-min">
-              {SUGGESTIONS.slice(0, 3).map((s) => (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeId}
+                initial={
+                  reduced ? false : { opacity: 0, y: 12, filter: "blur(8px)" }
+                }
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={
+                  reduced
+                    ? undefined
+                    : { opacity: 0, y: -8, filter: "blur(6px)" }
+                }
+                transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+                className="flex justify-center"
+              >
+                <ActiveDeliverable
+                  kind={activeId}
+                  personality={personality}
+                  agentName={agentName}
+                  stored={stored}
+                  flashFields={flashFields}
+                />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        ) : (
+          <div style={{ pointerEvents: "auto" }}>
+            <EmptyCanvas
+              personality={personality}
+              onContinue={() => router.push("/onboarding/personality")}
+            />
+          </div>
+        )}
+      </main>
+
+      {/* ============================================================
+          BOTTOM SHELL — Talk pill + gallery bar
+          ============================================================ */}
+      <div className="absolute inset-x-0 bottom-0 z-40">
+        {/* Talk pill — floats above the gallery bar */}
+        <div className="absolute bottom-[124px] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 pointer-events-auto">
+          {/* Suggestion chips appear above the talk pill before first message */}
+          {!agentMessage && !thinking && (
+            <motion.div
+              initial={reduced ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.5 }}
+              className="flex items-center gap-2 mb-1"
+            >
+              {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => {
                     setComposing(s);
-                    composerRef.current?.focus();
+                    setComposerOpen(true);
+                    setTimeout(() => composerRef.current?.focus(), 30);
                   }}
-                  className="shrink-0 h-9 px-4 rounded-full text-[13px] transition-all hover:bg-white/[0.06]"
+                  className="h-8 px-3.5 rounded-full text-[12px] transition-all hover:bg-white/[0.05]"
                   style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    color: "rgba(245,245,247,0.75)",
+                    background: "rgba(255,255,255,0.025)",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    color: "rgba(245,245,247,0.7)",
+                    backdropFilter: "blur(20px)",
                   }}
                 >
                   {s}
                 </button>
               ))}
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
 
-        {/* BIG COMPOSER */}
-        <div className="px-6 pb-6 pt-2">
-          <Composer
-            personality={personality}
-            agentName={agentName}
-            composing={composing}
+          <TalkPill
+            accent={accent}
+            glow={glow}
             thinking={thinking}
-            onComposingChange={setComposing}
-            onSubmit={onSubmit}
-            composerRef={composerRef}
+            listening={listening}
+            onPressStart={() => setListening(true)}
+            onPressEnd={() => {
+              setListening(false);
+              setComposerOpen(true);
+              setTimeout(() => composerRef.current?.focus(), 30);
+            }}
             reduced={!!reduced}
           />
+          <div
+            className="text-[10px] tracking-[0.22em] uppercase"
+            style={{
+              color: "rgba(245,245,247,0.35)",
+              fontFamily: "var(--font-mono)",
+            }}
+          >
+            {thinking
+              ? "Refining"
+              : listening
+                ? "Listening"
+                : "Or press / to type"}
+          </div>
         </div>
-      </aside>
+
+        {/* Gallery bar — 5 deliverables */}
+        <nav
+          className="relative flex justify-around items-center h-[104px] px-10 mx-auto"
+          style={{
+            maxWidth: "1440px",
+            background:
+              "linear-gradient(180deg, rgba(20,19,22,0.4) 0%, rgba(9,9,11,0.85) 100%)",
+            backdropFilter: "blur(40px)",
+            WebkitBackdropFilter: "blur(40px)",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            boxShadow: `0 -20px 50px ${accent}1f`,
+            pointerEvents: "auto",
+          }}
+        >
+          {DELIVERABLE_TABS.map((t) => {
+            const isActive = activeId === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActiveId(t.id)}
+                className="relative flex flex-col items-center justify-center gap-1.5 group transition-all duration-300"
+                style={{
+                  color: isActive ? accent : "rgba(245,245,247,0.45)",
+                  filter: isActive
+                    ? `drop-shadow(0 0 10px ${accent}aa)`
+                    : "none",
+                }}
+              >
+                <t.Icon size={22} />
+                <span
+                  className="text-[10px] tracking-[0.22em] uppercase font-medium"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
+                  {t.label}
+                </span>
+                <div
+                  className="size-1 rounded-full transition-all"
+                  style={{
+                    background: isActive ? accent : "transparent",
+                    boxShadow: isActive ? `0 0 6px ${accent}` : "none",
+                  }}
+                />
+              </button>
+            );
+          })}
+        </nav>
+      </div>
 
       {/* ============================================================
-          WORK CANVAS (RIGHT) — deliverable preview + tabs + actions
+          COMPOSER OVERLAY — slides up when user clicks pill or types /
           ============================================================ */}
-      <main className="flex flex-col h-full overflow-hidden relative">
-        {/* TOP BAR — tabs + actions */}
-        <header
-          className="px-8 py-5 flex items-center justify-between gap-6 shrink-0"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
-        >
-          {/* Tab pills */}
-          <nav className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1">
-            {DELIVERABLE_TABS.map((t) => {
-              const isActive = activeId === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setActiveId(t.id)}
-                  className="relative shrink-0 h-10 px-4 rounded-full text-[13.5px] font-medium transition-colors"
-                  style={{
-                    color: isActive
-                      ? "rgba(245,245,247,1)"
-                      : "rgba(245,245,247,0.55)",
-                  }}
-                >
-                  {isActive && (
-                    <motion.span
-                      layoutId="active-tab-bg"
-                      className="absolute inset-0 rounded-full"
-                      style={{
-                        background: "rgba(255,255,255,0.06)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                      }}
-                    />
-                  )}
-                  <span className="relative inline-flex items-center gap-2">
-                    {isActive && (
-                      <span
-                        className="size-1.5 rounded-full"
-                        style={{ background: personality.accent }}
-                      />
-                    )}
-                    {t.label}
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Action cluster */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              className="h-10 px-4 rounded-full text-[13.5px] font-medium transition-colors hover:bg-white/[0.04]"
-              style={{
-                color: "rgba(245,245,247,0.7)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
+      <AnimatePresence>
+        {composerOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setComposerOpen(false)}
+              className="absolute inset-0 z-50"
+              style={{ background: "rgba(9,9,11,0.5)", backdropFilter: "blur(8px)" }}
+            />
+            <motion.div
+              initial={reduced ? false : { y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={reduced ? undefined : { y: 40, opacity: 0 }}
+              transition={{ duration: 0.32, ease: [0.2, 0.7, 0.2, 1] }}
+              className="absolute bottom-[140px] left-1/2 -translate-x-1/2 z-50 w-[min(680px,calc(100%-48px))]"
             >
-              Share
-            </button>
-            <button
-              type="button"
-              className="h-10 px-5 rounded-full text-[13.5px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
-              style={{
-                background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-                boxShadow: `0 8px 24px -8px ${personality.glow}`,
-              }}
-            >
-              Publish
-            </button>
-          </div>
-        </header>
-
-        {/* CANVAS */}
-        <div className="flex-1 overflow-auto relative">
-          {/* Soft accent glow behind the deliverable */}
-          <div
-            aria-hidden
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `radial-gradient(ellipse 60% 50% at 50% 40%, ${personality.accent}10, transparent 70%)`,
-            }}
-          />
-          <div className="relative min-h-full flex items-center justify-center px-12 py-16">
-            {stored ? (
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeId}
-                  initial={
-                    reduced
-                      ? false
-                      : { opacity: 0, y: 16, filter: "blur(8px)" }
-                  }
-                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  exit={
-                    reduced
-                      ? undefined
-                      : { opacity: 0, y: -10, filter: "blur(6px)" }
-                  }
-                  transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
-                  className="flex justify-center w-full"
-                >
-                  <ActiveDeliverable
-                    kind={activeId}
-                    personality={personality}
-                    agentName={agentName}
-                    stored={stored}
-                    flashFields={flashFields}
-                  />
-                </motion.div>
-              </AnimatePresence>
-            ) : (
-              <EmptyCanvas
+              <ComposerCard
                 personality={personality}
-                onContinue={() => router.push("/onboarding/personality")}
+                agentName={agentName}
+                composing={composing}
+                thinking={thinking}
+                onComposingChange={setComposing}
+                onSubmit={onSubmit}
+                onClose={() => setComposerOpen(false)}
+                composerRef={composerRef}
               />
-            )}
-          </div>
-        </div>
-      </main>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Local CSS for bloom spin animation */}
+      <style jsx>{`
+        @keyframes bloomSpin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
+function labelFor(kind: DeliverableKind) {
+  switch (kind) {
+    case "landing":
+      return "Website";
+    case "instagram":
+      return "Instagram";
+    case "twitter":
+      return "X";
+    case "linkedin":
+      return "LinkedIn";
+    case "ad":
+      return "Facebook Ad";
+  }
+}
+
 /* ============================================================
- * COMPOSER (big, inviting, with mic button)
+ * TALK PILL — hold-to-talk hero
  * ============================================================ */
-function Composer({
+function TalkPill({
+  accent,
+  glow,
+  thinking,
+  listening,
+  onPressStart,
+  onPressEnd,
+  reduced,
+}: {
+  accent: string;
+  glow: string;
+  thinking: boolean;
+  listening: boolean;
+  onPressStart: () => void;
+  onPressEnd: () => void;
+  reduced: boolean;
+}) {
+  const hot = listening || thinking;
+  return (
+    <motion.button
+      type="button"
+      onMouseDown={onPressStart}
+      onMouseUp={onPressEnd}
+      onMouseLeave={listening ? onPressEnd : undefined}
+      onTouchStart={(e) => {
+        e.preventDefault();
+        onPressStart();
+      }}
+      onTouchEnd={onPressEnd}
+      whileTap={reduced ? undefined : { scale: 0.97 }}
+      className="relative rounded-full inline-flex items-center justify-center gap-4 transition-all"
+      style={{
+        width: 268,
+        height: 64,
+        background:
+          "linear-gradient(180deg, rgba(35,34,37,0.85) 0%, rgba(22,21,24,0.85) 100%)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        border: hot
+          ? `1px solid ${accent}80`
+          : "1px solid rgba(255,255,255,0.1)",
+        boxShadow: hot
+          ? `0 0 0 6px ${accent}1f, 0 16px 50px -8px ${glow}, inset 0 1px 0 rgba(255,255,255,0.06)`
+          : `0 14px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)`,
+      }}
+    >
+      <motion.span
+        className="size-2.5 rounded-full"
+        style={{
+          background: accent,
+          boxShadow: `0 0 12px ${accent}`,
+        }}
+        animate={
+          reduced || !hot
+            ? { opacity: 1 }
+            : { opacity: [0.5, 1, 0.5], scale: [1, 1.2, 1] }
+        }
+        transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <span
+        className="text-[12px] tracking-[0.24em] uppercase font-medium"
+        style={{
+          color: hot ? accent : "rgba(245,245,247,0.85)",
+          fontFamily: "var(--font-mono)",
+        }}
+      >
+        {thinking ? "Refining" : listening ? "Listening" : "Hold to Talk"}
+      </span>
+      <span
+        style={{ color: hot ? accent : "rgba(245,245,247,0.6)" }}
+        aria-hidden
+      >
+        <MicIcon />
+      </span>
+    </motion.button>
+  );
+}
+
+/* ============================================================
+ * COMPOSER CARD (modal overlay)
+ * ============================================================ */
+function ComposerCard({
   personality,
   agentName,
   composing,
   thinking,
   onComposingChange,
   onSubmit,
+  onClose,
   composerRef,
-  reduced,
 }: {
   personality: Personality;
   agentName: string;
@@ -523,8 +804,8 @@ function Composer({
   thinking: boolean;
   onComposingChange: (v: string) => void;
   onSubmit: () => void;
+  onClose: () => void;
   composerRef: React.RefObject<HTMLTextAreaElement | null>;
-  reduced: boolean;
 }) {
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -533,28 +814,41 @@ function Composer({
     }
   };
   const hasText = composing.trim().length > 0;
-
   return (
     <div
-      className="relative rounded-3xl"
+      className="rounded-3xl relative"
       style={{
-        background: "rgba(255,255,255,0.025)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background:
+          "linear-gradient(180deg, rgba(35,34,37,0.95) 0%, rgba(22,21,24,0.95) 100%)",
+        border: hasText
+          ? `1px solid ${personality.accent}55`
+          : "1px solid rgba(255,255,255,0.08)",
         boxShadow: hasText
-          ? `0 8px 32px -8px ${personality.glow}, 0 0 0 1px ${personality.accent}33`
-          : "0 8px 24px -8px rgba(0,0,0,0.4)",
-        transition: "box-shadow 0.4s ease",
+          ? `0 24px 60px -12px ${personality.glow}, 0 0 0 1px ${personality.accent}22`
+          : "0 24px 60px -12px rgba(0,0,0,0.7)",
+        backdropFilter: "blur(40px)",
+        WebkitBackdropFilter: "blur(40px)",
       }}
     >
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute top-3 right-3 size-7 rounded-full grid place-items-center hover:bg-white/[0.06] transition-colors"
+        style={{ color: "rgba(245,245,247,0.5)" }}
+        aria-label="Close"
+      >
+        <CloseIcon />
+      </button>
       <textarea
         ref={composerRef}
         value={composing}
         onChange={(e) => onComposingChange(e.target.value)}
         onKeyDown={onKey}
-        placeholder={`Ask ${agentName} to make or change anything…`}
+        placeholder={`Tell ${agentName} what to change…`}
         disabled={thinking}
         rows={3}
-        className="w-full bg-transparent border-0 outline-none resize-none px-5 pt-5 pb-2 text-[15px] leading-relaxed placeholder:text-white/35 disabled:opacity-50"
+        autoFocus
+        className="w-full bg-transparent border-0 outline-none resize-none px-6 pt-6 pb-2 text-[16px] leading-relaxed placeholder:text-white/35 disabled:opacity-50"
         style={{
           color: "rgba(245,245,247,1)",
           caretColor: personality.accent,
@@ -562,189 +856,42 @@ function Composer({
           minHeight: "92px",
         }}
       />
-      <div className="flex items-center justify-between px-3 pb-3">
-        <div className="flex items-center gap-1">
-          <ComposerButton title="Attach context">
-            <PlusIcon />
-          </ComposerButton>
-          <ComposerButton title="Voice (hold)" accent={personality.accent}>
-            <MicIcon />
-          </ComposerButton>
-        </div>
-        <div className="flex items-center gap-3">
-          <motion.span
-            animate={
-              hasText && !reduced
-                ? { opacity: [0.5, 1, 0.5] }
-                : { opacity: 0.4 }
-            }
-            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-            className="text-[11px] tracking-[0.18em] uppercase"
-            style={{
-              color: "rgba(245,245,247,0.5)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            ↵ Send
-          </motion.span>
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={!hasText || thinking}
-            className="h-10 px-5 rounded-full inline-flex items-center gap-2 text-[13.5px] font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-transform hover:scale-[1.03] active:scale-[0.97]"
-            style={{
-              background: hasText
-                ? `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`
-                : "rgba(255,255,255,0.06)",
-              boxShadow: hasText ? `0 8px 24px -8px ${personality.glow}` : "none",
-            }}
-            aria-label="Send"
-          >
-            <span>Send</span>
-            <ArrowUpIcon />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ComposerButton({
-  children,
-  title,
-  accent,
-}: {
-  children: React.ReactNode;
-  title: string;
-  accent?: string;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      className="size-9 rounded-full inline-flex items-center justify-center hover:bg-white/[0.05] transition-colors"
-      style={{ color: accent ?? "rgba(245,245,247,0.55)" }}
-    >
-      {children}
-    </button>
-  );
-}
-
-/* ============================================================
- * CHAT BUBBLE
- * ============================================================ */
-function ChatBubble({
-  line,
-  personality,
-  agentName,
-  reduced,
-}: {
-  line: ChatLine;
-  personality: Personality;
-  agentName: string;
-  reduced: boolean;
-}) {
-  if (line.role === "user") {
-    return (
-      <motion.div
-        initial={reduced ? false : { opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        className="flex justify-end"
-      >
-        <div
-          className="px-4 py-3 rounded-2xl rounded-tr-md max-w-[88%] text-[14.5px] leading-relaxed"
+      <div className="flex items-center justify-between px-4 pb-4">
+        <span
+          className="text-[10px] tracking-[0.22em] uppercase"
           style={{
-            background: "rgba(255,255,255,0.06)",
-            color: "rgba(245,245,247,0.95)",
-          }}
-        >
-          {line.text}
-        </div>
-      </motion.div>
-    );
-  }
-  return (
-    <motion.div
-      initial={reduced ? false : { opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className="flex items-start gap-3"
-    >
-      <div className="shrink-0 mt-1">
-        <PersonalityIcon personality={personality} size="xs" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div
-          className="text-[11px] tracking-[0.2em] uppercase mb-1.5"
-          style={{
-            color: personality.accent,
+            color: "rgba(245,245,247,0.4)",
             fontFamily: "var(--font-mono)",
           }}
         >
-          {agentName}
-        </div>
-        <p
-          className="font-serif text-[15px] leading-relaxed"
-          style={{ color: "rgba(245,245,247,0.85)" }}
+          ↵ Send · Esc to close
+        </span>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={!hasText || thinking}
+          className="h-10 px-5 rounded-full inline-flex items-center gap-2 text-[13px] font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-transform hover:scale-[1.03] active:scale-[0.97]"
+          style={{
+            background: hasText
+              ? `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`
+              : "rgba(255,255,255,0.06)",
+            boxShadow: hasText
+              ? `0 8px 24px -8px ${personality.glow}`
+              : "none",
+          }}
+          aria-label="Send"
         >
-          {line.text}
-        </p>
-      </div>
-    </motion.div>
-  );
-}
-
-/* ============================================================
- * EMPTY STATES
- * ============================================================ */
-function EmptyChatPrompt({
-  personality,
-  suggestions,
-  onPick,
-}: {
-  personality: Personality;
-  suggestions: string[];
-  onPick: (s: string) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-3 pt-2">
-      <div
-        className="text-[11px] tracking-[0.22em] uppercase"
-        style={{
-          color: "rgba(245,245,247,0.4)",
-          fontFamily: "var(--font-mono)",
-        }}
-      >
-        Try asking
-      </div>
-      <div className="flex flex-col gap-2">
-        {suggestions.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => onPick(s)}
-            className="text-left px-4 py-3 rounded-2xl text-[14.5px] transition-all hover:bg-white/[0.04] flex items-center justify-between group"
-            style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              color: "rgba(245,245,247,0.85)",
-            }}
-          >
-            <span className="font-serif">{s}</span>
-            <span
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-              style={{ color: personality.accent }}
-            >
-              →
-            </span>
-          </button>
-        ))}
+          <span>Send</span>
+          <ArrowUpIcon />
+        </button>
       </div>
     </div>
   );
 }
 
+/* ============================================================
+ * EMPTY CANVAS
+ * ============================================================ */
 function EmptyCanvas({
   personality,
   onContinue,
@@ -776,7 +923,7 @@ function EmptyCanvas({
 }
 
 /* ============================================================
- * ACTIVE DELIVERABLE
+ * ACTIVE DELIVERABLE — picks the right device mockup
  * ============================================================ */
 function ActiveDeliverable({
   kind,
@@ -807,7 +954,7 @@ function ActiveDeliverable({
 
   if (kind === "landing") {
     return (
-      <div className="w-full max-w-[960px]" style={flashStyle("landing", "20px")}>
+      <div className="w-full max-w-[900px]" style={flashStyle("landing", "16px")}>
         <MacBookFrame>
           <CompactLanding
             personality={personality}
@@ -966,20 +1113,87 @@ function CompactLanding({
 }
 
 /* ============================================================
+ * Utility button (top-right cluster)
+ * ============================================================ */
+function UtilButton({
+  children,
+  title,
+}: {
+  children: React.ReactNode;
+  title: string;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      className="size-9 rounded-full grid place-items-center transition-all hover:bg-white/[0.06] hover:scale-95 active:scale-90"
+      style={{ color: "rgba(245,245,247,0.5)" }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ============================================================
  * Icons
  * ============================================================ */
-function PlusIcon() {
+function HistoryIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function AccountIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+function CloseIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M6 6l12 12M18 6 6 18"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 function MicIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="9" y="3" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="9"
+        y="3"
+        width="6"
+        height="12"
+        rx="3"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M5 11a7 7 0 0 0 14 0M12 18v3"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -992,6 +1206,92 @@ function ArrowUpIcon() {
         strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function BrowserIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="3"
+        y="4"
+        width="18"
+        height="16"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path d="M3 9h18" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="6" cy="6.5" r="0.7" fill="currentColor" />
+      <circle cx="8.5" cy="6.5" r="0.7" fill="currentColor" />
+    </svg>
+  );
+}
+function CameraIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="3"
+        y="7"
+        width="18"
+        height="13"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M8 7l1.5-2.5h5L16 7"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="13.5" r="3.2" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+function XIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817-5.97 6.817H1.68l7.73-8.835L1.25 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+function WorkIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="3"
+        y="7"
+        width="18"
+        height="13"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path d="M3 13h18" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+function CampaignIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 9v6h3l8 4V5l-8 4H4z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18 8a4 4 0 0 1 0 8"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
       />
     </svg>
   );
