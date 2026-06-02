@@ -244,7 +244,21 @@ export default function WowPage() {
               agentName={agentName}
               deliverables={state.deliverables}
               images={state.images}
-              onContinue={() => router.push("/onboarding/connect")}
+              onContinue={() => {
+                // Hand the deliverables off to the studio so it can
+                // render them as the user's existing work.
+                if (state.kind === "ready") {
+                  localStorage.setItem(
+                    "wrks-studio-deliverables",
+                    JSON.stringify({
+                      deliverables: state.deliverables,
+                      images: state.images,
+                      createdAt: new Date().toISOString(),
+                    }),
+                  );
+                }
+                router.push("/studio");
+              }}
               onRegenerate={() => setAttempt((a) => a + 1)}
               reduced={!!reduced}
             />
@@ -611,8 +625,8 @@ function ReadyState({
           className="group inline-flex items-center gap-3 font-serif text-[clamp(1.125rem,1.6vw,1.375rem)] text-ink hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md px-2 py-1"
         >
           <span>
-            Connect your accounts{" "}
-            <span style={{ color: personality.accent }}>to publish</span>
+            Open your{" "}
+            <span style={{ color: personality.accent }}>studio</span>
           </span>
           <motion.span
             aria-hidden
