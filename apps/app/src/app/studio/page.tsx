@@ -265,13 +265,16 @@ function StudioPageInner() {
 
   const conversation = useConversation({
     onConnect: () => {
+      console.log("[voice] connected");
       setVoiceState("listening");
       setVoiceError(null);
     },
     onDisconnect: () => {
+      console.log("[voice] disconnected");
       setVoiceState("idle");
     },
     onError: (err: unknown) => {
+      console.error("[voice] error", err);
       const msg =
         typeof err === "string"
           ? err
@@ -282,9 +285,7 @@ function StudioPageInner() {
       setVoiceState("error");
     },
     onMessage: (event) => {
-      // ElevenLabs emits both user transcripts and agent replies via
-      // onMessage. Append both to the transcript so they appear next
-      // to typed messages.
+      console.log("[voice] message", event);
       const source = (event as { source?: string }).source;
       const text =
         (event as { message?: string }).message ??
@@ -301,6 +302,12 @@ function StudioPageInner() {
       const mode = (event as { mode?: string }).mode;
       if (mode === "speaking") setVoiceState("speaking");
       else if (mode === "listening") setVoiceState("listening");
+    },
+    onUnhandledClientToolCall: (call) => {
+      console.warn("[voice] UNHANDLED tool call from agent:", call);
+    },
+    onDebug: (info) => {
+      console.log("[voice] debug", info);
     },
   });
 
@@ -348,6 +355,7 @@ function StudioPageInner() {
     if (!personality || !voice) return;
     setVoiceError(null);
     setVoiceState("connecting");
+    console.log("[voice] starting session — build:9c74937+catchall");
     try {
       // Mic permission must be requested inside the user gesture
       // (Safari/iOS). We don't keep the stream — ElevenLabs SDK opens
