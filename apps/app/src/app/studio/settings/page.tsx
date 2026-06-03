@@ -1,8 +1,9 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, StudioPageShell, usePersonality } from "@/components/studio-page-shell";
+import { useRegisterVoiceField } from "@/lib/studio-context";
 
 type Section =
   | "account"
@@ -140,6 +141,31 @@ export default function SettingsPage() {
 /* ============================================================
  * Account
  * ============================================================ */
+const TIMEZONES = [
+  "America/Los_Angeles",
+  "America/New_York",
+  "Europe/London",
+  "Asia/Karachi",
+  "Asia/Tokyo",
+];
+
+function resolveTimezone(spoken: string): string | null {
+  const k = spoken.trim().toLowerCase();
+  if (!k) return null;
+  for (const tz of TIMEZONES) if (tz.toLowerCase() === k) return tz;
+  // Loose matching
+  if (k.includes("los angeles") || k.includes("pacific") || k.includes("la"))
+    return "America/Los_Angeles";
+  if (k.includes("new york") || k.includes("eastern") || k.includes("ny"))
+    return "America/New_York";
+  if (k.includes("london") || k.includes("uk") || k.includes("britain"))
+    return "Europe/London";
+  if (k.includes("karachi") || k.includes("pakistan"))
+    return "Asia/Karachi";
+  if (k.includes("tokyo") || k.includes("japan")) return "Asia/Tokyo";
+  return null;
+}
+
 function AccountSection({
   accent,
   accentDeep,
@@ -153,13 +179,54 @@ function AccountSection({
   userName: string;
   userEmail: string;
 }) {
+  const [displayName, setDisplayName] = useState(userName);
+  const [timezone, setTimezone] = useState("America/Los_Angeles");
+
+  useEffect(() => {
+    setDisplayName(userName);
+  }, [userName]);
+
+  useRegisterVoiceField(
+    useMemo(
+      () => ({
+        id: "display_name",
+        aliases: [
+          "display name",
+          "name",
+          "my name",
+          "your name",
+          "full name",
+        ],
+        location: "Settings · Account",
+        set: (v: string) => setDisplayName(v),
+      }),
+      [],
+    ),
+  );
+
+  useRegisterVoiceField(
+    useMemo(
+      () => ({
+        id: "timezone",
+        aliases: ["time zone", "timezone", "tz", "region"],
+        location: "Settings · Account",
+        set: (v: string) => {
+          const resolved = resolveTimezone(v);
+          if (resolved) setTimezone(resolved);
+        },
+      }),
+      [],
+    ),
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader title="Account" description="How we identify you across WRKS." />
       <Card className="p-6">
         <Field label="Display name" hint="Shown across the workspace.">
           <input
-            defaultValue={userName}
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
             className="w-full h-11 px-4 rounded-lg text-[14.5px] outline-none focus:border-transparent transition"
             style={{
               background: "rgba(255,255,255,0.04)",
@@ -187,19 +254,18 @@ function AccountSection({
           hint="We use this for scheduling and analytics windows."
         >
           <select
+            value={timezone}
+            onChange={(e) => setTimezone(e.target.value)}
             className="w-full h-11 px-4 rounded-lg text-[14.5px] outline-none"
             style={{
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.08)",
               color: "rgba(245,245,247,0.95)",
             }}
-            defaultValue="America/Los_Angeles"
           >
-            <option>America/Los_Angeles</option>
-            <option>America/New_York</option>
-            <option>Europe/London</option>
-            <option>Asia/Karachi</option>
-            <option>Asia/Tokyo</option>
+            {TIMEZONES.map((tz) => (
+              <option key={tz}>{tz}</option>
+            ))}
           </select>
         </Field>
       </Card>
@@ -264,6 +330,49 @@ function BrandVoiceSection({
   accentDeep: string;
   glow: string;
 }) {
+  const [houseStyle, setHouseStyle] = useState(
+    "Direct, opinionated, never corporate. Short sentences. Specific verbs. Skip hedging.",
+  );
+  const [bannedWords, setBannedWords] = useState(
+    "leverage, seamless, world-class, robust, comprehensive",
+  );
+
+  useRegisterVoiceField(
+    useMemo(
+      () => ({
+        id: "house_style",
+        aliases: [
+          "house style",
+          "brand voice",
+          "tone",
+          "style",
+          "voice",
+          "tone of voice",
+        ],
+        location: "Settings · Brand voice",
+        set: (v: string) => setHouseStyle(v),
+      }),
+      [],
+    ),
+  );
+  useRegisterVoiceField(
+    useMemo(
+      () => ({
+        id: "banned_words",
+        aliases: [
+          "banned words",
+          "blocked words",
+          "words to avoid",
+          "blacklist",
+          "no-go words",
+        ],
+        location: "Settings · Brand voice",
+        set: (v: string) => setBannedWords(v),
+      }),
+      [],
+    ),
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader
@@ -276,7 +385,8 @@ function BrandVoiceSection({
           hint="A short paragraph describing your tone, cadence, and personality."
         >
           <textarea
-            defaultValue="Direct, opinionated, never corporate. Short sentences. Specific verbs. Skip hedging."
+            value={houseStyle}
+            onChange={(e) => setHouseStyle(e.target.value)}
             rows={4}
             className="w-full px-4 py-3 rounded-lg text-[14.5px] outline-none resize-none leading-relaxed"
             style={{
@@ -293,7 +403,8 @@ function BrandVoiceSection({
           hint="Comma-separated. Your agent will refuse to use these."
         >
           <input
-            defaultValue="leverage, seamless, world-class, robust, comprehensive"
+            value={bannedWords}
+            onChange={(e) => setBannedWords(e.target.value)}
             className="w-full h-11 px-4 rounded-lg text-[14.5px] outline-none"
             style={{
               background: "rgba(255,255,255,0.04)",

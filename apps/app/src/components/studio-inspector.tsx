@@ -17,8 +17,11 @@ import {
 import {
   type ChatLine,
   type DeliverableKind,
+  resolveVoiceField,
   StudioContextProvider,
   type StoredWowPayload,
+  type VoiceField,
+  VoiceFieldRegistryProvider,
 } from "@/lib/studio-context";
 import {
   buildFirstMessage,
@@ -147,6 +150,24 @@ function StudioInspectorInner({
   const [flashFields, setFlashFields] = useState<Set<string>>(new Set());
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
+
+  // Voice field registry — survives across renders. Pages register
+  // their editable fields; the set_field tool resolves spoken names
+  // against this map.
+  const fieldRegistryRef = useRef<Map<string, VoiceField>>(
+    new Map<string, VoiceField>(),
+  );
+  const registry = useRef({
+    register: (field: VoiceField) => {
+      fieldRegistryRef.current.set(field.id, field);
+      return () => {
+        if (fieldRegistryRef.current.get(field.id) === field) {
+          fieldRegistryRef.current.delete(field.id);
+        }
+      };
+    },
+    list: () => Array.from(fieldRegistryRef.current.values()),
+  }).current;
 
   // Refs keep tool handlers seeing the latest state.
   const storedRef = useRef(stored);
@@ -340,6 +361,23 @@ function StudioInspectorInner({
       stored: s.deliverables,
     });
   });
+  useConversationClientTool("set_field", (params) => {
+    console.log("[voice] set_field", params);
+    const fieldName = String(params?.field ?? "").trim();
+    const value = String(params?.value ?? "");
+    if (!fieldName) return "Tell me which field to update.";
+    const fields = registry.list();
+    const match = resolveVoiceField(fieldName, fields);
+    if (!match) {
+      if (fields.length === 0) {
+        return `No editable fields are visible right now. Try navigating to a page like Settings first.`;
+      }
+      const known = fields.map((f) => f.aliases[0] ?? f.id).join(", ");
+      return `I don't see a field called "${fieldName}" here. Editable now: ${known}.`;
+    }
+    match.set(value);
+    return `Updated ${match.aliases[0] ?? match.id} to "${value}".`;
+  });
 
   const startVoice = useCallback(async () => {
     setVoiceError(null);
@@ -428,9 +466,12 @@ function StudioInspectorInner({
         thinking,
       }}
     >
-      <div className="flex-1 h-full flex min-w-0">
-        {/* Main content area (children) */}
-        <div className="flex-1 min-w-0 h-full overflow-hidden">{children}</div>
+      <VoiceFieldRegistryProvider registry={registry}>
+        <div className="flex-1 h-full flex min-w-0">
+          {/* Main content area (children) */}
+          <div className="flex-1 min-w-0 h-full overflow-hidden">
+            {children}
+          </div>
 
         {/* Right inspector — persistent across routes */}
         <aside
@@ -550,7 +591,8 @@ function StudioInspectorInner({
             />
           </div>
         </aside>
-      </div>
+        </div>
+      </VoiceFieldRegistryProvider>
     </StudioContextProvider>
   );
 }
