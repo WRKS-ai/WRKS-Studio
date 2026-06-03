@@ -1,6 +1,6 @@
 "use client";
 
-import { useConversation } from "@elevenlabs/react";
+import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -83,6 +83,15 @@ const SUGGESTIONS = [
 ];
 
 export default function StudioPage() {
+  // useConversation requires a ConversationProvider higher in the tree.
+  return (
+    <ConversationProvider>
+      <StudioPageInner />
+    </ConversationProvider>
+  );
+}
+
+function StudioPageInner() {
   const router = useRouter();
   const reduced = useReducedMotion();
 
