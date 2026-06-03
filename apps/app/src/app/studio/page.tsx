@@ -990,7 +990,8 @@ function CompactLanding({
   heroImage: string;
 }) {
   return (
-    <div className="size-full bg-[#fbf7ee] flex flex-col">
+    <div className="size-full bg-[#fbf7ee] flex flex-col overflow-hidden">
+      {/* Top nav bar */}
       <div className="flex items-center justify-between px-8 py-3 border-b border-black/5 shrink-0">
         <span className="font-serif text-[15px] text-[#0e0c08] flex items-center gap-2">
           <span
@@ -1008,10 +1009,17 @@ function CompactLanding({
           Vol. 01
         </span>
       </div>
-      <div className="grid flex-1 min-h-0" style={{ gridTemplateColumns: "1.15fr 0.85fr" }}>
-        <div className="px-10 py-9 text-left flex flex-col justify-center">
+
+      {/* Editorial 2-col body: left column has full editorial content
+          (now showing label + headline + subhead + CTA + bullets stacked),
+          right column is the photo plate at full height. */}
+      <div
+        className="grid flex-1 min-h-0"
+        style={{ gridTemplateColumns: "1.2fr 0.8fr" }}
+      >
+        <div className="px-10 py-9 text-left flex flex-col min-h-0 overflow-hidden">
           <div
-            className="text-[11px] tracking-[0.32em] uppercase font-mono mb-5 flex items-center gap-3"
+            className="text-[11px] tracking-[0.32em] uppercase font-mono mb-5 flex items-center gap-3 shrink-0"
             style={{ color: "#827a6e" }}
           >
             <span
@@ -1021,22 +1029,45 @@ function CompactLanding({
             <span>Now showing</span>
           </div>
           <h1
-            className="font-serif font-medium text-[clamp(1.625rem,3.6vw,2.5rem)] leading-[1] text-[#0e0c08] max-w-[17ch]"
+            className="font-serif font-medium text-[clamp(1.5rem,2.8vw,2.25rem)] leading-[1.02] text-[#0e0c08] max-w-[17ch] shrink-0"
             style={{ letterSpacing: "-0.025em" }}
           >
             {data.headline}
           </h1>
-          <p className="mt-5 font-serif italic text-[clamp(0.9375rem,1.25vw,1.0625rem)] text-[#4a443c] max-w-[36ch] leading-relaxed">
+          <p className="mt-4 font-serif italic text-[clamp(0.875rem,1.1vw,1rem)] text-[#4a443c] max-w-[42ch] leading-relaxed shrink-0">
             {data.subhead}
           </p>
           <button
-            className="mt-6 inline-flex items-center gap-2 text-[#0e0c08] font-serif border-b border-[#0e0c08] pb-1 text-[15px] self-start"
+            className="mt-5 inline-flex items-center gap-2 text-[#0e0c08] font-serif border-b border-[#0e0c08] pb-1 text-[14px] self-start shrink-0"
             type="button"
           >
             <span>{data.primaryCta}</span>
             <span style={{ color: personality.accent }}>→</span>
           </button>
+
+          {/* Bullets pinned to bottom of left column */}
+          <div className="flex-1" />
+          <div
+            className="mt-6 pt-5 grid grid-cols-3 gap-5 shrink-0"
+            style={{ borderTop: "1px solid rgba(14,12,8,0.08)" }}
+          >
+            {data.valueBullets.slice(0, 3).map((bullet, i) => (
+              <div key={i}>
+                <div
+                  className="text-[9.5px] tracking-[0.3em] uppercase font-mono mb-1.5"
+                  style={{ color: personality.accent }}
+                >
+                  0{i + 1}
+                </div>
+                <p className="font-serif text-[#0e0c08] text-[11.5px] leading-snug">
+                  {bullet}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* Photo plate — right column, full height */}
         <div className="relative overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -1046,24 +1077,6 @@ function CompactLanding({
             loading="lazy"
           />
         </div>
-      </div>
-      <div
-        className="px-10 py-5 grid grid-cols-3 gap-6 shrink-0"
-        style={{ borderTop: "1px solid rgba(14,12,8,0.06)" }}
-      >
-        {data.valueBullets.slice(0, 3).map((bullet, i) => (
-          <div key={i}>
-            <div
-              className="text-[10px] tracking-[0.32em] uppercase font-mono mb-1.5"
-              style={{ color: personality.accent }}
-            >
-              0{i + 1}
-            </div>
-            <p className="font-serif text-[#0e0c08] text-[13px] leading-snug">
-              {bullet}
-            </p>
-          </div>
-        ))}
       </div>
     </div>
   );
