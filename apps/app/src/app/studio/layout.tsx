@@ -128,7 +128,7 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
       <aside
         className="shrink-0 h-full flex flex-col"
         style={{
-          width: 248,
+          width: 272,
           background:
             "linear-gradient(180deg, rgba(255,255,255,0.018) 0%, rgba(0,0,0,0) 60%)",
           borderRight: "1px solid rgba(255,255,255,0.05)",
@@ -138,11 +138,11 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
         <div className="px-4 pt-5 pb-3">
           <button
             type="button"
-            className="w-full h-14 rounded-xl px-3.5 inline-flex items-center gap-3 transition-colors hover:bg-white/[0.04]"
+            className="w-full h-[60px] rounded-xl px-4 inline-flex items-center gap-3.5 transition-colors hover:bg-white/[0.04]"
             style={{ border: "1px solid rgba(255,255,255,0.07)" }}
           >
             <span
-              className="size-8 rounded-lg grid place-items-center text-[14px] font-semibold"
+              className="size-9 rounded-lg grid place-items-center text-[15.5px] font-semibold"
               style={{
                 background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
                 color: "white",
@@ -153,14 +153,14 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
             </span>
             <div className="flex-1 text-left leading-tight min-w-0">
               <div
-                className="text-[15.5px] font-medium truncate"
+                className="text-[16.5px] font-medium truncate"
                 style={{ color: "rgba(245,245,247,0.95)" }}
               >
                 {brandName}
               </div>
               <div
-                className="text-[12.5px] tracking-[0.04em] mt-0.5"
-                style={{ color: "rgba(245,245,247,0.5)" }}
+                className="text-[13px] tracking-[0.02em] mt-1"
+                style={{ color: "rgba(245,245,247,0.55)" }}
               >
                 WRKS Workspace
               </div>
@@ -208,27 +208,34 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
         {/* Bottom: agent identity card */}
         <div className="px-3 pb-4">
           <div
-            className="rounded-xl px-3.5 py-3.5 flex items-center gap-3.5"
+            className="rounded-xl px-4 py-3.5 flex items-center gap-3.5"
             style={{
               background: "rgba(255,255,255,0.025)",
               border: "1px solid rgba(255,255,255,0.06)",
             }}
           >
-            <div className="shrink-0 size-11 grid place-items-center">
-              <div className="scale-[0.38] origin-center">
-                <PersonalityIcon personality={personality} size="md" />
-              </div>
+            <div
+              className="shrink-0 size-10 rounded-full grid place-items-center"
+              style={{
+                background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
+                color: "white",
+                fontSize: 15,
+                fontWeight: 600,
+                boxShadow: `0 4px 12px -2px ${glow}`,
+              }}
+            >
+              {(agentName?.[0] ?? "A").toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
               <div
-                className="text-[15px] font-medium truncate"
+                className="text-[16px] font-medium truncate"
                 style={{ color: "rgba(245,245,247,0.95)" }}
               >
                 {agentName || "Agent"}
               </div>
               <div
-                className="text-[12.5px] tracking-[0.04em] flex items-center gap-1.5 mt-0.5"
-                style={{ color: "rgba(245,245,247,0.55)" }}
+                className="text-[13px] tracking-[0.02em] flex items-center gap-1.5 mt-1"
+                style={{ color: "rgba(245,245,247,0.6)" }}
               >
                 <span
                   className="size-1.5 rounded-full"
@@ -247,26 +254,28 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
       <div className="flex-1 h-full flex flex-col min-w-0">
         {/* TOP BAR */}
         <header
-          className="shrink-0 h-16 px-7 flex items-center justify-between gap-6"
+          className="shrink-0 h-[72px] px-8 flex items-center justify-between gap-6"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
         >
           {/* Breadcrumb */}
           <div className="flex items-center gap-3 min-w-0">
             <span
-              className="text-[14px]"
-              style={{ color: "rgba(245,245,247,0.5)" }}
+              className="text-[15px]"
+              style={{ color: "rgba(245,245,247,0.55)" }}
             >
               {brandName}
             </span>
-            <span style={{ color: "rgba(245,245,247,0.25)" }}>/</span>
+            <span style={{ color: "rgba(245,245,247,0.25)", fontSize: 16 }}>
+              /
+            </span>
             <span
-              className="text-[16px] font-medium truncate"
+              className="text-[18px] font-medium truncate"
               style={{ color: "rgba(245,245,247,0.98)" }}
             >
               {labelForPath(pathname)}
             </span>
             <span
-              className="ml-2 px-2.5 py-1 rounded-md text-[11.5px] tracking-[0.16em] uppercase"
+              className="ml-2 px-2.5 py-1 rounded-md text-[12px] tracking-[0.14em] uppercase"
               style={{
                 background: `${accent}1f`,
                 color: accent,
@@ -279,24 +288,24 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
           </div>
 
           {/* Right cluster */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
-              className="h-10 px-3.5 rounded-lg inline-flex items-center gap-2.5 transition-colors hover:bg-white/[0.05]"
+              className="h-11 px-4 rounded-lg inline-flex items-center gap-3 transition-colors hover:bg-white/[0.05]"
               style={{ border: "1px solid rgba(255,255,255,0.08)" }}
             >
               <SearchIcon />
               <span
-                className="text-[14px]"
-                style={{ color: "rgba(245,245,247,0.65)" }}
+                className="text-[15px]"
+                style={{ color: "rgba(245,245,247,0.7)" }}
               >
                 Search
               </span>
               <span
-                className="px-1.5 py-0.5 rounded text-[11.5px]"
+                className="px-2 py-0.5 rounded text-[12.5px]"
                 style={{
                   background: "rgba(255,255,255,0.06)",
-                  color: "rgba(245,245,247,0.6)",
+                  color: "rgba(245,245,247,0.65)",
                   fontFamily: "var(--font-mono)",
                 }}
               >
@@ -306,17 +315,17 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
 
             <Link
               href="/studio/plans"
-              className="h-10 px-3.5 rounded-lg inline-flex items-center gap-2.5 transition-colors hover:bg-white/[0.05]"
+              className="h-11 px-4 rounded-lg inline-flex items-center gap-3 transition-colors hover:bg-white/[0.05]"
               style={{ border: "1px solid rgba(255,255,255,0.08)" }}
             >
               <span
-                className="text-[14px] font-medium"
-                style={{ color: "rgba(245,245,247,0.9)" }}
+                className="text-[15px] font-medium"
+                style={{ color: "rgba(245,245,247,0.92)" }}
               >
                 Starter
               </span>
               <span
-                className="text-[13.5px] font-medium"
+                className="text-[14.5px] font-medium"
                 style={{ color: accent }}
               >
                 Upgrade
@@ -339,11 +348,11 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
                   e.stopPropagation();
                   setProfileOpen((v) => !v);
                 }}
-                className="size-10 rounded-full grid place-items-center transition-transform hover:scale-105"
+                className="size-11 rounded-full grid place-items-center transition-transform hover:scale-105"
                 style={{
                   background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
                   color: "white",
-                  fontSize: 15,
+                  fontSize: 16,
                   fontWeight: 600,
                   boxShadow: `0 4px 12px -2px ${glow}`,
                 }}
@@ -454,9 +463,9 @@ function labelForPath(pathname: string) {
 function SidebarSection({ label }: { label: string }) {
   return (
     <div
-      className="px-3 pt-3 pb-2 text-[11.5px] tracking-[0.2em] uppercase"
+      className="px-3 pt-4 pb-2.5 text-[12.5px] tracking-[0.2em] uppercase"
       style={{
-        color: "rgba(245,245,247,0.4)",
+        color: "rgba(245,245,247,0.45)",
         fontFamily: "var(--font-mono)",
       }}
     >
@@ -485,33 +494,33 @@ function SidebarLink({
   return (
     <Link
       href={href}
-      className="relative h-11 px-3 rounded-lg flex items-center gap-3 transition-colors group"
+      className="relative h-12 px-3 rounded-lg flex items-center gap-3.5 transition-colors group"
       style={{
         background: isActive ? "rgba(255,255,255,0.045)" : "transparent",
         color: isActive
           ? "rgba(245,245,247,1)"
-          : "rgba(245,245,247,0.7)",
+          : "rgba(245,245,247,0.72)",
       }}
     >
       {isActive && (
         <span
           aria-hidden
-          className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-sm"
+          className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r-sm"
           style={{
             background: accent,
             boxShadow: `0 0 10px ${glow}`,
           }}
         />
       )}
-      <span style={{ color: isActive ? accent : "rgba(245,245,247,0.55)" }}>
-        <Icon size={18} />
+      <span style={{ color: isActive ? accent : "rgba(245,245,247,0.58)" }}>
+        <Icon size={20} />
       </span>
-      <span className="text-[15px] font-medium flex-1">{label}</span>
+      <span className="text-[16px] font-medium flex-1">{label}</span>
       {shortcut && !isActive && (
         <span
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-[11.5px] px-1.5 rounded"
+          className="opacity-0 group-hover:opacity-100 transition-opacity text-[12px] px-1.5 py-0.5 rounded"
           style={{
-            color: "rgba(245,245,247,0.5)",
+            color: "rgba(245,245,247,0.55)",
             background: "rgba(255,255,255,0.05)",
             fontFamily: "var(--font-mono)",
           }}
@@ -556,9 +565,9 @@ function UtilButton({
       type="button"
       title={title}
       aria-label={title}
-      className="relative size-9 rounded-lg grid place-items-center transition-colors hover:bg-white/[0.05]"
+      className="relative size-11 rounded-lg grid place-items-center transition-colors hover:bg-white/[0.05]"
       style={{
-        color: "rgba(245,245,247,0.7)",
+        color: "rgba(245,245,247,0.75)",
         border: "1px solid rgba(255,255,255,0.08)",
       }}
     >
@@ -718,7 +727,7 @@ function ChevronUpDown() {
 }
 function SearchIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
       <path
         d="m20 20-3.5-3.5"
@@ -731,11 +740,11 @@ function SearchIcon() {
 }
 function BellIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="1.7"
         strokeLinejoin="round"
         strokeLinecap="round"
       />

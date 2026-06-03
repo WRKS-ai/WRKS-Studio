@@ -215,7 +215,7 @@ export default function StudioPage() {
       <main className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
         {/* Subnav: deliverable tabs */}
         <div
-          className="shrink-0 px-8 pt-5 pb-4 flex items-center justify-between gap-6"
+          className="shrink-0 px-9 pt-6 pb-5 flex items-center justify-between gap-6"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
         >
           <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1">
@@ -226,7 +226,7 @@ export default function StudioPage() {
                   key={t.id}
                   type="button"
                   onClick={() => setActiveId(t.id)}
-                  className="relative shrink-0 h-11 px-4 rounded-lg inline-flex items-center gap-2.5 transition-colors"
+                  className="relative shrink-0 h-12 px-5 rounded-lg inline-flex items-center gap-3 transition-colors"
                   style={{
                     background: isActive
                       ? "rgba(255,255,255,0.06)"
@@ -236,23 +236,23 @@ export default function StudioPage() {
                       : "1px solid transparent",
                     color: isActive
                       ? "rgba(245,245,247,1)"
-                      : "rgba(245,245,247,0.6)",
+                      : "rgba(245,245,247,0.65)",
                   }}
                 >
                   <span
                     style={{
-                      color: isActive ? accent : "rgba(245,245,247,0.55)",
+                      color: isActive ? accent : "rgba(245,245,247,0.6)",
                     }}
                   >
-                    <t.Icon size={17} />
+                    <t.Icon size={18} />
                   </span>
-                  <span className="text-[15px] font-medium">{t.label}</span>
+                  <span className="text-[16px] font-medium">{t.label}</span>
                   {isActive && (
                     <span
-                      className="size-1.5 rounded-full"
+                      className="size-2 rounded-full"
                       style={{
                         background: accent,
-                        boxShadow: `0 0 6px ${accent}`,
+                        boxShadow: `0 0 8px ${accent}`,
                       }}
                     />
                   )}
@@ -261,22 +261,24 @@ export default function StudioPage() {
             })}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
-              className="h-10 px-4 rounded-lg text-[14px] font-medium transition-colors hover:bg-white/[0.05]"
+              className="h-11 px-4.5 rounded-lg text-[15px] font-medium transition-colors hover:bg-white/[0.05]"
               style={{
-                color: "rgba(245,245,247,0.8)",
+                color: "rgba(245,245,247,0.82)",
                 border: "1px solid rgba(255,255,255,0.08)",
+                paddingLeft: 18,
+                paddingRight: 18,
               }}
             >
               Preview
             </button>
             <button
               type="button"
-              className="h-10 px-4 rounded-lg text-[14px] font-medium transition-colors hover:bg-white/[0.05]"
+              className="h-11 px-[18px] rounded-lg text-[15px] font-medium transition-colors hover:bg-white/[0.05]"
               style={{
-                color: "rgba(245,245,247,0.8)",
+                color: "rgba(245,245,247,0.82)",
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
@@ -284,7 +286,7 @@ export default function StudioPage() {
             </button>
             <button
               type="button"
-              className="h-10 px-5 rounded-lg text-[14px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              className="h-11 px-5 rounded-lg text-[15px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
               style={{
                 background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
                 boxShadow: `0 8px 24px -8px ${glow}`,
@@ -296,23 +298,23 @@ export default function StudioPage() {
         </div>
 
         {/* Deliverable metadata strip */}
-        <div className="shrink-0 px-8 py-4 flex items-center justify-between gap-6">
-          <div className="flex items-baseline gap-3.5">
+        <div className="shrink-0 px-9 py-5 flex items-center justify-between gap-6">
+          <div className="flex items-baseline gap-4">
             <h2
               className="font-serif font-medium tracking-tight"
               style={{
-                fontSize: 28,
+                fontSize: 36,
                 color: "rgba(245,245,247,0.98)",
-                letterSpacing: "-0.02em",
-                lineHeight: 1.1,
+                letterSpacing: "-0.025em",
+                lineHeight: 1,
               }}
             >
               {labelFor(activeId)}
             </h2>
             <span
-              className="text-[13.5px]"
+              className="text-[14.5px]"
               style={{
-                color: "rgba(245,245,247,0.5)",
+                color: "rgba(245,245,247,0.55)",
                 fontFamily: "var(--font-mono)",
               }}
             >
@@ -325,9 +327,9 @@ export default function StudioPage() {
               label={thinking ? "Refining" : "In sync"}
             />
             <span
-              className="text-[13px]"
+              className="text-[14px]"
               style={{
-                color: "rgba(245,245,247,0.5)",
+                color: "rgba(245,245,247,0.55)",
                 fontFamily: "var(--font-mono)",
               }}
             >
@@ -389,7 +391,7 @@ export default function StudioPage() {
       <aside
         className="shrink-0 h-full flex flex-col"
         style={{
-          width: 384,
+          width: 416,
           background:
             "linear-gradient(180deg, rgba(255,255,255,0.014) 0%, rgba(0,0,0,0) 80%)",
           borderLeft: "1px solid rgba(255,255,255,0.05)",
@@ -414,18 +416,18 @@ export default function StudioPage() {
           <h3
             className="relative mt-7 font-serif font-medium tracking-tight"
             style={{
-              fontSize: 30,
+              fontSize: 38,
               lineHeight: 1.05,
               color: "rgba(245,245,247,0.98)",
-              letterSpacing: "-0.025em",
+              letterSpacing: "-0.03em",
             }}
           >
             {agentName}
           </h3>
           <div
-            className="relative mt-3 text-[13.5px] flex items-center gap-2"
+            className="relative mt-3.5 text-[14.5px] flex items-center gap-2.5"
             style={{
-              color: "rgba(245,245,247,0.6)",
+              color: "rgba(245,245,247,0.65)",
               fontFamily: "var(--font-mono)",
             }}
           >
@@ -570,12 +572,12 @@ function Composer({
         placeholder={`Tell ${agentName} what to change…`}
         disabled={thinking}
         rows={3}
-        className="w-full bg-transparent border-0 outline-none resize-none px-5 pt-5 pb-2 text-[16.5px] leading-relaxed placeholder:text-white/35 disabled:opacity-50"
+        className="w-full bg-transparent border-0 outline-none resize-none px-5 pt-5 pb-2 text-[17.5px] leading-relaxed placeholder:text-white/40 disabled:opacity-50"
         style={{
           color: "rgba(245,245,247,1)",
           caretColor: personality.accent,
           fontFamily: "var(--font-sans)",
-          minHeight: 108,
+          minHeight: 120,
         }}
       />
       <div className="flex items-center justify-between px-3 pb-3">
@@ -597,9 +599,9 @@ function Composer({
         </div>
         <div className="flex items-center gap-3">
           <span
-            className="text-[12px] tracking-[0.18em] uppercase"
+            className="text-[12.5px] tracking-[0.18em] uppercase"
             style={{
-              color: "rgba(245,245,247,0.45)",
+              color: "rgba(245,245,247,0.5)",
               fontFamily: "var(--font-mono)",
             }}
           >
@@ -609,7 +611,7 @@ function Composer({
             type="button"
             onClick={onSubmit}
             disabled={!hasText || thinking}
-            className="h-10 px-5 rounded-lg inline-flex items-center gap-2 text-[14.5px] font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-transform hover:scale-[1.03] active:scale-[0.97]"
+            className="h-11 px-5 rounded-lg inline-flex items-center gap-2 text-[15.5px] font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-transform hover:scale-[1.03] active:scale-[0.97]"
             style={{
               background: hasText
                 ? `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`
@@ -690,10 +692,10 @@ function ChatBubble({
         className="flex justify-end"
       >
         <div
-          className="px-4 py-3 rounded-2xl rounded-tr-md max-w-[88%] text-[15.5px] leading-relaxed"
+          className="px-4 py-3 rounded-2xl rounded-tr-md max-w-[88%] text-[16.5px] leading-relaxed"
           style={{
             background: "rgba(255,255,255,0.06)",
-            color: "rgba(245,245,247,0.95)",
+            color: "rgba(245,245,247,0.96)",
           }}
         >
           {line.text}
@@ -713,7 +715,7 @@ function ChatBubble({
       </div>
       <div className="flex-1 min-w-0">
         <div
-          className="text-[12px] tracking-[0.2em] uppercase mb-1.5"
+          className="text-[12.5px] tracking-[0.2em] uppercase mb-2"
           style={{
             color: personality.accent,
             fontFamily: "var(--font-mono)",
@@ -722,8 +724,8 @@ function ChatBubble({
           {agentName}
         </div>
         <p
-          className="font-serif text-[16.5px] leading-[1.45]"
-          style={{ color: "rgba(245,245,247,0.92)" }}
+          className="font-serif text-[18px] leading-[1.45]"
+          style={{ color: "rgba(245,245,247,0.94)" }}
         >
           {line.text}
         </p>
@@ -776,11 +778,11 @@ function EmptyTranscript({
   onPick: (s: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 pt-1">
+    <div className="flex flex-col gap-3.5 pt-1">
       <div
-        className="text-[12px] tracking-[0.2em] uppercase"
+        className="text-[13px] tracking-[0.18em] uppercase"
         style={{
-          color: "rgba(245,245,247,0.45)",
+          color: "rgba(245,245,247,0.5)",
           fontFamily: "var(--font-mono)",
         }}
       >
@@ -792,16 +794,16 @@ function EmptyTranscript({
             key={s}
             type="button"
             onClick={() => onPick(s)}
-            className="text-left px-4 py-3 rounded-xl text-[15.5px] transition-all hover:bg-white/[0.04] flex items-center justify-between group"
+            className="text-left px-4 py-3.5 rounded-xl text-[17px] transition-all hover:bg-white/[0.04] flex items-center justify-between group"
             style={{
               background: "rgba(255,255,255,0.02)",
               border: "1px solid rgba(255,255,255,0.06)",
-              color: "rgba(245,245,247,0.9)",
+              color: "rgba(245,245,247,0.92)",
             }}
           >
             <span className="font-serif">{s}</span>
             <span
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-[15px]"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-[16px]"
               style={{ color: personality.accent }}
             >
               →
@@ -849,20 +851,20 @@ function EmptyCanvas({
 function StatusDot({ color, label }: { color: string; label: string }) {
   return (
     <div
-      className="inline-flex items-center gap-2 px-3 h-8 rounded-md"
+      className="inline-flex items-center gap-2 px-3 h-9 rounded-md"
       style={{
         background: "rgba(255,255,255,0.04)",
         border: "1px solid rgba(255,255,255,0.06)",
       }}
     >
       <span
-        className="size-1.5 rounded-full"
+        className="size-2 rounded-full"
         style={{ background: color, boxShadow: `0 0 6px ${color}` }}
       />
       <span
-        className="text-[13px] font-medium"
+        className="text-[14px] font-medium"
         style={{
-          color: "rgba(245,245,247,0.8)",
+          color: "rgba(245,245,247,0.85)",
           fontFamily: "var(--font-mono)",
         }}
       >
