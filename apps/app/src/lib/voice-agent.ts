@@ -85,7 +85,7 @@ HOW TO HELP
 
 YOUR TOOLS
 - set_active_deliverable(kind): switch which deliverable is showing. Use the user's words to pick: "Instagram"→instagram, "landing page"/"website"→landing, "X"/"tweet"→twitter, "LinkedIn"→linkedin, "ad"/"Facebook"→ad.
-- navigate(destination): open a different page. Destinations: studio, library, brand, audience, schedule, analytics, integrations, plans, settings, profile.
+- navigate(destination): open a different page or scroll a sub-section into view. Top-level destinations: studio, library, brand, audience, schedule, analytics, integrations, plans, settings, profile. Sub-sections (also valid destinations): "brand voice", "team", "api keys", "keyboard shortcuts", "account settings" — these are sections inside settings.
 - refine_active(instruction): apply a refinement to the active deliverable. Pass the user's instruction verbatim. The system patches the saved copy and returns the new text — you just confirm in voice.
 - read_active(): get the plain-text copy of the active deliverable so you can read it aloud.
 
@@ -158,10 +158,39 @@ const NAV_MAP: Record<string, string> = {
   account: "/studio/profile",
 };
 
+// Sub-sections of multi-section pages. Resolved by hash, so the page
+// stays mounted while the section state updates.
+// Maps spoken phrase → { route, hash }.
+const SUBSECTION_MAP: Record<string, { route: string; hash: string }> = {
+  // Settings sub-nav
+  "brand voice": { route: "/studio/settings", hash: "brand-voice" },
+  "brand-voice": { route: "/studio/settings", hash: "brand-voice" },
+  "house style": { route: "/studio/settings", hash: "brand-voice" },
+  "tone of voice": { route: "/studio/settings", hash: "brand-voice" },
+  team: { route: "/studio/settings", hash: "team" },
+  "team members": { route: "/studio/settings", hash: "team" },
+  invites: { route: "/studio/settings", hash: "team" },
+  "api keys": { route: "/studio/settings", hash: "api" },
+  api: { route: "/studio/settings", hash: "api" },
+  webhooks: { route: "/studio/settings", hash: "api" },
+  "keyboard shortcuts": { route: "/studio/settings", hash: "shortcuts" },
+  shortcuts: { route: "/studio/settings", hash: "shortcuts" },
+  hotkeys: { route: "/studio/settings", hash: "shortcuts" },
+  "account settings": { route: "/studio/settings", hash: "account" },
+};
+
 export function resolveNavRoute(spoken: string): string | null {
   const key = spoken.trim().toLowerCase();
+  // Sub-section first (more specific phrases win)
+  if (SUBSECTION_MAP[key]) {
+    const { route, hash } = SUBSECTION_MAP[key];
+    return `${route}#${hash}`;
+  }
+  for (const [phrase, { route, hash }] of Object.entries(SUBSECTION_MAP)) {
+    if (key.includes(phrase)) return `${route}#${hash}`;
+  }
+  // Top-level routes
   if (NAV_MAP[key]) return NAV_MAP[key];
-  // Try whole-word includes for "the library", "go to settings", etc.
   for (const [word, route] of Object.entries(NAV_MAP)) {
     if (key.includes(word)) return route;
   }

@@ -309,7 +309,17 @@ function StudioInspectorInner({
     const destination = String(params?.destination ?? "");
     const route = resolveNavRoute(destination);
     if (!route) return `I don't know how to open "${destination}".`;
+    console.log("[voice] router.push →", route);
     router.push(route);
+    // If the target includes a hash, fire hashchange after a tick so
+    // any page already mounted on that path (e.g. /studio/settings)
+    // re-reads the hash and updates its sub-section.
+    const hashIdx = route.indexOf("#");
+    if (hashIdx >= 0) {
+      setTimeout(() => {
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+      }, 50);
+    }
     return `Opened ${destination}.`;
   });
   useConversationClientTool("refine_active", async (params) => {

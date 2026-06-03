@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, StudioPageShell, usePersonality } from "@/components/studio-page-shell";
 
 type Section =
@@ -31,6 +31,27 @@ export default function SettingsPage() {
   const { user } = useUser();
   const [section, setSection] = useState<Section>("account");
 
+  // Sync section with URL hash so the voice agent (and shareable links)
+  // can land on a specific section. Updates on mount and on hashchange.
+  useEffect(() => {
+    const applyHash = () => {
+      const h = window.location.hash.slice(1);
+      const valid: Section[] = [
+        "account",
+        "brand-voice",
+        "team",
+        "billing",
+        "api",
+        "integrations",
+        "shortcuts",
+      ];
+      if (valid.includes(h as Section)) setSection(h as Section);
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+  }, []);
+
   return (
     <StudioPageShell
       title="Settings"
@@ -46,7 +67,12 @@ export default function SettingsPage() {
               <button
                 key={s.id}
                 type="button"
-                onClick={() => setSection(s.id)}
+                onClick={() => {
+                  setSection(s.id);
+                  if (typeof window !== "undefined") {
+                    history.replaceState(null, "", `#${s.id}`);
+                  }
+                }}
                 className="text-left px-3 py-2.5 rounded-lg transition-colors"
                 style={{
                   background: isActive ? "rgba(255,255,255,0.045)" : "transparent",
