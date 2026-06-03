@@ -1,6 +1,10 @@
 "use client";
 
-import { ConversationProvider, useConversation } from "@elevenlabs/react";
+import {
+  ConversationProvider,
+  useConversation,
+  useConversationClientTool,
+} from "@elevenlabs/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -298,40 +302,41 @@ function StudioPageInner() {
       if (mode === "speaking") setVoiceState("speaking");
       else if (mode === "listening") setVoiceState("listening");
     },
-    clientTools: {
-      set_active_deliverable: ({ kind }: { kind: string }) => {
-        const resolved = resolveDeliverableKind(kind);
-        if (!resolved) {
-          return `I don't know which deliverable "${kind}" means. Try landing, instagram, twitter, linkedin, or ad.`;
-        }
-        setActiveId(resolved as DeliverableKind);
-        return `Switched to ${resolved}.`;
-      },
-      navigate: ({ destination }: { destination: string }) => {
-        const route = resolveNavRoute(destination);
-        if (!route) return `I don't know how to open "${destination}".`;
-        router.push(route);
-        return `Opened ${destination}.`;
-      },
-      refine_active: async ({ instruction }: { instruction: string }) => {
-        if (!instruction) return "Tell me what to change.";
-        setChatLines((c) => [
-          ...c,
-          { role: "user", text: instruction },
-        ]);
-        const reply = await runRefine(instruction);
-        return reply;
-      },
-      read_active: () => {
-        const s = storedRef.current;
-        const a = activeIdRef.current;
-        if (!s) return "No deliverables loaded yet.";
-        return readDeliverableAsText({
-          kind: a as VoiceDeliverableKind,
-          stored: s.deliverables,
-        });
-      },
-    },
+  });
+
+  // Client tools registered via the dedicated hook so they're always
+  // re-registered on render with the latest closure (refs etc).
+  useConversationClientTool("set_active_deliverable", (params) => {
+    const kind = String(params?.kind ?? "");
+    const resolved = resolveDeliverableKind(kind);
+    if (!resolved) {
+      return `I don't know which deliverable "${kind}" means. Try landing, instagram, twitter, linkedin, or ad.`;
+    }
+    setActiveId(resolved as DeliverableKind);
+    return `Switched to ${resolved}.`;
+  });
+  useConversationClientTool("navigate", (params) => {
+    const destination = String(params?.destination ?? "");
+    const route = resolveNavRoute(destination);
+    if (!route) return `I don't know how to open "${destination}".`;
+    router.push(route);
+    return `Opened ${destination}.`;
+  });
+  useConversationClientTool("refine_active", async (params) => {
+    const instruction = String(params?.instruction ?? "").trim();
+    if (!instruction) return "Tell me what to change.";
+    setChatLines((c) => [...c, { role: "user", text: instruction }]);
+    const reply = await runRefine(instruction);
+    return reply;
+  });
+  useConversationClientTool("read_active", () => {
+    const s = storedRef.current;
+    const a = activeIdRef.current;
+    if (!s) return "No deliverables loaded yet.";
+    return readDeliverableAsText({
+      kind: a as VoiceDeliverableKind,
+      stored: s.deliverables,
+    });
   });
 
   const startVoice = useCallback(async () => {
