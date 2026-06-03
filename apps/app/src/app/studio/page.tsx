@@ -307,6 +307,7 @@ function StudioPageInner() {
   // Client tools registered via the dedicated hook so they're always
   // re-registered on render with the latest closure (refs etc).
   useConversationClientTool("set_active_deliverable", (params) => {
+    console.log("[voice] set_active_deliverable", params);
     const kind = String(params?.kind ?? "");
     const resolved = resolveDeliverableKind(kind);
     if (!resolved) {
@@ -316,13 +317,16 @@ function StudioPageInner() {
     return `Switched to ${resolved}.`;
   });
   useConversationClientTool("navigate", (params) => {
+    console.log("[voice] navigate", params);
     const destination = String(params?.destination ?? "");
     const route = resolveNavRoute(destination);
     if (!route) return `I don't know how to open "${destination}".`;
+    console.log("[voice] router.push →", route);
     router.push(route);
     return `Opened ${destination}.`;
   });
   useConversationClientTool("refine_active", async (params) => {
+    console.log("[voice] refine_active", params);
     const instruction = String(params?.instruction ?? "").trim();
     if (!instruction) return "Tell me what to change.";
     setChatLines((c) => [...c, { role: "user", text: instruction }]);
@@ -330,6 +334,7 @@ function StudioPageInner() {
     return reply;
   });
   useConversationClientTool("read_active", () => {
+    console.log("[voice] read_active");
     const s = storedRef.current;
     const a = activeIdRef.current;
     if (!s) return "No deliverables loaded yet.";
