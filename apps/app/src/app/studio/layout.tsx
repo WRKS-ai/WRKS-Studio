@@ -5,12 +5,12 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { PersonalityIcon } from "@/components/personality-icon";
 import {
   PERSONALITIES,
   type Personality,
   type PersonalityId,
 } from "@/lib/personalities";
+import { StudioInspectorFrame } from "@/components/studio-inspector";
 
 // Shared chrome for the /studio dashboard family:
 // - 248px left sidebar (workspace + primary nav + secondary nav at bottom)
@@ -436,8 +436,10 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
           </div>
         </header>
 
-        {/* CONTENT SLOT */}
-        <div className="flex-1 min-h-0 overflow-hidden">{children}</div>
+        {/* CONTENT + INSPECTOR — inspector persists across routes */}
+        <div className="flex-1 min-h-0 overflow-hidden flex">
+          <StudioInspectorFrame>{children}</StudioInspectorFrame>
+        </div>
       </div>
     </div>
   );
