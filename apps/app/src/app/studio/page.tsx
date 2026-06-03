@@ -1,5 +1,6 @@
 "use client";
 
+import { useConversation } from "@elevenlabs/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -9,6 +10,14 @@ import {
   type Personality,
   type PersonalityId,
 } from "@/lib/personalities";
+import {
+  buildFirstMessage,
+  buildSystemPrompt,
+  readDeliverableAsText,
+  resolveDeliverableKind,
+  resolveNavRoute,
+  type DeliverableKind as VoiceDeliverableKind,
+} from "@/lib/voice-agent";
 import { VOICES, type VoiceId } from "@/lib/voices";
 import {
   FacebookAdInFeed,
@@ -86,7 +95,6 @@ export default function StudioPage() {
   const [chatLines, setChatLines] = useState<ChatLine[]>([]);
   const [composing, setComposing] = useState("");
   const [thinking, setThinking] = useState(false);
-  const [listening, setListening] = useState(false);
   const [flashFields, setFlashFields] = useState<Set<string>>(new Set());
 
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -126,35 +134,61 @@ export default function StudioPage() {
     : null;
   const voice = voiceId ? VOICES.find((v) => v.id === voiceId)! : null;
 
-  const onSubmit = useCallback(async () => {
-    const message = composing.trim();
-    if (!message || thinking) return;
+  // Refs mirror state for use inside ElevenLabs client tools — the hook
+  // is initialized once and the tool callbacks close over the initial
+  // state otherwise, missing newer activeId / stored updates.
+  const storedRef = useRef(stored);
+  const activeIdRef = useRef(activeId);
+  const personalityIdRef = useRef(personalityId);
+  const agentNameRef = useRef(agentName);
+  useEffect(() => {
+    storedRef.current = stored;
+  }, [stored]);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+  useEffect(() => {
+    personalityIdRef.current = personalityId;
+  }, [personalityId]);
+  useEffect(() => {
+    agentNameRef.current = agentName;
+  }, [agentName]);
 
-    setChatLines((c) => [...c, { role: "user", text: message }]);
-    setComposing("");
-    setThinking(true);
+  // Shared refine logic — called by both the text composer and the
+  // voice agent's `refine_active` tool. Returns the agent's reply
+  // string so the voice agent can confirm aloud.
+  const runRefine = useCallback(
+    async (instruction: string): Promise<string> => {
+      const currentStored = storedRef.current;
+      const currentActive = activeIdRef.current;
+      const currentPersonalityId = personalityIdRef.current;
+      const currentAgentName = agentNameRef.current;
+      if (!currentStored || !currentPersonalityId)
+        return "No deliverables loaded yet.";
 
-    try {
-      const res = await fetch("/api/refine", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          personalityId,
-          agentName,
-          instruction: message,
-          activeDeliverable: activeId,
-          stored,
-        }),
-      });
-      const data = (await res.json()) as
-        | { reply: string; updated?: Partial<StoredWowPayload["deliverables"]> }
-        | { error: string };
+      setThinking(true);
+      try {
+        const res = await fetch("/api/refine", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            personalityId: currentPersonalityId,
+            agentName: currentAgentName,
+            instruction,
+            activeDeliverable: currentActive,
+            stored: currentStored,
+          }),
+        });
+        const data = (await res.json()) as
+          | {
+              reply: string;
+              updated?: Partial<StoredWowPayload["deliverables"]>;
+            }
+          | { error: string };
 
-      if ("error" in data) {
-        setChatLines((c) => [...c, { role: "agent", text: data.error }]);
-      } else {
-        setChatLines((c) => [...c, { role: "agent", text: data.reply }]);
-        if (data.updated && stored) {
+        if ("error" in data) return data.error;
+
+        if (data.updated) {
           const changed = new Set<string>();
           if (data.updated.landing)
             for (const k of Object.keys(data.updated.landing))
@@ -169,30 +203,192 @@ export default function StudioPage() {
           setTimeout(() => setFlashFields(new Set()), 2000);
 
           const merged: StoredWowPayload = {
-            ...stored,
+            ...currentStored,
             deliverables: {
-              ...stored.deliverables,
+              ...currentStored.deliverables,
               ...data.updated,
               landing: {
-                ...stored.deliverables.landing,
+                ...currentStored.deliverables.landing,
                 ...data.updated.landing,
               },
-              social: { ...stored.deliverables.social, ...data.updated.social },
-              ad: { ...stored.deliverables.ad, ...data.updated.ad },
+              social: {
+                ...currentStored.deliverables.social,
+                ...data.updated.social,
+              },
+              ad: { ...currentStored.deliverables.ad, ...data.updated.ad },
             },
           };
           setStored(merged);
           localStorage.setItem(STUDIO_KEY, JSON.stringify(merged));
         }
+        return data.reply;
+      } catch (err) {
+        return err instanceof Error ? err.message : "Network error";
+      } finally {
+        setThinking(false);
       }
+    },
+    [],
+  );
+
+  const onSubmit = useCallback(async () => {
+    const message = composing.trim();
+    if (!message || thinking) return;
+
+    setChatLines((c) => [...c, { role: "user", text: message }]);
+    setComposing("");
+    const reply = await runRefine(message);
+    setChatLines((c) => [...c, { role: "agent", text: reply }]);
+    setTimeout(() => composerRef.current?.focus(), 50);
+  }, [composing, thinking, runRefine]);
+
+  /* ============================================================
+   * ELEVENLABS VOICE AGENT — useConversation + client tools
+   * ============================================================ */
+  const [voiceState, setVoiceState] = useState<
+    "idle" | "connecting" | "listening" | "speaking" | "error"
+  >("idle");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  const conversation = useConversation({
+    onConnect: () => {
+      setVoiceState("listening");
+      setVoiceError(null);
+    },
+    onDisconnect: () => {
+      setVoiceState("idle");
+    },
+    onError: (err: unknown) => {
+      const msg =
+        typeof err === "string"
+          ? err
+          : err instanceof Error
+            ? err.message
+            : "Voice connection error";
+      setVoiceError(msg);
+      setVoiceState("error");
+    },
+    onMessage: (event) => {
+      // ElevenLabs emits both user transcripts and agent replies via
+      // onMessage. Append both to the transcript so they appear next
+      // to typed messages.
+      const source = (event as { source?: string }).source;
+      const text =
+        (event as { message?: string }).message ??
+        (event as { text?: string }).text ??
+        "";
+      if (!text) return;
+      if (source === "user") {
+        setChatLines((c) => [...c, { role: "user", text }]);
+      } else if (source === "ai") {
+        setChatLines((c) => [...c, { role: "agent", text }]);
+      }
+    },
+    onModeChange: (event) => {
+      const mode = (event as { mode?: string }).mode;
+      if (mode === "speaking") setVoiceState("speaking");
+      else if (mode === "listening") setVoiceState("listening");
+    },
+    clientTools: {
+      set_active_deliverable: ({ kind }: { kind: string }) => {
+        const resolved = resolveDeliverableKind(kind);
+        if (!resolved) {
+          return `I don't know which deliverable "${kind}" means. Try landing, instagram, twitter, linkedin, or ad.`;
+        }
+        setActiveId(resolved as DeliverableKind);
+        return `Switched to ${resolved}.`;
+      },
+      navigate: ({ destination }: { destination: string }) => {
+        const route = resolveNavRoute(destination);
+        if (!route) return `I don't know how to open "${destination}".`;
+        router.push(route);
+        return `Opened ${destination}.`;
+      },
+      refine_active: async ({ instruction }: { instruction: string }) => {
+        if (!instruction) return "Tell me what to change.";
+        setChatLines((c) => [
+          ...c,
+          { role: "user", text: instruction },
+        ]);
+        const reply = await runRefine(instruction);
+        return reply;
+      },
+      read_active: () => {
+        const s = storedRef.current;
+        const a = activeIdRef.current;
+        if (!s) return "No deliverables loaded yet.";
+        return readDeliverableAsText({
+          kind: a as VoiceDeliverableKind,
+          stored: s.deliverables,
+        });
+      },
+    },
+  });
+
+  const startVoice = useCallback(async () => {
+    if (!personality || !voice) return;
+    setVoiceError(null);
+    setVoiceState("connecting");
+    try {
+      // Mic permission must be requested inside the user gesture
+      // (Safari/iOS). We don't keep the stream — ElevenLabs SDK opens
+      // its own once startSession runs.
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const res = await fetch("/api/voice/signed-url");
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(body?.error ?? `Signed-URL endpoint returned ${res.status}`);
+      }
+      const { signedUrl } = (await res.json()) as { signedUrl: string };
+
+      const systemPrompt = buildSystemPrompt({
+        personality,
+        agentName,
+        voiceName: voice.name,
+        stored: stored?.deliverables ?? null,
+        activeDeliverable: activeId as VoiceDeliverableKind,
+      });
+      const firstMessage = buildFirstMessage({
+        personality,
+        agentName,
+        stored: stored?.deliverables ?? null,
+      });
+
+      await conversation.startSession({
+        signedUrl,
+        connectionType: "websocket",
+        overrides: {
+          agent: {
+            prompt: { prompt: systemPrompt },
+            firstMessage,
+            language: "en",
+          },
+          tts: { voiceId: voice.elevenLabsId },
+        },
+      });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Network error";
-      setChatLines((c) => [...c, { role: "agent", text: msg }]);
-    } finally {
-      setThinking(false);
-      setTimeout(() => composerRef.current?.focus(), 50);
+      const msg = err instanceof Error ? err.message : "Couldn't start voice";
+      setVoiceError(msg);
+      setVoiceState("error");
     }
-  }, [composing, thinking, personalityId, agentName, activeId, stored]);
+  }, [personality, voice, agentName, stored, activeId, conversation]);
+
+  const stopVoice = useCallback(async () => {
+    try {
+      await conversation.endSession();
+    } catch {
+      // ignore
+    }
+    setVoiceState("idle");
+  }, [conversation]);
+
+  const voiceActive =
+    voiceState === "listening" ||
+    voiceState === "speaking" ||
+    voiceState === "connecting";
 
   useEffect(() => {
     transcriptRef.current?.scrollTo({
@@ -443,7 +639,15 @@ export default function StudioPage() {
             />
             <span>
               {personality.name} · {voice.name} ·{" "}
-              {thinking ? "Refining" : listening ? "Listening" : "Ready"}
+              {thinking
+                ? "Refining"
+                : voiceState === "speaking"
+                  ? "Speaking"
+                  : voiceState === "listening"
+                    ? "Listening"
+                    : voiceState === "connecting"
+                      ? "Connecting"
+                      : "Ready"}
             </span>
           </div>
         </div>
@@ -484,9 +688,10 @@ export default function StudioPage() {
             agentName={agentName}
             composing={composing}
             thinking={thinking}
-            listening={listening}
-            onListenStart={() => setListening(true)}
-            onListenEnd={() => setListening(false)}
+            voiceState={voiceState}
+            voiceActive={voiceActive}
+            voiceError={voiceError}
+            onVoiceToggle={voiceActive ? stopVoice : startVoice}
             onComposingChange={setComposing}
             onSubmit={onSubmit}
             composerRef={composerRef}
@@ -517,16 +722,17 @@ function metaFor(kind: DeliverableKind) {
 }
 
 /* ============================================================
- * COMPOSER
+ * COMPOSER — voice hero + text fallback
  * ============================================================ */
 function Composer({
   personality,
   agentName,
   composing,
   thinking,
-  listening,
-  onListenStart,
-  onListenEnd,
+  voiceState,
+  voiceActive,
+  voiceError,
+  onVoiceToggle,
   onComposingChange,
   onSubmit,
   composerRef,
@@ -535,9 +741,10 @@ function Composer({
   agentName: string;
   composing: string;
   thinking: boolean;
-  listening: boolean;
-  onListenStart: () => void;
-  onListenEnd: () => void;
+  voiceState: "idle" | "connecting" | "listening" | "speaking" | "error";
+  voiceActive: boolean;
+  voiceError: string | null;
+  onVoiceToggle: () => void;
   onComposingChange: (v: string) => void;
   onSubmit: () => void;
   composerRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -550,84 +757,213 @@ function Composer({
   };
   const hasText = composing.trim().length > 0;
 
+  const stateCopy =
+    voiceState === "connecting"
+      ? "Connecting…"
+      : voiceState === "listening"
+        ? "Listening — speak now"
+        : voiceState === "speaking"
+          ? `${agentName} is speaking`
+          : voiceState === "error"
+            ? voiceError || "Voice error — tap to retry"
+            : `Tap to talk with ${agentName}`;
+
   return (
-    <div
-      className="rounded-2xl relative"
-      style={{
-        background: "rgba(255,255,255,0.03)",
-        border: hasText
-          ? `1px solid ${personality.accent}55`
-          : "1px solid rgba(255,255,255,0.08)",
-        boxShadow: hasText
-          ? `0 12px 32px -10px ${personality.glow}`
-          : "0 8px 24px -10px rgba(0,0,0,0.4)",
-        transition: "box-shadow 0.4s ease, border 0.4s ease",
-      }}
-    >
-      <textarea
-        ref={composerRef}
-        value={composing}
-        onChange={(e) => onComposingChange(e.target.value)}
-        onKeyDown={onKey}
-        placeholder={`Tell ${agentName} what to change…`}
-        disabled={thinking}
-        rows={3}
-        className="w-full bg-transparent border-0 outline-none resize-none px-5 pt-5 pb-2 text-[17.5px] leading-relaxed placeholder:text-white/40 disabled:opacity-50"
+    <div className="flex flex-col gap-4">
+      {/* HERO TALK BUTTON */}
+      <div className="flex flex-col items-center">
+        <VoiceOrbButton
+          accent={personality.accent}
+          accentDeep={personality.accentDeep}
+          glow={personality.glow}
+          state={voiceState}
+          onToggle={onVoiceToggle}
+        />
+        <div
+          className="mt-3 text-[13.5px] tracking-[0.06em] text-center"
+          style={{
+            color:
+              voiceState === "error"
+                ? "#fda4af"
+                : voiceActive
+                  ? personality.accent
+                  : "rgba(245,245,247,0.6)",
+          }}
+        >
+          {stateCopy}
+        </div>
+      </div>
+
+      {/* "Or type" divider */}
+      <div className="flex items-center gap-3">
+        <div
+          className="flex-1 h-px"
+          style={{ background: "rgba(255,255,255,0.06)" }}
+        />
+        <span
+          className="text-[11.5px] tracking-[0.22em] uppercase"
+          style={{
+            color: "rgba(245,245,247,0.4)",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          Or type
+        </span>
+        <div
+          className="flex-1 h-px"
+          style={{ background: "rgba(255,255,255,0.06)" }}
+        />
+      </div>
+
+      {/* TEXT FALLBACK */}
+      <div
+        className="rounded-2xl relative"
         style={{
-          color: "rgba(245,245,247,1)",
-          caretColor: personality.accent,
-          fontFamily: "var(--font-sans)",
-          minHeight: 120,
+          background: "rgba(255,255,255,0.03)",
+          border: hasText
+            ? `1px solid ${personality.accent}55`
+            : "1px solid rgba(255,255,255,0.08)",
+          boxShadow: hasText
+            ? `0 12px 32px -10px ${personality.glow}`
+            : "0 8px 24px -10px rgba(0,0,0,0.4)",
+          transition: "box-shadow 0.4s ease, border 0.4s ease",
         }}
-      />
-      <div className="flex items-center justify-between px-3 pb-3">
-        <div className="flex items-center gap-1">
+      >
+        <textarea
+          ref={composerRef}
+          value={composing}
+          onChange={(e) => onComposingChange(e.target.value)}
+          onKeyDown={onKey}
+          placeholder={`Tell ${agentName} what to change…`}
+          disabled={thinking}
+          rows={2}
+          className="w-full bg-transparent border-0 outline-none resize-none px-5 pt-4 pb-1 text-[16px] leading-relaxed placeholder:text-white/40 disabled:opacity-50"
+          style={{
+            color: "rgba(245,245,247,1)",
+            caretColor: personality.accent,
+            fontFamily: "var(--font-sans)",
+            minHeight: 76,
+          }}
+        />
+        <div className="flex items-center justify-between px-3 pb-3">
           <ComposerIconButton title="Attach context">
             <PlusIcon />
           </ComposerIconButton>
-          <ComposerIconButton
-            title={listening ? "Listening…" : "Hold to talk"}
-            onMouseDown={onListenStart}
-            onMouseUp={onListenEnd}
-            onMouseLeave={listening ? onListenEnd : undefined}
-            active={listening}
-            accent={personality.accent}
-            glow={personality.glow}
-          >
-            <MicIcon />
-          </ComposerIconButton>
-        </div>
-        <div className="flex items-center gap-3">
-          <span
-            className="text-[12.5px] tracking-[0.18em] uppercase"
-            style={{
-              color: "rgba(245,245,247,0.5)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            ↵ Send
-          </span>
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={!hasText || thinking}
-            className="h-11 px-5 rounded-lg inline-flex items-center gap-2 text-[15.5px] font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-transform hover:scale-[1.03] active:scale-[0.97]"
-            style={{
-              background: hasText
-                ? `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`
-                : "rgba(255,255,255,0.07)",
-              boxShadow: hasText
-                ? `0 6px 20px -6px ${personality.glow}`
-                : "none",
-            }}
-            aria-label="Send"
-          >
-            <span>Send</span>
-            <ArrowUpIcon />
-          </button>
+          <div className="flex items-center gap-3">
+            <span
+              className="text-[12px] tracking-[0.18em] uppercase"
+              style={{
+                color: "rgba(245,245,247,0.45)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              ↵ Send
+            </span>
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={!hasText || thinking}
+              className="h-10 px-4 rounded-lg inline-flex items-center gap-2 text-[14px] font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-transform hover:scale-[1.03] active:scale-[0.97]"
+              style={{
+                background: hasText
+                  ? `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`
+                  : "rgba(255,255,255,0.07)",
+                boxShadow: hasText
+                  ? `0 6px 20px -6px ${personality.glow}`
+                  : "none",
+              }}
+              aria-label="Send"
+            >
+              <span>Send</span>
+              <ArrowUpIcon />
+            </button>
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+/* ============================================================
+ * VOICE ORB BUTTON — the hero
+ * ============================================================ */
+function VoiceOrbButton({
+  accent,
+  accentDeep,
+  glow,
+  state,
+  onToggle,
+}: {
+  accent: string;
+  accentDeep: string;
+  glow: string;
+  state: "idle" | "connecting" | "listening" | "speaking" | "error";
+  onToggle: () => void;
+}) {
+  const reduced = useReducedMotion();
+  const isActive = state === "listening" || state === "speaking";
+  const isConnecting = state === "connecting";
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onToggle}
+      whileTap={reduced ? undefined : { scale: 0.96 }}
+      className="relative rounded-full grid place-items-center transition-all"
+      style={{
+        width: 84,
+        height: 84,
+        background: isActive
+          ? `radial-gradient(circle at 30% 28%, ${accent}, ${accentDeep} 70%)`
+          : `radial-gradient(circle at 30% 28%, ${accent}cc, ${accentDeep}cc 70%)`,
+        boxShadow: isActive
+          ? `0 0 0 8px ${accent}1f, 0 0 0 18px ${accent}10, 0 12px 40px -8px ${glow}`
+          : `0 8px 30px -10px ${glow}, inset 0 1px 0 rgba(255,255,255,0.18)`,
+        border: "1px solid rgba(255,255,255,0.12)",
+      }}
+      aria-label={
+        isActive ? "End voice session" : "Start voice session"
+      }
+    >
+      {/* Pulse halo when active */}
+      {!reduced && isActive && (
+        <motion.span
+          className="absolute inset-[-12px] rounded-full pointer-events-none"
+          style={{
+            background: `radial-gradient(circle, ${accent}50, transparent 70%)`,
+            filter: "blur(8px)",
+          }}
+          animate={{ opacity: [0.4, 0.8, 0.4], scale: [1, 1.12, 1] }}
+          transition={{
+            duration: state === "speaking" ? 0.9 : 1.6,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+      )}
+      {/* Connecting spinner */}
+      {isConnecting && !reduced && (
+        <motion.span
+          className="absolute inset-1 rounded-full border-2 pointer-events-none"
+          style={{
+            borderColor: "rgba(255,255,255,0.25)",
+            borderTopColor: "rgba(255,255,255,0.85)",
+          }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
+        />
+      )}
+      {/* Icon */}
+      <span className="relative" style={{ color: "white" }}>
+        {state === "speaking" ? (
+          <WaveformIcon />
+        ) : isActive ? (
+          <StopIcon />
+        ) : (
+          <MicIcon size={28} />
+        )}
+      </span>
+    </motion.button>
   );
 }
 
@@ -1092,11 +1428,58 @@ function PlusIcon() {
     </svg>
   );
 }
-function MicIcon() {
+function MicIcon({ size = 18 }: { size?: number }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect x="9" y="3" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" />
       <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+function StopIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </svg>
+  );
+}
+function WaveformIcon({ size = 28 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <path d="M4 12v0">
+          <animate
+            attributeName="d"
+            values="M4 10v4;M4 7v10;M4 10v4"
+            dur="0.9s"
+            repeatCount="indefinite"
+          />
+        </path>
+        <path d="M9 8v8">
+          <animate
+            attributeName="d"
+            values="M9 8v8;M9 4v16;M9 8v8"
+            dur="0.7s"
+            repeatCount="indefinite"
+          />
+        </path>
+        <path d="M14 6v12">
+          <animate
+            attributeName="d"
+            values="M14 6v12;M14 10v4;M14 6v12"
+            dur="0.85s"
+            repeatCount="indefinite"
+          />
+        </path>
+        <path d="M19 10v4">
+          <animate
+            attributeName="d"
+            values="M19 10v4;M19 6v12;M19 10v4"
+            dur="1s"
+            repeatCount="indefinite"
+          />
+        </path>
+      </g>
     </svg>
   );
 }

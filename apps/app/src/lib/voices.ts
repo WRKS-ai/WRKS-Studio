@@ -24,13 +24,16 @@ export type Voice = {
   glow: string;
 };
 
+// Voice IDs use ElevenLabs' public defaults — works for any account
+// without uploading custom voices. Swap with your own clone IDs once
+// you have them.
 export const VOICES: Voice[] = [
   {
     id: "owen",
     name: "Owen",
     tagline: "Engaging, clear storyteller.",
     pairsWith: "Pairs well with Maven",
-    elevenLabsId: "REPLACE_WITH_ELEVENLABS_ID",
+    elevenLabsId: "pNInz6obpgDQGcFmaJgB", // Adam
     sample: "/voices/owen.mp3",
     accent: "#a78bfa",
     accentDeep: "#6d28d9",
@@ -41,7 +44,7 @@ export const VOICES: Voice[] = [
     name: "Iris",
     tagline: "Enticing, mysterious, warm.",
     pairsWith: "Pairs well with Sage",
-    elevenLabsId: "REPLACE_WITH_ELEVENLABS_ID",
+    elevenLabsId: "XrExE9yKIg1WjnnlVkGX", // Matilda
     sample: "/voices/iris.mp3",
     accent: "#34d399",
     accentDeep: "#047857",
@@ -52,7 +55,7 @@ export const VOICES: Voice[] = [
     name: "Sara",
     tagline: "Soft, calm, gentle.",
     pairsWith: "Pairs well with Spark",
-    elevenLabsId: "REPLACE_WITH_ELEVENLABS_ID",
+    elevenLabsId: "EXAVITQu4vr4xnSDxMAC", // Sarah
     sample: "/voices/sara.mp3",
     accent: "#f472b6",
     accentDeep: "#be185d",
@@ -63,7 +66,7 @@ export const VOICES: Voice[] = [
     name: "Roger",
     tagline: "Laid-back, casual, resonant.",
     pairsWith: "Pairs well with Echo",
-    elevenLabsId: "REPLACE_WITH_ELEVENLABS_ID",
+    elevenLabsId: "CwhRBWXzGAHq8TQ4Fs17", // Roger
     sample: "/voices/roger.mp3",
     accent: "#60a5fa",
     accentDeep: "#1e40af",
