@@ -26,7 +26,7 @@ export function SiteCanvas({
   const accent = personality.accent;
 
   return (
-    <div className="w-full max-w-[920px] flex flex-col gap-5">
+    <div className="w-full max-w-[1200px] flex flex-col gap-5">
       {/* Page strip */}
       <div className="flex items-center gap-2 flex-wrap">
         <span
@@ -92,7 +92,7 @@ export function SiteCanvas({
       </div>
 
       {/* MacBook with the active page rendered inside */}
-      <MacBookFrame>
+      <MacBookFrame maxWidth={1200}>
         {activePage ? (
           <motion.div
             key={activePage.id}

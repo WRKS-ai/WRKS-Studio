@@ -14,12 +14,17 @@ import type { ReactNode } from "react";
 export function MacBookFrame({
   children,
   screenAspectRatio = "16 / 10",
+  maxWidth = 920,
 }: {
   children: ReactNode;
   screenAspectRatio?: string;
+  maxWidth?: number;
 }) {
   return (
-    <div className="relative mx-auto w-full max-w-[920px]">
+    <div
+      className="relative mx-auto w-full"
+      style={{ maxWidth: `${maxWidth}px` }}
+    >
       {/* Top bezel + screen */}
       <div
         className="relative rounded-[14px] sm:rounded-[18px]"
