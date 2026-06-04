@@ -36,3 +36,59 @@ body {
   background: var(--ink);
   color: var(--canvas);
 }
+
+/* ============================================================
+   Thin, subtle, theme-aware scrollbars.
+
+   Applied globally so every scroll container in the studio uses a
+   slim 8px rail with a translucent thumb — no native arrow buttons,
+   no chunky Windows chrome.
+   ============================================================ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.28);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* On light surfaces (the in-MacBook website preview), invert the
+   thumb so the dark webkit-scrollbar-thumb is visible against #fbf7ee.
+   Apply by giving the scrollable element data-light. */
+[data-scrollbar="light"] {
+  scrollbar-color: rgba(14, 12, 8, 0.18) transparent;
+}
+
+[data-scrollbar="light"]::-webkit-scrollbar-thumb {
+  background-color: rgba(14, 12, 8, 0.16);
+}
+
+[data-scrollbar="light"]::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(14, 12, 8, 0.32);
+}

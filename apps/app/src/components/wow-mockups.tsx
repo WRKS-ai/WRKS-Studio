@@ -59,7 +59,7 @@ export function MacBookFrame({
         >
           <div
             className="absolute inset-0 overflow-y-auto"
-            style={{ scrollbarWidth: "thin" }}
+            data-scrollbar="light"
           >
             {children}
           </div>

@@ -102,7 +102,10 @@ export function SiteCanvas({
             className="size-full bg-[#fbf7ee] flex flex-col"
           >
             <SiteNav site={site} activePageSlug={activePage.slug} accent={accent} />
-            <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+            <div
+              className="flex-1 min-h-0 overflow-y-auto"
+              data-scrollbar="light"
+            >
               {activePage.sections.length === 0 ? (
                 <EmptyPage accent={accent} />
               ) : (
