@@ -1,5 +1,6 @@
 "use client";
 
+import { EditableText } from "@/components/editable-text";
 import type {
   CtaBandSection,
   FaqSection,
@@ -12,36 +13,42 @@ import type {
   TestimonialsSection,
 } from "@/lib/site-model";
 
-// Section renderers for the in-MacBook website preview. Editorial,
-// warm, lightweight — every one of these maps to a typed Section so
-// the voice agent can edit any field by path.
+// Section renderers for the in-MacBook website preview. Every text
+// node is an EditableText — click to edit inline; commits on blur. The
+// voice agent can still set the same fields by path.
 
 type Tokens = { accent: string; brandName: string };
+
+type EditFn = (fieldPath: string, value: string) => void;
 
 export function SectionRenderer({
   section,
   tokens,
+  onEdit,
 }: {
   section: Section;
   tokens: Tokens;
+  onEdit: EditFn;
 }) {
   switch (section.type) {
     case "hero":
-      return <Hero section={section} tokens={tokens} />;
+      return <Hero section={section} tokens={tokens} onEdit={onEdit} />;
     case "feature_grid":
-      return <FeatureGrid section={section} tokens={tokens} />;
+      return <FeatureGrid section={section} tokens={tokens} onEdit={onEdit} />;
     case "pricing":
-      return <Pricing section={section} tokens={tokens} />;
+      return <Pricing section={section} tokens={tokens} onEdit={onEdit} />;
     case "testimonials":
-      return <Testimonials section={section} tokens={tokens} />;
+      return (
+        <Testimonials section={section} tokens={tokens} onEdit={onEdit} />
+      );
     case "faq":
-      return <Faq section={section} tokens={tokens} />;
+      return <Faq section={section} tokens={tokens} onEdit={onEdit} />;
     case "cta_band":
-      return <CtaBand section={section} tokens={tokens} />;
+      return <CtaBand section={section} tokens={tokens} onEdit={onEdit} />;
     case "footer":
-      return <Footer section={section} tokens={tokens} />;
+      return <Footer section={section} tokens={tokens} onEdit={onEdit} />;
     case "rich_text":
-      return <RichText section={section} />;
+      return <RichText section={section} onEdit={onEdit} />;
   }
 }
 
@@ -51,9 +58,11 @@ export function SectionRenderer({
 function Hero({
   section,
   tokens,
+  onEdit,
 }: {
   section: HeroSection;
   tokens: Tokens;
+  onEdit: EditFn;
 }) {
   return (
     <section
@@ -62,46 +71,52 @@ function Hero({
       style={{ gridTemplateColumns: "1.2fr 0.8fr", minHeight: 380 }}
     >
       <div className="px-10 py-10 text-left flex flex-col min-h-0">
-        {section.eyebrow && (
-          <div
-            className="text-[11px] tracking-[0.32em] uppercase font-mono mb-5 flex items-center gap-3 shrink-0"
-            style={{ color: "#827a6e" }}
-          >
-            <span
-              className="inline-block h-px w-8"
-              style={{ background: tokens.accent }}
-            />
-            <span>{section.eyebrow}</span>
-          </div>
-        )}
-        <h1
+        <EditableText
+          value={section.eyebrow ?? "Now showing"}
+          onCommit={(v) => onEdit("eyebrow", v)}
+          as="div"
+          className="text-[11px] tracking-[0.32em] uppercase font-mono mb-5 flex items-center gap-3 shrink-0"
+          style={{ color: "#827a6e" }}
+        />
+        <EditableText
+          value={section.headline}
+          onCommit={(v) => onEdit("headline", v)}
+          as="h1"
+          multiline
           className="font-serif font-medium text-[clamp(1.5rem,2.8vw,2.25rem)] leading-[1.02] text-[#0e0c08] max-w-[17ch] shrink-0"
           style={{ letterSpacing: "-0.025em" }}
-        >
-          {section.headline}
-        </h1>
-        <p className="mt-4 font-serif italic text-[clamp(0.875rem,1.1vw,1rem)] text-[#4a443c] max-w-[42ch] leading-relaxed shrink-0">
-          {section.subhead}
-        </p>
+        />
+        <EditableText
+          value={section.subhead}
+          onCommit={(v) => onEdit("subhead", v)}
+          as="p"
+          multiline
+          className="mt-4 font-serif italic text-[clamp(0.875rem,1.1vw,1rem)] text-[#4a443c] max-w-[42ch] leading-relaxed shrink-0"
+        />
         <div className="mt-5 flex items-center gap-4 shrink-0">
-          <button
-            className="inline-flex items-center gap-2 text-[#0e0c08] font-serif border-b border-[#0e0c08] pb-1 text-[14px]"
-            type="button"
-          >
-            <span>{section.primaryCta}</span>
+          <span className="inline-flex items-center gap-2 text-[#0e0c08] font-serif border-b border-[#0e0c08] pb-1 text-[14px]">
+            <EditableText
+              value={section.primaryCta}
+              onCommit={(v) => onEdit("primaryCta", v)}
+              as="span"
+            />
             <span style={{ color: tokens.accent }}>→</span>
-          </button>
+          </span>
           {section.secondaryCta && (
-            <span
+            <EditableText
+              value={section.secondaryCta}
+              onCommit={(v) => onEdit("secondaryCta", v)}
+              as="span"
               className="text-[13px] font-serif italic"
               style={{ color: "#827a6e" }}
-            >
-              {section.secondaryCta}
-            </span>
+            />
           )}
         </div>
       </div>
-      <div className="relative overflow-hidden" style={{ background: "#efe9da" }}>
+      <div
+        className="relative overflow-hidden"
+        style={{ background: "#efe9da" }}
+      >
         {section.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -131,9 +146,11 @@ function Hero({
 function FeatureGrid({
   section,
   tokens,
+  onEdit,
 }: {
   section: FeatureGridSection;
   tokens: Tokens;
+  onEdit: EditFn;
 }) {
   return (
     <section
@@ -141,27 +158,32 @@ function FeatureGrid({
       className="px-10 py-12"
       style={{ borderTop: "1px solid rgba(14,12,8,0.08)" }}
     >
-      {section.eyebrow && (
-        <div
+      {section.eyebrow !== undefined && (
+        <EditableText
+          value={section.eyebrow ?? ""}
+          onCommit={(v) => onEdit("eyebrow", v)}
+          as="div"
           className="text-[11px] tracking-[0.3em] uppercase font-mono mb-3"
           style={{ color: tokens.accent }}
-        >
-          {section.eyebrow}
-        </div>
+        />
       )}
-      <h2
+      <EditableText
+        value={section.title}
+        onCommit={(v) => onEdit("title", v)}
+        as="h2"
+        multiline
         className="font-serif font-medium text-[clamp(1.25rem,2vw,1.625rem)] leading-[1.1] text-[#0e0c08] max-w-[24ch]"
         style={{ letterSpacing: "-0.02em" }}
-      >
-        {section.title}
-      </h2>
-      {section.subhead && (
-        <p
+      />
+      {section.subhead !== undefined && (
+        <EditableText
+          value={section.subhead ?? ""}
+          onCommit={(v) => onEdit("subhead", v)}
+          as="p"
+          multiline
           className="mt-3 font-serif italic text-[14px] max-w-[48ch]"
           style={{ color: "#4a443c" }}
-        >
-          {section.subhead}
-        </p>
+        />
       )}
       <div className="mt-8 grid grid-cols-3 gap-6">
         {section.features.map((f, i) => (
@@ -172,18 +194,21 @@ function FeatureGrid({
             >
               0{i + 1}
             </div>
-            <h3
+            <EditableText
+              value={f.title}
+              onCommit={(v) => onEdit(`features.${i}.title`, v)}
+              as="h3"
               className="font-serif text-[14px] text-[#0e0c08] mb-1.5"
               style={{ letterSpacing: "-0.01em" }}
-            >
-              {f.title}
-            </h3>
-            <p
+            />
+            <EditableText
+              value={f.description}
+              onCommit={(v) => onEdit(`features.${i}.description`, v)}
+              as="p"
+              multiline
               className="text-[12.5px] leading-snug font-sans"
               style={{ color: "#4a443c" }}
-            >
-              {f.description}
-            </p>
+            />
           </div>
         ))}
       </div>
@@ -197,9 +222,11 @@ function FeatureGrid({
 function Pricing({
   section,
   tokens,
+  onEdit,
 }: {
   section: PricingSection;
   tokens: Tokens;
+  onEdit: EditFn;
 }) {
   return (
     <section
@@ -207,29 +234,38 @@ function Pricing({
       className="px-10 py-12"
       style={{ borderTop: "1px solid rgba(14,12,8,0.08)" }}
     >
-      {section.eyebrow && (
-        <div
+      {section.eyebrow !== undefined && (
+        <EditableText
+          value={section.eyebrow ?? ""}
+          onCommit={(v) => onEdit("eyebrow", v)}
+          as="div"
           className="text-[11px] tracking-[0.3em] uppercase font-mono mb-3"
           style={{ color: tokens.accent }}
-        >
-          {section.eyebrow}
-        </div>
+        />
       )}
-      <h2
+      <EditableText
+        value={section.title}
+        onCommit={(v) => onEdit("title", v)}
+        as="h2"
         className="font-serif font-medium text-[clamp(1.25rem,2vw,1.625rem)] text-[#0e0c08]"
         style={{ letterSpacing: "-0.02em" }}
-      >
-        {section.title}
-      </h2>
-      {section.subhead && (
-        <p
+      />
+      {section.subhead !== undefined && (
+        <EditableText
+          value={section.subhead ?? ""}
+          onCommit={(v) => onEdit("subhead", v)}
+          as="p"
+          multiline
           className="mt-3 font-serif italic text-[14px] max-w-[48ch]"
           style={{ color: "#4a443c" }}
-        >
-          {section.subhead}
-        </p>
+        />
       )}
-      <div className="mt-8 grid gap-4" style={{ gridTemplateColumns: `repeat(${section.tiers.length}, 1fr)` }}>
+      <div
+        className="mt-8 grid gap-4"
+        style={{
+          gridTemplateColumns: `repeat(${section.tiers.length}, 1fr)`,
+        }}
+      >
         {section.tiers.map((t, i) => (
           <div
             key={i}
@@ -242,11 +278,12 @@ function Pricing({
             }}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <span
+              <EditableText
+                value={t.name}
+                onCommit={(v) => onEdit(`tiers.${i}.name`, v)}
+                as="span"
                 className="font-serif text-[14px] text-[#0e0c08]"
-              >
-                {t.name}
-              </span>
+              />
               {t.recommended && (
                 <span
                   className="px-1.5 py-0.5 rounded text-[9.5px] tracking-[0.2em] uppercase font-mono"
@@ -257,11 +294,18 @@ function Pricing({
               )}
             </div>
             <div className="mb-3">
-              <span className="font-serif text-[24px] text-[#0e0c08]">
-                {t.price}
-              </span>
+              <EditableText
+                value={t.price}
+                onCommit={(v) => onEdit(`tiers.${i}.price`, v)}
+                as="span"
+                className="font-serif text-[24px] text-[#0e0c08]"
+              />
               <span className="ml-1 text-[11.5px] text-[#827a6e] font-sans">
-                {t.cadence}
+                <EditableText
+                  value={t.cadence}
+                  onCommit={(v) => onEdit(`tiers.${i}.cadence`, v)}
+                  as="span"
+                />
               </span>
             </div>
             <ul className="mb-4 space-y-1.5">
@@ -270,13 +314,20 @@ function Pricing({
                   key={j}
                   className="text-[12px] text-[#4a443c] font-sans leading-snug"
                 >
-                  · {f}
+                  ·{" "}
+                  <EditableText
+                    value={f}
+                    onCommit={(v) => onEdit(`tiers.${i}.features.${j}`, v)}
+                    as="span"
+                  />
                 </li>
               ))}
             </ul>
-            <button
-              type="button"
-              className="w-full h-9 rounded-md text-[12.5px] font-serif"
+            <EditableText
+              value={t.cta}
+              onCommit={(v) => onEdit(`tiers.${i}.cta`, v)}
+              as="div"
+              className="w-full h-9 rounded-md text-[12.5px] font-serif grid place-items-center"
               style={{
                 background: t.recommended ? tokens.accent : "transparent",
                 color: t.recommended ? "white" : "#0e0c08",
@@ -284,9 +335,7 @@ function Pricing({
                   ? "none"
                   : "1px solid rgba(14,12,8,0.2)",
               }}
-            >
-              {t.cta}
-            </button>
+            />
           </div>
         ))}
       </div>
@@ -300,9 +349,11 @@ function Pricing({
 function Testimonials({
   section,
   tokens,
+  onEdit,
 }: {
   section: TestimonialsSection;
   tokens: Tokens;
+  onEdit: EditFn;
 }) {
   return (
     <section
@@ -310,37 +361,54 @@ function Testimonials({
       className="px-10 py-12"
       style={{ borderTop: "1px solid rgba(14,12,8,0.08)" }}
     >
-      {section.eyebrow && (
-        <div
+      {section.eyebrow !== undefined && (
+        <EditableText
+          value={section.eyebrow ?? ""}
+          onCommit={(v) => onEdit("eyebrow", v)}
+          as="div"
           className="text-[11px] tracking-[0.3em] uppercase font-mono mb-3"
           style={{ color: tokens.accent }}
-        >
-          {section.eyebrow}
-        </div>
+        />
       )}
-      <h2
+      <EditableText
+        value={section.title}
+        onCommit={(v) => onEdit("title", v)}
+        as="h2"
         className="font-serif font-medium text-[clamp(1.25rem,2vw,1.625rem)] text-[#0e0c08]"
         style={{ letterSpacing: "-0.02em" }}
-      >
-        {section.title}
-      </h2>
+      />
       <div className="mt-8 grid grid-cols-2 gap-6">
         {section.quotes.map((q, i) => (
           <blockquote
             key={i}
             className="font-serif"
-            style={{ borderLeft: `2px solid ${tokens.accent}`, paddingLeft: 16 }}
+            style={{
+              borderLeft: `2px solid ${tokens.accent}`,
+              paddingLeft: 16,
+            }}
           >
-            <p
+            <EditableText
+              value={q.text}
+              onCommit={(v) => onEdit(`quotes.${i}.text`, v)}
+              as="p"
+              multiline
               className="italic text-[#0e0c08] text-[14.5px] leading-relaxed"
-            >
-              &ldquo;{q.text}&rdquo;
-            </p>
+            />
             <footer
               className="mt-3 text-[11.5px] font-sans not-italic"
               style={{ color: "#827a6e" }}
             >
-              {q.author} · <span>{q.role}</span>
+              <EditableText
+                value={q.author}
+                onCommit={(v) => onEdit(`quotes.${i}.author`, v)}
+                as="span"
+              />
+              <span> · </span>
+              <EditableText
+                value={q.role}
+                onCommit={(v) => onEdit(`quotes.${i}.role`, v)}
+                as="span"
+              />
             </footer>
           </blockquote>
         ))}
@@ -352,27 +420,37 @@ function Testimonials({
 /* ============================================================
  * FAQ
  * ============================================================ */
-function Faq({ section, tokens }: { section: FaqSection; tokens: Tokens }) {
+function Faq({
+  section,
+  tokens,
+  onEdit,
+}: {
+  section: FaqSection;
+  tokens: Tokens;
+  onEdit: EditFn;
+}) {
   return (
     <section
       data-section-id={section.id}
       className="px-10 py-12"
       style={{ borderTop: "1px solid rgba(14,12,8,0.08)" }}
     >
-      {section.eyebrow && (
-        <div
+      {section.eyebrow !== undefined && (
+        <EditableText
+          value={section.eyebrow ?? ""}
+          onCommit={(v) => onEdit("eyebrow", v)}
+          as="div"
           className="text-[11px] tracking-[0.3em] uppercase font-mono mb-3"
           style={{ color: tokens.accent }}
-        >
-          {section.eyebrow}
-        </div>
+        />
       )}
-      <h2
+      <EditableText
+        value={section.title}
+        onCommit={(v) => onEdit("title", v)}
+        as="h2"
         className="font-serif font-medium text-[clamp(1.25rem,2vw,1.625rem)] text-[#0e0c08]"
         style={{ letterSpacing: "-0.02em" }}
-      >
-        {section.title}
-      </h2>
+      />
       <div className="mt-6 flex flex-col">
         {section.items.map((it, i) => (
           <div
@@ -385,17 +463,20 @@ function Faq({ section, tokens }: { section: FaqSection; tokens: Tokens }) {
                   : "1px solid rgba(14,12,8,0.08)",
             }}
           >
-            <h3
+            <EditableText
+              value={it.question}
+              onCommit={(v) => onEdit(`items.${i}.question`, v)}
+              as="h3"
               className="font-serif text-[14px] text-[#0e0c08] mb-1"
-            >
-              {it.question}
-            </h3>
-            <p
+            />
+            <EditableText
+              value={it.answer}
+              onCommit={(v) => onEdit(`items.${i}.answer`, v)}
+              as="p"
+              multiline
               className="text-[12.5px] leading-snug font-sans"
               style={{ color: "#4a443c" }}
-            >
-              {it.answer}
-            </p>
+            />
           </div>
         ))}
       </div>
@@ -409,9 +490,11 @@ function Faq({ section, tokens }: { section: FaqSection; tokens: Tokens }) {
 function CtaBand({
   section,
   tokens,
+  onEdit,
 }: {
   section: CtaBandSection;
   tokens: Tokens;
+  onEdit: EditFn;
 }) {
   return (
     <section
@@ -422,28 +505,31 @@ function CtaBand({
         borderTop: "1px solid rgba(14,12,8,0.08)",
       }}
     >
-      <h2
+      <EditableText
+        value={section.headline}
+        onCommit={(v) => onEdit("headline", v)}
+        as="h2"
+        multiline
         className="font-serif font-medium text-[clamp(1.5rem,2.4vw,2rem)] text-[#0e0c08]"
         style={{ letterSpacing: "-0.025em" }}
-      >
-        {section.headline}
-      </h2>
-      {section.subhead && (
-        <p
+      />
+      {section.subhead !== undefined && (
+        <EditableText
+          value={section.subhead ?? ""}
+          onCommit={(v) => onEdit("subhead", v)}
+          as="p"
+          multiline
           className="mt-3 font-serif italic text-[14px] max-w-[42ch] mx-auto"
           style={{ color: "#4a443c" }}
-        >
-          {section.subhead}
-        </p>
+        />
       )}
-      <button
-        type="button"
+      <EditableText
+        value={section.primaryCta}
+        onCommit={(v) => onEdit("primaryCta", v)}
+        as="div"
         className="mt-6 inline-flex items-center gap-2 h-10 px-5 rounded-md text-[13px] text-white font-serif"
         style={{ background: tokens.accent }}
-      >
-        <span>{section.primaryCta}</span>
-        <span>→</span>
-      </button>
+      />
     </section>
   );
 }
@@ -453,14 +539,17 @@ function CtaBand({
  * ============================================================ */
 function Footer({
   section,
+  onEdit,
   tokens,
 }: {
   section: FooterSection;
+  onEdit: EditFn;
   tokens: Tokens;
 }) {
   return (
     <section
       data-section-id={section.id}
+      data-edit-surface="dark"
       className="px-10 py-10"
       style={{
         background: "#0e0c08",
@@ -474,25 +563,33 @@ function Footer({
               className="size-1.5 rounded-full"
               style={{ background: tokens.accent }}
             />
-            <span className="font-serif text-[14px]">{section.brand}</span>
+            <EditableText
+              value={section.brand}
+              onCommit={(v) => onEdit("brand", v)}
+              as="span"
+              className="font-serif text-[14px]"
+            />
           </div>
-          {section.tagline && (
-            <p
+          {section.tagline !== undefined && (
+            <EditableText
+              value={section.tagline ?? ""}
+              onCommit={(v) => onEdit("tagline", v)}
+              as="p"
+              multiline
               className="text-[11.5px] font-serif italic leading-relaxed"
               style={{ color: "rgba(251,247,238,0.65)" }}
-            >
-              {section.tagline}
-            </p>
+            />
           )}
         </div>
         {section.columns.map((c, i) => (
           <div key={i}>
-            <div
+            <EditableText
+              value={c.heading}
+              onCommit={(v) => onEdit(`columns.${i}.heading`, v)}
+              as="div"
               className="text-[10px] tracking-[0.3em] uppercase font-mono mb-2"
               style={{ color: "rgba(251,247,238,0.5)" }}
-            >
-              {c.heading}
-            </div>
+            />
             <ul className="space-y-1.5">
               {c.links.map((l, j) => (
                 <li
@@ -500,7 +597,11 @@ function Footer({
                   className="text-[12px] font-sans"
                   style={{ color: "rgba(251,247,238,0.85)" }}
                 >
-                  {l}
+                  <EditableText
+                    value={l}
+                    onCommit={(v) => onEdit(`columns.${i}.links.${j}`, v)}
+                    as="span"
+                  />
                 </li>
               ))}
             </ul>
@@ -514,27 +615,36 @@ function Footer({
 /* ============================================================
  * Rich text
  * ============================================================ */
-function RichText({ section }: { section: RichTextSection }) {
+function RichText({
+  section,
+  onEdit,
+}: {
+  section: RichTextSection;
+  onEdit: EditFn;
+}) {
   return (
     <section
       data-section-id={section.id}
       className="px-10 py-12"
       style={{ borderTop: "1px solid rgba(14,12,8,0.08)" }}
     >
-      {section.title && (
-        <h2
+      {section.title !== undefined && (
+        <EditableText
+          value={section.title ?? ""}
+          onCommit={(v) => onEdit("title", v)}
+          as="h2"
           className="font-serif font-medium text-[clamp(1.25rem,2vw,1.625rem)] text-[#0e0c08] mb-3"
           style={{ letterSpacing: "-0.02em" }}
-        >
-          {section.title}
-        </h2>
+        />
       )}
-      <p
+      <EditableText
+        value={section.body}
+        onCommit={(v) => onEdit("body", v)}
+        as="p"
+        multiline
         className="text-[13px] leading-relaxed font-sans whitespace-pre-wrap"
         style={{ color: "#4a443c" }}
-      >
-        {section.body}
-      </p>
+      />
     </section>
   );
 }

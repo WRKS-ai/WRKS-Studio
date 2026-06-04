@@ -9,6 +9,8 @@ import type { StoredWowPayload } from "@/lib/studio-context";
 import {
   addPage,
   setActivePage,
+  setSectionField,
+  slugify,
   type Site,
 } from "@/lib/site-model";
 import { SiteCanvas } from "@/components/site-canvas";
@@ -354,6 +356,23 @@ function ActiveDeliverable({
           onAddPage={() => {
             const label = `Page ${site.pages.length + 1}`;
             setSite(addPage(site, label));
+          }}
+          onEditBrandName={(next) => setSite({ ...site, brandName: next })}
+          onEditPageLabel={(pageId, label) => {
+            const pages = site.pages.map((p) =>
+              p.id === pageId ? { ...p, label, slug: slugify(label) } : p,
+            );
+            setSite({ ...site, pages });
+          }}
+          onEditSectionField={(pageId, sectionId, fieldPath, value) => {
+            const result = setSectionField(
+              site,
+              pageId,
+              sectionId,
+              fieldPath,
+              value,
+            );
+            if (result.ok) setSite(result.site);
           }}
         />
       </div>

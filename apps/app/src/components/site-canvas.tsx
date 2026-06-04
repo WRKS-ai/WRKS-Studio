@@ -1,25 +1,38 @@
 "use client";
 
 import { motion } from "motion/react";
+import { EditableText } from "@/components/editable-text";
 import type { Personality } from "@/lib/personalities";
 import type { Site } from "@/lib/site-model";
 import { SectionRenderer } from "@/components/site-sections";
 import { MacBookFrame } from "@/components/wow-mockups";
 
 // The website canvas: a page strip above the MacBook (pages of the
-// site) + the active page rendered as a stack of sections inside the
-// browser screen. Pages persist across the voice agent's navigation.
+// site) + the active page rendered as a stack of typed sections. Every
+// text inside the preview is inline-editable; voice commands hit the
+// same paths.
 
 export function SiteCanvas({
   site,
   personality,
   onPickPage,
   onAddPage,
+  onEditPageLabel,
+  onEditBrandName,
+  onEditSectionField,
 }: {
   site: Site;
   personality: Personality;
   onPickPage: (pageId: string) => void;
   onAddPage: () => void;
+  onEditPageLabel: (pageId: string, label: string) => void;
+  onEditBrandName: (next: string) => void;
+  onEditSectionField: (
+    pageId: string,
+    sectionId: string,
+    fieldPath: string,
+    value: string,
+  ) => void;
 }) {
   const activePage =
     site.pages.find((p) => p.id === site.activePageId) ?? site.pages[0];
@@ -45,6 +58,10 @@ export function SiteCanvas({
               key={p.id}
               type="button"
               onClick={() => onPickPage(p.id)}
+              onDoubleClick={(e) => {
+                // Allow renaming via double-click — focus an inline field
+                e.preventDefault();
+              }}
               className="h-9 px-3.5 rounded-lg inline-flex items-center gap-2 transition-colors"
               style={{
                 background: isActive
@@ -61,10 +78,18 @@ export function SiteCanvas({
               {isActive && (
                 <span
                   className="size-1.5 rounded-full"
-                  style={{ background: accent, boxShadow: `0 0 6px ${accent}` }}
+                  style={{
+                    background: accent,
+                    boxShadow: `0 0 6px ${accent}`,
+                  }}
                 />
               )}
-              <span className="text-[13.5px] font-medium">{p.label}</span>
+              <EditableText
+                value={p.label}
+                onCommit={(v) => onEditPageLabel(p.id, v)}
+                as="span"
+                className="text-[13.5px] font-medium"
+              />
               <span
                 className="text-[11px]"
                 style={{
@@ -100,8 +125,15 @@ export function SiteCanvas({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
             className="size-full bg-[#fbf7ee] flex flex-col"
+            data-edit-surface="light"
           >
-            <SiteNav site={site} activePageSlug={activePage.slug} accent={accent} />
+            <SiteNav
+              site={site}
+              activePageSlug={activePage.slug}
+              accent={accent}
+              onPickPage={onPickPage}
+              onEditBrandName={onEditBrandName}
+            />
             <div
               className="flex-1 min-h-0 overflow-y-auto"
               data-scrollbar="light"
@@ -114,6 +146,9 @@ export function SiteCanvas({
                     key={s.id}
                     section={s}
                     tokens={{ accent, brandName: site.brandName }}
+                    onEdit={(fieldPath, value) =>
+                      onEditSectionField(activePage.id, s.id, fieldPath, value)
+                    }
                   />
                 ))
               )}
@@ -133,10 +168,14 @@ function SiteNav({
   site,
   activePageSlug,
   accent,
+  onPickPage,
+  onEditBrandName,
 }: {
   site: Site;
   activePageSlug: string;
   accent: string;
+  onPickPage: (pageId: string) => void;
+  onEditBrandName: (next: string) => void;
 }) {
   return (
     <div className="flex items-center justify-between px-8 py-3 border-b border-black/5 shrink-0">
@@ -145,22 +184,35 @@ function SiteNav({
           className="size-1.5 rounded-full"
           style={{ background: accent }}
         />
-        {site.brandName}
+        <EditableText
+          value={site.brandName}
+          onCommit={onEditBrandName}
+          as="span"
+        />
       </span>
       <div className="flex gap-6 text-[11px] uppercase tracking-[0.22em] font-mono text-[#827a6e]">
         {site.pages.map((p) => {
           const isActive = p.slug === activePageSlug;
           return (
-            <span
+            <button
               key={p.id}
+              type="button"
+              onClick={() => onPickPage(p.id)}
+              className="cursor-pointer"
               style={{
                 color: isActive ? "#0e0c08" : "#827a6e",
-                borderBottom: isActive ? `1px solid ${accent}` : "1px solid transparent",
+                borderBottom: isActive
+                  ? `1px solid ${accent}`
+                  : "1px solid transparent",
                 paddingBottom: 2,
+                background: "transparent",
+                font: "inherit",
+                letterSpacing: "inherit",
+                textTransform: "inherit",
               }}
             >
               {p.label}
-            </span>
+            </button>
           );
         })}
       </div>
@@ -180,11 +232,9 @@ function EmptyPage({ accent }: { accent: string }) {
       >
         Empty page.
       </p>
-      <p
-        className="text-[12.5px] font-sans"
-        style={{ color: "#827a6e" }}
-      >
-        Tell the agent: <span style={{ color: accent }}>&ldquo;add a hero&rdquo;</span>,{" "}
+      <p className="text-[12.5px] font-sans" style={{ color: "#827a6e" }}>
+        Tell the agent:{" "}
+        <span style={{ color: accent }}>&ldquo;add a hero&rdquo;</span>,{" "}
         <span style={{ color: accent }}>&ldquo;add pricing&rdquo;</span>, or{" "}
         <span style={{ color: accent }}>&ldquo;add testimonials&rdquo;</span>.
       </p>
