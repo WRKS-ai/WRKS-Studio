@@ -187,7 +187,7 @@ export default function StudioPage() {
             background: `radial-gradient(ellipse 60% 50% at 50% 35%, ${accent}10, transparent 70%)`,
           }}
         />
-        <div className="relative min-h-full flex items-center justify-center px-8 py-10">
+        <div className="relative min-h-full flex items-center justify-center px-4 py-8">
           {stored ? (
             <AnimatePresence mode="wait">
               <motion.div

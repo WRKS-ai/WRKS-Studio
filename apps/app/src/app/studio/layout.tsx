@@ -128,7 +128,7 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
       <aside
         className="shrink-0 h-full flex flex-col"
         style={{
-          width: 272,
+          width: 240,
           background:
             "linear-gradient(180deg, rgba(255,255,255,0.018) 0%, rgba(0,0,0,0) 60%)",
           borderRight: "1px solid rgba(255,255,255,0.05)",
