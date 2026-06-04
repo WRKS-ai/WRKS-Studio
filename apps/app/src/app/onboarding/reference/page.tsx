@@ -4,7 +4,6 @@ import { motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { OnboardingShell } from "@/components/onboarding-shell";
-import { SectionRenderer } from "@/components/site-sections";
 import {
   PERSONALITIES,
   type Personality,
@@ -36,7 +35,6 @@ export default function ReferencePage() {
 
   const [personality, setPersonality] = useState<Personality | null>(null);
   const [picks, setPicks] = useState<string[]>([]);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     const p = localStorage.getItem(PERSONALITY_KEY) as PersonalityId | null;
@@ -72,8 +70,7 @@ export default function ReferencePage() {
 
   if (!personality) return null;
 
-  const togglePick = (id: string, available: boolean) => {
-    if (!available) return;
+  const togglePick = (id: string) => {
     setPicks((cur) => {
       if (cur.includes(id)) return cur.filter((x) => x !== id);
       if (cur.length >= MAX_PICKS) return cur;
@@ -133,15 +130,11 @@ export default function ReferencePage() {
           {STYLE_REFERENCES.map((ref, idx) => (
             <StyleCard
               key={ref.id}
-              ref={ref}
+              styleRef={ref}
               index={idx}
               selected={picks.includes(ref.id)}
-              expanded={expandedId === ref.id}
               accent={personality.accent}
-              onToggle={() => togglePick(ref.id, ref.available)}
-              onExpand={() =>
-                setExpandedId(expandedId === ref.id ? null : ref.id)
-              }
+              onToggle={() => togglePick(ref.id)}
             />
           ))}
         </motion.div>
@@ -189,32 +182,28 @@ export default function ReferencePage() {
 
 /* ============================================================
  * StyleCard — one card per reference. The hero of this page.
+ * Bigger preview area than v1, hand-designed per-style composition.
  * ============================================================ */
 function StyleCard({
-  ref: styleRef,
+  styleRef,
   index,
   selected,
-  expanded,
   accent,
   onToggle,
-  onExpand,
 }: {
-  ref: StyleReference;
+  styleRef: StyleReference;
   index: number;
   selected: boolean;
-  expanded: boolean;
   accent: string;
   onToggle: () => void;
-  onExpand: () => void;
 }) {
   const reduced = useReducedMotion();
-  const available = styleRef.available;
+  const Preview = styleRef.Preview;
 
   return (
     <motion.button
       type="button"
       onClick={onToggle}
-      disabled={!available}
       initial={reduced ? false : { opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
@@ -222,84 +211,62 @@ function StyleCard({
         delay: 0.18 + index * 0.06,
         ease: [0.2, 0.7, 0.2, 1],
       }}
-      whileHover={reduced || !available ? undefined : { y: -3 }}
-      className="relative text-left rounded-2xl overflow-hidden flex flex-col group transition-shadow"
+      whileHover={reduced ? undefined : { y: -4 }}
+      className="relative text-left rounded-2xl overflow-hidden flex flex-col group cursor-pointer"
       style={{
-        background: available
-          ? `linear-gradient(180deg, ${styleRef.accent}30 0%, rgba(0,0,0,0) 65%), rgba(255,255,255,0.02)`
-          : "rgba(255,255,255,0.02)",
+        background: "rgba(255,255,255,0.02)",
         border: selected
-          ? `1.5px solid ${accent}`
-          : "1px solid rgba(255,255,255,0.06)",
+          ? `2px solid ${accent}`
+          : "1px solid rgba(255,255,255,0.08)",
         boxShadow: selected
-          ? `0 18px 40px -16px ${accent}66`
-          : "0 12px 32px -16px rgba(0,0,0,0.4)",
-        opacity: available ? 1 : 0.55,
-        cursor: available ? "pointer" : "not-allowed",
+          ? `0 24px 50px -18px ${accent}55, 0 0 0 6px ${accent}14`
+          : "0 18px 40px -22px rgba(0,0,0,0.6)",
+        transition: "box-shadow 0.4s ease, border-color 0.3s ease",
       }}
     >
-      {/* Preview pane */}
-      <div className="relative h-[220px] overflow-hidden">
-        {available && styleRef.sampleSite ? (
-          <StylePreview styleRef={styleRef} />
-        ) : (
-          <ComingSoonBackdrop styleRef={styleRef} />
-        )}
-        {/* Top-right selection indicator */}
-        {available && (
-          <div className="absolute top-3 right-3 z-10">
-            <div
-              className="size-7 rounded-full grid place-items-center transition-all"
-              style={{
-                background: selected
-                  ? accent
-                  : "rgba(0,0,0,0.5)",
-                border: selected
-                  ? "1px solid white"
-                  : "1px solid rgba(255,255,255,0.25)",
-                backdropFilter: "blur(8px)",
-              }}
-            >
-              {selected ? (
-                <CheckIcon />
-              ) : (
-                <span
-                  className="text-[12px] font-mono"
-                  style={{ color: "rgba(255,255,255,0.7)" }}
-                >
-                  +
-                </span>
-              )}
-            </div>
+      {/* Preview pane — hand-designed per style */}
+      <div className="relative aspect-[4/3] overflow-hidden">
+        <Preview />
+        {/* Selection indicator */}
+        <div className="absolute top-3.5 right-3.5 z-10">
+          <div
+            className="size-8 rounded-full grid place-items-center transition-all"
+            style={{
+              background: selected ? accent : "rgba(13,13,14,0.6)",
+              border: selected
+                ? "2px solid white"
+                : "1px solid rgba(255,255,255,0.25)",
+              backdropFilter: "blur(10px)",
+              boxShadow: selected
+                ? `0 6px 18px -4px ${accent}88`
+                : "none",
+            }}
+          >
+            {selected ? (
+              <CheckIcon />
+            ) : (
+              <span
+                className="text-[15px] leading-none"
+                style={{ color: "rgba(255,255,255,0.85)" }}
+              >
+                +
+              </span>
+            )}
           </div>
-        )}
-        {!available && (
-          <div className="absolute top-3 right-3 z-10">
-            <span
-              className="px-2 py-1 rounded-md text-[10px] tracking-[0.18em] uppercase font-mono"
-              style={{
-                background: "rgba(0,0,0,0.6)",
-                color: "rgba(255,255,255,0.7)",
-                backdropFilter: "blur(8px)",
-              }}
-            >
-              Soon
-            </span>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Meta */}
-      <div className="p-5 flex flex-col gap-2">
+      <div className="p-5 flex flex-col gap-2.5">
         <div className="flex items-baseline justify-between gap-3">
           <h3
-            className="font-serif text-[18px] tracking-tight text-ink leading-none"
-            style={{ letterSpacing: "-0.015em" }}
+            className="font-serif text-[20px] tracking-tight text-ink leading-none"
+            style={{ letterSpacing: "-0.02em" }}
           >
             {styleRef.name}
           </h3>
           <span
-            className="text-[10px] tracking-[0.22em] uppercase shrink-0"
+            className="text-[10.5px] tracking-[0.22em] uppercase shrink-0"
             style={{
               color: "rgba(245,245,247,0.4)",
               fontFamily: "var(--font-mono)",
@@ -309,12 +276,11 @@ function StyleCard({
           </span>
         </div>
         <p
-          className="text-[13px] font-serif italic"
-          style={{ color: "rgba(245,245,247,0.6)" }}
+          className="text-[13.5px] font-serif italic leading-relaxed"
+          style={{ color: "rgba(245,245,247,0.65)" }}
         >
           {styleRef.tagline}
         </p>
-        {/* Influences chips */}
         <div className="flex flex-wrap gap-1.5 mt-1">
           {styleRef.influences.slice(0, 3).map((inf) => (
             <span
@@ -322,7 +288,7 @@ function StyleCard({
               className="px-2 py-0.5 rounded text-[10.5px] tracking-[0.04em]"
               style={{
                 background: "rgba(255,255,255,0.04)",
-                color: "rgba(245,245,247,0.55)",
+                color: "rgba(245,245,247,0.6)",
                 border: "1px solid rgba(255,255,255,0.05)",
                 fontFamily: "var(--font-mono)",
               }}
@@ -333,96 +299,6 @@ function StyleCard({
         </div>
       </div>
     </motion.button>
-  );
-}
-
-function StylePreview({ styleRef }: { styleRef: StyleReference }) {
-  // Render the sample Site's first 2 sections at full size inside a
-  // scaled container so the typography reads correctly. CSS transform
-  // gives us a faithful miniature without breaking the design.
-  const site = styleRef.sampleSite!;
-  const page = site.pages.find((p) => p.id === site.activePageId) ?? site.pages[0];
-  const sections = page?.sections.slice(0, 2) ?? [];
-
-  return (
-    <div
-      className="absolute inset-0"
-      style={{ background: styleRef.surface }}
-    >
-      <div
-        className="absolute top-0 left-0"
-        style={{
-          width: "880px",
-          transformOrigin: "top left",
-          transform: "scale(0.42)",
-        }}
-      >
-        {sections.map((s) => (
-          <NonInteractiveSection
-            key={s.id}
-            section={s}
-            accent={styleRef.accent}
-            brandName={site.brandName}
-          />
-        ))}
-      </div>
-      {/* Gradient fade at the bottom so the cut-off content reads as
-          intentional rather than truncated. */}
-      <div
-        aria-hidden
-        className="absolute inset-x-0 bottom-0 h-20 pointer-events-none"
-        style={{
-          background: `linear-gradient(180deg, transparent 0%, ${styleRef.surface} 100%)`,
-        }}
-      />
-    </div>
-  );
-}
-
-function NonInteractiveSection({
-  section,
-  accent,
-  brandName,
-}: {
-  section: Parameters<typeof SectionRenderer>[0]["section"];
-  accent: string;
-  brandName: string;
-}) {
-  // Wrap the renderer in a div that blocks pointer events so the user
-  // can't accidentally focus an EditableText inside the card preview.
-  return (
-    <div className="pointer-events-none select-none">
-      <SectionRenderer
-        section={section}
-        tokens={{ accent, brandName }}
-        onEdit={() => {
-          /* preview is read-only */
-        }}
-      />
-    </div>
-  );
-}
-
-function ComingSoonBackdrop({ styleRef }: { styleRef: StyleReference }) {
-  return (
-    <div
-      className="absolute inset-0 grid place-items-center"
-      style={{
-        background: `radial-gradient(ellipse 90% 70% at 50% 30%, ${styleRef.accent}66, ${styleRef.surface} 75%)`,
-      }}
-    >
-      <div
-        className="font-serif italic text-[18px] text-center"
-        style={{
-          color:
-            styleRef.surface === "#0d0d0e"
-              ? "rgba(255,255,255,0.55)"
-              : "rgba(14,12,8,0.55)",
-        }}
-      >
-        {styleRef.influences[0]} × {styleRef.influences[1]}
-      </div>
-    </div>
   );
 }
 
