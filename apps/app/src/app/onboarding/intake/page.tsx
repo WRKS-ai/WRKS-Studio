@@ -149,7 +149,7 @@ export default function IntakePage() {
       turns,
     };
     localStorage.setItem(INTAKE_KEY, JSON.stringify(payload));
-    router.push("/onboarding/wow");
+    router.push("/onboarding/reference");
   };
 
   return (

@@ -8,6 +8,7 @@ import {
   WowDeliverablesSchema,
 } from "@/lib/wow-prompt";
 import { pexelsSearch, pexelsSearchN } from "@/lib/pexels";
+import { composeStyleBrief } from "@/lib/style-references";
 
 // POST /api/wow
 // Takes a user's intake answers (personality, name, business, audience,
@@ -28,6 +29,7 @@ const BodySchema = z.object({
   business: z.string().min(1).max(2000),
   audience: z.string().min(1).max(2000),
   differentiator: z.string().min(1).max(2000),
+  styleRefs: z.array(z.string()).max(3).optional(),
 });
 
 const client = new Anthropic();
@@ -59,6 +61,11 @@ export async function POST(req: Request) {
     `DIFFERENTIATOR: ${body.differentiator}`,
   ].join("\n");
 
+  // Style references are appended AFTER the cached base prompt so the
+  // 2048-token cache prefix stays stable across users with different
+  // style picks. Style brief content is small, ~600-1200 tokens.
+  const styleBrief = composeStyleBrief(body.styleRefs ?? []);
+
   try {
     const response = await client.messages.parse({
       model: "claude-sonnet-4-6",
@@ -69,6 +76,9 @@ export async function POST(req: Request) {
           text: WOW_SYSTEM_PROMPT,
           cache_control: { type: "ephemeral" },
         },
+        ...(styleBrief
+          ? [{ type: "text" as const, text: styleBrief }]
+          : []),
       ],
       messages: [{ role: "user", content: userPrompt }],
       output_config: {

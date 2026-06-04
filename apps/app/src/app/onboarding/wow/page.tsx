@@ -154,6 +154,18 @@ export default function WowPage() {
     let cancelled = false;
     setState({ kind: "loading" });
 
+    // Read the style references the user picked (or null if skipped)
+    let styleRefs: string[] = [];
+    try {
+      const raw = localStorage.getItem("wrks-onboarding-style-refs");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) styleRefs = parsed.filter((x) => typeof x === "string");
+      }
+    } catch {
+      // ignore
+    }
+
     fetch("/api/wow", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -163,6 +175,7 @@ export default function WowPage() {
         business: intake.business,
         audience: intake.audience,
         differentiator: intake.differentiator,
+        styleRefs,
       }),
     })
       .then(async (res) => {
