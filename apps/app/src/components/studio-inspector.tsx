@@ -24,6 +24,16 @@ import {
   VoiceFieldRegistryProvider,
 } from "@/lib/studio-context";
 import {
+  addPage,
+  addSection,
+  findPageByLabel,
+  migrateLandingToSite,
+  type SectionType,
+  setActivePage,
+  setSectionField,
+  type Site,
+} from "@/lib/site-model";
+import {
   buildFirstMessage,
   buildSystemPrompt,
   readDeliverableAsText,
@@ -42,6 +52,43 @@ const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
 const VOICE_KEY = "wrks-onboarding-voice";
 const STUDIO_KEY = "wrks-studio-deliverables";
+const STUDIO_KEY_SITE = "wrks-studio-site";
+
+const VALID_SECTION_TYPES: SectionType[] = [
+  "hero",
+  "feature_grid",
+  "pricing",
+  "testimonials",
+  "faq",
+  "cta_band",
+  "footer",
+  "rich_text",
+];
+
+function resolveSectionType(spoken: string): SectionType | null {
+  const k = spoken.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if ((VALID_SECTION_TYPES as string[]).includes(k))
+    return k as SectionType;
+  if (k.includes("hero") || k.includes("banner")) return "hero";
+  if (k.includes("feature") || k.includes("pillar") || k.includes("benefit"))
+    return "feature_grid";
+  if (k.includes("pricing") || k.includes("plan") || k.includes("tier"))
+    return "pricing";
+  if (
+    k.includes("testimonial") ||
+    k.includes("quote") ||
+    k.includes("review") ||
+    k.includes("social_proof")
+  )
+    return "testimonials";
+  if (k.includes("faq") || k.includes("question")) return "faq";
+  if (k.includes("cta") || k.includes("call_to_action") || k.includes("call_to"))
+    return "cta_band";
+  if (k.includes("footer")) return "footer";
+  if (k.includes("rich") || k.includes("text") || k.includes("paragraph"))
+    return "rich_text";
+  return null;
+}
 
 const SUGGESTIONS = [
   "Tighten the headline",
@@ -150,6 +197,42 @@ function StudioInspectorInner({
   const [flashFields, setFlashFields] = useState<Set<string>>(new Set());
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
+
+  // Multi-page Site model — replaces single-landing for the website
+  // canvas. Migrated from the legacy landing shape on first load,
+  // persisted under STUDIO_KEY_SITE.
+  const [site, setSiteState] = useState<Site | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem(STUDIO_KEY_SITE);
+    if (raw) {
+      try {
+        setSiteState(JSON.parse(raw) as Site);
+        return;
+      } catch {
+        // ignore, fall through to migration
+      }
+    }
+    if (stored?.deliverables) {
+      const migrated = migrateLandingToSite({
+        brandName: stored.deliverables.brandName,
+        landing: stored.deliverables.landing,
+        heroImage: stored.images.heroLandscape,
+      });
+      setSiteState(migrated);
+      localStorage.setItem(STUDIO_KEY_SITE, JSON.stringify(migrated));
+    }
+  }, [stored]);
+  const siteRef = useRef(site);
+  useEffect(() => {
+    siteRef.current = site;
+  }, [site]);
+  const setSite = useCallback((s: Site) => {
+    setSiteState(s);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STUDIO_KEY_SITE, JSON.stringify(s));
+    }
+  }, []);
 
   // Voice field registry — survives across renders. Pages register
   // their editable fields; the set_field tool resolves spoken names
@@ -361,6 +444,90 @@ function StudioInspectorInner({
       stored: s.deliverables,
     });
   });
+  /* ------------------- Multi-page website tools ------------------- */
+  useConversationClientTool("add_page", (params) => {
+    console.log("[voice] add_page", params);
+    const label = String(params?.label ?? "").trim();
+    if (!label) return "Tell me what to call the page.";
+    const current = siteRef.current;
+    if (!current) return "Site isn't loaded yet.";
+    const next = addPage(current, label);
+    setSite(next);
+    return `Added a ${label} page.`;
+  });
+
+  useConversationClientTool("set_active_page", (params) => {
+    console.log("[voice] set_active_page", params);
+    const which = String(params?.page ?? "").trim();
+    if (!which) return "Which page should I open?";
+    const current = siteRef.current;
+    if (!current) return "Site isn't loaded yet.";
+    const found = findPageByLabel(current, which);
+    if (!found) {
+      const known = current.pages.map((p) => p.label).join(", ");
+      return `I don't see a page called "${which}". Pages: ${known}.`;
+    }
+    setSite(setActivePage(current, found.id));
+    return `Showing the ${found.label} page.`;
+  });
+
+  useConversationClientTool("add_section", (params) => {
+    console.log("[voice] add_section", params);
+    const typeIn = String(params?.section_type ?? "").trim();
+    const pageIn = String(params?.page ?? "").trim();
+    const resolvedType = resolveSectionType(typeIn);
+    if (!resolvedType) {
+      return `I don't know a section called "${typeIn}". Try hero, features, pricing, testimonials, faq, cta, footer, or rich text.`;
+    }
+    const current = siteRef.current;
+    if (!current) return "Site isn't loaded yet.";
+    let targetPageId = current.activePageId;
+    if (pageIn) {
+      const found = findPageByLabel(current, pageIn);
+      if (!found) {
+        const known = current.pages.map((p) => p.label).join(", ");
+        return `I don't see a page called "${pageIn}". Pages: ${known}.`;
+      }
+      targetPageId = found.id;
+    }
+    setSite(addSection(current, targetPageId, resolvedType));
+    return `Added a ${resolvedType.replace("_", " ")} section.`;
+  });
+
+  useConversationClientTool("set_section_field", (params) => {
+    console.log("[voice] set_section_field", params);
+    const sectionType = String(params?.section_type ?? "").trim();
+    const fieldPath = String(params?.field_path ?? "").trim();
+    const value = String(params?.value ?? "");
+    if (!sectionType || !fieldPath) {
+      return "Tell me which section and field to update.";
+    }
+    const wantedType = resolveSectionType(sectionType);
+    if (!wantedType) {
+      return `I don't recognise the "${sectionType}" section.`;
+    }
+    const current = siteRef.current;
+    if (!current) return "Site isn't loaded yet.";
+    const page = current.pages.find((p) => p.id === current.activePageId);
+    if (!page) return "No active page.";
+    const match = page.sections.find((s) => s.type === wantedType);
+    if (!match) {
+      return `The current page doesn't have a ${sectionType} section yet. Want me to add one?`;
+    }
+    const result = setSectionField(
+      current,
+      page.id,
+      match.id,
+      fieldPath,
+      value,
+    );
+    if (!result.ok) {
+      return `Couldn't update ${sectionType}.${fieldPath}: ${result.reason ?? "invalid path"}.`;
+    }
+    setSite(result.site);
+    return `Updated ${sectionType} ${fieldPath} to "${value}".`;
+  });
+
   useConversationClientTool("set_field", (params) => {
     console.log("[voice] set_field", params);
     const fieldName = String(params?.field ?? "").trim();
@@ -464,6 +631,8 @@ function StudioInspectorInner({
         flashFields,
         chatLines,
         thinking,
+        site,
+        setSite,
       }}
     >
       <VoiceFieldRegistryProvider registry={registry}>

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect } from "react";
 import type { Personality } from "@/lib/personalities";
+import type { Site } from "@/lib/site-model";
 import type { Voice } from "@/lib/voices";
 
 // Shared studio state. The layout owns everything (voice session, agent
@@ -50,6 +51,8 @@ export type StudioContextValue = {
   flashFields: Set<string>;
   chatLines: ChatLine[];
   thinking: boolean;
+  site: Site | null;
+  setSite: (s: Site) => void;
 };
 
 const StudioContext = createContext<StudioContextValue | null>(null);

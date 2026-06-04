@@ -7,11 +7,16 @@ import { PersonalityIcon } from "@/components/personality-icon";
 import type { Personality } from "@/lib/personalities";
 import type { StoredWowPayload } from "@/lib/studio-context";
 import {
+  addPage,
+  setActivePage,
+  type Site,
+} from "@/lib/site-model";
+import { SiteCanvas } from "@/components/site-canvas";
+import {
   FacebookAdInFeed,
   InstagramMini,
   IPhoneFrame,
   LinkedInMini,
-  MacBookFrame,
   XMini,
 } from "@/components/wow-mockups";
 
@@ -44,6 +49,8 @@ export default function StudioPage() {
     setActiveId,
     flashFields,
     thinking,
+    site,
+    setSite,
   } = useStudio();
 
   const accent = personality.accent;
@@ -201,6 +208,8 @@ export default function StudioPage() {
                   agentName={agentName}
                   stored={stored}
                   flashFields={flashFields}
+                  site={site}
+                  setSite={setSite}
                 />
               </motion.div>
             </AnimatePresence>
@@ -297,12 +306,16 @@ function ActiveDeliverable({
   agentName,
   stored,
   flashFields,
+  site,
+  setSite,
 }: {
   kind: DeliverableKind;
   personality: Personality;
   agentName: string;
   stored: StoredWowPayload;
   flashFields: Set<string>;
+  site: Site | null;
+  setSite: (s: Site) => void;
 }) {
   const d = stored.deliverables;
   const i = stored.images;
@@ -319,16 +332,30 @@ function ActiveDeliverable({
   });
 
   if (kind === "landing") {
+    if (!site) {
+      return (
+        <div
+          className="text-[13px] tracking-[0.22em] uppercase"
+          style={{
+            color: "rgba(245,245,247,0.4)",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          Building site…
+        </div>
+      );
+    }
     return (
-      <div className="w-full max-w-[820px]" style={flashStyle("landing", "16px")}>
-        <MacBookFrame>
-          <CompactLanding
-            personality={personality}
-            brandName={d.brandName}
-            data={d.landing}
-            heroImage={i.heroLandscape}
-          />
-        </MacBookFrame>
+      <div style={flashStyle("landing", "16px")}>
+        <SiteCanvas
+          site={site}
+          personality={personality}
+          onPickPage={(pageId) => setSite(setActivePage(site, pageId))}
+          onAddPage={() => {
+            const label = `Page ${site.pages.length + 1}`;
+            setSite(addPage(site, label));
+          }}
+        />
       </div>
     );
   }
@@ -388,101 +415,6 @@ function ActiveDeliverable({
           accentDeep={personality.accentDeep}
         />
       </IPhoneFrame>
-    </div>
-  );
-}
-
-function CompactLanding({
-  personality,
-  brandName,
-  data,
-  heroImage,
-}: {
-  personality: Personality;
-  brandName: string;
-  data: StoredWowPayload["deliverables"]["landing"];
-  heroImage: string;
-}) {
-  return (
-    <div className="size-full bg-[#fbf7ee] flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-8 py-3 border-b border-black/5 shrink-0">
-        <span className="font-serif text-[15px] text-[#0e0c08] flex items-center gap-2">
-          <span
-            className="size-1.5 rounded-full"
-            style={{ background: personality.accent }}
-          />
-          {brandName}
-        </span>
-        <div className="flex gap-6 text-[11px] uppercase tracking-[0.22em] font-mono text-[#827a6e]">
-          <span>Index</span>
-          <span>Studio</span>
-          <span>Contact</span>
-        </div>
-        <span className="text-[11px] uppercase tracking-[0.22em] font-mono text-[#827a6e]">
-          Vol. 01
-        </span>
-      </div>
-      <div
-        className="grid flex-1 min-h-0"
-        style={{ gridTemplateColumns: "1.2fr 0.8fr" }}
-      >
-        <div className="px-10 py-9 text-left flex flex-col min-h-0 overflow-hidden">
-          <div
-            className="text-[11px] tracking-[0.32em] uppercase font-mono mb-5 flex items-center gap-3 shrink-0"
-            style={{ color: "#827a6e" }}
-          >
-            <span
-              className="inline-block h-px w-8"
-              style={{ background: personality.accent }}
-            />
-            <span>Now showing</span>
-          </div>
-          <h1
-            className="font-serif font-medium text-[clamp(1.5rem,2.8vw,2.25rem)] leading-[1.02] text-[#0e0c08] max-w-[17ch] shrink-0"
-            style={{ letterSpacing: "-0.025em" }}
-          >
-            {data.headline}
-          </h1>
-          <p className="mt-4 font-serif italic text-[clamp(0.875rem,1.1vw,1rem)] text-[#4a443c] max-w-[42ch] leading-relaxed shrink-0">
-            {data.subhead}
-          </p>
-          <button
-            className="mt-5 inline-flex items-center gap-2 text-[#0e0c08] font-serif border-b border-[#0e0c08] pb-1 text-[14px] self-start shrink-0"
-            type="button"
-          >
-            <span>{data.primaryCta}</span>
-            <span style={{ color: personality.accent }}>→</span>
-          </button>
-          <div className="flex-1" />
-          <div
-            className="mt-6 pt-5 grid grid-cols-3 gap-5 shrink-0"
-            style={{ borderTop: "1px solid rgba(14,12,8,0.08)" }}
-          >
-            {data.valueBullets.slice(0, 3).map((bullet, i) => (
-              <div key={i}>
-                <div
-                  className="text-[9.5px] tracking-[0.3em] uppercase font-mono mb-1.5"
-                  style={{ color: personality.accent }}
-                >
-                  0{i + 1}
-                </div>
-                <p className="font-serif text-[#0e0c08] text-[11.5px] leading-snug">
-                  {bullet}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="relative overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={heroImage}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
-          />
-        </div>
-      </div>
     </div>
   );
 }
