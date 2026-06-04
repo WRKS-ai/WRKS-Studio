@@ -346,7 +346,7 @@ function ActiveDeliverable({
       );
     }
     return (
-      <div style={flashStyle("landing", "16px")}>
+      <div className="w-full" style={flashStyle("landing", "16px")}>
         <SiteCanvas
           site={site}
           personality={personality}
