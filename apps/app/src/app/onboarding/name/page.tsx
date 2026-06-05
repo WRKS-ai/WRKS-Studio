@@ -2,27 +2,29 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { OnboardingFrame } from "@/components/onboarding-frame";
 import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
-import { SAMPLE_SCRIPT, VOICES } from "@/lib/voices";
+import { VOICES } from "@/lib/voices";
 
-// Act Two — The Name. Asymmetric editorial spread, mirroring Act
-// One's grammar but flipping the stage: the agent (glass orb) holds
-// stage-left this time — it's introducing itself, so it owns the
-// floor — and the user's reply (huge serif question + input + name
-// suggestions) takes the right column at editorial scale.
+// Act Two — The Name. Composed like a script page from a play.
+// LEFT column: the agent speaks (small glass mic icon + a
+// word-by-word italic serif quote that animates in as if being
+// said aloud). RIGHT column: the user replies (editorial-scale
+// input at the same visual weight as "Maven." in Act One, with
+// suggested names and Continue).
 //
-// The orb auto-plays the paired voice greeting on mount, with a
-// graceful fallback if the browser blocks autoplay (orb stays the
-// obvious tap target). A spoken caption reveals word-by-word in
-// sync with audio currentTime so the reading tracks the voice.
+// The big glass orb that owned Act One isn't repeated here. The
+// voice was chosen in Act One; on this page the voice manifests
+// as language — typography is doing the talking now.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
 const MAX_LEN = 24;
-
-type PlayState = "idle" | "loading" | "playing" | "error";
+// Per-word reveal pace (seconds). ~95ms keeps the quote alive for
+// roughly 4 seconds — long enough to feel spoken, short enough that
+// the user can act before it finishes.
+const WORD_STEP = 0.095;
 
 export default function NamePage() {
   const router = useRouter();
@@ -45,95 +47,22 @@ export default function NamePage() {
     if (savedName) setName(savedName);
   }, [router]);
 
-  const personality = personalityId
-    ? PERSONALITIES.find((p) => p.id === personalityId)!
-    : null;
-  const pairedVoice = personality
-    ? VOICES.find((v) => v.id === personality.voiceId)!
-    : null;
-
-  /* ── Audio playback ── */
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [playState, setPlayState] = useState<PlayState>("idle");
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const autoPlayAttempted = useRef(false);
-
-  const stopAudio = useCallback(() => {
-    const el = audioRef.current;
-    if (el) {
-      el.pause();
-      el.currentTime = 0;
-    }
-    audioRef.current = null;
-    setPlayState("idle");
-    setCurrentTime(0);
-  }, []);
-
-  const playSample = useCallback(() => {
-    if (!pairedVoice) return;
-    stopAudio();
-    setPlayState("loading");
-    setCurrentTime(0);
-    const el = new Audio(pairedVoice.sample);
-    audioRef.current = el;
-    el.addEventListener("loadedmetadata", () => {
-      setDuration(el.duration || 0);
-    });
-    el.addEventListener("timeupdate", () => {
-      setCurrentTime(el.currentTime);
-    });
-    el.addEventListener("ended", () => {
-      setPlayState("idle");
-      setCurrentTime(0);
-      audioRef.current = null;
-    });
-    el.addEventListener("error", () => {
-      setPlayState("error");
-      audioRef.current = null;
-    });
-    el
-      .play()
-      .then(() => setPlayState("playing"))
-      .catch(() => {
-        setPlayState("idle");
-        audioRef.current = null;
-      });
-  }, [pairedVoice, stopAudio]);
-
-  const toggleListen = useCallback(() => {
-    if (playState === "playing" || playState === "loading") stopAudio();
-    else playSample();
-  }, [playState, playSample, stopAudio]);
-
-  useEffect(() => {
-    if (!pairedVoice || autoPlayAttempted.current) return;
-    autoPlayAttempted.current = true;
-    const t = setTimeout(playSample, 600);
-    return () => clearTimeout(t);
-  }, [pairedVoice, playSample]);
-
-  useEffect(() => {
-    return () => stopAudio();
-  }, [stopAudio]);
-
   useEffect(() => {
     if (!personalityId) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 1600);
+    const t = setTimeout(() => inputRef.current?.focus(), 1400);
     return () => clearTimeout(t);
   }, [personalityId]);
 
-  if (!personality || !pairedVoice) return null;
+  if (!personalityId) return null;
 
+  const personality = PERSONALITIES.find((p) => p.id === personalityId)!;
+  const pairedVoice = VOICES.find((v) => v.id === personality.voiceId)!;
   const trimmed = name.trim();
   const canContinue = trimmed.length > 0 && trimmed.length <= MAX_LEN;
   const accent = personality.accent;
-  const progressRatio = duration > 0 ? currentTime / duration : 0;
-  const audioActive = playState === "playing" || playState === "loading";
 
   const onContinue = () => {
     if (!canContinue) return;
-    stopAudio();
     localStorage.setItem(NAME_KEY, trimmed);
     router.push("/onboarding/intake");
   };
@@ -145,11 +74,29 @@ export default function NamePage() {
     }
   };
 
+  // The agent's greeting — italic serif, revealed word-by-word.
+  // First sentence is the hero opener at hero scale; the rest is
+  // supporting italic at body scale. Split into two passages so
+  // the typography hierarchy reads at a glance.
+  const heroLine = "Hey, you.";
+  const supportLines = [
+    "Glad you picked me.",
+    "From here on, I'll guide you through everything — every brief, every reply, every line.",
+    "But first — name me, would you?",
+  ];
+
+  // Total words across both passages → for stagger budget.
+  const heroWords = heroLine.split(/\s+/);
+  const passageWords = supportLines.flatMap((l) => l.split(/\s+/));
+  const heroDelayBase = 0.35;
+  const passageDelayBase =
+    heroDelayBase + heroWords.length * WORD_STEP + 0.25;
+
   return (
     <OnboardingFrame step={2} totalSteps={5} bloomTint={accent}>
       <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center">
         <div className="w-full max-w-[1440px] flex flex-col gap-14 lg:gap-20">
-          {/* Act header — matches Act One anchor */}
+          {/* Act header */}
           <motion.div
             initial={
               reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }
@@ -173,124 +120,214 @@ export default function NamePage() {
             </span>
           </motion.div>
 
-          {/* Hero — asymmetric. Orb on the LEFT (the agent has the
-              floor; it just introduced itself by voice), question +
-              input on the RIGHT (the user replies). Mirrors Act One
-              composition with the columns flipped. */}
+          {/* Script-page composition. LEFT speaks, RIGHT replies. */}
           <div
-            className="grid items-center gap-12 lg:gap-20"
+            className="grid items-start gap-12 lg:gap-20"
             style={{
-              gridTemplateColumns: "minmax(0, 0.82fr) minmax(0, 1.18fr)",
+              gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 1fr)",
             }}
           >
-            {/* LEFT — glass orb + voice attribution + spoken caption */}
-            <div className="relative flex flex-col items-center gap-6">
-              <GlassVoiceOrb
-                state={playState}
-                progressRatio={progressRatio}
-                accent={accent}
-                onToggle={toggleListen}
-              />
-
-              {/* Voice attribution */}
+            {/* LEFT — speaker label + animated mic + spoken quote */}
+            <div className="relative flex flex-col gap-7">
+              {/* Speaker row — mic icon + attribution */}
               <motion.div
-                initial={reduced ? false : { opacity: 0, y: 4 }}
+                initial={reduced ? false : { opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.55 }}
-                className="text-[11px] tracking-[0.32em] uppercase"
-                style={{
-                  color: "rgba(245,240,230,0.4)",
-                  fontFamily: "var(--font-mono)",
-                }}
+                transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+                className="flex items-center gap-3"
               >
-                {personality.name} · spoken by {pairedVoice.name}
+                <SpeakingIcon
+                  speaking
+                  accent={accent}
+                  durationSec={
+                    passageDelayBase +
+                    passageWords.length * WORD_STEP +
+                    0.4
+                  }
+                />
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-[11px] tracking-[0.32em] uppercase"
+                    style={{
+                      color: "rgba(245,240,230,0.7)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    {personality.name}
+                  </span>
+                  <span
+                    style={{
+                      color: "rgba(245,240,230,0.25)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 11,
+                    }}
+                  >
+                    ·
+                  </span>
+                  <span
+                    className="text-[11px] tracking-[0.28em] uppercase"
+                    style={{
+                      color: "rgba(245,240,230,0.42)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    {pairedVoice.name} speaking
+                  </span>
+                </div>
               </motion.div>
 
-              {/* Spoken caption — reserved-height container so the
-                  page doesn't reflow when the line appears */}
-              <div className="min-h-[88px] w-full flex items-start justify-center pt-2">
-                <SpokenCaption
-                  text={SAMPLE_SCRIPT}
-                  visible={audioActive}
-                  progress={progressRatio}
-                  accent={accent}
-                />
-              </div>
-            </div>
-
-            {/* RIGHT — scene number, question, input, chips, continue */}
-            <div className="relative flex flex-col items-start">
-              {/* Scene marker (mirrors Act One's "Agent No. 0X") */}
-              <div className="mb-8 flex flex-col gap-2">
-                <span
-                  className="text-[11px] tracking-[0.32em] uppercase"
-                  style={{
-                    color: "rgba(245,240,230,0.4)",
-                    fontFamily: "var(--font-mono)",
-                  }}
-                >
-                  Scene 02
-                </span>
-                <span
-                  className="inline-block h-px w-12"
-                  style={{ background: "rgba(245,240,230,0.16)" }}
-                />
-              </div>
-
-              {/* Hero question — editorial scale, accent period */}
-              <motion.h1
-                initial={
-                  reduced
-                    ? false
-                    : { opacity: 0, y: 14, filter: "blur(8px)" }
-                }
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{
-                  duration: 0.7,
-                  delay: 0.1,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
+              {/* Hero opener — large serif, accent period */}
+              <h1
                 className="font-serif font-medium"
                 style={{
-                  fontSize: "clamp(4rem, 8.4vw, 8rem)",
-                  lineHeight: 0.94,
+                  fontSize: "clamp(3.5rem, 7vw, 6.5rem)",
+                  lineHeight: 0.96,
                   letterSpacing: "-0.035em",
                   color: "rgba(245,240,230,0.98)",
                 }}
               >
-                Name me
-                <span style={{ color: accent, opacity: 0.85 }}>.</span>
-              </motion.h1>
+                {heroWords.map((word, i) => (
+                  <motion.span
+                    key={i}
+                    initial={
+                      reduced ? false : { opacity: 0, y: 12, filter: "blur(4px)" }
+                    }
+                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                    transition={{
+                      duration: 0.6,
+                      delay: heroDelayBase + i * WORD_STEP,
+                      ease: [0.2, 0.7, 0.2, 1],
+                    }}
+                    style={{
+                      display: "inline-block",
+                      marginRight: "0.22em",
+                    }}
+                  >
+                    {i === heroWords.length - 1 ? (
+                      <>
+                        {word.replace(/\.$/, "")}
+                        <span style={{ color: accent, opacity: 0.85 }}>.</span>
+                      </>
+                    ) : (
+                      word
+                    )}
+                  </motion.span>
+                ))}
+              </h1>
 
-              {/* Sub-prompt */}
-              <motion.p
+              {/* Supporting italic passage — word-by-word */}
+              <div
+                className="font-serif italic"
+                style={{
+                  fontSize: "clamp(1.125rem, 1.55vw, 1.4375rem)",
+                  lineHeight: 1.5,
+                  color: "rgba(245,240,230,0.62)",
+                  maxWidth: "38ch",
+                }}
+              >
+                {(() => {
+                  let runningIdx = 0;
+                  return supportLines.map((line, lineIdx) => {
+                    const words = line.split(/\s+/);
+                    return (
+                      <p
+                        key={lineIdx}
+                        className={lineIdx > 0 ? "mt-3" : undefined}
+                      >
+                        {words.map((word, w) => {
+                          const delay =
+                            passageDelayBase + runningIdx * WORD_STEP;
+                          runningIdx += 1;
+                          return (
+                            <motion.span
+                              key={`${lineIdx}-${w}`}
+                              initial={
+                                reduced
+                                  ? false
+                                  : { opacity: 0, y: 4 }
+                              }
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{
+                                duration: 0.45,
+                                delay,
+                                ease: [0.2, 0.7, 0.2, 1],
+                              }}
+                              style={{
+                                display: "inline-block",
+                                marginRight: "0.28em",
+                              }}
+                            >
+                              {word}
+                            </motion.span>
+                          );
+                        })}
+                      </p>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+
+            {/* RIGHT — your reply: scene marker, input, chips, continue */}
+            <div className="relative flex flex-col items-start">
+              {/* Scene + speaker (mirrors the LEFT speaker row, but
+                  for the user — "YOU"). The visual rhyme makes the
+                  page read as a script. */}
+              <motion.div
                 initial={reduced ? false : { opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
-                  duration: 0.6,
-                  delay: 0.3,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
-                className="mt-7 font-serif italic max-w-[34ch]"
-                style={{
-                  fontSize: "clamp(1.125rem, 1.5vw, 1.375rem)",
-                  lineHeight: 1.4,
-                  color: "rgba(245,240,230,0.55)",
-                }}
-              >
-                Whatever feels right out loud.
-              </motion.p>
-
-              {/* Input — editorial scale, no border, accent underline */}
-              <motion.div
-                initial={reduced ? false : { opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.65,
+                  duration: 0.55,
                   delay: 0.5,
                   ease: [0.2, 0.7, 0.2, 1],
                 }}
-                className="mt-12 w-full max-w-[600px] relative"
+                className="mb-8 flex flex-col gap-2"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className="text-[11px] tracking-[0.32em] uppercase"
+                    style={{
+                      color: "rgba(245,240,230,0.4)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    Scene 02
+                  </span>
+                  <span
+                    style={{
+                      color: "rgba(245,240,230,0.25)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 11,
+                    }}
+                  >
+                    ·
+                  </span>
+                  <span
+                    className="text-[11px] tracking-[0.32em] uppercase"
+                    style={{
+                      color: "rgba(245,240,230,0.7)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    You
+                  </span>
+                </div>
+                <span
+                  className="inline-block h-px w-16"
+                  style={{ background: "rgba(245,240,230,0.16)" }}
+                />
+              </motion.div>
+
+              {/* Input — editorial scale, matches Act One name treatment */}
+              <motion.div
+                initial={reduced ? false : { opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.7,
+                  delay: 0.7,
+                  ease: [0.2, 0.7, 0.2, 1],
+                }}
+                className="w-full max-w-[640px] relative"
               >
                 <input
                   ref={inputRef}
@@ -305,11 +342,11 @@ export default function NamePage() {
                   autoComplete="off"
                   spellCheck={false}
                   aria-label="Agent name"
-                  className="w-full bg-transparent border-0 outline-none text-left font-serif font-medium pb-3 placeholder:opacity-30"
+                  className="w-full bg-transparent border-0 outline-none text-left font-serif font-medium pb-4 placeholder:opacity-25"
                   style={{
-                    fontSize: "clamp(2.75rem, 5vw, 4.5rem)",
+                    fontSize: "clamp(3rem, 5.4vw, 5rem)",
                     lineHeight: 1,
-                    letterSpacing: "-0.025em",
+                    letterSpacing: "-0.03em",
                     color: "rgba(245,240,230,0.98)",
                     caretColor: accent,
                   }}
@@ -348,7 +385,7 @@ export default function NamePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
                   duration: 0.6,
-                  delay: 0.7,
+                  delay: 0.95,
                   ease: [0.2, 0.7, 0.2, 1],
                 }}
                 className="mt-8 flex items-center flex-wrap gap-x-7 gap-y-3"
@@ -377,7 +414,7 @@ export default function NamePage() {
                       initial={reduced ? false : { opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{
-                        delay: 0.75 + i * 0.05,
+                        delay: 1.0 + i * 0.05,
                         duration: 0.4,
                         ease: [0.2, 0.7, 0.2, 1],
                       }}
@@ -414,7 +451,7 @@ export default function NamePage() {
                 })}
               </motion.div>
 
-              {/* Continue — matches personality page treatment */}
+              {/* Continue — same treatment as personality page */}
               <motion.button
                 type="button"
                 onClick={onContinue}
@@ -423,7 +460,7 @@ export default function NamePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
                   duration: 0.55,
-                  delay: 0.95,
+                  delay: 1.2,
                   ease: [0.2, 0.7, 0.2, 1],
                 }}
                 whileHover={
@@ -462,7 +499,9 @@ export default function NamePage() {
                             reduced ? false : { opacity: 0, y: 4 }
                           }
                           animate={{ opacity: 1, y: 0 }}
-                          exit={reduced ? undefined : { opacity: 0, y: -4 }}
+                          exit={
+                            reduced ? undefined : { opacity: 0, y: -4 }
+                          }
                           transition={{
                             duration: 0.3,
                             ease: [0.2, 0.7, 0.2, 1],
@@ -503,15 +542,12 @@ export default function NamePage() {
           <motion.div
             initial={reduced ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 1.15 }}
+            transition={{ duration: 0.6, delay: 1.4 }}
             className="relative"
           >
             <button
               type="button"
-              onClick={() => {
-                stopAudio();
-                router.push("/onboarding/personality");
-              }}
+              onClick={() => router.push("/onboarding/personality")}
               className="text-[11px] tracking-[0.24em] uppercase transition-opacity hover:opacity-80"
               style={{
                 color: "rgba(245,240,230,0.32)",
@@ -528,396 +564,110 @@ export default function NamePage() {
 }
 
 /* ============================================================
- * GlassVoiceOrb — center-of-left-column glass disc. Same design
- * language as the personality-page play button (atmospheric halo,
- * specular highlight, accent reflection, pulse rings while playing).
- * Sized to match the personality-page hero orb so the visual rhythm
- * carries between acts.
+ * SpeakingIcon — small floating glass disc with three audio-wave
+ * bars. While `speaking` is true, the bars animate at staggered
+ * phases as if responding to a voice signal; after `durationSec`
+ * elapses, they settle to a quiet idle state. Same glass language
+ * as the nav arrows on the personality page (frosted body, accent
+ * rim, subtle hover lift) at a quieter scale.
  * ============================================================ */
-function GlassVoiceOrb({
-  state,
-  progressRatio,
+function SpeakingIcon({
+  speaking,
   accent,
-  onToggle,
+  durationSec,
 }: {
-  state: PlayState;
-  progressRatio: number;
+  speaking: boolean;
   accent: string;
-  onToggle: () => void;
+  durationSec: number;
 }) {
   const reduced = useReducedMotion();
-  const [hovered, setHovered] = useState(false);
-  const isPlaying = state === "playing";
-  const isLoading = state === "loading";
-  const isError = state === "error";
-  const size = 300;
-  const radius = size / 2 - 4;
-  const circumference = 2 * Math.PI * radius;
+  const [active, setActive] = useState(speaking);
+
+  useEffect(() => {
+    if (!speaking) {
+      setActive(false);
+      return;
+    }
+    setActive(true);
+    const t = setTimeout(() => setActive(false), durationSec * 1000);
+    return () => clearTimeout(t);
+  }, [speaking, durationSec]);
+
+  const bars = [
+    { phase: 0, peak: 0.95 },
+    { phase: 0.18, peak: 1 },
+    { phase: 0.36, peak: 0.7 },
+  ];
 
   return (
-    <motion.button
-      type="button"
-      onClick={onToggle}
-      onHoverStart={() => setHovered(true)}
-      onHoverEnd={() => setHovered(false)}
-      disabled={isError}
-      initial={
-        reduced
-          ? false
-          : { opacity: 0, scale: 0.86, filter: "blur(12px)" }
-      }
-      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-      transition={{ duration: 0.9, ease: [0.2, 0.7, 0.2, 1] }}
-      whileHover={
-        reduced || isError ? undefined : { scale: 1.035, y: -3 }
-      }
-      whileTap={isError ? undefined : { scale: 0.97 }}
-      className="relative grid place-items-center disabled:cursor-not-allowed"
-      style={{ width: size, height: size }}
-      aria-label={isPlaying ? "Stop greeting" : "Play greeting"}
+    <motion.div
+      className="relative grid place-items-center rounded-full"
+      style={{
+        width: 46,
+        height: 46,
+        background: `linear-gradient(180deg, rgba(255,255,255,0.06) 0%, ${accent}10 100%)`,
+        backdropFilter: "blur(22px)",
+        WebkitBackdropFilter: "blur(22px)",
+        border: `1px solid ${active ? `${accent}aa` : "rgba(255,255,255,0.16)"}`,
+        boxShadow: active
+          ? `0 0 24px -4px ${accent}99, inset 0 1px 0 rgba(255,255,255,0.22)`
+          : "inset 0 1px 0 rgba(255,255,255,0.14), 0 8px 20px -8px rgba(0,0,0,0.45)",
+        transition: "border-color 0.4s ease, box-shadow 0.4s ease",
+      }}
+      aria-hidden
     >
-      {/* Atmospheric glow halo */}
-      <motion.div
-        aria-hidden
-        className="absolute rounded-full pointer-events-none"
-        style={{
-          inset: -80,
-          background: `radial-gradient(circle, ${accent}30 0%, ${accent}08 35%, transparent 65%)`,
-          filter: "blur(30px)",
-        }}
-        animate={{
-          opacity: hovered
-            ? 1
-            : isPlaying
-              ? [0.7, 1, 0.7]
-              : reduced
-                ? 0.5
-                : [0.45, 0.65, 0.45],
-          scale: hovered ? 1.15 : 1,
-        }}
-        transition={
-          hovered
-            ? {
-                opacity: { duration: 0.5, ease: [0.2, 0.7, 0.2, 1] },
-                scale: { duration: 0.6, ease: [0.2, 0.7, 0.2, 1] },
-              }
-            : {
-                duration: isPlaying ? 1.6 : 4,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }
-        }
-      />
-
-      {/* "Tap to hear" invitation ring — appears only when idle, so
-          autoplay-blocked browsers still surface a clear affordance */}
-      {!reduced && !isPlaying && !isLoading && (
-        <motion.div
-          aria-hidden
-          className="absolute rounded-full pointer-events-none"
-          style={{
-            inset: -10,
-            border: `1px solid ${accent}55`,
-          }}
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: [0, 0.6, 0], scale: [0.96, 1.08, 1.18] }}
-          transition={{
-            duration: 2.8,
-            repeat: Infinity,
-            ease: "easeOut",
-            repeatDelay: 0.4,
-          }}
-        />
-      )}
-
-      {/* Pulse rings while playing */}
-      {isPlaying && !reduced && (
-        <>
-          {[0, 1].map((i) => (
-            <motion.div
-              key={i}
-              aria-hidden
-              className="absolute rounded-full pointer-events-none"
-              style={{
-                inset: 0,
-                border: `1px solid ${accent}66`,
-              }}
-              animate={{ scale: [1, 1.18, 1.32], opacity: [0.55, 0.18, 0] }}
-              transition={{
-                duration: 2.4,
-                repeat: Infinity,
-                delay: i * 0.8,
-                ease: "easeOut",
-              }}
-            />
-          ))}
-        </>
-      )}
-
-      {/* Glass body */}
-      <motion.div
-        aria-hidden
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: `linear-gradient(180deg, rgba(255,255,255,0.06) 0%, ${accent}12 100%)`,
-          backdropFilter: "blur(40px)",
-          WebkitBackdropFilter: "blur(40px)",
-        }}
-        animate={{
-          boxShadow: hovered
-            ? [
-                "inset 0 1px 0 rgba(255,255,255,0.32)",
-                `inset 0 -2px 22px ${accent}55`,
-                "0 30px 90px -12px rgba(0,0,0,0.7)",
-                `0 0 120px -8px ${accent}aa`,
-              ].join(", ")
-            : [
-                "inset 0 1px 0 rgba(255,255,255,0.22)",
-                `inset 0 -2px 16px ${accent}33`,
-                "0 24px 70px -12px rgba(0,0,0,0.6)",
-                `0 0 90px -12px ${accent}66`,
-              ].join(", "),
-        }}
-        transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
-        initial={false}
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 rounded-full pointer-events-none"
-        style={{ border: "1px solid rgba(255,255,255,0.14)" }}
-      />
-
       {/* Specular highlight */}
-      <motion.div
-        aria-hidden
+      <div
         className="absolute pointer-events-none"
         style={{
-          top: "8%",
+          top: "10%",
           left: "12%",
-          width: "52%",
-          height: "32%",
-          borderRadius: "50%",
-          filter: "blur(10px)",
-        }}
-        animate={{
-          background: hovered
-            ? "radial-gradient(ellipse, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0) 70%)"
-            : "radial-gradient(ellipse, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 70%)",
-        }}
-        transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
-      />
-
-      {/* Accent reflection */}
-      <motion.div
-        aria-hidden
-        className="absolute pointer-events-none"
-        style={{
-          bottom: "8%",
-          left: "20%",
-          width: "60%",
+          width: "48%",
           height: "30%",
           borderRadius: "50%",
-          filter: "blur(14px)",
+          background:
+            "radial-gradient(ellipse, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0) 70%)",
+          filter: "blur(6px)",
         }}
-        animate={{
-          background: hovered
-            ? `radial-gradient(ellipse, ${accent}55 0%, transparent 70%)`
-            : `radial-gradient(ellipse, ${accent}30 0%, transparent 70%)`,
-        }}
-        transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
       />
 
-      {/* Progress arc */}
-      {(isPlaying || isLoading) && (
-        <svg
-          aria-hidden
-          className="absolute inset-0 -rotate-90 pointer-events-none"
-          viewBox={`0 0 ${size} ${size}`}
-        >
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={`${accent}1f`}
-            strokeWidth="1.5"
-          />
-          <motion.circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={accent}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            initial={{ strokeDashoffset: circumference }}
-            animate={{
-              strokeDashoffset: circumference * (1 - progressRatio),
+      {/* Wave bars */}
+      <div className="flex items-center gap-[3px]" aria-hidden>
+        {bars.map((bar, i) => (
+          <motion.span
+            key={i}
+            style={{
+              display: "inline-block",
+              width: 2.5,
+              borderRadius: 2,
+              background: accent,
+              boxShadow: active ? `0 0 6px ${accent}` : "none",
+              transformOrigin: "center",
             }}
-            transition={{ duration: 0.12, ease: "linear" }}
-            style={{ filter: `drop-shadow(0 0 6px ${accent})` }}
+            animate={
+              reduced
+                ? { height: 4 }
+                : active
+                  ? {
+                      height: [4, 16 * bar.peak, 4, 12 * bar.peak, 4],
+                    }
+                  : { height: 4 }
+            }
+            transition={
+              reduced
+                ? { duration: 0.2 }
+                : active
+                  ? {
+                      duration: 0.9,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: bar.phase,
+                    }
+                  : { duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }
+            }
           />
-        </svg>
-      )}
-
-      {/* Center glyph */}
-      <motion.div
-        className="relative"
-        animate={{
-          opacity: hovered ? 1 : 0.82,
-          scale: hovered ? 1.06 : 1,
-        }}
-        transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
-      >
-        {isLoading ? (
-          <Spinner size={48} accent={accent} />
-        ) : isPlaying ? (
-          <StopIcon size={36} accent={accent} />
-        ) : (
-          <PlayIcon size={52} accent={accent} />
-        )}
-      </motion.div>
-    </motion.button>
-  );
-}
-
-/* ============================================================
- * SpokenCaption — word-by-word reveal synced to audio progress.
- * The visible-word count tracks currentTime / duration so the
- * caption stays in step with the voice even if the user replays.
- * ============================================================ */
-function SpokenCaption({
-  text,
-  visible,
-  progress,
-  accent,
-}: {
-  text: string;
-  visible: boolean;
-  progress: number;
-  accent: string;
-}) {
-  const words = text.split(/\s+/);
-  const visibleCount = Math.max(
-    1,
-    Math.ceil(progress * words.length + 0.001),
-  );
-
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.p
-          className="font-serif italic max-w-[34ch] text-center"
-          style={{
-            fontSize: "clamp(0.9375rem, 1.05vw, 1.0625rem)",
-            lineHeight: 1.55,
-            color: "rgba(245,240,230,0.62)",
-          }}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
-          aria-live="polite"
-        >
-          <span aria-hidden style={{ color: accent, opacity: 0.65 }}>
-            &ldquo;
-          </span>
-          {words.map((word, i) => {
-            const shown = i < visibleCount;
-            return (
-              <motion.span
-                key={`${word}-${i}`}
-                animate={{
-                  opacity: shown ? 1 : 0.16,
-                  y: shown ? 0 : 2,
-                }}
-                transition={{
-                  duration: 0.32,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
-                style={{ display: "inline-block", marginRight: "0.28em" }}
-              >
-                {word}
-              </motion.span>
-            );
-          })}
-          <span aria-hidden style={{ color: accent, opacity: 0.65 }}>
-            &rdquo;
-          </span>
-        </motion.p>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function PlayIcon({ size, accent }: { size: number; accent: string }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="rgba(245,240,230,0.92)"
-      aria-hidden
-      style={{
-        filter: `drop-shadow(0 0 12px ${accent}66) drop-shadow(0 2px 6px rgba(0,0,0,0.5))`,
-        marginLeft: 3,
-      }}
-    >
-      <path d="M8.2 5.4c0-1 1.1-1.7 2-1.1l9.2 6.5c.8.5.8 1.7 0 2.3l-9.2 6.5c-.9.6-2-.1-2-1.1V5.4z" />
-    </svg>
-  );
-}
-
-function StopIcon({ size, accent }: { size: number; accent: string }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="rgba(245,240,230,0.92)"
-      aria-hidden
-      style={{
-        filter: `drop-shadow(0 0 12px ${accent}66) drop-shadow(0 2px 6px rgba(0,0,0,0.5))`,
-      }}
-    >
-      <rect x="6" y="6" width="12" height="12" rx="2.5" />
-    </svg>
-  );
-}
-
-function Spinner({ size, accent }: { size: number; accent: string }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        stroke={accent}
-        strokeOpacity="0.3"
-        strokeWidth="2.5"
-      />
-      <path
-        d="M21 12a9 9 0 0 0-9-9"
-        stroke="white"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      >
-        <animateTransform
-          attributeName="transform"
-          type="rotate"
-          from="0 12 12"
-          to="360 12 12"
-          dur="0.9s"
-          repeatCount="indefinite"
-        />
-      </path>
-    </svg>
+        ))}
+      </div>
+    </motion.div>
   );
 }
