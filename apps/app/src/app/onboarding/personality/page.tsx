@@ -140,206 +140,215 @@ export default function PersonalityPage() {
   return (
     <OnboardingFrame step={1} totalSteps={5} bloomTint={accent}>
       <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 pt-10 pb-14 flex flex-col items-center">
-        {/* Act header — top, quiet */}
-        <motion.div
-          initial={
-            reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }
-          }
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-          className="flex items-center gap-4 self-start"
-        >
-          <span
-            className="inline-block h-px w-10"
-            style={{ background: "rgba(245,240,230,0.2)" }}
-          />
-          <span
-            className="text-[11px] tracking-[0.32em] uppercase"
+        <div className="w-full max-w-[1100px] flex flex-col flex-1">
+          {/* Act header — top-left anchor */}
+          <motion.div
+            initial={
+              reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }
+            }
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+            className="flex items-center gap-4 mb-10"
+          >
+            <span
+              className="inline-block h-px w-10"
+              style={{ background: "rgba(245,240,230,0.2)" }}
+            />
+            <span
+              className="text-[11px] tracking-[0.32em] uppercase"
+              style={{
+                color: "rgba(245,240,230,0.4)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              Act One — The Cast
+            </span>
+          </motion.div>
+
+          {/* Hero — asymmetric editorial spread.
+              Text dominates (60%); glass play button is the focal
+              counterweight on the right. Tight gap so they read as
+              one composition. */}
+          <div
+            className="grid items-center gap-10 lg:gap-12 flex-1"
             style={{
-              color: "rgba(245,240,230,0.4)",
-              fontFamily: "var(--font-mono)",
+              gridTemplateColumns: "minmax(0, 1.35fr) minmax(0, 0.65fr)",
             }}
           >
-            Act One — The Cast
-          </span>
-        </motion.div>
-
-        {/* Centered editorial column — everything stacks on one axis,
-            balanced, magazine-feature scale. */}
-        <div className="w-full max-w-[680px] flex flex-col items-center text-center flex-1 justify-center pt-2">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={previewed.id}
-              initial={
-                reduced
-                  ? false
-                  : { opacity: 0, y: 14, filter: "blur(8px)" }
-              }
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={
-                reduced
-                  ? undefined
-                  : { opacity: 0, y: -8, filter: "blur(6px)" }
-              }
-              transition={{
-                duration: 0.55,
-                ease: [0.2, 0.7, 0.2, 1],
-              }}
-              className="w-full flex flex-col items-center"
-            >
-              {/* Agent number */}
-              <div className="flex flex-col items-center gap-2 mb-6">
-                <span
-                  className="text-[11px] tracking-[0.32em] uppercase"
-                  style={{
-                    color: "rgba(245,240,230,0.4)",
-                    fontFamily: "var(--font-mono)",
+            {/* LEFT — agent no, name, tagline */}
+            <div className="relative min-h-[380px] flex flex-col justify-center">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={previewed.id}
+                  initial={
+                    reduced
+                      ? false
+                      : { opacity: 0, y: 14, filter: "blur(8px)" }
+                  }
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  exit={
+                    reduced
+                      ? undefined
+                      : { opacity: 0, y: -8, filter: "blur(6px)" }
+                  }
+                  transition={{
+                    duration: 0.55,
+                    ease: [0.2, 0.7, 0.2, 1],
                   }}
                 >
-                  Agent No. 0{index + 1}
-                </span>
-                <span
-                  className="inline-block h-px w-10"
-                  style={{ background: "rgba(245,240,230,0.16)" }}
-                />
-              </div>
+                  {/* Agent number */}
+                  <div className="mb-7 flex flex-col gap-2">
+                    <span
+                      className="text-[11px] tracking-[0.32em] uppercase"
+                      style={{
+                        color: "rgba(245,240,230,0.4)",
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      Agent No. 0{index + 1}
+                    </span>
+                    <span
+                      className="inline-block h-px w-12"
+                      style={{ background: "rgba(245,240,230,0.16)" }}
+                    />
+                  </div>
 
-              {/* Name — hero typography */}
-              <h1
-                className="font-serif font-medium"
-                style={{
-                  fontSize: "clamp(4.5rem, 10vw, 8rem)",
-                  lineHeight: 0.94,
-                  letterSpacing: "-0.035em",
-                  color: "rgba(245,240,230,0.98)",
-                }}
-              >
-                {previewed.name}
-                <span style={{ color: accent, opacity: 0.85 }}>.</span>
-              </h1>
-
-              {/* Tagline */}
-              <p
-                className="mt-5 font-serif italic max-w-[34ch]"
-                style={{
-                  fontSize: "clamp(1.0625rem, 1.4vw, 1.25rem)",
-                  lineHeight: 1.35,
-                  color: "rgba(245,240,230,0.6)",
-                }}
-              >
-                {previewed.tagline}
-              </p>
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Glass play button — centered below the editorial */}
-          <div className="mt-12">
-            <GlassPlayButton
-              state={playState}
-              progressRatio={progressRatio}
-              accent={accent}
-              onToggle={toggleListen}
-            />
-          </div>
-        </div>
-
-        {/* Bottom — cast nav + Continue, vertically stacked, centered */}
-        <div className="flex flex-col items-center gap-8 mt-10">
-          {/* Persona nav */}
-          <nav className="flex items-center gap-8">
-            {PERSONALITIES.map((p, i) => {
-              const isCurrent = i === index;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setIndex(i)}
-                  className="relative px-1 pt-1 pb-2"
-                >
-                  <motion.span
-                    className="font-serif inline-block"
+                  {/* Name */}
+                  <h1
+                    className="font-serif font-medium"
                     style={{
-                      fontSize: 17,
-                      letterSpacing: "-0.01em",
-                    }}
-                    animate={{
-                      color: isCurrent
-                        ? "rgba(245,240,230,0.96)"
-                        : "rgba(245,240,230,0.32)",
-                      y: isCurrent ? -1 : 0,
-                    }}
-                    transition={{
-                      duration: 0.45,
-                      ease: [0.2, 0.7, 0.2, 1],
+                      fontSize: "clamp(4.5rem, 10vw, 8.5rem)",
+                      lineHeight: 0.94,
+                      letterSpacing: "-0.035em",
+                      color: "rgba(245,240,230,0.98)",
                     }}
                   >
-                    {p.name}
-                  </motion.span>
+                    {previewed.name}
+                    <span style={{ color: accent, opacity: 0.85 }}>.</span>
+                  </h1>
 
-                  {isCurrent && (
+                  {/* Tagline */}
+                  <p
+                    className="mt-7 font-serif italic max-w-[30ch]"
+                    style={{
+                      fontSize: "clamp(1.125rem, 1.6vw, 1.4375rem)",
+                      lineHeight: 1.3,
+                      color: "rgba(245,240,230,0.6)",
+                    }}
+                  >
+                    {previewed.tagline}
+                  </p>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* RIGHT — premium glass play button */}
+            <div className="relative h-full min-h-[380px] flex items-center justify-center">
+              <GlassPlayButton
+                state={playState}
+                progressRatio={progressRatio}
+                accent={accent}
+                onToggle={toggleListen}
+              />
+            </div>
+          </div>
+
+          {/* Bottom row — cast nav left, Continue pill right */}
+          <div className="relative mt-10 flex items-center justify-between gap-8">
+            <nav className="flex items-center gap-8">
+              {PERSONALITIES.map((p, i) => {
+                const isCurrent = i === index;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setIndex(i)}
+                    className="relative px-1 pt-1 pb-2"
+                  >
                     <motion.span
-                      layoutId="nav-underline"
-                      className="absolute bottom-0 left-0 right-0 h-[1.5px] rounded-full"
+                      className="font-serif inline-block"
                       style={{
-                        background: accent,
-                        boxShadow: `0 0 8px ${accent}, 0 0 18px ${accent}55`,
+                        fontSize: 18,
+                        letterSpacing: "-0.01em",
+                      }}
+                      animate={{
+                        color: isCurrent
+                          ? "rgba(245,240,230,0.96)"
+                          : "rgba(245,240,230,0.32)",
+                        y: isCurrent ? -1 : 0,
                       }}
                       transition={{
-                        type: "spring",
-                        stiffness: 380,
-                        damping: 32,
-                        mass: 0.9,
+                        duration: 0.45,
+                        ease: [0.2, 0.7, 0.2, 1],
                       }}
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </nav>
+                    >
+                      {p.name}
+                    </motion.span>
 
-          {/* Continue pill */}
-          <motion.button
-            type="button"
-            onClick={onContinue}
-            whileHover={
-              reduced
-                ? undefined
-                : {
-                    scale: 1.03,
-                    borderColor: `${accent}cc`,
-                    backgroundColor: `${accent}14`,
-                    boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
-                  }
-            }
-            whileTap={{ scale: 0.97 }}
-            transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
-            className="inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative"
-            style={{
-              fontSize: 16,
-              background: "transparent",
-              border: `1px solid ${accent}66`,
-              color: "rgba(245,240,230,0.96)",
-              boxShadow: `0 0 24px -8px ${accent}88`,
-            }}
-          >
-            <span>
-              Continue as{" "}
-              <span style={{ color: accent }}>{previewed.name}</span>
-            </span>
-            <motion.span
-              aria-hidden
-              className="inline-block"
-              style={{ color: accent }}
-              animate={reduced ? undefined : { x: [0, 4, 0] }}
-              transition={{
-                duration: 1.8,
-                repeat: Infinity,
-                ease: "easeInOut",
+                    {isCurrent && (
+                      <motion.span
+                        layoutId="nav-underline"
+                        className="absolute bottom-0 left-0 right-0 h-[1.5px] rounded-full"
+                        style={{
+                          background: accent,
+                          boxShadow: `0 0 8px ${accent}, 0 0 18px ${accent}55`,
+                        }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 380,
+                          damping: 32,
+                          mass: 0.9,
+                        }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+            <motion.button
+              type="button"
+              onClick={onContinue}
+              whileHover={
+                reduced
+                  ? undefined
+                  : {
+                      scale: 1.03,
+                      borderColor: `${accent}cc`,
+                      backgroundColor: `${accent}14`,
+                      boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
+                    }
+              }
+              whileTap={{ scale: 0.97 }}
+              transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
+              className="inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative"
+              style={{
+                fontSize: 16,
+                background: "transparent",
+                border: `1px solid ${accent}66`,
+                color: "rgba(245,240,230,0.96)",
+                boxShadow: `0 0 24px -8px ${accent}88`,
               }}
             >
-              →
-            </motion.span>
-          </motion.button>
+              <span>
+                Continue as{" "}
+                <span style={{ color: accent }}>{previewed.name}</span>
+              </span>
+              <motion.span
+                aria-hidden
+                className="inline-block"
+                style={{ color: accent }}
+                animate={reduced ? undefined : { x: [0, 4, 0] }}
+                transition={{
+                  duration: 1.8,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              >
+                →
+              </motion.span>
+            </motion.button>
+          </div>
         </div>
       </div>
     </OnboardingFrame>
