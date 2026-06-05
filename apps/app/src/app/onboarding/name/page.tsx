@@ -9,6 +9,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { OnboardingFrame } from "@/components/onboarding-frame";
+import { orbColorsFromAccent, SiriOrb } from "@/components/siri-orb";
 import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
 import {
   buildOnboardingFirstMessage,
@@ -895,9 +896,11 @@ function AuroraBackground({
 }
 
 /* ============================================================
- * FloatingAgent — pinned bottom-right. Glass disc with audio
- * wave bars that pulse while the agent is speaking. Doubles as
- * the start/stop control.
+ * FloatingAgent — pinned bottom-right. Premium Siri-style orb
+ * (rotating conic-gradient blob) wrapped in a glass disc. The
+ * orb's animation speed reflects state: idle drifts slowly,
+ * listening rotates at a calm clip, speaking spins fast and
+ * intense. Doubles as the start/stop control.
  * ============================================================ */
 function FloatingAgent({
   voiceState,
@@ -936,6 +939,16 @@ function FloatingAgent({
     : active || hovered
       ? `${accent}aa`
       : "rgba(255,255,255,0.18)";
+
+  const orbColors = orbColorsFromAccent(accent);
+  // Rotation speed varies by state. Lower = faster.
+  const orbDuration = speaking
+    ? 5
+    : listening
+      ? 16
+      : isConnecting
+        ? 12
+        : 30;
 
   return (
     <div
@@ -1086,21 +1099,46 @@ function FloatingAgent({
           </>
         )}
 
-        {isConnecting ? (
+        {/* Siri orb — rotating conic-gradient blob keyed to accent.
+            Sits inside the glass disc; speeds up when speaking. */}
+        <SiriOrb
+          size="50px"
+          colors={orbColors}
+          animationDuration={orbDuration}
+          className="relative"
+        />
+
+        {/* Error tint overlay */}
+        {errored && (
+          <div
+            aria-hidden
+            className="absolute inset-0 rounded-full pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(circle, rgba(255,140,140,0.25), transparent 70%)",
+            }}
+          />
+        )}
+
+        {/* Connecting spinner — overlays the orb */}
+        {isConnecting && (
           <svg
-            width={24}
-            height={24}
+            width={20}
+            height={20}
             viewBox="0 0 24 24"
             fill="none"
             aria-hidden
-            className="relative"
+            className="absolute"
+            style={{
+              filter: `drop-shadow(0 0 6px ${accent}88)`,
+            }}
           >
             <circle
               cx="12"
               cy="12"
               r="9"
-              stroke={accent}
-              strokeOpacity="0.3"
+              stroke="white"
+              strokeOpacity="0.4"
               strokeWidth="2.5"
             />
             <path
@@ -1119,81 +1157,8 @@ function FloatingAgent({
               />
             </path>
           </svg>
-        ) : (
-          <AudioBars
-            active={active}
-            speaking={speaking}
-            accent={accent}
-            errored={errored}
-          />
         )}
       </motion.button>
-    </div>
-  );
-}
-
-function AudioBars({
-  active,
-  speaking,
-  accent,
-  errored,
-}: {
-  active: boolean;
-  speaking: boolean;
-  accent: string;
-  errored: boolean;
-}) {
-  const reduced = useReducedMotion();
-  const bars = [
-    { phase: 0, peak: 1 },
-    { phase: 0.15, peak: 0.85 },
-    { phase: 0.3, peak: 1 },
-    { phase: 0.45, peak: 0.7 },
-  ];
-
-  return (
-    <div className="relative flex items-center gap-[3px]" aria-hidden>
-      {bars.map((bar, i) => (
-        <motion.span
-          key={i}
-          style={{
-            display: "inline-block",
-            width: 3,
-            borderRadius: 2,
-            background: errored ? "rgba(255,150,150,0.7)" : accent,
-            boxShadow: active ? `0 0 8px ${accent}` : "none",
-            transformOrigin: "center",
-          }}
-          animate={
-            reduced
-              ? { height: 5 }
-              : speaking
-                ? { height: [5, 24 * bar.peak, 5, 16 * bar.peak, 5] }
-                : active
-                  ? { height: [5, 9, 5, 7, 5] }
-                  : { height: 5 }
-          }
-          transition={
-            reduced
-              ? { duration: 0.2 }
-              : speaking
-                ? {
-                    duration: 0.9,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                    delay: bar.phase,
-                  }
-                : active
-                  ? {
-                      duration: 2.4,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: bar.phase,
-                    }
-                  : { duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }
-          }
-        />
-      ))}
     </div>
   );
 }
