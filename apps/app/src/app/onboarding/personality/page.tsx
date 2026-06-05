@@ -3,8 +3,8 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { DarkAvatar } from "@/components/dark-avatar";
 import { OnboardingFrame } from "@/components/onboarding-frame";
-import { PersonalityIcon } from "@/components/personality-icon";
 import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
 
 const STORAGE_KEY = "wrks-onboarding-personality";
@@ -84,11 +84,12 @@ export default function PersonalityPage() {
 
   return (
     <OnboardingFrame step={1} totalSteps={7} bloomTint={accent}>
-      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 pt-16 pb-20 flex flex-col">
+      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 pt-16 pb-20 flex flex-col items-center">
+        <div className="w-full max-w-[1280px] flex flex-col flex-1">
         {/* Hero — typography-led editorial composition. */}
         <div
-          className="grid items-center gap-12 flex-1"
-          style={{ gridTemplateColumns: "minmax(0, 1.35fr) minmax(0, 1fr)" }}
+          className="grid items-center gap-10 lg:gap-16 flex-1"
+          style={{ gridTemplateColumns: "minmax(0, 1.25fr) minmax(0, 1fr)" }}
         >
           {/* LEFT — name + tagline + sample line */}
           <div className="relative min-h-[420px] flex flex-col justify-center">
@@ -215,7 +216,7 @@ export default function PersonalityPage() {
                 }}
                 className="relative"
               >
-                <PersonalityIcon personality={previewed} size="lg" />
+                <DarkAvatar personality={previewed} size={300} />
               </motion.div>
             </AnimatePresence>
           </div>
@@ -337,6 +338,7 @@ export default function PersonalityPage() {
               </button>
             )}
           </div>
+        </div>
         </div>
       </div>
     </OnboardingFrame>
