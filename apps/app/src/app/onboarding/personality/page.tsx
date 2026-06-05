@@ -48,9 +48,14 @@ export default function PersonalityPage() {
     setIndex((i) => (i + 1) % total);
   }, [total]);
 
-  const pick = useCallback(() => {
+  const onContinue = useCallback(() => {
+    // Single-click: commit + advance. The `committed` state survives
+    // page reloads only to colour the previously-picked name in the
+    // nav — it's not an intermediate UI state any more.
+    localStorage.setItem(STORAGE_KEY, previewed.id);
     setCommitted(previewed.id);
-  }, [previewed.id]);
+    router.push("/onboarding/name");
+  }, [previewed.id, router]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -61,25 +66,14 @@ export default function PersonalityPage() {
         e.preventDefault();
         goNext();
       } else if (e.key === "Enter") {
-        if (committed) {
-          localStorage.setItem(STORAGE_KEY, committed);
-          router.push("/onboarding/name");
-        } else {
-          pick();
-        }
+        e.preventDefault();
+        onContinue();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [goPrev, goNext, pick, committed, router]);
+  }, [goPrev, goNext, onContinue]);
 
-  const onContinue = () => {
-    if (!committed) return;
-    localStorage.setItem(STORAGE_KEY, committed);
-    router.push("/onboarding/name");
-  };
-
-  const isPickedThis = committed === previewed.id;
   const accent = previewed.accent;
 
   return (
@@ -291,96 +285,62 @@ export default function PersonalityPage() {
             })}
           </nav>
 
-          {/* Right — pick / continue */}
+          {/* Right — single Continue pill. One click commits + advances. */}
           <div className="flex items-center gap-7">
-            {!isPickedThis && !committed && (
-              <span
-                className="text-[10.5px] tracking-[0.24em] uppercase hidden md:inline-block"
-                style={{
-                  color: "rgba(245,240,230,0.32)",
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
-                ← → to browse
-              </span>
-            )}
+            <span
+              className="text-[10.5px] tracking-[0.24em] uppercase hidden md:inline-block"
+              style={{
+                color: "rgba(245,240,230,0.32)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              ← → to browse
+            </span>
 
-            {isPickedThis ? (
-              <motion.button
-                type="button"
-                onClick={onContinue}
-                initial={reduced ? false : { opacity: 0, x: -4 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
-                whileHover={
-                  reduced
-                    ? undefined
-                    : {
-                        x: 6,
-                        textShadow: `0 0 24px ${accent}66`,
-                      }
+            <motion.button
+              type="button"
+              onClick={onContinue}
+              whileHover={
+                reduced
+                  ? undefined
+                  : {
+                      scale: 1.03,
+                      borderColor: `${accent}cc`,
+                      backgroundColor: `${accent}14`,
+                      boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
+                    }
+              }
+              whileTap={{ scale: 0.97 }}
+              transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
+              className="inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative group"
+              style={{
+                fontSize: 16,
+                background: "transparent",
+                border: `1px solid ${accent}66`,
+                color: "rgba(245,240,230,0.96)",
+                boxShadow: `0 0 24px -8px ${accent}88`,
+              }}
+            >
+              <span>
+                Continue as{" "}
+                <span style={{ color: accent }}>{previewed.name}</span>
+              </span>
+              <motion.span
+                aria-hidden
+                className="inline-block"
+                style={{ color: accent }}
+                animate={
+                  reduced ? undefined : { x: [0, 4, 0] }
                 }
-                className="group inline-flex items-center gap-3 font-serif px-1"
-                style={{
-                  fontSize: "clamp(1.0625rem, 1.4vw, 1.25rem)",
-                  color: "rgba(245,240,230,0.98)",
+                transition={{
+                  duration: 1.8,
+                  repeat: Infinity,
+                  ease: "easeInOut",
                 }}
               >
-                <span>
-                  Continue as{" "}
-                  <span style={{ color: accent }}>{previewed.name}</span>
-                </span>
-                <motion.span
-                  aria-hidden
-                  animate={reduced ? undefined : { x: [0, 4, 0] }}
-                  transition={{
-                    duration: 1.8,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                  style={{ color: accent }}
-                >
-                  →
-                </motion.span>
-              </motion.button>
-            ) : (
-              <motion.button
-                type="button"
-                onClick={pick}
-                whileHover={
-                  reduced
-                    ? undefined
-                    : {
-                        scale: 1.03,
-                        borderColor: `${accent}cc`,
-                        backgroundColor: `${accent}14`,
-                        boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
-                      }
-                }
-                whileTap={{ scale: 0.97 }}
-                transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
-                className="inline-flex items-center gap-2.5 h-12 px-6 rounded-full font-serif relative"
-                style={{
-                  fontSize: 16,
-                  background: "transparent",
-                  border: `1px solid ${accent}66`,
-                  color: "rgba(245,240,230,0.96)",
-                  boxShadow: `0 0 24px -8px ${accent}88`,
-                }}
-              >
-                <span>Choose {previewed.name}</span>
-                <motion.span
-                  aria-hidden
-                  className="inline-block"
-                  style={{ color: accent }}
-                  initial={{ x: 0, opacity: 0.6 }}
-                  whileHover={{ x: 3, opacity: 1 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  →
-                </motion.span>
-              </motion.button>
-            )}
+                →
+              </motion.span>
+            </motion.button>
           </div>
         </div>
         </div>
