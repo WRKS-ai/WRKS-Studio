@@ -166,13 +166,14 @@ export default function PersonalityPage() {
           </motion.div>
 
           {/* Hero — asymmetric editorial spread.
-              Text dominates (60%); glass play button is the focal
-              counterweight on the right. Tight gap so they read as
-              one composition. */}
+              Text on the left, carousel on the right. Grid columns
+              tuned so the right column is wide enough to hold the
+              full carousel (center + flanking ghosts) without
+              clipping. */}
           <div
-            className="grid items-center gap-14 lg:gap-20"
+            className="grid items-center gap-12 lg:gap-16"
             style={{
-              gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 0.7fr)",
+              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.05fr)",
             }}
           >
             {/* LEFT — agent no, name, tagline */}
@@ -257,59 +258,10 @@ export default function PersonalityPage() {
             </div>
           </div>
 
-          {/* Bottom row — cast nav left, Continue pill right */}
-          <div className="relative flex items-center justify-between gap-8">
-            <nav className="flex items-center gap-8">
-              {PERSONALITIES.map((p, i) => {
-                const isCurrent = i === index;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setIndex(i)}
-                    className="relative px-1 pt-1 pb-2"
-                  >
-                    <motion.span
-                      className="font-serif inline-block"
-                      style={{
-                        fontSize: 18,
-                        letterSpacing: "-0.01em",
-                      }}
-                      animate={{
-                        color: isCurrent
-                          ? "rgba(245,240,230,0.96)"
-                          : "rgba(245,240,230,0.32)",
-                        y: isCurrent ? -1 : 0,
-                      }}
-                      transition={{
-                        duration: 0.45,
-                        ease: [0.2, 0.7, 0.2, 1],
-                      }}
-                    >
-                      {p.name}
-                    </motion.span>
-
-                    {isCurrent && (
-                      <motion.span
-                        layoutId="nav-underline"
-                        className="absolute bottom-0 left-0 right-0 h-[1.5px] rounded-full"
-                        style={{
-                          background: accent,
-                          boxShadow: `0 0 8px ${accent}, 0 0 18px ${accent}55`,
-                        }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 380,
-                          damping: 32,
-                          mass: 0.9,
-                        }}
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-
+          {/* Bottom — Continue pill centered. The orb carousel
+              (prev/current/next visible) makes the persona nav
+              redundant: side orbs are clickable navigation. */}
+          <div className="relative flex items-center justify-center">
             <motion.button
               type="button"
               onClick={onContinue}
@@ -649,7 +601,7 @@ function OrbCarousel({
   return (
     <div
       className="relative flex items-center justify-center"
-      style={{ width: 540, height: 320 }}
+      style={{ width: 660, height: 320 }}
     >
       {PERSONALITIES.map((p, i) => {
         const diff = ((i - currentIndex) % total + total) % total;
@@ -665,23 +617,23 @@ function OrbCarousel({
 
         if (!isCurrent) {
           if (isNext) {
-            x = 260;
-            scale = 0.55;
-            opacity = 0.32;
-            blur = 8;
+            x = 215;
+            scale = 0.62;
+            opacity = 0.55;
+            blur = 3;
             z = 2;
           } else if (isPrev) {
-            x = -260;
-            scale = 0.55;
-            opacity = 0.32;
-            blur = 8;
+            x = -215;
+            scale = 0.62;
+            opacity = 0.55;
+            blur = 3;
             z = 2;
           } else {
             // far / opposite — hidden behind
             x = 0;
-            scale = 0.3;
+            scale = 0.4;
             opacity = 0;
-            blur = 24;
+            blur = 16;
             z = 1;
           }
         }
