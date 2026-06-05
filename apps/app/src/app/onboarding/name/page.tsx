@@ -3,23 +3,26 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { OnboardingShell } from "@/components/onboarding-shell";
-import { PersonalityIcon } from "@/components/personality-icon";
-import {
-  PERSONALITIES,
-  type PersonalityId,
-} from "@/lib/personalities";
+import { DarkAvatar } from "@/components/dark-avatar";
+import { OnboardingFrame } from "@/components/onboarding-frame";
+import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
+
+// /onboarding/name v2 — typography-first, asymmetric.
+// Question is the hero; the input picks up the same editorial scale
+// directly below it. Suggested names sit as quiet serif italic chips
+// further down. Dark avatar of the chosen personality floats on the
+// right to remind the user who they're naming.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
 const MAX_LEN = 24;
 
-const HEADING = ["What", "should", "they", "answer", "to?"];
-
 export default function NamePage() {
   const router = useRouter();
   const reduced = useReducedMotion();
-  const [personalityId, setPersonalityId] = useState<PersonalityId | null>(null);
+  const [personalityId, setPersonalityId] = useState<PersonalityId | null>(
+    null,
+  );
   const [name, setName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -36,7 +39,7 @@ export default function NamePage() {
 
   useEffect(() => {
     if (personalityId && inputRef.current) {
-      const t = setTimeout(() => inputRef.current?.focus(), 600);
+      const t = setTimeout(() => inputRef.current?.focus(), 700);
       return () => clearTimeout(t);
     }
   }, [personalityId]);
@@ -46,6 +49,7 @@ export default function NamePage() {
   const personality = PERSONALITIES.find((p) => p.id === personalityId)!;
   const trimmed = name.trim();
   const canContinue = trimmed.length > 0 && trimmed.length <= MAX_LEN;
+  const accent = personality.accent;
 
   const onContinue = () => {
     if (!canContinue) return;
@@ -61,201 +65,324 @@ export default function NamePage() {
   };
 
   return (
-    <OnboardingShell tint={personality.glow}>
-      <div className="w-full max-w-[900px] flex flex-col items-center text-center">
-        {/* Step indicator — same pattern across all 4 acts */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-          className="text-[10px] tracking-[0.28em] uppercase text-ink-dim font-mono mb-2"
-        >
-          Act Two of Four · Name them
-        </motion.div>
-
-        {/* Progress dots */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-          className="flex items-center gap-2 mt-3 mb-8 sm:mb-10"
-        >
-          {[0, 1, 2, 3].map((i) => (
-            <span
-              key={i}
-              className="block rounded-full transition-all duration-300"
-              style={{
-                width: i === 1 ? 26 : 8,
-                height: 3,
-                background:
-                  i < 1
-                    ? personality.accent
-                    : i === 1
-                      ? "rgba(255,255,255,0.65)"
-                      : "rgba(255,255,255,0.18)",
-              }}
-            />
-          ))}
-        </motion.div>
-
-        {/* Hero heading */}
-        <h1 className="font-serif font-medium tracking-tight text-[clamp(2.5rem,5.5vw,4.5rem)] leading-[0.98] text-ink max-w-[18ch]">
-          {HEADING.map((word, i) => (
-            <motion.span
-              key={`${word}-${i}`}
-              initial={reduced ? false : { opacity: 0, y: 18, filter: "blur(10px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              transition={{
-                delay: 0.1 + i * 0.06,
-                duration: 0.8,
-                ease: [0.2, 0.7, 0.2, 1],
-              }}
-              className="inline-block mr-[0.25em]"
-            >
-              {word}
-            </motion.span>
-          ))}
-        </h1>
-
-        {/* Subheading — the agent introduces itself */}
-        <motion.p
-          initial={reduced ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.7, ease: "easeOut" }}
-          className="mt-5 max-w-md text-[15px] sm:text-base text-ink-muted leading-relaxed font-serif italic"
-        >
-          They&rsquo;ll answer to anything. Pick something you&rsquo;d love to say out loud.
-        </motion.p>
-
-        {/* Personality orb — the agent waiting to be named */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0, scale: 0.88 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.7, duration: 0.9, ease: [0.2, 0.7, 0.2, 1] }}
-          className="mt-12 sm:mt-16"
-        >
-          <PersonalityIcon personality={personality} size="lg" />
-        </motion.div>
-
-        {/* Hero-scale name input — no card, no border, just an underline */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.95, duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
-          className="mt-10 sm:mt-12 w-full max-w-[600px] relative"
-        >
-          <input
-            ref={inputRef}
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value.slice(0, MAX_LEN))}
-            onKeyDown={onKeyDown}
-            placeholder={personality.suggestedNames[0]}
-            maxLength={MAX_LEN}
-            autoComplete="off"
-            spellCheck={false}
-            aria-label="Agent name"
-            className="w-full bg-transparent border-0 outline-none text-center font-serif font-medium tracking-tight text-[clamp(2.75rem,6vw,4.5rem)] leading-[1.0] text-ink placeholder:text-ink-dim/30 pt-2 pb-3"
-            style={{ caretColor: personality.accent }}
-          />
+    <OnboardingFrame step={2} totalSteps={7} bloomTint={accent}>
+      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 pt-16 pb-20 flex flex-col items-center">
+        <div className="w-full max-w-[1280px] flex flex-col flex-1">
+          {/* Hero composition */}
           <div
-            className="h-px transition-all duration-500"
+            className="grid items-center gap-10 lg:gap-16 flex-1"
             style={{
-              background: `linear-gradient(to right, transparent 0%, ${trimmed ? personality.accent : "rgba(255,255,255,0.15)"} 50%, transparent 100%)`,
-              opacity: trimmed ? 0.9 : 0.5,
-              transform: trimmed ? "scaleX(1)" : "scaleX(0.6)",
-              transformOrigin: "center",
+              gridTemplateColumns: "minmax(0, 1.25fr) minmax(0, 1fr)",
             }}
-          />
-          {trimmed.length > MAX_LEN - 4 && (
-            <div className="mt-2 text-[10px] tracking-[0.2em] uppercase text-ink-dim font-mono">
-              {trimmed.length} / {MAX_LEN}
-            </div>
-          )}
-        </motion.div>
-
-        {/* Suggested names — serif italic inline, no pill chrome */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.2, duration: 0.6 }}
-          className="mt-8 sm:mt-10 flex items-center justify-center gap-3 sm:gap-5 flex-wrap"
-        >
-          <span className="text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono">
-            Or try
-          </span>
-          {personality.suggestedNames.map((suggested, i) => {
-            const picked = trimmed.toLowerCase() === suggested.toLowerCase();
-            return (
-              <motion.button
-                key={suggested}
-                type="button"
-                onClick={() => {
-                  setName(suggested);
-                  inputRef.current?.focus();
-                }}
-                initial={reduced ? false : { opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 1.25 + i * 0.05,
-                  duration: 0.4,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
-                whileHover={reduced ? undefined : { y: -1 }}
-                whileTap={{ scale: 0.97 }}
-                className="font-serif italic text-[clamp(0.95rem,1.2vw,1.0625rem)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md px-1.5 py-0.5"
+          >
+            {/* LEFT — eyebrow + question + input + suggestions */}
+            <div className="relative min-h-[460px] flex flex-col justify-center">
+              {/* Eyebrow */}
+              <motion.div
+                initial={
+                  reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }
+                }
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+                className="text-[11px] tracking-[0.28em] uppercase mb-7 flex items-center gap-3"
                 style={{
-                  color: picked ? personality.accent : "rgb(163 163 163)",
-                  textDecoration: picked ? "underline" : "none",
-                  textUnderlineOffset: "4px",
+                  color: "rgba(245,240,230,0.42)",
+                  fontFamily: "var(--font-mono)",
                 }}
               >
-                {suggested}
-              </motion.button>
-            );
-          })}
-        </motion.div>
+                <span
+                  className="inline-block h-px w-7"
+                  style={{
+                    background: accent,
+                    boxShadow: `0 0 6px ${accent}`,
+                  }}
+                />
+                <span>The name · 02 of 07</span>
+              </motion.div>
 
-        {/* Inline continue + back */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.45, duration: 0.6 }}
-          className="mt-12 sm:mt-14 h-12 flex items-center justify-center gap-8"
-        >
-          <button
-            type="button"
-            onClick={() => router.push("/onboarding/personality")}
-            className="text-[12px] tracking-[0.18em] uppercase text-ink-dim hover:text-ink-muted transition-colors font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md px-1.5 py-1"
+              {/* Question — hero scale */}
+              <motion.h1
+                initial={
+                  reduced ? false : { opacity: 0, y: 14, filter: "blur(8px)" }
+                }
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{
+                  duration: 0.7,
+                  delay: 0.05,
+                  ease: [0.2, 0.7, 0.2, 1],
+                }}
+                className="font-serif font-medium"
+                style={{
+                  fontSize: "clamp(3rem, 5.6vw, 4.75rem)",
+                  lineHeight: 0.98,
+                  letterSpacing: "-0.03em",
+                  color: "rgba(245,240,230,0.98)",
+                }}
+              >
+                Name your{" "}
+                <span style={{ color: accent }}>
+                  {personality.name}
+                  <span style={{ color: accent }}>.</span>
+                </span>
+              </motion.h1>
+
+              {/* Italic prompt below */}
+              <motion.p
+                initial={reduced ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.6,
+                  delay: 0.18,
+                  ease: [0.2, 0.7, 0.2, 1],
+                }}
+                className="mt-5 font-serif italic max-w-[40ch]"
+                style={{
+                  fontSize: "clamp(1.0625rem, 1.4vw, 1.25rem)",
+                  lineHeight: 1.45,
+                  color: "rgba(245,240,230,0.55)",
+                }}
+              >
+                They&rsquo;ll answer to anything. Pick something you&rsquo;d
+                love to say out loud.
+              </motion.p>
+
+              {/* INPUT — editorial scale, no border, animated underline */}
+              <motion.div
+                initial={reduced ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.65,
+                  delay: 0.3,
+                  ease: [0.2, 0.7, 0.2, 1],
+                }}
+                className="mt-12 max-w-[600px] relative"
+              >
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value.slice(0, MAX_LEN))}
+                  onKeyDown={onKeyDown}
+                  placeholder={personality.suggestedNames[0]}
+                  maxLength={MAX_LEN}
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-label="Agent name"
+                  className="w-full bg-transparent border-0 outline-none text-left font-serif font-medium pb-3"
+                  style={{
+                    fontSize: "clamp(2.5rem, 4.6vw, 4rem)",
+                    lineHeight: 1,
+                    letterSpacing: "-0.025em",
+                    color: "rgba(245,240,230,0.98)",
+                    caretColor: accent,
+                  }}
+                />
+                {/* Underline — left-aligned, grows on focus/value */}
+                <motion.div
+                  className="h-px origin-left"
+                  style={{ background: accent, boxShadow: `0 0 8px ${accent}` }}
+                  animate={{
+                    scaleX: trimmed ? 1 : 0.18,
+                    opacity: trimmed ? 0.9 : 0.4,
+                  }}
+                  transition={{
+                    duration: 0.5,
+                    ease: [0.2, 0.7, 0.2, 1],
+                  }}
+                />
+                {/* Char counter — quiet, only when close to limit */}
+                {trimmed.length > MAX_LEN - 4 && (
+                  <div
+                    className="absolute right-0 top-2 text-[10.5px] tracking-[0.22em] uppercase"
+                    style={{
+                      color: "rgba(245,240,230,0.42)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    {trimmed.length} / {MAX_LEN}
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Suggested names */}
+              <motion.div
+                initial={reduced ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.6,
+                  delay: 0.5,
+                  ease: [0.2, 0.7, 0.2, 1],
+                }}
+                className="mt-8 flex items-center flex-wrap gap-x-7 gap-y-3"
+              >
+                <span
+                  className="text-[10.5px] tracking-[0.28em] uppercase"
+                  style={{
+                    color: "rgba(245,240,230,0.32)",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  Or try
+                </span>
+                {personality.suggestedNames.map((suggested, i) => {
+                  const picked =
+                    trimmed.toLowerCase() === suggested.toLowerCase();
+                  return (
+                    <motion.button
+                      key={suggested}
+                      type="button"
+                      onClick={() => {
+                        setName(suggested);
+                        inputRef.current?.focus();
+                      }}
+                      initial={reduced ? false : { opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        delay: 0.55 + i * 0.05,
+                        duration: 0.4,
+                        ease: [0.2, 0.7, 0.2, 1],
+                      }}
+                      whileHover={reduced ? undefined : { y: -1 }}
+                      whileTap={{ scale: 0.97 }}
+                      className="font-serif italic relative"
+                      style={{
+                        fontSize: "clamp(1rem, 1.3vw, 1.125rem)",
+                        color: picked
+                          ? accent
+                          : "rgba(245,240,230,0.55)",
+                        transition: "color 0.3s ease",
+                      }}
+                    >
+                      {suggested}
+                      {picked && (
+                        <motion.span
+                          layoutId="suggested-underline"
+                          className="absolute -bottom-1 left-0 right-0 h-[1.5px] rounded-full"
+                          style={{
+                            background: accent,
+                            boxShadow: `0 0 6px ${accent}`,
+                          }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 380,
+                            damping: 32,
+                            mass: 0.9,
+                          }}
+                        />
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </motion.div>
+            </div>
+
+            {/* RIGHT — dark avatar of the chosen personality */}
+            <div className="relative h-full min-h-[420px] flex items-center justify-center">
+              <motion.div
+                initial={
+                  reduced
+                    ? false
+                    : { opacity: 0, scale: 0.94, filter: "blur(8px)" }
+                }
+                animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                transition={{
+                  duration: 0.8,
+                  delay: 0.15,
+                  ease: [0.2, 0.7, 0.2, 1],
+                }}
+                className="relative"
+              >
+                <DarkAvatar personality={personality} size={300} />
+              </motion.div>
+            </div>
+          </div>
+
+          {/* Bottom row — Back link + Continue pill */}
+          <motion.div
+            initial={reduced ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.6,
+              delay: 0.6,
+              ease: [0.2, 0.7, 0.2, 1],
+            }}
+            className="relative mt-12 flex items-center justify-between gap-8"
           >
-            ← Back
-          </button>
-          {canContinue && (
+            {/* Left — back link */}
+            <button
+              type="button"
+              onClick={() => router.push("/onboarding/personality")}
+              className="text-[11px] tracking-[0.24em] uppercase transition-colors hover:opacity-100"
+              style={{
+                color: "rgba(245,240,230,0.4)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              ← Back
+            </button>
+
+            {/* Right — Continue pill (matches personality page) */}
             <motion.button
               type="button"
               onClick={onContinue}
-              initial={reduced ? false : { opacity: 0, x: -4 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.35, ease: [0.2, 0.7, 0.2, 1] }}
-              whileHover={reduced ? undefined : { x: 4 }}
-              whileTap={{ scale: 0.98 }}
-              className="group inline-flex items-center gap-3 font-serif text-[clamp(1.125rem,1.6vw,1.375rem)] text-ink hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md px-2 py-1"
+              disabled={!canContinue}
+              whileHover={
+                reduced || !canContinue
+                  ? undefined
+                  : {
+                      scale: 1.03,
+                      borderColor: `${accent}cc`,
+                      backgroundColor: `${accent}14`,
+                      boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
+                    }
+              }
+              whileTap={canContinue ? { scale: 0.97 } : undefined}
+              transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
+              className="inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative disabled:cursor-not-allowed"
+              style={{
+                fontSize: 16,
+                background: "transparent",
+                border: `1px solid ${
+                  canContinue ? `${accent}66` : "rgba(245,240,230,0.1)"
+                }`,
+                color: canContinue
+                  ? "rgba(245,240,230,0.96)"
+                  : "rgba(245,240,230,0.3)",
+                boxShadow: canContinue
+                  ? `0 0 24px -8px ${accent}88`
+                  : "none",
+                opacity: canContinue ? 1 : 0.65,
+              }}
             >
               <span>
-                Continue as{" "}
-                <span style={{ color: personality.accent }}>{trimmed}</span>
+                {canContinue ? (
+                  <>
+                    Continue as{" "}
+                    <span style={{ color: accent }}>{trimmed}</span>
+                  </>
+                ) : (
+                  "Type a name to continue"
+                )}
               </span>
-              <motion.span
-                aria-hidden
-                animate={reduced ? undefined : { x: [0, 3, 0] }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-              >
-                →
-              </motion.span>
+              {canContinue && (
+                <motion.span
+                  aria-hidden
+                  className="inline-block"
+                  style={{ color: accent }}
+                  animate={reduced ? undefined : { x: [0, 4, 0] }}
+                  transition={{
+                    duration: 1.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                >
+                  →
+                </motion.span>
+              )}
             </motion.button>
-          )}
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
-    </OnboardingShell>
+    </OnboardingFrame>
   );
 }
