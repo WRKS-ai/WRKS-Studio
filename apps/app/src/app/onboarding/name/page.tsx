@@ -237,6 +237,12 @@ function NamePageInner({
         suggestedNames: personality.suggestedNames,
       });
 
+      // NOTE: not overriding tts.voiceId — the live agent speaks in
+      // whatever voice is configured on its ElevenLabs dashboard
+      // entry. Forcing the public Adam/Matilda/Sarah/Roger IDs from
+      // src/lib/voices.ts here would replace the dashboard voice
+      // with a generic one. The personality-page samples are just
+      // previews; the live voice stays canonical to the dashboard.
       await conversation.startSession({
         signedUrl,
         connectionType: "websocket",
@@ -246,7 +252,6 @@ function NamePageInner({
             firstMessage,
             language: "en",
           },
-          tts: { voiceId: voice.elevenLabsId },
         },
       });
     } catch (err) {
