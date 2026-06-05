@@ -1,39 +1,49 @@
 "use client";
 
+import {
+  ConversationProvider,
+  useConversation,
+  useConversationClientTool,
+} from "@elevenlabs/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { OnboardingFrame } from "@/components/onboarding-frame";
 import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
-import { SAMPLE_SCRIPT, VOICES } from "@/lib/voices";
+import {
+  buildOnboardingFirstMessage,
+  buildOnboardingSystemPrompt,
+} from "@/lib/voice-agent";
+import { VOICES } from "@/lib/voices";
 
-// Act Two — The Name. Composed as a script page from a play.
-// LEFT speaks (small glass mic icon + script-style word-by-word
-// quote). RIGHT replies (editorial-scale input + chips + continue).
+// Act Two — The Name. The live ElevenLabs Conversational AI agent
+// takes over here. On mount we (try to) open a WebSocket session
+// with the agent overridden to use the user's chosen voice +
+// personality. The agent greets the user, listens for a name, and
+// fills the input via the set_agent_name client tool. The user can
+// also continue by voice ("let's go") via continue_onboarding.
 //
-// The voice was chosen in Act One — no big orb here. Instead the
-// voice manifests as language (italic serif word reveal) and as a
-// small glass speaking icon whose audio-wave bars pulse while the
-// agent is "speaking". Audio auto-plays on mount where the browser
-// allows; mic icon is the tap-to-replay control either way.
+// Composition is a script page from a play: LEFT speaks (the agent),
+// RIGHT replies (the user's typed/spoken name + Continue). Both
+// columns are anchored by glass speaker pills whose accent rim
+// lights up when that speaker has the floor.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
 const MAX_LEN = 24;
-const WORD_STEP = 0.13; // seconds between word reveals
 
-type PlayState = "idle" | "loading" | "playing" | "error";
+type VoiceState =
+  | "idle"
+  | "connecting"
+  | "listening"
+  | "speaking"
+  | "error";
 
 export default function NamePage() {
   const router = useRouter();
-  const reduced = useReducedMotion();
-
   const [personalityId, setPersonalityId] = useState<PersonalityId | null>(
     null,
   );
-  const [name, setName] = useState("");
-  const [inputFocused, setInputFocused] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(PERSONALITY_KEY) as PersonalityId | null;
@@ -42,117 +52,224 @@ export default function NamePage() {
       return;
     }
     setPersonalityId(saved);
-    const savedName = localStorage.getItem(NAME_KEY);
-    if (savedName) setName(savedName);
   }, [router]);
 
-  const personality = personalityId
-    ? PERSONALITIES.find((p) => p.id === personalityId)!
-    : null;
-  const pairedVoice = personality
-    ? VOICES.find((v) => v.id === personality.voiceId)!
-    : null;
+  if (!personalityId) return null;
 
-  /* ── Audio ── */
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [playState, setPlayState] = useState<PlayState>("idle");
-  const autoPlayAttempted = useRef(false);
+  const personality = PERSONALITIES.find((p) => p.id === personalityId)!;
+  const voice = VOICES.find((v) => v.id === personality.voiceId)!;
 
-  const stopAudio = useCallback(() => {
-    const el = audioRef.current;
-    if (el) {
-      el.pause();
-      el.currentTime = 0;
-    }
-    audioRef.current = null;
-    setPlayState("idle");
+  return (
+    <ConversationProvider>
+      <NamePageInner personality={personality} voice={voice} />
+    </ConversationProvider>
+  );
+}
+
+function NamePageInner({
+  personality,
+  voice,
+}: {
+  personality: (typeof PERSONALITIES)[number];
+  voice: (typeof VOICES)[number];
+}) {
+  const router = useRouter();
+  const reduced = useReducedMotion();
+  const accent = personality.accent;
+
+  const [name, setName] = useState("");
+  const [inputFocused, setInputFocused] = useState(false);
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [agentLine, setAgentLine] = useState("");
+  const [userLine, setUserLine] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const startAttempted = useRef(false);
+  const continuing = useRef(false);
+
+  // Hydrate previously-typed name
+  useEffect(() => {
+    const savedName = localStorage.getItem(NAME_KEY);
+    if (savedName) setName(savedName);
   }, []);
 
-  const playSample = useCallback(() => {
-    if (!pairedVoice) return;
-    stopAudio();
-    setPlayState("loading");
-    const el = new Audio(pairedVoice.sample);
-    audioRef.current = el;
-    el.addEventListener("ended", () => {
-      setPlayState("idle");
-      audioRef.current = null;
-    });
-    el.addEventListener("error", () => {
-      setPlayState("error");
-      audioRef.current = null;
-    });
-    el
-      .play()
-      .then(() => setPlayState("playing"))
-      .catch(() => {
-        // Browser blocked autoplay — mic icon stays tappable.
-        setPlayState("idle");
-        audioRef.current = null;
+  /* ── ElevenLabs conversation ── */
+  const conversation = useConversation({
+    onConnect: () => {
+      setVoiceState("listening");
+      setVoiceError(null);
+    },
+    onDisconnect: () => {
+      setVoiceState("idle");
+    },
+    onError: (err: unknown) => {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : "Voice connection error";
+      setVoiceError(msg);
+      setVoiceState("error");
+    },
+    onMessage: (event) => {
+      const source = (event as { source?: string }).source;
+      const text =
+        (event as { message?: string }).message ??
+        (event as { text?: string }).text ??
+        "";
+      if (!text) return;
+      if (source === "user") setUserLine(text);
+      else if (source === "ai") setAgentLine(text);
+    },
+    onModeChange: (event) => {
+      const mode = (event as { mode?: string }).mode;
+      if (mode === "speaking") setVoiceState("speaking");
+      else if (mode === "listening") setVoiceState("listening");
+    },
+  });
+
+  /* ── Client tools the agent calls ── */
+  useConversationClientTool("set_agent_name", (params) => {
+    const value = String(params?.name ?? "").trim();
+    if (!value) return "I didn't catch a name. Say it again?";
+    const trimmed = value.slice(0, MAX_LEN);
+    setName(trimmed);
+    setTimeout(() => inputRef.current?.focus(), 0);
+    return `Filled the name field with ${trimmed}.`;
+  });
+
+  useConversationClientTool("continue_onboarding", () => {
+    const final = name.trim();
+    if (!final) {
+      return "There's no name in the field yet. Pick one first.";
+    }
+    if (continuing.current) return "Already going.";
+    continuing.current = true;
+    localStorage.setItem(NAME_KEY, final);
+    // Small delay so the agent's voice confirmation lands before
+    // the route changes
+    setTimeout(() => {
+      try {
+      conversation.endSession();
+    } catch {
+      /* ignore */
+    }
+      router.push("/onboarding/intake");
+    }, 900);
+    return `Continuing as ${final}.`;
+  });
+
+  /* ── Start / stop session ── */
+  const startVoice = useCallback(async () => {
+    setVoiceError(null);
+    setVoiceState("connecting");
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const res = await fetch("/api/voice/signed-url");
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(
+          body?.error ?? `Signed-URL endpoint returned ${res.status}`,
+        );
+      }
+      const { signedUrl } = (await res.json()) as { signedUrl: string };
+
+      const systemPrompt = buildOnboardingSystemPrompt({
+        personality,
+        voiceName: voice.name,
+        suggestedNames: personality.suggestedNames,
       });
-  }, [pairedVoice, stopAudio]);
+      const firstMessage = buildOnboardingFirstMessage({
+        personality,
+        suggestedNames: personality.suggestedNames,
+      });
 
-  const toggleListen = useCallback(() => {
-    if (playState === "playing" || playState === "loading") stopAudio();
-    else playSample();
-  }, [playState, playSample, stopAudio]);
+      await conversation.startSession({
+        signedUrl,
+        connectionType: "websocket",
+        overrides: {
+          agent: {
+            prompt: { prompt: systemPrompt },
+            firstMessage,
+            language: "en",
+          },
+          tts: { voiceId: voice.elevenLabsId },
+        },
+      });
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Couldn't start voice";
+      setVoiceError(msg);
+      setVoiceState("error");
+    }
+  }, [personality, voice, conversation]);
 
-  // Auto-greet on mount
+  const stopVoice = useCallback(async () => {
+    try {
+      await conversation.endSession();
+    } catch {
+      // ignore
+    }
+    setVoiceState("idle");
+  }, [conversation]);
+
+  // Try to auto-start once on mount. Browsers may block the mic
+  // permission without a fresh user gesture on THIS page — in that
+  // case startVoice() rejects and we fall back to "tap to start"
+  // mode (mic icon stays the explicit tap target).
   useEffect(() => {
-    if (!pairedVoice || autoPlayAttempted.current) return;
-    autoPlayAttempted.current = true;
-    const t = setTimeout(playSample, 650);
+    if (startAttempted.current) return;
+    startAttempted.current = true;
+    const t = setTimeout(() => {
+      startVoice();
+    }, 600);
     return () => clearTimeout(t);
-  }, [pairedVoice, playSample]);
+  }, [startVoice]);
 
   useEffect(() => {
-    return () => stopAudio();
-  }, [stopAudio]);
+    return () => {
+      try {
+      conversation.endSession();
+    } catch {
+      /* ignore */
+    }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Focus the input once the opener has revealed
+  // Focus the input shortly after mount so manual typing is also
+  // possible from the start
   useEffect(() => {
-    if (!personalityId) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 1500);
+    const t = setTimeout(() => inputRef.current?.focus(), 1600);
     return () => clearTimeout(t);
-  }, [personalityId]);
+  }, []);
 
-  // Split SAMPLE_SCRIPT into the hero opener (first short sentence,
-  // typically "Hey, you.") and the supporting passage.
-  const firstStop = SAMPLE_SCRIPT.indexOf(". ");
-  const heroLine =
-    firstStop >= 0 ? SAMPLE_SCRIPT.slice(0, firstStop + 1) : SAMPLE_SCRIPT;
-  const passageText =
-    firstStop >= 0 ? SAMPLE_SCRIPT.slice(firstStop + 2) : "";
-  const heroWords = heroLine.split(/\s+/);
-  const passageWords = passageText.split(/\s+/).filter(Boolean);
-  const heroDelayBase = 0.35;
-  const passageDelayBase =
-    heroDelayBase + heroWords.length * WORD_STEP + 0.25;
-  const totalRevealSec =
-    passageDelayBase + passageWords.length * WORD_STEP + 0.4;
-
-  // The mic icon's bars are active while EITHER the audio is playing
-  // OR the on-page reveal is still running.
-  const [revealing, setRevealing] = useState(true);
-  useEffect(() => {
-    const t = setTimeout(
-      () => setRevealing(false),
-      totalRevealSec * 1000,
-    );
-    return () => clearTimeout(t);
-  }, [totalRevealSec]);
-
-  if (!personality || !pairedVoice) return null;
+  const onMicClick = () => {
+    if (voiceState === "listening" || voiceState === "speaking") {
+      stopVoice();
+    } else {
+      startVoice();
+    }
+  };
 
   const trimmed = name.trim();
   const canContinue = trimmed.length > 0 && trimmed.length <= MAX_LEN;
-  const accent = personality.accent;
-  const speaking = revealing || playState === "playing" || playState === "loading";
+  const agentActive =
+    voiceState === "speaking" ||
+    voiceState === "listening" ||
+    voiceState === "connecting";
 
   const onContinue = () => {
     if (!canContinue) return;
-    stopAudio();
     localStorage.setItem(NAME_KEY, trimmed);
+    try {
+      conversation.endSession();
+    } catch {
+      /* ignore */
+    }
     router.push("/onboarding/intake");
   };
 
@@ -163,11 +280,23 @@ export default function NamePage() {
     }
   };
 
+  // Speaker-pill copy reflects the live session state. Falls back
+  // to a neutral "ready" line when voice is unavailable.
+  const agentStatusLabel =
+    voiceState === "connecting"
+      ? "Connecting"
+      : voiceState === "speaking"
+        ? "Speaking"
+        : voiceState === "listening"
+          ? "Listening"
+          : voiceState === "error"
+            ? "Tap to retry"
+            : "Tap to talk";
+
   return (
     <OnboardingFrame step={2} totalSteps={5} bloomTint={accent}>
       <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center">
-        {/* Ambient accent bloom on the LEFT side — gives the speaking
-            agent a soft "stage light" without resorting to a card */}
+        {/* Ambient accent bloom — pulses while the agent has the floor */}
         <motion.div
           aria-hidden
           className="absolute pointer-events-none"
@@ -183,12 +312,12 @@ export default function NamePage() {
           animate={
             reduced
               ? { opacity: 0.7 }
-              : speaking
+              : agentActive
                 ? { opacity: [0.55, 0.95, 0.55], scale: [1, 1.06, 1] }
                 : { opacity: 0.45, scale: 1 }
           }
           transition={
-            speaking && !reduced
+            agentActive && !reduced
               ? { duration: 3.6, repeat: Infinity, ease: "easeInOut" }
               : { duration: 0.8, ease: [0.2, 0.7, 0.2, 1] }
           }
@@ -228,7 +357,7 @@ export default function NamePage() {
           >
             {/* LEFT — the agent speaks */}
             <div className="relative flex flex-col gap-8">
-              {/* Speaker row: glass speaking icon + glass label pill */}
+              {/* Speaker row: live mic + glass label pill with status */}
               <motion.div
                 initial={reduced ? false : { opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -236,12 +365,11 @@ export default function NamePage() {
                 className="flex items-center gap-3"
               >
                 <SpeakingIcon
-                  active={speaking}
-                  state={playState}
+                  voiceState={voiceState}
                   accent={accent}
-                  onClick={toggleListen}
+                  onClick={onMicClick}
                 />
-                <SpeakerPill accent={accent} active={speaking}>
+                <SpeakerPill accent={accent} active={agentActive}>
                   <span
                     className="text-[11px] tracking-[0.32em] uppercase"
                     style={{
@@ -267,13 +395,40 @@ export default function NamePage() {
                       fontFamily: "var(--font-mono)",
                     }}
                   >
-                    {pairedVoice.name} speaking
+                    {voice.name}
                   </span>
+                  <span
+                    style={{
+                      color: "rgba(245,240,230,0.28)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 11,
+                    }}
+                  >
+                    ·
+                  </span>
+                  <motion.span
+                    key={agentStatusLabel}
+                    initial={
+                      reduced ? false : { opacity: 0, y: 2 }
+                    }
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-[11px] tracking-[0.28em] uppercase"
+                    style={{
+                      color: agentActive
+                        ? accent
+                        : voiceState === "error"
+                          ? "rgba(255,150,150,0.7)"
+                          : "rgba(245,240,230,0.4)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    {agentStatusLabel}
+                  </motion.span>
                 </SpeakerPill>
               </motion.div>
 
-              {/* Hero opener — editorial scale with a soft open-quote
-                  glyph anchoring it as a spoken line */}
+              {/* Hero opener — editorial quote */}
               <div className="relative">
                 <motion.span
                   aria-hidden
@@ -296,7 +451,18 @@ export default function NamePage() {
                 >
                   &ldquo;
                 </motion.span>
-                <h1
+                <motion.h1
+                  initial={
+                    reduced
+                      ? false
+                      : { opacity: 0, y: 14, filter: "blur(6px)" }
+                  }
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  transition={{
+                    duration: 0.8,
+                    delay: 0.35,
+                    ease: [0.2, 0.7, 0.2, 1],
+                  }}
                   className="relative font-serif font-medium"
                   style={{
                     fontSize: "clamp(3.5rem, 7vw, 6.5rem)",
@@ -305,77 +471,100 @@ export default function NamePage() {
                     color: "rgba(245,240,230,0.98)",
                   }}
                 >
-                  {heroWords.map((word, i) => {
-                    const isLast = i === heroWords.length - 1;
-                    return (
-                      <motion.span
-                        key={i}
-                        initial={
-                          reduced
-                            ? false
-                            : { opacity: 0, y: 12, filter: "blur(4px)" }
-                        }
-                        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                        transition={{
-                          duration: 0.65,
-                          delay: heroDelayBase + i * WORD_STEP,
-                          ease: [0.2, 0.7, 0.2, 1],
-                        }}
-                        style={{
-                          display: "inline-block",
-                          marginRight: "0.22em",
-                        }}
-                      >
-                        {isLast ? (
-                          <>
-                            {word.replace(/\.$/, "")}
-                            <span
-                              style={{ color: accent, opacity: 0.85 }}
-                            >
-                              .
-                            </span>
-                          </>
-                        ) : (
-                          word
-                        )}
-                      </motion.span>
-                    );
-                  })}
-                </h1>
+                  Hey, you
+                  <span style={{ color: accent, opacity: 0.85 }}>.</span>
+                </motion.h1>
               </div>
 
-              {/* Supporting passage — italic serif body */}
+              {/* Live agent transcript — swaps in when the agent
+                  is speaking. Falls back to a static prompt line
+                  while connecting / idle. */}
               <div
-                className="font-serif italic"
+                className="relative font-serif italic"
                 style={{
                   fontSize: "clamp(1.1875rem, 1.65vw, 1.5rem)",
                   lineHeight: 1.5,
                   color: "rgba(245,240,230,0.66)",
                   maxWidth: "38ch",
+                  minHeight: "5.4em",
                 }}
               >
-                <p>
-                  {passageWords.map((word, i) => (
-                    <motion.span
-                      key={i}
+                <AnimatePresence mode="wait">
+                  {agentLine ? (
+                    <motion.p
+                      key={agentLine}
                       initial={
-                        reduced ? false : { opacity: 0, y: 4 }
+                        reduced ? false : { opacity: 0, y: 6, filter: "blur(4px)" }
                       }
-                      animate={{ opacity: 1, y: 0 }}
+                      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                      exit={
+                        reduced
+                          ? undefined
+                          : { opacity: 0, y: -4, filter: "blur(4px)" }
+                      }
                       transition={{
                         duration: 0.5,
-                        delay: passageDelayBase + i * WORD_STEP,
                         ease: [0.2, 0.7, 0.2, 1],
                       }}
-                      style={{
-                        display: "inline-block",
-                        marginRight: "0.28em",
-                      }}
                     >
-                      {word}
-                    </motion.span>
-                  ))}
-                </p>
+                      {agentLine}
+                    </motion.p>
+                  ) : voiceState === "error" ? (
+                    <motion.p
+                      key="error"
+                      initial={reduced ? false : { opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.4 }}
+                      style={{ color: "rgba(255,170,170,0.7)" }}
+                    >
+                      Voice didn&rsquo;t start —{" "}
+                      <button
+                        type="button"
+                        onClick={startVoice}
+                        className="underline underline-offset-4"
+                        style={{ color: "rgba(255,200,200,0.85)" }}
+                      >
+                        retry
+                      </button>{" "}
+                      or just type a name on the right.
+                      {voiceError && (
+                        <span
+                          className="block mt-2 text-[11px] tracking-[0.18em] uppercase"
+                          style={{
+                            color: "rgba(255,170,170,0.45)",
+                            fontFamily: "var(--font-mono)",
+                            fontStyle: "normal",
+                          }}
+                        >
+                          {voiceError}
+                        </span>
+                      )}
+                    </motion.p>
+                  ) : voiceState === "connecting" ? (
+                    <motion.p
+                      key="connecting"
+                      initial={reduced ? false : { opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      Opening a line…
+                    </motion.p>
+                  ) : (
+                    <motion.p
+                      key="ready"
+                      initial={reduced ? false : { opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.5, delay: 0.5 }}
+                    >
+                      Glad you picked me. From here on, I&rsquo;ll guide
+                      you through every brief, every reply, every line.
+                      But first — name me.
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
@@ -392,7 +581,10 @@ export default function NamePage() {
                 }}
                 className="mb-9"
               >
-                <SpeakerPill accent={accent} active={inputFocused}>
+                <SpeakerPill
+                  accent={accent}
+                  active={inputFocused || voiceState === "listening"}
+                >
                   <span
                     className="text-[11px] tracking-[0.32em] uppercase"
                     style={{
@@ -423,8 +615,7 @@ export default function NamePage() {
                 </SpeakerPill>
               </motion.div>
 
-              {/* Input — editorial scale, accent underline + soft
-                  accent backdrop that warms up as you type */}
+              {/* Input — editorial scale, fills when agent calls set_agent_name */}
               <motion.div
                 initial={reduced ? false : { opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -435,8 +626,7 @@ export default function NamePage() {
                 }}
                 className="w-full max-w-[640px] relative"
               >
-                {/* Soft accent bloom under the input — fades in once
-                    there's a typed name. Adds warmth without a frame. */}
+                {/* Warm accent bloom under input — fades in as name fills */}
                 <motion.div
                   aria-hidden
                   className="absolute pointer-events-none"
@@ -453,30 +643,41 @@ export default function NamePage() {
                   }}
                   transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
                 />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={name}
-                  onChange={(e) =>
-                    setName(e.target.value.slice(0, MAX_LEN))
-                  }
-                  onKeyDown={onKeyDown}
-                  onFocus={() => setInputFocused(true)}
-                  onBlur={() => setInputFocused(false)}
-                  placeholder={personality.suggestedNames[0]}
-                  maxLength={MAX_LEN}
-                  autoComplete="off"
-                  spellCheck={false}
-                  aria-label="Agent name"
-                  className="relative w-full bg-transparent border-0 outline-none text-left font-serif font-medium pb-4 placeholder:opacity-25"
-                  style={{
-                    fontSize: "clamp(3rem, 5.4vw, 5rem)",
-                    lineHeight: 1,
-                    letterSpacing: "-0.03em",
-                    color: "rgba(245,240,230,0.98)",
-                    caretColor: accent,
-                  }}
-                />
+                <AnimatePresence mode="popLayout">
+                  <motion.input
+                    key={name || "empty"}
+                    ref={inputRef}
+                    type="text"
+                    value={name}
+                    onChange={(e) =>
+                      setName(e.target.value.slice(0, MAX_LEN))
+                    }
+                    onKeyDown={onKeyDown}
+                    onFocus={() => setInputFocused(true)}
+                    onBlur={() => setInputFocused(false)}
+                    placeholder={personality.suggestedNames[0]}
+                    maxLength={MAX_LEN}
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-label="Agent name"
+                    initial={
+                      reduced ? false : { opacity: 0.6, y: 6 }
+                    }
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.35,
+                      ease: [0.2, 0.7, 0.2, 1],
+                    }}
+                    className="relative w-full bg-transparent border-0 outline-none text-left font-serif font-medium pb-4 placeholder:opacity-25"
+                    style={{
+                      fontSize: "clamp(3rem, 5.4vw, 5rem)",
+                      lineHeight: 1,
+                      letterSpacing: "-0.03em",
+                      color: "rgba(245,240,230,0.98)",
+                      caretColor: accent,
+                    }}
+                  />
+                </AnimatePresence>
                 <motion.div
                   className="relative h-px origin-left"
                   style={{
@@ -492,6 +693,29 @@ export default function NamePage() {
                     ease: [0.2, 0.7, 0.2, 1],
                   }}
                 />
+
+                {/* User transcript — what the agent heard you say */}
+                <AnimatePresence>
+                  {userLine && (
+                    <motion.div
+                      key={userLine}
+                      initial={
+                        reduced ? false : { opacity: 0, y: 4 }
+                      }
+                      animate={{ opacity: 0.65, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.4 }}
+                      className="absolute -bottom-7 left-0 text-[11px] tracking-[0.22em] uppercase"
+                      style={{
+                        color: "rgba(245,240,230,0.45)",
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      Heard: &ldquo;{userLine}&rdquo;
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {trimmed.length > MAX_LEN - 4 && (
                   <div
                     className="absolute right-0 top-1 text-[10.5px] tracking-[0.22em] uppercase"
@@ -514,7 +738,7 @@ export default function NamePage() {
                   delay: 0.95,
                   ease: [0.2, 0.7, 0.2, 1],
                 }}
-                className="mt-8 flex items-center flex-wrap gap-x-7 gap-y-3"
+                className="mt-12 flex items-center flex-wrap gap-x-7 gap-y-3"
               >
                 <span
                   className="text-[10.5px] tracking-[0.28em] uppercase"
@@ -642,7 +866,7 @@ export default function NamePage() {
                       </AnimatePresence>
                     </>
                   ) : (
-                    "Type a name to continue"
+                    "Say a name, or type one"
                   )}
                 </span>
                 {canContinue && (
@@ -674,7 +898,11 @@ export default function NamePage() {
             <button
               type="button"
               onClick={() => {
-                stopAudio();
+                try {
+      conversation.endSession();
+    } catch {
+      /* ignore */
+    }
                 router.push("/onboarding/personality");
               }}
               className="text-[11px] tracking-[0.24em] uppercase transition-opacity hover:opacity-80"
@@ -694,9 +922,8 @@ export default function NamePage() {
 
 /* ============================================================
  * SpeakerPill — frosted glass capsule that wraps the speaker label
- * row on both sides. Subtle accent rim when "active" (agent
- * speaking on the left, input focused on the right) so the page
- * reads as a script with two speakers exchanging the floor.
+ * row on both sides. Accent rim lights up when that speaker has
+ * the floor (agent speaking on left, input focused on right).
  * ============================================================ */
 function SpeakerPill({
   children,
@@ -716,7 +943,6 @@ function SpeakerPill({
         WebkitBackdropFilter: "blur(18px)",
       }}
       animate={{
-        borderColor: active ? `${accent}88` : "rgba(255,255,255,0.14)",
         boxShadow: active
           ? `0 0 22px -4px ${accent}66, inset 0 1px 0 rgba(255,255,255,0.18)`
           : "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 12px -6px rgba(0,0,0,0.4)",
@@ -724,7 +950,6 @@ function SpeakerPill({
       transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
       initial={false}
     >
-      {/* Border layer */}
       <motion.div
         aria-hidden
         className="absolute inset-0 rounded-full pointer-events-none"
@@ -743,31 +968,37 @@ function SpeakerPill({
 }
 
 /* ============================================================
- * SpeakingIcon — glass disc that contains three audio-wave bars.
- * Doubles as the play/stop control: tap it to replay the voice
- * greeting (or stop a playing one). Bars animate while `active`
- * (audio playing OR on-page reveal still running).
+ * SpeakingIcon — glass disc with audio-wave bars. Behaves as the
+ * live agent state indicator AND the tap-to-start/stop control.
+ * Bars animate while listening or speaking; spinner while
+ * connecting; quiet bars while idle.
  * ============================================================ */
 function SpeakingIcon({
-  active,
-  state,
+  voiceState,
   accent,
   onClick,
 }: {
-  active: boolean;
-  state: PlayState;
+  voiceState: VoiceState;
   accent: string;
   onClick: () => void;
 }) {
   const reduced = useReducedMotion();
   const [hovered, setHovered] = useState(false);
-  const isLoading = state === "loading";
+  const isConnecting = voiceState === "connecting";
+  const active = voiceState === "listening" || voiceState === "speaking";
+  const errored = voiceState === "error";
 
   const bars = [
     { phase: 0, peak: 0.95 },
     { phase: 0.18, peak: 1 },
     { phase: 0.36, peak: 0.7 },
   ];
+
+  const ringColor = errored
+    ? "rgba(255,150,150,0.7)"
+    : active || hovered
+      ? `${accent}aa`
+      : "rgba(255,255,255,0.18)";
 
   return (
     <motion.button
@@ -785,7 +1016,7 @@ function SpeakingIcon({
         background: `linear-gradient(180deg, rgba(255,255,255,0.07) 0%, ${accent}14 100%)`,
         backdropFilter: "blur(22px)",
         WebkitBackdropFilter: "blur(22px)",
-        border: `1px solid ${active || hovered ? `${accent}aa` : "rgba(255,255,255,0.18)"}`,
+        border: `1px solid ${ringColor}`,
         boxShadow:
           active || hovered
             ? `0 0 28px -4px ${accent}aa, inset 0 1px 0 rgba(255,255,255,0.24)`
@@ -793,7 +1024,9 @@ function SpeakingIcon({
         transition: "border-color 0.4s ease, box-shadow 0.4s ease",
       }}
       aria-label={
-        state === "playing" ? "Stop greeting" : "Replay greeting"
+        voiceState === "speaking" || voiceState === "listening"
+          ? "Stop the conversation"
+          : "Start the conversation"
       }
     >
       {/* Specular highlight */}
@@ -827,15 +1060,12 @@ function SpeakingIcon({
         }}
       />
 
-      {/* "Tap to hear" invitation ring when idle */}
-      {!reduced && !active && (
+      {/* "Tap to talk" invitation ring while idle */}
+      {!reduced && voiceState === "idle" && (
         <motion.div
           aria-hidden
           className="absolute rounded-full pointer-events-none"
-          style={{
-            inset: -8,
-            border: `1px solid ${accent}44`,
-          }}
+          style={{ inset: -8, border: `1px solid ${accent}44` }}
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: [0, 0.55, 0], scale: [0.94, 1.06, 1.18] }}
           transition={{
@@ -847,8 +1077,22 @@ function SpeakingIcon({
         />
       )}
 
-      {/* Loading spinner */}
-      {isLoading ? (
+      {/* Speaking pulse ring */}
+      {active && !reduced && (
+        <motion.div
+          aria-hidden
+          className="absolute rounded-full pointer-events-none"
+          style={{ inset: 0, border: `1px solid ${accent}66` }}
+          animate={{ scale: [1, 1.18, 1.32], opacity: [0.55, 0.18, 0] }}
+          transition={{
+            duration: 2.2,
+            repeat: Infinity,
+            ease: "easeOut",
+          }}
+        />
+      )}
+
+      {isConnecting ? (
         <svg
           width={20}
           height={20}
@@ -890,7 +1134,7 @@ function SpeakingIcon({
                 display: "inline-block",
                 width: 2.5,
                 borderRadius: 2,
-                background: accent,
+                background: errored ? "rgba(255,150,150,0.7)" : accent,
                 boxShadow: active ? `0 0 6px ${accent}` : "none",
                 transformOrigin: "center",
               }}

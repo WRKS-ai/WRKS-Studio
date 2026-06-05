@@ -123,6 +123,77 @@ export function buildFirstMessage({
   return PERSONALITY_GREETING[personality.id](agentName, brand);
 }
 
+/* ============================================================
+ * Onboarding — Act Two (/onboarding/name).
+ * The agent meets the user for the first time, asks to be named,
+ * and (optionally) walks them onward. Different shape than the
+ * studio agent: no deliverables yet, no refine tools, just a
+ * naming + continue handoff.
+ * ============================================================ */
+
+const ONBOARDING_GREETING: Record<
+  PersonalityId,
+  (suggested: string) => string
+> = {
+  maven: (s) =>
+    `I'm yours. Before we keep going — what should I be called? ${s} works, or pick your own.`,
+  sage: (s) =>
+    `Hello. Glad you picked me. To get us started — what would you like to call me? ${s}, perhaps, or anything that feels right.`,
+  spark: (s) =>
+    `Hey! Glad you picked me. First thing — what's my name? ${s}? Or you tell me.`,
+  echo: (s) =>
+    `You picked me. Good. I need a name first. ${s} works for me, but it's your call.`,
+};
+
+export function buildOnboardingSystemPrompt({
+  personality,
+  voiceName,
+  suggestedNames,
+}: {
+  personality: Personality;
+  voiceName: string;
+  suggestedNames: string[];
+}): string {
+  const voiceRule = PERSONALITY_VOICE[personality.id];
+  const suggestionList = suggestedNames.join(", ");
+
+  return `You are the WRKS Studio agent meeting your new user for the very first time on the naming page of onboarding.
+
+CHARACTER
+You are a ${personality.name} personality: ${personality.tagline}
+Voice character: ${voiceRule}
+You speak as ${voiceName}.
+
+YOUR JOB ON THIS PAGE
+1. Your first message has already greeted them — DO NOT re-introduce yourself or repeat the greeting. Wait for them to speak.
+2. The user needs to give you a name. Listen for any name they say.
+3. The MOMENT the user says a name (whether it's one of the suggestions ${suggestionList}, or anything they invent), call set_agent_name(name) IMMEDIATELY with their exact choice. Then confirm warmly in voice in 8–12 words ("${suggestionList.split(",")[0]?.trim()} it is. Good pick.").
+4. After they name you, briefly tell them they can hit Continue, or just say "continue" / "let's go" / "ready" / "go" — and you'll advance by calling continue_onboarding().
+5. If the user is silent for a beat, gently suggest one of: ${suggestionList}. Phrase it like an offer ("Want me to be ${suggestionList.split(",")[0]?.trim()}?").
+
+TOOLS
+- set_agent_name(name): fills the name field on screen with the user's chosen name. ALWAYS call this when the user gives you any name. Do not interpret or change the spelling — pass their words verbatim.
+- continue_onboarding(): advances to the next page. Only call when the user explicitly indicates they're ready ("continue", "let's go", "ready", "next", "go").
+
+STYLE
+- Voice replies under 14 words.
+- Sound natural, not scripted. Use contractions.
+- No filler ("um", "actually"), no restating their request.
+- Don't ask multiple questions in one reply.
+- Land each turn cleanly.`;
+}
+
+export function buildOnboardingFirstMessage({
+  personality,
+  suggestedNames,
+}: {
+  personality: Personality;
+  suggestedNames: string[];
+}): string {
+  const suggestion = suggestedNames[0] ?? "Atlas";
+  return ONBOARDING_GREETING[personality.id](suggestion);
+}
+
 export function readDeliverableAsText({
   kind,
   stored,
