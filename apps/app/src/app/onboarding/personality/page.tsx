@@ -250,9 +250,10 @@ export default function PersonalityPage() {
             </div>
           </div>
 
-          {/* Bottom row — Cast nav + Continue pill */}
-          <div className="relative mt-12 flex items-center justify-between gap-8">
-            <nav className="flex items-center gap-8">
+          {/* Bottom row — persona nav absolutely-left, Continue button
+              centered horizontally on the page. */}
+          <div className="relative mt-12 flex items-center justify-center min-h-[48px]">
+            <nav className="absolute left-0 flex items-center gap-8">
               {PERSONALITIES.map((p, i) => {
                 const isCurrent = i === index;
                 return (
@@ -303,60 +304,48 @@ export default function PersonalityPage() {
               })}
             </nav>
 
-            <div className="flex items-center gap-7">
-              <span
-                className="text-[10.5px] tracking-[0.24em] uppercase hidden md:inline-block"
-                style={{
-                  color: "rgba(245,240,230,0.32)",
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
-                ← → browse · space listen
+            <motion.button
+              type="button"
+              onClick={onContinue}
+              whileHover={
+                reduced
+                  ? undefined
+                  : {
+                      scale: 1.03,
+                      borderColor: `${accent}cc`,
+                      backgroundColor: `${accent}14`,
+                      boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
+                    }
+              }
+              whileTap={{ scale: 0.97 }}
+              transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
+              className="inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative"
+              style={{
+                fontSize: 16,
+                background: "transparent",
+                border: `1px solid ${accent}66`,
+                color: "rgba(245,240,230,0.96)",
+                boxShadow: `0 0 24px -8px ${accent}88`,
+              }}
+            >
+              <span>
+                Continue as{" "}
+                <span style={{ color: accent }}>{previewed.name}</span>
               </span>
-
-              <motion.button
-                type="button"
-                onClick={onContinue}
-                whileHover={
-                  reduced
-                    ? undefined
-                    : {
-                        scale: 1.03,
-                        borderColor: `${accent}cc`,
-                        backgroundColor: `${accent}14`,
-                        boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
-                      }
-                }
-                whileTap={{ scale: 0.97 }}
-                transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
-                className="inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative"
-                style={{
-                  fontSize: 16,
-                  background: "transparent",
-                  border: `1px solid ${accent}66`,
-                  color: "rgba(245,240,230,0.96)",
-                  boxShadow: `0 0 24px -8px ${accent}88`,
+              <motion.span
+                aria-hidden
+                className="inline-block"
+                style={{ color: accent }}
+                animate={reduced ? undefined : { x: [0, 4, 0] }}
+                transition={{
+                  duration: 1.8,
+                  repeat: Infinity,
+                  ease: "easeInOut",
                 }}
               >
-                <span>
-                  Continue as{" "}
-                  <span style={{ color: accent }}>{previewed.name}</span>
-                </span>
-                <motion.span
-                  aria-hidden
-                  className="inline-block"
-                  style={{ color: accent }}
-                  animate={reduced ? undefined : { x: [0, 4, 0] }}
-                  transition={{
-                    duration: 1.8,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                >
-                  →
-                </motion.span>
-              </motion.button>
-            </div>
+                →
+              </motion.span>
+            </motion.button>
           </div>
         </div>
       </div>
@@ -600,48 +589,64 @@ function GlassPlayButton({
         </svg>
       )}
 
-      {/* Center icon */}
-      <div className="relative" style={{ color: "white" }}>
+      {/* Center icon — refined geometry, accent glow */}
+      <motion.div
+        className="relative"
+        animate={{
+          opacity: hovered ? 1 : 0.78,
+          scale: hovered ? 1.06 : 1,
+        }}
+        transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
+      >
         {isLoading ? (
-          <Spinner size={44} accent={accent} />
+          <Spinner size={42} accent={accent} />
         ) : isPlaying ? (
-          <StopIcon size={56} />
+          <StopIcon size={32} accent={accent} />
         ) : (
-          <PlayIcon size={72} />
+          <PlayIcon size={44} accent={accent} />
         )}
-      </div>
+      </motion.div>
     </motion.button>
   );
 }
 
-function PlayIcon({ size }: { size: number }) {
+// Refined play triangle — thin outlined glyph (rounded vertices)
+// rather than a solid white slab. Soft accent drop-shadow gives it
+// depth without screaming "playback button".
+function PlayIcon({ size, accent }: { size: number; accent: string }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="white"
+      fill="rgba(245,240,230,0.92)"
       aria-hidden
       style={{
-        filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.4))",
-        marginLeft: 4,
+        filter: `drop-shadow(0 0 12px ${accent}66) drop-shadow(0 2px 6px rgba(0,0,0,0.5))`,
+        marginLeft: 3,
       }}
     >
-      <path d="M8 5v14l11-7z" />
+      <path
+        d="M8.2 5.4c0-1 1.1-1.7 2-1.1l9.2 6.5c.8.5.8 1.7 0 2.3l-9.2 6.5c-.9.6-2-.1-2-1.1V5.4z"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
-function StopIcon({ size }: { size: number }) {
+function StopIcon({ size, accent }: { size: number; accent: string }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="white"
+      fill="rgba(245,240,230,0.92)"
       aria-hidden
-      style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.4))" }}
+      style={{
+        filter: `drop-shadow(0 0 12px ${accent}66) drop-shadow(0 2px 6px rgba(0,0,0,0.5))`,
+      }}
     >
-      <rect x="6" y="6" width="12" height="12" rx="2" />
+      <rect x="6" y="6" width="12" height="12" rx="2.5" />
     </svg>
   );
 }
