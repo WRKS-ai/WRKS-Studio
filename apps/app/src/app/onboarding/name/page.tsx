@@ -480,10 +480,10 @@ function NamePageInner({
               className="relative w-full cursor-text"
               onClick={() => inputRef.current?.focus()}
             >
-              {/* Display layer — when filled, the type is rendered as
-                  a bg-clip gradient (white at top fading toward the
-                  accent at the bottom) so the letterforms feel lit
-                  rather than flat-colored. */}
+              {/* Display layer — when filled, the inner span carries a
+                  bg-clip gradient (white at top fading toward the
+                  accent at the bottom of the letterforms) so the
+                  type feels lit rather than flat-colored. */}
               <div
                 aria-hidden
                 className="font-serif font-medium text-center select-none pointer-events-none"
@@ -491,17 +491,11 @@ function NamePageInner({
                   fontSize: "clamp(4rem, 11vw, 10rem)",
                   lineHeight: 1,
                   letterSpacing: trimmed ? "0.06em" : "-0.04em",
-                  color: trimmed ? "transparent" : "rgba(245,240,230,0.42)",
-                  backgroundImage: trimmed
-                    ? `linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.85) 45%, ${accent} 105%)`
-                    : undefined,
-                  WebkitBackgroundClip: trimmed ? "text" : undefined,
-                  backgroundClip: trimmed ? "text" : undefined,
                   filter: trimmed
                     ? `drop-shadow(0 0 40px ${accent}55)`
                     : undefined,
                   transition:
-                    "letter-spacing 0.6s cubic-bezier(0.2,0.7,0.2,1), color 0.4s ease, filter 0.6s ease",
+                    "letter-spacing 0.6s cubic-bezier(0.2,0.7,0.2,1), filter 0.6s ease",
                   textTransform: trimmed ? "none" : "lowercase",
                 }}
               >
@@ -524,7 +518,14 @@ function NamePageInner({
                         duration: 0.55,
                         ease: [0.2, 0.7, 0.2, 1],
                       }}
-                      style={{ display: "inline-block" }}
+                      style={{
+                        display: "inline-block",
+                        backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,240,230,0.92) 45%, ${accent} 110%)`,
+                        WebkitBackgroundClip: "text",
+                        backgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        color: "transparent",
+                      }}
                     >
                       {display}
                     </motion.span>
@@ -537,7 +538,10 @@ function NamePageInner({
                         reduced ? undefined : { opacity: 0, y: 6 }
                       }
                       transition={{ duration: 0.4 }}
-                      style={{ display: "inline-block" }}
+                      style={{
+                        display: "inline-block",
+                        color: "rgba(245,240,230,0.42)",
+                      }}
                     >
                       name me
                       <span
