@@ -176,8 +176,10 @@ export default function PersonalityPage() {
               gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.05fr)",
             }}
           >
-            {/* LEFT — agent no, name, tagline */}
-            <div className="relative">
+            {/* LEFT — agent no, name, tagline, continue.
+                The Continue button sits under the tagline, anchored
+                to the text column rather than centered on the page. */}
+            <div className="relative flex flex-col items-start">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={previewed.id}
@@ -196,6 +198,7 @@ export default function PersonalityPage() {
                     duration: 0.55,
                     ease: [0.2, 0.7, 0.2, 1],
                   }}
+                  className="w-full"
                 >
                   {/* Agent number */}
                   <div className="mb-8 flex flex-col gap-2">
@@ -241,69 +244,100 @@ export default function PersonalityPage() {
                   </p>
                 </motion.div>
               </AnimatePresence>
-            </div>
 
-            {/* RIGHT — orb carousel.
-                Prev / current / next visible at once; side orbs are
-                blurred + scaled-down ghosts in their own accent.
-                Clicking a side orb navigates to that agent. */}
-            <div className="relative flex items-center justify-center overflow-visible">
-              <OrbCarousel
-                currentIndex={index}
-                setIndex={setIndex}
-                playState={playState}
-                progressRatio={progressRatio}
-                onTogglePlay={toggleListen}
-              />
-            </div>
-          </div>
-
-          {/* Bottom — Continue pill centered. The orb carousel
-              (prev/current/next visible) makes the persona nav
-              redundant: side orbs are clickable navigation. */}
-          <div className="relative flex items-center justify-center">
-            <motion.button
-              type="button"
-              onClick={onContinue}
-              whileHover={
-                reduced
-                  ? undefined
-                  : {
-                      scale: 1.03,
-                      borderColor: `${accent}cc`,
-                      backgroundColor: `${accent}14`,
-                      boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
-                    }
-              }
-              whileTap={{ scale: 0.97 }}
-              transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
-              className="inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative"
-              style={{
-                fontSize: 16,
-                background: "transparent",
-                border: `1px solid ${accent}66`,
-                color: "rgba(245,240,230,0.96)",
-                boxShadow: `0 0 24px -8px ${accent}88`,
-              }}
-            >
-              <span>
-                Continue as{" "}
-                <span style={{ color: accent }}>{previewed.name}</span>
-              </span>
-              <motion.span
-                aria-hidden
-                className="inline-block"
-                style={{ color: accent }}
-                animate={reduced ? undefined : { x: [0, 4, 0] }}
-                transition={{
-                  duration: 1.8,
-                  repeat: Infinity,
-                  ease: "easeInOut",
+              {/* Continue — anchored under the text column.
+                  Border uses the personality accent at 80% alpha so
+                  the color reads cleanly (was 40% which looked muddy
+                  / reddish against the dark canvas). */}
+              <motion.button
+                type="button"
+                onClick={onContinue}
+                whileHover={
+                  reduced
+                    ? undefined
+                    : {
+                        scale: 1.03,
+                        backgroundColor: `${accent}14`,
+                        boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
+                      }
+                }
+                whileTap={{ scale: 0.97 }}
+                transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
+                className="mt-12 inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative"
+                style={{
+                  fontSize: 16,
+                  background: "transparent",
+                  border: `1.5px solid ${accent}cc`,
+                  color: "rgba(245,240,230,0.96)",
+                  boxShadow: `0 0 26px -6px ${accent}aa`,
                 }}
               >
-                →
-              </motion.span>
-            </motion.button>
+                <span>
+                  Continue as{" "}
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={previewed.id}
+                      initial={reduced ? false : { opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={reduced ? undefined : { opacity: 0, y: -4 }}
+                      transition={{
+                        duration: 0.3,
+                        ease: [0.2, 0.7, 0.2, 1],
+                      }}
+                      style={{ color: accent, display: "inline-block" }}
+                    >
+                      {previewed.name}
+                    </motion.span>
+                  </AnimatePresence>
+                </span>
+                <motion.span
+                  aria-hidden
+                  className="inline-block"
+                  style={{ color: accent }}
+                  animate={reduced ? undefined : { x: [0, 4, 0] }}
+                  transition={{
+                    duration: 1.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                >
+                  →
+                </motion.span>
+              </motion.button>
+            </div>
+
+            {/* RIGHT — orb carousel with glass nav arrows.
+                Prev / current / next visible at once; side orbs are
+                blurred + scaled-down ghosts in their own accent.
+                Clicking a side orb OR an arrow navigates between
+                agents. Wrapper allows overflow so arrows can sit
+                just outside the side orbs without clipping. */}
+            <div className="relative flex items-center justify-center overflow-visible">
+              <div
+                className="relative flex items-center justify-center"
+                style={{ width: 660, height: 320 }}
+              >
+                <GlassNavArrow
+                  direction="left"
+                  accent={accent}
+                  onClick={goPrev}
+                  style={{ position: "absolute", left: -28, zIndex: 20 }}
+                />
+                <OrbCarousel
+                  currentIndex={index}
+                  setIndex={setIndex}
+                  playState={playState}
+                  progressRatio={progressRatio}
+                  onTogglePlay={toggleListen}
+                />
+                <GlassNavArrow
+                  direction="right"
+                  accent={accent}
+                  onClick={goNext}
+                  style={{ position: "absolute", right: -28, zIndex: 20 }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -665,6 +699,78 @@ function OrbCarousel({
         );
       })}
     </div>
+  );
+}
+
+/* ============================================================
+ * GlassNavArrow — small frosted-glass disc flanking the carousel.
+ * Mirrors the language of the main glass play button (linear
+ * gradient + backdrop blur + accent rim) at a quieter scale so it
+ * reads as supplementary navigation, not a competing CTA.
+ * ============================================================ */
+function GlassNavArrow({
+  direction,
+  accent,
+  onClick,
+  style,
+}: {
+  direction: "left" | "right";
+  accent: string;
+  onClick: () => void;
+  style?: React.CSSProperties;
+}) {
+  const reduced = useReducedMotion();
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      onHoverStart={() => setHovered(true)}
+      onHoverEnd={() => setHovered(false)}
+      whileTap={{ scale: 0.92 }}
+      whileHover={reduced ? undefined : { scale: 1.08, y: -1 }}
+      transition={{ type: "spring", stiffness: 280, damping: 22 }}
+      className="grid place-items-center rounded-full"
+      style={{
+        width: 46,
+        height: 46,
+        background: `linear-gradient(180deg, rgba(255,255,255,0.06) 0%, ${accent}10 100%)`,
+        backdropFilter: "blur(22px)",
+        WebkitBackdropFilter: "blur(22px)",
+        border: hovered
+          ? `1px solid ${accent}aa`
+          : "1px solid rgba(255,255,255,0.16)",
+        boxShadow: hovered
+          ? `0 0 26px -4px ${accent}aa, inset 0 1px 0 rgba(255,255,255,0.22)`
+          : "inset 0 1px 0 rgba(255,255,255,0.14), 0 10px 24px -8px rgba(0,0,0,0.5)",
+        transition: "border-color 0.3s ease, box-shadow 0.3s ease",
+        ...style,
+      }}
+      aria-label={direction === "left" ? "Previous agent" : "Next agent"}
+    >
+      <svg
+        width={18}
+        height={18}
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden
+        style={{
+          color: "rgba(245,240,230,0.85)",
+          transform: direction === "left" ? "rotate(180deg)" : "none",
+          filter: hovered ? `drop-shadow(0 0 6px ${accent}aa)` : "none",
+          transition: "filter 0.3s ease",
+        }}
+      >
+        <path
+          d="M9 6l6 6-6 6"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </motion.button>
   );
 }
 
