@@ -2,29 +2,27 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { OnboardingFrame } from "@/components/onboarding-frame";
 import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
-import { VOICES } from "@/lib/voices";
+import { SAMPLE_SCRIPT, VOICES } from "@/lib/voices";
 
-// Act Two — The Name. Composed like a script page from a play.
-// LEFT column: the agent speaks (small glass mic icon + a
-// word-by-word italic serif quote that animates in as if being
-// said aloud). RIGHT column: the user replies (editorial-scale
-// input at the same visual weight as "Maven." in Act One, with
-// suggested names and Continue).
+// Act Two — The Name. Composed as a script page from a play.
+// LEFT speaks (small glass mic icon + script-style word-by-word
+// quote). RIGHT replies (editorial-scale input + chips + continue).
 //
-// The big glass orb that owned Act One isn't repeated here. The
-// voice was chosen in Act One; on this page the voice manifests
-// as language — typography is doing the talking now.
+// The voice was chosen in Act One — no big orb here. Instead the
+// voice manifests as language (italic serif word reveal) and as a
+// small glass speaking icon whose audio-wave bars pulse while the
+// agent is "speaking". Audio auto-plays on mount where the browser
+// allows; mic icon is the tap-to-replay control either way.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
 const MAX_LEN = 24;
-// Per-word reveal pace (seconds). ~95ms keeps the quote alive for
-// roughly 4 seconds — long enough to feel spoken, short enough that
-// the user can act before it finishes.
-const WORD_STEP = 0.095;
+const WORD_STEP = 0.13; // seconds between word reveals
+
+type PlayState = "idle" | "loading" | "playing" | "error";
 
 export default function NamePage() {
   const router = useRouter();
@@ -34,6 +32,7 @@ export default function NamePage() {
     null,
   );
   const [name, setName] = useState("");
+  const [inputFocused, setInputFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -47,22 +46,112 @@ export default function NamePage() {
     if (savedName) setName(savedName);
   }, [router]);
 
+  const personality = personalityId
+    ? PERSONALITIES.find((p) => p.id === personalityId)!
+    : null;
+  const pairedVoice = personality
+    ? VOICES.find((v) => v.id === personality.voiceId)!
+    : null;
+
+  /* ── Audio ── */
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playState, setPlayState] = useState<PlayState>("idle");
+  const autoPlayAttempted = useRef(false);
+
+  const stopAudio = useCallback(() => {
+    const el = audioRef.current;
+    if (el) {
+      el.pause();
+      el.currentTime = 0;
+    }
+    audioRef.current = null;
+    setPlayState("idle");
+  }, []);
+
+  const playSample = useCallback(() => {
+    if (!pairedVoice) return;
+    stopAudio();
+    setPlayState("loading");
+    const el = new Audio(pairedVoice.sample);
+    audioRef.current = el;
+    el.addEventListener("ended", () => {
+      setPlayState("idle");
+      audioRef.current = null;
+    });
+    el.addEventListener("error", () => {
+      setPlayState("error");
+      audioRef.current = null;
+    });
+    el
+      .play()
+      .then(() => setPlayState("playing"))
+      .catch(() => {
+        // Browser blocked autoplay — mic icon stays tappable.
+        setPlayState("idle");
+        audioRef.current = null;
+      });
+  }, [pairedVoice, stopAudio]);
+
+  const toggleListen = useCallback(() => {
+    if (playState === "playing" || playState === "loading") stopAudio();
+    else playSample();
+  }, [playState, playSample, stopAudio]);
+
+  // Auto-greet on mount
+  useEffect(() => {
+    if (!pairedVoice || autoPlayAttempted.current) return;
+    autoPlayAttempted.current = true;
+    const t = setTimeout(playSample, 650);
+    return () => clearTimeout(t);
+  }, [pairedVoice, playSample]);
+
+  useEffect(() => {
+    return () => stopAudio();
+  }, [stopAudio]);
+
+  // Focus the input once the opener has revealed
   useEffect(() => {
     if (!personalityId) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 1400);
+    const t = setTimeout(() => inputRef.current?.focus(), 1500);
     return () => clearTimeout(t);
   }, [personalityId]);
 
-  if (!personalityId) return null;
+  // Split SAMPLE_SCRIPT into the hero opener (first short sentence,
+  // typically "Hey, you.") and the supporting passage.
+  const firstStop = SAMPLE_SCRIPT.indexOf(". ");
+  const heroLine =
+    firstStop >= 0 ? SAMPLE_SCRIPT.slice(0, firstStop + 1) : SAMPLE_SCRIPT;
+  const passageText =
+    firstStop >= 0 ? SAMPLE_SCRIPT.slice(firstStop + 2) : "";
+  const heroWords = heroLine.split(/\s+/);
+  const passageWords = passageText.split(/\s+/).filter(Boolean);
+  const heroDelayBase = 0.35;
+  const passageDelayBase =
+    heroDelayBase + heroWords.length * WORD_STEP + 0.25;
+  const totalRevealSec =
+    passageDelayBase + passageWords.length * WORD_STEP + 0.4;
 
-  const personality = PERSONALITIES.find((p) => p.id === personalityId)!;
-  const pairedVoice = VOICES.find((v) => v.id === personality.voiceId)!;
+  // The mic icon's bars are active while EITHER the audio is playing
+  // OR the on-page reveal is still running.
+  const [revealing, setRevealing] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(
+      () => setRevealing(false),
+      totalRevealSec * 1000,
+    );
+    return () => clearTimeout(t);
+  }, [totalRevealSec]);
+
+  if (!personality || !pairedVoice) return null;
+
   const trimmed = name.trim();
   const canContinue = trimmed.length > 0 && trimmed.length <= MAX_LEN;
   const accent = personality.accent;
+  const speaking = revealing || playState === "playing" || playState === "loading";
 
   const onContinue = () => {
     if (!canContinue) return;
+    stopAudio();
     localStorage.setItem(NAME_KEY, trimmed);
     router.push("/onboarding/intake");
   };
@@ -74,28 +163,38 @@ export default function NamePage() {
     }
   };
 
-  // The agent's greeting — italic serif, revealed word-by-word.
-  // First sentence is the hero opener at hero scale; the rest is
-  // supporting italic at body scale. Split into two passages so
-  // the typography hierarchy reads at a glance.
-  const heroLine = "Hey, you.";
-  const supportLines = [
-    "Glad you picked me.",
-    "From here on, I'll guide you through everything — every brief, every reply, every line.",
-    "But first — name me, would you?",
-  ];
-
-  // Total words across both passages → for stagger budget.
-  const heroWords = heroLine.split(/\s+/);
-  const passageWords = supportLines.flatMap((l) => l.split(/\s+/));
-  const heroDelayBase = 0.35;
-  const passageDelayBase =
-    heroDelayBase + heroWords.length * WORD_STEP + 0.25;
-
   return (
     <OnboardingFrame step={2} totalSteps={5} bloomTint={accent}>
       <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center">
-        <div className="w-full max-w-[1440px] flex flex-col gap-14 lg:gap-20">
+        {/* Ambient accent bloom on the LEFT side — gives the speaking
+            agent a soft "stage light" without resorting to a card */}
+        <motion.div
+          aria-hidden
+          className="absolute pointer-events-none"
+          style={{
+            left: "5%",
+            top: "20%",
+            width: 520,
+            height: 520,
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${accent}16 0%, ${accent}06 35%, transparent 65%)`,
+            filter: "blur(60px)",
+          }}
+          animate={
+            reduced
+              ? { opacity: 0.7 }
+              : speaking
+                ? { opacity: [0.55, 0.95, 0.55], scale: [1, 1.06, 1] }
+                : { opacity: 0.45, scale: 1 }
+          }
+          transition={
+            speaking && !reduced
+              ? { duration: 3.6, repeat: Infinity, ease: "easeInOut" }
+              : { duration: 0.8, ease: [0.2, 0.7, 0.2, 1] }
+          }
+        />
+
+        <div className="relative w-full max-w-[1440px] flex flex-col gap-14 lg:gap-20">
           {/* Act header */}
           <motion.div
             initial={
@@ -120,36 +219,33 @@ export default function NamePage() {
             </span>
           </motion.div>
 
-          {/* Script-page composition. LEFT speaks, RIGHT replies. */}
+          {/* Script-page composition */}
           <div
             className="grid items-start gap-12 lg:gap-20"
             style={{
-              gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 1fr)",
+              gridTemplateColumns: "minmax(0, 1.08fr) minmax(0, 1fr)",
             }}
           >
-            {/* LEFT — speaker label + animated mic + spoken quote */}
-            <div className="relative flex flex-col gap-7">
-              {/* Speaker row — mic icon + attribution */}
+            {/* LEFT — the agent speaks */}
+            <div className="relative flex flex-col gap-8">
+              {/* Speaker row: glass speaking icon + glass label pill */}
               <motion.div
                 initial={reduced ? false : { opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+                transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
                 className="flex items-center gap-3"
               >
                 <SpeakingIcon
-                  speaking
+                  active={speaking}
+                  state={playState}
                   accent={accent}
-                  durationSec={
-                    passageDelayBase +
-                    passageWords.length * WORD_STEP +
-                    0.4
-                  }
+                  onClick={toggleListen}
                 />
-                <div className="flex items-center gap-2">
+                <SpeakerPill accent={accent} active={speaking}>
                   <span
                     className="text-[11px] tracking-[0.32em] uppercase"
                     style={{
-                      color: "rgba(245,240,230,0.7)",
+                      color: "rgba(245,240,230,0.86)",
                       fontFamily: "var(--font-mono)",
                     }}
                   >
@@ -157,7 +253,7 @@ export default function NamePage() {
                   </span>
                   <span
                     style={{
-                      color: "rgba(245,240,230,0.25)",
+                      color: "rgba(245,240,230,0.28)",
                       fontFamily: "var(--font-mono)",
                       fontSize: 11,
                     }}
@@ -167,127 +263,140 @@ export default function NamePage() {
                   <span
                     className="text-[11px] tracking-[0.28em] uppercase"
                     style={{
-                      color: "rgba(245,240,230,0.42)",
+                      color: "rgba(245,240,230,0.55)",
                       fontFamily: "var(--font-mono)",
                     }}
                   >
                     {pairedVoice.name} speaking
                   </span>
-                </div>
+                </SpeakerPill>
               </motion.div>
 
-              {/* Hero opener — large serif, accent period */}
-              <h1
-                className="font-serif font-medium"
-                style={{
-                  fontSize: "clamp(3.5rem, 7vw, 6.5rem)",
-                  lineHeight: 0.96,
-                  letterSpacing: "-0.035em",
-                  color: "rgba(245,240,230,0.98)",
-                }}
-              >
-                {heroWords.map((word, i) => (
-                  <motion.span
-                    key={i}
-                    initial={
-                      reduced ? false : { opacity: 0, y: 12, filter: "blur(4px)" }
-                    }
-                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    transition={{
-                      duration: 0.6,
-                      delay: heroDelayBase + i * WORD_STEP,
-                      ease: [0.2, 0.7, 0.2, 1],
-                    }}
-                    style={{
-                      display: "inline-block",
-                      marginRight: "0.22em",
-                    }}
-                  >
-                    {i === heroWords.length - 1 ? (
-                      <>
-                        {word.replace(/\.$/, "")}
-                        <span style={{ color: accent, opacity: 0.85 }}>.</span>
-                      </>
-                    ) : (
-                      word
-                    )}
-                  </motion.span>
-                ))}
-              </h1>
+              {/* Hero opener — editorial scale with a soft open-quote
+                  glyph anchoring it as a spoken line */}
+              <div className="relative">
+                <motion.span
+                  aria-hidden
+                  initial={reduced ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.8,
+                    delay: 0.2,
+                    ease: [0.2, 0.7, 0.2, 1],
+                  }}
+                  className="absolute select-none pointer-events-none font-serif"
+                  style={{
+                    left: "-0.55em",
+                    top: "-0.42em",
+                    fontSize: "clamp(7rem, 14vw, 13rem)",
+                    lineHeight: 1,
+                    color: accent,
+                    opacity: 0.22,
+                  }}
+                >
+                  &ldquo;
+                </motion.span>
+                <h1
+                  className="relative font-serif font-medium"
+                  style={{
+                    fontSize: "clamp(3.5rem, 7vw, 6.5rem)",
+                    lineHeight: 0.96,
+                    letterSpacing: "-0.035em",
+                    color: "rgba(245,240,230,0.98)",
+                  }}
+                >
+                  {heroWords.map((word, i) => {
+                    const isLast = i === heroWords.length - 1;
+                    return (
+                      <motion.span
+                        key={i}
+                        initial={
+                          reduced
+                            ? false
+                            : { opacity: 0, y: 12, filter: "blur(4px)" }
+                        }
+                        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                        transition={{
+                          duration: 0.65,
+                          delay: heroDelayBase + i * WORD_STEP,
+                          ease: [0.2, 0.7, 0.2, 1],
+                        }}
+                        style={{
+                          display: "inline-block",
+                          marginRight: "0.22em",
+                        }}
+                      >
+                        {isLast ? (
+                          <>
+                            {word.replace(/\.$/, "")}
+                            <span
+                              style={{ color: accent, opacity: 0.85 }}
+                            >
+                              .
+                            </span>
+                          </>
+                        ) : (
+                          word
+                        )}
+                      </motion.span>
+                    );
+                  })}
+                </h1>
+              </div>
 
-              {/* Supporting italic passage — word-by-word */}
+              {/* Supporting passage — italic serif body */}
               <div
                 className="font-serif italic"
                 style={{
-                  fontSize: "clamp(1.125rem, 1.55vw, 1.4375rem)",
+                  fontSize: "clamp(1.1875rem, 1.65vw, 1.5rem)",
                   lineHeight: 1.5,
-                  color: "rgba(245,240,230,0.62)",
+                  color: "rgba(245,240,230,0.66)",
                   maxWidth: "38ch",
                 }}
               >
-                {(() => {
-                  let runningIdx = 0;
-                  return supportLines.map((line, lineIdx) => {
-                    const words = line.split(/\s+/);
-                    return (
-                      <p
-                        key={lineIdx}
-                        className={lineIdx > 0 ? "mt-3" : undefined}
-                      >
-                        {words.map((word, w) => {
-                          const delay =
-                            passageDelayBase + runningIdx * WORD_STEP;
-                          runningIdx += 1;
-                          return (
-                            <motion.span
-                              key={`${lineIdx}-${w}`}
-                              initial={
-                                reduced
-                                  ? false
-                                  : { opacity: 0, y: 4 }
-                              }
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{
-                                duration: 0.45,
-                                delay,
-                                ease: [0.2, 0.7, 0.2, 1],
-                              }}
-                              style={{
-                                display: "inline-block",
-                                marginRight: "0.28em",
-                              }}
-                            >
-                              {word}
-                            </motion.span>
-                          );
-                        })}
-                      </p>
-                    );
-                  });
-                })()}
+                <p>
+                  {passageWords.map((word, i) => (
+                    <motion.span
+                      key={i}
+                      initial={
+                        reduced ? false : { opacity: 0, y: 4 }
+                      }
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.5,
+                        delay: passageDelayBase + i * WORD_STEP,
+                        ease: [0.2, 0.7, 0.2, 1],
+                      }}
+                      style={{
+                        display: "inline-block",
+                        marginRight: "0.28em",
+                      }}
+                    >
+                      {word}
+                    </motion.span>
+                  ))}
+                </p>
               </div>
             </div>
 
-            {/* RIGHT — your reply: scene marker, input, chips, continue */}
-            <div className="relative flex flex-col items-start">
-              {/* Scene + speaker (mirrors the LEFT speaker row, but
-                  for the user — "YOU"). The visual rhyme makes the
-                  page read as a script. */}
+            {/* RIGHT — the user replies */}
+            <div className="relative flex flex-col items-start pt-1">
+              {/* Speaker pill mirrors the LEFT label */}
               <motion.div
                 initial={reduced ? false : { opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
-                  duration: 0.55,
+                  duration: 0.6,
                   delay: 0.5,
                   ease: [0.2, 0.7, 0.2, 1],
                 }}
-                className="mb-8 flex flex-col gap-2"
+                className="mb-9"
               >
-                <div className="flex items-center gap-3">
+                <SpeakerPill accent={accent} active={inputFocused}>
                   <span
                     className="text-[11px] tracking-[0.32em] uppercase"
                     style={{
-                      color: "rgba(245,240,230,0.4)",
+                      color: "rgba(245,240,230,0.55)",
                       fontFamily: "var(--font-mono)",
                     }}
                   >
@@ -295,7 +404,7 @@ export default function NamePage() {
                   </span>
                   <span
                     style={{
-                      color: "rgba(245,240,230,0.25)",
+                      color: "rgba(245,240,230,0.28)",
                       fontFamily: "var(--font-mono)",
                       fontSize: 11,
                     }}
@@ -305,20 +414,17 @@ export default function NamePage() {
                   <span
                     className="text-[11px] tracking-[0.32em] uppercase"
                     style={{
-                      color: "rgba(245,240,230,0.7)",
+                      color: "rgba(245,240,230,0.86)",
                       fontFamily: "var(--font-mono)",
                     }}
                   >
                     You
                   </span>
-                </div>
-                <span
-                  className="inline-block h-px w-16"
-                  style={{ background: "rgba(245,240,230,0.16)" }}
-                />
+                </SpeakerPill>
               </motion.div>
 
-              {/* Input — editorial scale, matches Act One name treatment */}
+              {/* Input — editorial scale, accent underline + soft
+                  accent backdrop that warms up as you type */}
               <motion.div
                 initial={reduced ? false : { opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -329,6 +435,24 @@ export default function NamePage() {
                 }}
                 className="w-full max-w-[640px] relative"
               >
+                {/* Soft accent bloom under the input — fades in once
+                    there's a typed name. Adds warmth without a frame. */}
+                <motion.div
+                  aria-hidden
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: "-8%",
+                    right: "-8%",
+                    bottom: "-30%",
+                    top: "-10%",
+                    background: `radial-gradient(ellipse at center, ${accent}12 0%, ${accent}04 40%, transparent 70%)`,
+                    filter: "blur(28px)",
+                  }}
+                  animate={{
+                    opacity: trimmed ? 1 : inputFocused ? 0.55 : 0,
+                  }}
+                  transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+                />
                 <input
                   ref={inputRef}
                   type="text"
@@ -337,12 +461,14 @@ export default function NamePage() {
                     setName(e.target.value.slice(0, MAX_LEN))
                   }
                   onKeyDown={onKeyDown}
+                  onFocus={() => setInputFocused(true)}
+                  onBlur={() => setInputFocused(false)}
                   placeholder={personality.suggestedNames[0]}
                   maxLength={MAX_LEN}
                   autoComplete="off"
                   spellCheck={false}
                   aria-label="Agent name"
-                  className="w-full bg-transparent border-0 outline-none text-left font-serif font-medium pb-4 placeholder:opacity-25"
+                  className="relative w-full bg-transparent border-0 outline-none text-left font-serif font-medium pb-4 placeholder:opacity-25"
                   style={{
                     fontSize: "clamp(3rem, 5.4vw, 5rem)",
                     lineHeight: 1,
@@ -352,14 +478,14 @@ export default function NamePage() {
                   }}
                 />
                 <motion.div
-                  className="h-px origin-left"
+                  className="relative h-px origin-left"
                   style={{
                     background: accent,
                     boxShadow: `0 0 8px ${accent}`,
                   }}
                   animate={{
-                    scaleX: trimmed ? 1 : 0.18,
-                    opacity: trimmed ? 0.9 : 0.4,
+                    scaleX: trimmed ? 1 : inputFocused ? 0.32 : 0.18,
+                    opacity: trimmed ? 0.92 : inputFocused ? 0.6 : 0.4,
                   }}
                   transition={{
                     duration: 0.5,
@@ -451,7 +577,7 @@ export default function NamePage() {
                 })}
               </motion.div>
 
-              {/* Continue — same treatment as personality page */}
+              {/* Continue */}
               <motion.button
                 type="button"
                 onClick={onContinue}
@@ -547,7 +673,10 @@ export default function NamePage() {
           >
             <button
               type="button"
-              onClick={() => router.push("/onboarding/personality")}
+              onClick={() => {
+                stopAudio();
+                router.push("/onboarding/personality");
+              }}
               className="text-[11px] tracking-[0.24em] uppercase transition-opacity hover:opacity-80"
               style={{
                 color: "rgba(245,240,230,0.32)",
@@ -564,34 +693,75 @@ export default function NamePage() {
 }
 
 /* ============================================================
- * SpeakingIcon — small floating glass disc with three audio-wave
- * bars. While `speaking` is true, the bars animate at staggered
- * phases as if responding to a voice signal; after `durationSec`
- * elapses, they settle to a quiet idle state. Same glass language
- * as the nav arrows on the personality page (frosted body, accent
- * rim, subtle hover lift) at a quieter scale.
+ * SpeakerPill — frosted glass capsule that wraps the speaker label
+ * row on both sides. Subtle accent rim when "active" (agent
+ * speaking on the left, input focused on the right) so the page
+ * reads as a script with two speakers exchanging the floor.
+ * ============================================================ */
+function SpeakerPill({
+  children,
+  accent,
+  active,
+}: {
+  children: React.ReactNode;
+  accent: string;
+  active: boolean;
+}) {
+  return (
+    <motion.div
+      className="inline-flex items-center gap-2 px-3.5 h-9 rounded-full relative"
+      style={{
+        background: `linear-gradient(180deg, rgba(255,255,255,0.045) 0%, ${accent}0a 100%)`,
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+      }}
+      animate={{
+        borderColor: active ? `${accent}88` : "rgba(255,255,255,0.14)",
+        boxShadow: active
+          ? `0 0 22px -4px ${accent}66, inset 0 1px 0 rgba(255,255,255,0.18)`
+          : "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 12px -6px rgba(0,0,0,0.4)",
+      }}
+      transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+      initial={false}
+    >
+      {/* Border layer */}
+      <motion.div
+        aria-hidden
+        className="absolute inset-0 rounded-full pointer-events-none"
+        animate={{
+          borderColor: active ? `${accent}88` : "rgba(255,255,255,0.14)",
+        }}
+        transition={{ duration: 0.5 }}
+        style={{
+          borderWidth: 1,
+          borderStyle: "solid",
+        }}
+      />
+      {children}
+    </motion.div>
+  );
+}
+
+/* ============================================================
+ * SpeakingIcon — glass disc that contains three audio-wave bars.
+ * Doubles as the play/stop control: tap it to replay the voice
+ * greeting (or stop a playing one). Bars animate while `active`
+ * (audio playing OR on-page reveal still running).
  * ============================================================ */
 function SpeakingIcon({
-  speaking,
+  active,
+  state,
   accent,
-  durationSec,
+  onClick,
 }: {
-  speaking: boolean;
+  active: boolean;
+  state: PlayState;
   accent: string;
-  durationSec: number;
+  onClick: () => void;
 }) {
   const reduced = useReducedMotion();
-  const [active, setActive] = useState(speaking);
-
-  useEffect(() => {
-    if (!speaking) {
-      setActive(false);
-      return;
-    }
-    setActive(true);
-    const t = setTimeout(() => setActive(false), durationSec * 1000);
-    return () => clearTimeout(t);
-  }, [speaking, durationSec]);
+  const [hovered, setHovered] = useState(false);
+  const isLoading = state === "loading";
 
   const bars = [
     { phase: 0, peak: 0.95 },
@@ -600,74 +770,155 @@ function SpeakingIcon({
   ];
 
   return (
-    <motion.div
+    <motion.button
+      type="button"
+      onClick={onClick}
+      onHoverStart={() => setHovered(true)}
+      onHoverEnd={() => setHovered(false)}
+      whileTap={{ scale: 0.92 }}
+      whileHover={reduced ? undefined : { scale: 1.06, y: -1 }}
+      transition={{ type: "spring", stiffness: 280, damping: 22 }}
       className="relative grid place-items-center rounded-full"
       style={{
-        width: 46,
-        height: 46,
-        background: `linear-gradient(180deg, rgba(255,255,255,0.06) 0%, ${accent}10 100%)`,
+        width: 50,
+        height: 50,
+        background: `linear-gradient(180deg, rgba(255,255,255,0.07) 0%, ${accent}14 100%)`,
         backdropFilter: "blur(22px)",
         WebkitBackdropFilter: "blur(22px)",
-        border: `1px solid ${active ? `${accent}aa` : "rgba(255,255,255,0.16)"}`,
-        boxShadow: active
-          ? `0 0 24px -4px ${accent}99, inset 0 1px 0 rgba(255,255,255,0.22)`
-          : "inset 0 1px 0 rgba(255,255,255,0.14), 0 8px 20px -8px rgba(0,0,0,0.45)",
+        border: `1px solid ${active || hovered ? `${accent}aa` : "rgba(255,255,255,0.18)"}`,
+        boxShadow:
+          active || hovered
+            ? `0 0 28px -4px ${accent}aa, inset 0 1px 0 rgba(255,255,255,0.24)`
+            : "inset 0 1px 0 rgba(255,255,255,0.16), 0 10px 22px -8px rgba(0,0,0,0.55)",
         transition: "border-color 0.4s ease, box-shadow 0.4s ease",
       }}
-      aria-hidden
+      aria-label={
+        state === "playing" ? "Stop greeting" : "Replay greeting"
+      }
     >
       {/* Specular highlight */}
       <div
+        aria-hidden
         className="absolute pointer-events-none"
         style={{
-          top: "10%",
+          top: "8%",
           left: "12%",
-          width: "48%",
-          height: "30%",
+          width: "52%",
+          height: "32%",
           borderRadius: "50%",
           background:
-            "radial-gradient(ellipse, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0) 70%)",
-          filter: "blur(6px)",
+            "radial-gradient(ellipse, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 70%)",
+          filter: "blur(8px)",
         }}
       />
 
-      {/* Wave bars */}
-      <div className="flex items-center gap-[3px]" aria-hidden>
-        {bars.map((bar, i) => (
-          <motion.span
-            key={i}
-            style={{
-              display: "inline-block",
-              width: 2.5,
-              borderRadius: 2,
-              background: accent,
-              boxShadow: active ? `0 0 6px ${accent}` : "none",
-              transformOrigin: "center",
-            }}
-            animate={
-              reduced
-                ? { height: 4 }
-                : active
-                  ? {
-                      height: [4, 16 * bar.peak, 4, 12 * bar.peak, 4],
-                    }
-                  : { height: 4 }
-            }
-            transition={
-              reduced
-                ? { duration: 0.2 }
-                : active
-                  ? {
-                      duration: 0.9,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: bar.phase,
-                    }
-                  : { duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }
-            }
+      {/* Accent reflection bottom */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          bottom: "8%",
+          left: "20%",
+          width: "60%",
+          height: "30%",
+          borderRadius: "50%",
+          background: `radial-gradient(ellipse, ${accent}38 0%, transparent 70%)`,
+          filter: "blur(10px)",
+        }}
+      />
+
+      {/* "Tap to hear" invitation ring when idle */}
+      {!reduced && !active && (
+        <motion.div
+          aria-hidden
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            inset: -8,
+            border: `1px solid ${accent}44`,
+          }}
+          initial={{ opacity: 0, scale: 0.94 }}
+          animate={{ opacity: [0, 0.55, 0], scale: [0.94, 1.06, 1.18] }}
+          transition={{
+            duration: 2.6,
+            repeat: Infinity,
+            ease: "easeOut",
+            repeatDelay: 0.6,
+          }}
+        />
+      )}
+
+      {/* Loading spinner */}
+      {isLoading ? (
+        <svg
+          width={20}
+          height={20}
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden
+          className="relative"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+            stroke={accent}
+            strokeOpacity="0.3"
+            strokeWidth="2.5"
           />
-        ))}
-      </div>
-    </motion.div>
+          <path
+            d="M21 12a9 9 0 0 0-9-9"
+            stroke="white"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              from="0 12 12"
+              to="360 12 12"
+              dur="0.9s"
+              repeatCount="indefinite"
+            />
+          </path>
+        </svg>
+      ) : (
+        <div className="relative flex items-center gap-[3px]" aria-hidden>
+          {bars.map((bar, i) => (
+            <motion.span
+              key={i}
+              style={{
+                display: "inline-block",
+                width: 2.5,
+                borderRadius: 2,
+                background: accent,
+                boxShadow: active ? `0 0 6px ${accent}` : "none",
+                transformOrigin: "center",
+              }}
+              animate={
+                reduced
+                  ? { height: 4 }
+                  : active
+                    ? {
+                        height: [4, 18 * bar.peak, 4, 13 * bar.peak, 4],
+                      }
+                    : { height: 4 }
+              }
+              transition={
+                reduced
+                  ? { duration: 0.2 }
+                  : active
+                    ? {
+                        duration: 0.9,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: bar.phase,
+                      }
+                    : { duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }
+              }
+            />
+          ))}
+        </div>
+      )}
+    </motion.button>
   );
 }

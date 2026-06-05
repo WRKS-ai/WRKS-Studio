@@ -74,6 +74,14 @@ export const VOICES: Voice[] = [
   },
 ];
 
-// The script every voice sample should speak — keeps comparisons fair.
+// The script every voice sample should speak — keeps comparisons
+// fair on the personality page AND serves as the agent's spoken
+// intro on the name page.
+//
+// NOTE: the existing /public/voices/*.mp3 files still speak the
+// older "Hi. I'm your WRKS agent…" line and need regenerating
+// against this new script for audio + on-page text to line up.
+// Until then, the name page plays the old audio while showing
+// the new copy.
 export const SAMPLE_SCRIPT =
-  "Hi. I'm your WRKS agent. Tell me what to build, and I'll get to work.";
+  "Hey, you. Glad you picked me. From here on, I'll guide you through every brief, every reply, every line. But first — name me.";
