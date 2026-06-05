@@ -3,7 +3,6 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DarkAvatar } from "@/components/dark-avatar";
 import { OnboardingFrame } from "@/components/onboarding-frame";
 import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
 import { VOICES } from "@/lib/voices";
@@ -11,26 +10,13 @@ import { VOICES } from "@/lib/voices";
 const STORAGE_KEY = "wrks-onboarding-personality";
 const VOICE_KEY = "wrks-onboarding-voice";
 
-// Casting program — Act One. Each personality is a complete agent
-// (personality + voice + visual mark). The page reads like a small
-// theatre programme: act label, agent number, name set at scale, a
-// quoted line, an inline listen control, and a sculptural form on
-// the right with a curatorial caption.
+// Casting program — Act One. Stripped down to: agent name, one
+// tagline, and a big premium glass play button that IS the voice.
 //
-// Visual notes:
-// • No pulsing AI energy bloom (the OnboardingFrame keeps a single
-//   static warm light instead).
-// • Voice playback is an inline text control with a thin progress
-//   line — not a giant button.
-// • Picking commits BOTH the personality and its paired voice in a
-//   single keystroke / click — the /onboarding/voice page is gone.
-
-const FORM_NAMES: Record<PersonalityId, string> = {
-  maven: "Monolith",
-  sage: "Lens",
-  spark: "Crescent",
-  echo: "Rings",
-};
+// The play button is the hero element on the right — backdrop-blurred
+// glass, accent rim glow, progress arc tracing the circumference while
+// playing. No "Listen — Owen" text, no traits chips, no sample quote.
+// The voice plays directly when you press the glass.
 
 type PlayState = "idle" | "loading" | "playing" | "error";
 
@@ -72,7 +58,6 @@ export default function PersonalityPage() {
     setCurrentTime(0);
   }, []);
 
-  // Stop playback when index changes
   useEffect(() => {
     stopAudio();
     return () => {
@@ -158,14 +143,14 @@ export default function PersonalityPage() {
     <OnboardingFrame step={1} totalSteps={5} bloomTint={accent}>
       <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 pt-14 pb-20 flex flex-col items-center">
         <div className="w-full max-w-[1280px] flex flex-col flex-1">
-          {/* Act header — small editorial detail at the very top */}
+          {/* Act header */}
           <motion.div
             initial={
               reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }
             }
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-            className="flex items-center gap-4 mb-12"
+            className="flex items-center gap-4 mb-16"
           >
             <span
               className="inline-block h-px w-10"
@@ -182,15 +167,15 @@ export default function PersonalityPage() {
             </span>
           </motion.div>
 
-          {/* Hero */}
+          {/* Hero — content left, glass play right */}
           <div
-            className="grid items-center gap-10 lg:gap-16 flex-1"
+            className="grid items-center gap-12 lg:gap-20 flex-1"
             style={{
-              gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 1fr)",
+              gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
             }}
           >
-            {/* LEFT — name, traits, line, listen control */}
-            <div className="relative min-h-[460px] flex flex-col justify-center">
+            {/* LEFT — just agent no, name, tagline */}
+            <div className="relative min-h-[420px] flex flex-col justify-center">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={previewed.id}
@@ -210,8 +195,8 @@ export default function PersonalityPage() {
                     ease: [0.2, 0.7, 0.2, 1],
                   }}
                 >
-                  {/* Agent number — small caps with a thin rule below */}
-                  <div className="mb-6 flex flex-col gap-2">
+                  {/* Agent number */}
+                  <div className="mb-8 flex flex-col gap-2">
                     <span
                       className="text-[11px] tracking-[0.32em] uppercase"
                       style={{
@@ -227,7 +212,7 @@ export default function PersonalityPage() {
                     />
                   </div>
 
-                  {/* NAME — typographic hero */}
+                  {/* Name */}
                   <h1
                     className="font-serif font-medium"
                     style={{
@@ -243,124 +228,56 @@ export default function PersonalityPage() {
 
                   {/* Tagline */}
                   <p
-                    className="mt-7 font-serif italic max-w-[28ch]"
+                    className="mt-8 font-serif italic max-w-[32ch]"
                     style={{
                       fontSize: "clamp(1.25rem, 1.9vw, 1.625rem)",
-                      lineHeight: 1.25,
+                      lineHeight: 1.3,
                       color: "rgba(245,240,230,0.6)",
                     }}
                   >
                     {previewed.tagline}
                   </p>
-
-                  {/* Traits — middot-separated mono small caps */}
-                  <div
-                    className="mt-6 text-[11.5px] tracking-[0.32em] uppercase"
-                    style={{
-                      color: "rgba(245,240,230,0.4)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    {previewed.traits.join("  ·  ")}
-                  </div>
-
-                  {/* Sample line — editorial blockquote */}
-                  <div
-                    className="mt-11 max-w-[44ch] pl-5"
-                    style={{
-                      borderLeft: `1px solid ${accent}66`,
-                    }}
-                  >
-                    <p
-                      className="font-serif italic"
-                      style={{
-                        fontSize: "clamp(1.0625rem, 1.4vw, 1.1875rem)",
-                        lineHeight: 1.55,
-                        color: "rgba(245,240,230,0.82)",
-                      }}
-                    >
-                      &ldquo;{previewed.sample}&rdquo;
-                    </p>
-                    {/* Inline voice listen control */}
-                    <ListenControl
-                      state={playState}
-                      currentTime={currentTime}
-                      duration={duration}
-                      progressRatio={progressRatio}
-                      accent={accent}
-                      onToggle={toggleListen}
-                    />
-                  </div>
                 </motion.div>
               </AnimatePresence>
             </div>
 
-            {/* RIGHT — sculptural mark, art-object treatment */}
+            {/* RIGHT — premium glass play button (the voice) */}
             <div className="relative h-full min-h-[420px] flex flex-col items-center justify-center gap-7">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={previewed.id}
-                  initial={
-                    reduced
-                      ? false
-                      : { opacity: 0, scale: 0.94, filter: "blur(10px)" }
-                  }
-                  animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                  exit={
-                    reduced
-                      ? undefined
-                      : { opacity: 0, scale: 0.95, filter: "blur(8px)" }
-                  }
-                  transition={{
-                    duration: 0.7,
-                    ease: [0.2, 0.7, 0.2, 1],
-                  }}
-                  className="relative"
-                >
-                  <DarkAvatar personality={previewed} size={300} />
-                </motion.div>
-              </AnimatePresence>
+              <GlassPlayButton
+                state={playState}
+                progressRatio={progressRatio}
+                accent={accent}
+                onToggle={toggleListen}
+              />
 
-              {/* Curatorial caption — like a museum plaque */}
+              {/* Tiny caption — quiet voice direction */}
               <AnimatePresence mode="wait">
-                <motion.div
-                  key={previewed.id + "-caption"}
+                <motion.span
+                  key={previewed.id + "-" + playState}
                   initial={reduced ? false : { opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={reduced ? undefined : { opacity: 0 }}
-                  transition={{
-                    duration: 0.55,
-                    delay: 0.1,
-                    ease: [0.2, 0.7, 0.2, 1],
+                  transition={{ duration: 0.4 }}
+                  className="text-[11px] tracking-[0.32em] uppercase"
+                  style={{
+                    color: "rgba(245,240,230,0.4)",
+                    fontFamily: "var(--font-mono)",
                   }}
-                  className="text-center flex flex-col items-center gap-1.5"
                 >
-                  <span
-                    className="text-[10px] tracking-[0.32em] uppercase"
-                    style={{
-                      color: "rgba(245,240,230,0.32)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    Plate 0{index + 1}
-                  </span>
-                  <span
-                    className="text-[10px] tracking-[0.22em] uppercase"
-                    style={{
-                      color: "rgba(245,240,230,0.45)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    Form · {FORM_NAMES[previewed.id]}
-                  </span>
-                </motion.div>
+                  {playState === "playing"
+                    ? "Speaking"
+                    : playState === "loading"
+                      ? "Loading"
+                      : playState === "error"
+                        ? "Sample unavailable"
+                        : "Press to listen"}
+                </motion.span>
               </AnimatePresence>
             </div>
           </div>
 
           {/* Bottom row — Cast nav + Continue pill */}
           <div className="relative mt-12 flex items-center justify-between gap-8">
-            {/* Cast nav */}
             <nav className="flex items-center gap-8">
               {PERSONALITIES.map((p, i) => {
                 const isCurrent = i === index;
@@ -420,7 +337,6 @@ export default function PersonalityPage() {
               })}
             </nav>
 
-            {/* Continue */}
             <div className="flex items-center gap-7">
               <span
                 className="text-[10.5px] tracking-[0.24em] uppercase hidden md:inline-block"
@@ -483,91 +399,250 @@ export default function PersonalityPage() {
 }
 
 /* ============================================================
- * ListenControl — inline editorial play link with a thin progress
- * line that grows beneath as audio plays. No big button.
+ * GlassPlayButton — premium frosted-glass disc that is the voice
+ * interaction. Press to hear. While playing, a thin accent arc
+ * traces the circumference as a progress indicator.
  * ============================================================ */
-function ListenControl({
+function GlassPlayButton({
   state,
-  currentTime,
-  duration,
   progressRatio,
   accent,
   onToggle,
 }: {
   state: PlayState;
-  currentTime: number;
-  duration: number;
   progressRatio: number;
   accent: string;
   onToggle: () => void;
 }) {
+  const reduced = useReducedMotion();
   const isPlaying = state === "playing";
   const isLoading = state === "loading";
   const isError = state === "error";
-
-  const label = isError
-    ? "Sample unavailable"
-    : isLoading
-      ? "Loading…"
-      : isPlaying
-        ? `Stop · ${formatTime(currentTime)} / ${formatTime(duration)}`
-        : `Listen${duration > 0 ? ` · ${formatTime(duration)}` : ""}`;
+  const size = 320;
+  const radius = size / 2 - 4;
+  const circumference = 2 * Math.PI * radius;
 
   return (
-    <div className="mt-5 flex flex-col gap-2 max-w-[40ch]">
-      <button
-        type="button"
-        onClick={onToggle}
-        disabled={isError}
-        className="group inline-flex items-center gap-2.5 self-start transition-colors"
+    <motion.button
+      type="button"
+      onClick={onToggle}
+      disabled={isError}
+      whileHover={
+        reduced || isError ? undefined : { scale: 1.025 }
+      }
+      whileTap={isError ? undefined : { scale: 0.97 }}
+      transition={{ duration: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
+      className="relative grid place-items-center group disabled:cursor-not-allowed"
+      style={{ width: size, height: size }}
+      aria-label={isPlaying ? "Stop voice sample" : "Play voice sample"}
+    >
+      {/* Outer atmospheric glow halo */}
+      <motion.div
+        aria-hidden
+        className="absolute rounded-full pointer-events-none"
         style={{
-          fontSize: 13,
-          color: isPlaying
-            ? "rgba(245,240,230,0.85)"
-            : "rgba(245,240,230,0.62)",
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
+          inset: -60,
+          background: `radial-gradient(circle, ${accent}22 0%, ${accent}05 35%, transparent 65%)`,
+          filter: "blur(24px)",
         }}
-      >
-        <span
-          aria-hidden
-          className="inline-flex shrink-0"
-          style={{ color: accent }}
-        >
-          {isPlaying ? (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill={accent}>
-              <rect x="6" y="6" width="12" height="12" rx="1" />
-            </svg>
-          ) : (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill={accent}>
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          )}
-        </span>
-        <span>{label}</span>
-      </button>
+        animate={
+          reduced
+            ? undefined
+            : { opacity: isPlaying ? [0.7, 1, 0.7] : [0.5, 0.7, 0.5] }
+        }
+        transition={{
+          duration: isPlaying ? 1.6 : 4,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      />
 
-      {/* Thin progress line — only when playing or loading */}
-      {(isPlaying || isLoading) && (
-        <div
-          className="h-px w-full overflow-hidden"
-          style={{ background: "rgba(245,240,230,0.08)" }}
-        >
-          <motion.div
-            className="h-full"
-            style={{ background: accent }}
-            animate={{ width: `${progressRatio * 100}%` }}
-            transition={{ duration: 0.15, ease: "linear" }}
-          />
-        </div>
+      {/* Pulse ring when playing */}
+      {isPlaying && !reduced && (
+        <>
+          {[0, 1].map((i) => (
+            <motion.div
+              key={i}
+              aria-hidden
+              className="absolute rounded-full pointer-events-none"
+              style={{
+                inset: 0,
+                border: `1px solid ${accent}66`,
+              }}
+              animate={{ scale: [1, 1.18, 1.32], opacity: [0.55, 0.18, 0] }}
+              transition={{
+                duration: 2.4,
+                repeat: Infinity,
+                delay: i * 0.8,
+                ease: "easeOut",
+              }}
+            />
+          ))}
+        </>
       )}
-    </div>
+
+      {/* Glass body */}
+      <div
+        aria-hidden
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: `linear-gradient(180deg, rgba(255,255,255,0.06) 0%, ${accent}12 100%)`,
+          backdropFilter: "blur(40px)",
+          WebkitBackdropFilter: "blur(40px)",
+          border: "1px solid rgba(255,255,255,0.14)",
+          boxShadow: [
+            "inset 0 1px 0 rgba(255,255,255,0.22)",
+            `inset 0 -2px 16px ${accent}33`,
+            "0 24px 70px -12px rgba(0,0,0,0.6)",
+            `0 0 90px -12px ${accent}66`,
+          ].join(", "),
+        }}
+      />
+
+      {/* Specular highlight — top-left soft glint */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          top: "8%",
+          left: "12%",
+          width: "52%",
+          height: "32%",
+          borderRadius: "50%",
+          background:
+            "radial-gradient(ellipse, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 70%)",
+          filter: "blur(10px)",
+        }}
+      />
+
+      {/* Bottom accent reflection — color bleeding up from below */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          bottom: "8%",
+          left: "20%",
+          width: "60%",
+          height: "30%",
+          borderRadius: "50%",
+          background: `radial-gradient(ellipse, ${accent}30 0%, transparent 70%)`,
+          filter: "blur(14px)",
+        }}
+      />
+
+      {/* Progress arc — traces circumference while playing */}
+      {(isPlaying || isLoading) && (
+        <svg
+          aria-hidden
+          className="absolute inset-0 -rotate-90 pointer-events-none"
+          viewBox={`0 0 ${size} ${size}`}
+        >
+          {/* Track */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={`${accent}1f`}
+            strokeWidth="1.5"
+          />
+          {/* Progress */}
+          <motion.circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={accent}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            initial={{ strokeDashoffset: circumference }}
+            animate={{
+              strokeDashoffset: circumference * (1 - progressRatio),
+            }}
+            transition={{ duration: 0.12, ease: "linear" }}
+            style={{ filter: `drop-shadow(0 0 6px ${accent})` }}
+          />
+        </svg>
+      )}
+
+      {/* Center icon */}
+      <div className="relative" style={{ color: "white" }}>
+        {isLoading ? (
+          <Spinner size={44} accent={accent} />
+        ) : isPlaying ? (
+          <StopIcon size={56} />
+        ) : (
+          <PlayIcon size={72} />
+        )}
+      </div>
+    </motion.button>
   );
 }
 
-function formatTime(s: number): string {
-  if (!isFinite(s) || s < 0) return "0:00";
-  const m = Math.floor(s / 60);
-  const r = Math.floor(s % 60);
-  return `${m}:${r.toString().padStart(2, "0")}`;
+function PlayIcon({ size }: { size: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="white"
+      aria-hidden
+      style={{
+        filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.4))",
+        marginLeft: 4,
+      }}
+    >
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  );
+}
+function StopIcon({ size }: { size: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="white"
+      aria-hidden
+      style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.4))" }}
+    >
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </svg>
+  );
+}
+function Spinner({ size, accent }: { size: number; accent: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        stroke={accent}
+        strokeOpacity="0.3"
+        strokeWidth="2.5"
+      />
+      <path
+        d="M21 12a9 9 0 0 0-9-9"
+        stroke="white"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from="0 12 12"
+          to="360 12 12"
+          dur="0.9s"
+          repeatCount="indefinite"
+        />
+      </path>
+    </svg>
+  );
 }
