@@ -114,7 +114,7 @@ export default function WowPage() {
     }
     const v = localStorage.getItem(VOICE_KEY) as VoiceId | null;
     if (!v || !VOICES.some((x) => x.id === v)) {
-      router.replace("/onboarding/voice");
+      router.replace("/onboarding/personality");
       return;
     }
     const i = localStorage.getItem(INTAKE_KEY);

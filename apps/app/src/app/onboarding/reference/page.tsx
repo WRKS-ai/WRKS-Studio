@@ -48,7 +48,7 @@ export default function ReferencePage() {
     }
     const v = localStorage.getItem(VOICE_KEY) as VoiceId | null;
     if (!v || !VOICES.some((x) => x.id === v)) {
-      router.replace("/onboarding/voice");
+      router.replace("/onboarding/personality");
       return;
     }
     if (!localStorage.getItem(INTAKE_KEY)) {

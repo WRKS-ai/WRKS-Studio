@@ -121,7 +121,7 @@ export function StudioInspectorFrame({ children }: { children: React.ReactNode }
     }
     const v = localStorage.getItem(VOICE_KEY) as VoiceId | null;
     if (!v || !VOICES.some((x) => x.id === v)) {
-      router.replace("/onboarding/voice");
+      router.replace("/onboarding/personality");
       return;
     }
     setPersonalityId(p);

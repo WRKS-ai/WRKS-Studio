@@ -11,6 +11,13 @@ export type Personality = {
   traits: string[]; // 3 chips — one per behavioral dimension
   sample: string; // a line in this voice
   suggestedNames: string[]; // shown as quick-pick chips on the naming step
+  /**
+   * The voice this personality is voice-locked to during onboarding.
+   * Pairing personality + voice into one decision keeps the agent
+   * coherent (no formal-text + casual-voice mismatches) and cuts a
+   * page from the onboarding flow.
+   */
+  voiceId: "owen" | "iris" | "sara" | "roger";
   // Visual representation lives in personality-icon.tsx (atmospheric orbs).
   // Each orb is unique per id — these tokens drive its accents elsewhere
   // on the page (continue link, underline colors, name highlight).
@@ -27,6 +34,7 @@ export const PERSONALITIES: Personality[] = [
     traits: ["Direct", "Formal", "Brief"],
     sample: "Got it. Building. Eight seconds.",
     suggestedNames: ["Atlas", "Vega", "Helix", "Apex"],
+    voiceId: "owen",
     accent: "#a78bfa",
     accentDeep: "#6d28d9",
     glow: "rgba(167,139,250,0.5)",
@@ -39,6 +47,7 @@ export const PERSONALITIES: Personality[] = [
     sample:
       "Before I draft this — what's the bigger play? I want to make sure it lands.",
     suggestedNames: ["Iris", "Wren", "Linden", "Lyra"],
+    voiceId: "iris",
     accent: "#34d399",
     accentDeep: "#047857",
     glow: "rgba(52,211,153,0.45)",
@@ -50,6 +59,7 @@ export const PERSONALITIES: Personality[] = [
     traits: ["Encouraging", "Casual", "Brief"],
     sample: "Easy one. Be right back with three options.",
     suggestedNames: ["Ember", "Sunny", "Pip", "Rio"],
+    voiceId: "sara",
     accent: "#f472b6",
     accentDeep: "#be185d",
     glow: "rgba(244,114,182,0.5)",
@@ -62,6 +72,7 @@ export const PERSONALITIES: Personality[] = [
     sample:
       "Pulling your brand voice. Drafting. Cross-checking with last month's winner.",
     suggestedNames: ["Ash", "Nova", "Kai", "Onyx"],
+    voiceId: "roger",
     accent: "#60a5fa",
     accentDeep: "#1e40af",
     glow: "rgba(96,165,250,0.45)",

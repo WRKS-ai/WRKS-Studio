@@ -54,7 +54,7 @@ export default function NamePage() {
   const onContinue = () => {
     if (!canContinue) return;
     localStorage.setItem(NAME_KEY, trimmed);
-    router.push("/onboarding/voice");
+    router.push("/onboarding/intake");
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -65,7 +65,7 @@ export default function NamePage() {
   };
 
   return (
-    <OnboardingFrame step={2} totalSteps={7} bloomTint={accent}>
+    <OnboardingFrame step={2} totalSteps={5} bloomTint={accent}>
       <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 pt-16 pb-20 flex flex-col items-center">
         <div className="w-full max-w-[1280px] flex flex-col flex-1">
           {/* Hero composition */}
@@ -97,7 +97,7 @@ export default function NamePage() {
                     boxShadow: `0 0 6px ${accent}`,
                   }}
                 />
-                <span>The name · 02 of 07</span>
+                <span>The name · 02 of 05</span>
               </motion.div>
 
               {/* Question — hero scale */}

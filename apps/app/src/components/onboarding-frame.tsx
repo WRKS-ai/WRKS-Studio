@@ -61,29 +61,29 @@ export function OnboardingFrame({
         />
       </div>
 
-      {/* Edge bloom — atmospheric light in the top-right corner.
-          Breathing animation matches Apple Intelligence's Siri cadence. */}
-      <motion.div
+      {/* Single static warm light source from the top-right — like an
+          oil lamp resting just out of frame. No pulse. No accent rainbow.
+          The bloomTint subtly warms when a personality is active but the
+          intensity is so low it never reads as "AI energy." */}
+      <div
         aria-hidden
-        className="pointer-events-none absolute top-0 right-0 w-[70vw] h-[70vh]"
+        className="pointer-events-none absolute top-0 right-0 w-[55vw] h-[55vh]"
         style={{
-          background: `radial-gradient(circle at 80% 20%, ${
-            bloomTint ?? "#ffffff"
-          }22, ${bloomTint ?? "#ffffff"}05 35%, transparent 65%)`,
-          filter: "blur(20px)",
+          background: `radial-gradient(circle at 85% 15%, ${
+            bloomTint ? `${bloomTint}10` : "rgba(255,236,200,0.07)"
+          }, transparent 60%)`,
+          filter: "blur(36px)",
         }}
-        animate={reduced ? undefined : { opacity: [0.85, 1, 0.85] }}
-        transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
       />
 
       {/* Secondary diffuse glow — lower-left, very quiet */}
       <div
         aria-hidden
-        className="pointer-events-none absolute bottom-0 left-0 w-[60vw] h-[55vh]"
+        className="pointer-events-none absolute bottom-0 left-0 w-[55vw] h-[45vh]"
         style={{
           background:
-            "radial-gradient(circle at 25% 80%, rgba(255,225,170,0.04), transparent 55%)",
-          filter: "blur(40px)",
+            "radial-gradient(circle at 25% 85%, rgba(255,225,170,0.025), transparent 55%)",
+          filter: "blur(48px)",
         }}
       />
 

@@ -95,7 +95,9 @@ export default function IntakePage() {
     }
     const v = localStorage.getItem(VOICE_KEY) as VoiceId | null;
     if (!v || !VOICES.some((x) => x.id === v)) {
-      router.replace("/onboarding/voice");
+      // Voice is voice-locked to personality now — bounce back to
+      // re-pick the agent if it somehow went missing.
+      router.replace("/onboarding/personality");
       return;
     }
     setPersonalityId(p);
@@ -368,7 +370,7 @@ export default function IntakePage() {
         >
           <button
             type="button"
-            onClick={() => router.push("/onboarding/voice")}
+            onClick={() => router.push("/onboarding/name")}
             className="text-[12px] tracking-[0.18em] uppercase text-ink-dim hover:text-ink-muted transition-colors font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md px-1.5 py-1"
           >
             ← Back
