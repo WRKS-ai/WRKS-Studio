@@ -224,14 +224,21 @@ export default function PersonalityPage() {
 
         {/* Bottom row — name nav + pick button */}
         <div className="relative mt-12 flex items-center justify-between gap-8">
-          {/* Left — personality name nav (acts as compact paginator).
-              Uses two independent shared-layout underlines so the
-              "current" (white) and "committed" (accent) markers slide
-              smoothly between positions with spring physics. */}
+          {/* Left — personality name nav. ONE sliding underline always
+              at the current preview. If you're previewing the one you
+              committed to, the underline morphs to the accent color
+              with a glow. The committed personality (when you've
+              arrowed away) is signaled by its NAME COLOR going to its
+              accent — no competing underline. */}
           <nav className="flex items-center gap-8">
             {PERSONALITIES.map((p, i) => {
               const isCurrent = i === index;
               const isCommittedHere = committed === p.id;
+              const nameColor = isCurrent
+                ? "rgba(245,240,230,0.96)"
+                : isCommittedHere
+                  ? p.accent
+                  : "rgba(245,240,230,0.32)";
               return (
                 <button
                   key={p.id}
@@ -246,11 +253,7 @@ export default function PersonalityPage() {
                       letterSpacing: "-0.01em",
                     }}
                     animate={{
-                      color: isCurrent
-                        ? "rgba(245,240,230,0.96)"
-                        : isCommittedHere
-                          ? "rgba(245,240,230,0.78)"
-                          : "rgba(245,240,230,0.32)",
+                      color: nameColor,
                       y: isCurrent ? -1 : 0,
                     }}
                     transition={{
@@ -261,32 +264,19 @@ export default function PersonalityPage() {
                     {p.name}
                   </motion.span>
 
-                  {/* Current — white underline that slides between names */}
+                  {/* Single sliding underline. Color depends on whether
+                      the current preview IS the committed pick. */}
                   {isCurrent && (
                     <motion.span
-                      layoutId="nav-current-underline"
-                      className="absolute bottom-0 left-0 right-0 h-[1.5px] rounded-full"
-                      style={{ background: "rgba(245,240,230,0.85)" }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 380,
-                        damping: 32,
-                        mass: 0.9,
-                      }}
-                    />
-                  )}
-
-                  {/* Committed — accent underline with glow that slides
-                      to whichever name is picked. Independent from the
-                      current marker so both can coexist (e.g. picked
-                      Maven while previewing Sage). */}
-                  {isCommittedHere && (
-                    <motion.span
-                      layoutId="nav-committed-underline"
+                      layoutId="nav-underline"
                       className="absolute bottom-0 left-0 right-0 h-[1.5px] rounded-full"
                       style={{
-                        background: p.accent,
-                        boxShadow: `0 0 8px ${p.accent}, 0 0 18px ${p.accent}55`,
+                        background: isCommittedHere
+                          ? p.accent
+                          : "rgba(245,240,230,0.85)",
+                        boxShadow: isCommittedHere
+                          ? `0 0 8px ${p.accent}, 0 0 18px ${p.accent}55`
+                          : "none",
                       }}
                       transition={{
                         type: "spring",
@@ -322,7 +312,14 @@ export default function PersonalityPage() {
                 initial={reduced ? false : { opacity: 0, x: -4 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5 }}
-                whileHover={reduced ? undefined : { x: 4 }}
+                whileHover={
+                  reduced
+                    ? undefined
+                    : {
+                        x: 6,
+                        textShadow: `0 0 24px ${accent}66`,
+                      }
+                }
                 className="group inline-flex items-center gap-3 font-serif px-1"
                 style={{
                   fontSize: "clamp(1.0625rem, 1.4vw, 1.25rem)",
@@ -347,24 +344,42 @@ export default function PersonalityPage() {
                 </motion.span>
               </motion.button>
             ) : (
-              <button
+              <motion.button
                 type="button"
                 onClick={pick}
-                className="inline-flex items-center gap-2.5 h-12 px-6 rounded-full font-serif group"
+                whileHover={
+                  reduced
+                    ? undefined
+                    : {
+                        scale: 1.03,
+                        borderColor: `${accent}cc`,
+                        backgroundColor: `${accent}14`,
+                        boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
+                      }
+                }
+                whileTap={{ scale: 0.97 }}
+                transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
+                className="inline-flex items-center gap-2.5 h-12 px-6 rounded-full font-serif relative"
                 style={{
                   fontSize: 16,
                   background: "transparent",
-                  border: `1px solid ${committed ? "rgba(245,240,230,0.18)" : `${accent}66`}`,
-                  color: committed
-                    ? "rgba(245,240,230,0.7)"
-                    : "rgba(245,240,230,0.96)",
-                  transition:
-                    "border-color 0.4s ease, box-shadow 0.4s ease, color 0.4s ease",
-                  boxShadow: committed ? "none" : `0 0 24px -8px ${accent}88`,
+                  border: `1px solid ${accent}66`,
+                  color: "rgba(245,240,230,0.96)",
+                  boxShadow: `0 0 24px -8px ${accent}88`,
                 }}
               >
                 <span>Choose {previewed.name}</span>
-              </button>
+                <motion.span
+                  aria-hidden
+                  className="inline-block"
+                  style={{ color: accent }}
+                  initial={{ x: 0, opacity: 0.6 }}
+                  whileHover={{ x: 3, opacity: 1 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  →
+                </motion.span>
+              </motion.button>
             )}
           </div>
         </div>
