@@ -16,17 +16,12 @@ import {
 } from "@/lib/voice-agent";
 import { VOICES } from "@/lib/voices";
 
-// Act Two — The Name. The live ElevenLabs Conversational AI agent
-// takes over here. On mount we (try to) open a WebSocket session
-// with the agent overridden to use the user's chosen voice +
-// personality. The agent greets the user, listens for a name, and
-// fills the input via the set_agent_name client tool. The user can
-// also continue by voice ("let's go") via continue_onboarding.
-//
-// Composition is a script page from a play: LEFT speaks (the agent),
-// RIGHT replies (the user's typed/spoken name + Continue). Both
-// columns are anchored by glass speaker pills whose accent rim
-// lights up when that speaker has the floor.
+// Act Two — The Name. The page is a focused naming form
+// (hero + input + chips + continue) center-stage. The live agent
+// runs as a small floating glass widget pinned to the bottom-right
+// corner — it auto-greets on mount, talks naturally, fills the input
+// via the set_field tool, and advances via the navigate tool. The
+// user can ignore the widget and type if they prefer.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
@@ -81,13 +76,10 @@ function NamePageInner({
   const [inputFocused, setInputFocused] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [agentLine, setAgentLine] = useState("");
-  const [userLine, setUserLine] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const startAttempted = useRef(false);
   const continuing = useRef(false);
 
-  // Hydrate previously-typed name
   useEffect(() => {
     const savedName = localStorage.getItem(NAME_KEY);
     if (savedName) setName(savedName);
@@ -112,16 +104,6 @@ function NamePageInner({
       setVoiceError(msg);
       setVoiceState("error");
     },
-    onMessage: (event) => {
-      const source = (event as { source?: string }).source;
-      const text =
-        (event as { message?: string }).message ??
-        (event as { text?: string }).text ??
-        "";
-      if (!text) return;
-      if (source === "user") setUserLine(text);
-      else if (source === "ai") setAgentLine(text);
-    },
     onModeChange: (event) => {
       const mode = (event as { mode?: string }).mode;
       if (mode === "speaking") setVoiceState("speaking");
@@ -129,13 +111,7 @@ function NamePageInner({
     },
   });
 
-  /* ── Client tools the agent calls.
-       These two — set_field and navigate — are the same tools the
-       studio inspector exposes (and the same tools registered on
-       the agent in the ElevenLabs dashboard). We override the
-       handlers locally so they do the right thing for THIS page:
-       set_field("name", …) fills the name input; navigate("next" |
-       "continue") advances to /onboarding/intake. ── */
+  /* ── Client tools (reuse dashboard tools: set_field + navigate) ── */
   const NAME_ALIASES = [
     "name",
     "my name",
@@ -162,7 +138,6 @@ function NamePageInner({
       setTimeout(() => inputRef.current?.focus(), 0);
       return `Set the name to "${next}".`;
     }
-
     return `The only field editable here is the agent's name. I don't see "${fieldName}".`;
   });
 
@@ -172,10 +147,9 @@ function NamePageInner({
       .toLowerCase();
     if (!destination) return "Where to?";
 
-    const wantsNext = NEXT_WORDS.some(
-      (w) => destination === w || destination.includes(w),
-    );
-    if (wantsNext) {
+    if (
+      NEXT_WORDS.some((w) => destination === w || destination.includes(w))
+    ) {
       const final = name.trim();
       if (!final) return "There's no name in the field yet. Pick one first.";
       if (continuing.current) return "Already going.";
@@ -192,10 +166,9 @@ function NamePageInner({
       return `Continuing as ${final}.`;
     }
 
-    const wantsBack = BACK_WORDS.some(
-      (w) => destination === w || destination.includes(w),
-    );
-    if (wantsBack) {
+    if (
+      BACK_WORDS.some((w) => destination === w || destination.includes(w))
+    ) {
       setTimeout(() => {
         try {
           conversation.endSession();
@@ -207,7 +180,7 @@ function NamePageInner({
       return "Going back.";
     }
 
-    return `From this page I can only go "next" (to the next step) or "back" (to personality).`;
+    return `From this page I can only go "next" or "back".`;
   });
 
   /* ── Start / stop session ── */
@@ -237,12 +210,8 @@ function NamePageInner({
         suggestedNames: personality.suggestedNames,
       });
 
-      // NOTE: not overriding tts.voiceId — the live agent speaks in
-      // whatever voice is configured on its ElevenLabs dashboard
-      // entry. Forcing the public Adam/Matilda/Sarah/Roger IDs from
-      // src/lib/voices.ts here would replace the dashboard voice
-      // with a generic one. The personality-page samples are just
-      // previews; the live voice stays canonical to the dashboard.
+      // Not overriding tts.voiceId — the dashboard agent's voice is
+      // canonical. See memory: feedback_no_tts_voice_override.
       await conversation.startSession({
         signedUrl,
         connectionType: "websocket",
@@ -266,56 +235,46 @@ function NamePageInner({
     try {
       await conversation.endSession();
     } catch {
-      // ignore
+      /* ignore */
     }
     setVoiceState("idle");
   }, [conversation]);
 
-  // Try to auto-start once on mount. Browsers may block the mic
-  // permission without a fresh user gesture on THIS page — in that
-  // case startVoice() rejects and we fall back to "tap to start"
-  // mode (mic icon stays the explicit tap target).
+  // Auto-start on mount. If the browser blocks mic permission without
+  // a fresh gesture, startVoice errors and the widget shows a retry.
   useEffect(() => {
     if (startAttempted.current) return;
     startAttempted.current = true;
     const t = setTimeout(() => {
       startVoice();
-    }, 600);
+    }, 500);
     return () => clearTimeout(t);
   }, [startVoice]);
 
   useEffect(() => {
     return () => {
       try {
-      conversation.endSession();
-    } catch {
-      /* ignore */
-    }
+        conversation.endSession();
+      } catch {
+        /* ignore */
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Focus the input shortly after mount so manual typing is also
-  // possible from the start
   useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 1600);
+    const t = setTimeout(() => inputRef.current?.focus(), 1400);
     return () => clearTimeout(t);
   }, []);
 
-  const onMicClick = () => {
-    if (voiceState === "listening" || voiceState === "speaking") {
-      stopVoice();
-    } else {
-      startVoice();
-    }
+  const onWidgetClick = () => {
+    if (voiceState === "listening" || voiceState === "speaking") stopVoice();
+    else startVoice();
   };
 
   const trimmed = name.trim();
   const canContinue = trimmed.length > 0 && trimmed.length <= MAX_LEN;
-  const agentActive =
-    voiceState === "speaking" ||
-    voiceState === "listening" ||
-    voiceState === "connecting";
+  const agentSpeaking = voiceState === "speaking";
 
   const onContinue = () => {
     if (!canContinue) return;
@@ -335,9 +294,423 @@ function NamePageInner({
     }
   };
 
-  // Speaker-pill copy reflects the live session state. Falls back
-  // to a neutral "ready" line when voice is unavailable.
-  const agentStatusLabel =
+  return (
+    <OnboardingFrame step={2} totalSteps={5} bloomTint={accent}>
+      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col">
+        {/* Eyebrow anchored top-left */}
+        <motion.div
+          initial={
+            reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }
+          }
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+          className="flex items-center gap-4"
+        >
+          <span
+            className="inline-block h-px w-10"
+            style={{ background: "rgba(245,240,230,0.2)" }}
+          />
+          <span
+            className="text-[11px] tracking-[0.32em] uppercase"
+            style={{
+              color: "rgba(245,240,230,0.4)",
+              fontFamily: "var(--font-mono)",
+            }}
+          >
+            Act Two — The Name
+          </span>
+        </motion.div>
+
+        {/* Subtle accent bloom drifting from the corner toward the
+            widget, gives the page atmosphere without a card */}
+        <motion.div
+          aria-hidden
+          className="absolute pointer-events-none"
+          style={{
+            right: "-6%",
+            bottom: "-6%",
+            width: 720,
+            height: 720,
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${accent}1a 0%, ${accent}08 35%, transparent 65%)`,
+            filter: "blur(80px)",
+          }}
+          animate={
+            reduced
+              ? { opacity: 0.6 }
+              : agentSpeaking
+                ? { opacity: [0.55, 0.95, 0.55] }
+                : { opacity: 0.55 }
+          }
+          transition={
+            agentSpeaking && !reduced
+              ? { duration: 3.6, repeat: Infinity, ease: "easeInOut" }
+              : { duration: 0.8 }
+          }
+        />
+
+        {/* Center stage */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="relative w-full max-w-[760px] flex flex-col items-center text-center">
+            {/* Hero */}
+            <motion.h1
+              initial={
+                reduced
+                  ? false
+                  : { opacity: 0, y: 14, filter: "blur(8px)" }
+              }
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{
+                duration: 0.8,
+                delay: 0.15,
+                ease: [0.2, 0.7, 0.2, 1],
+              }}
+              className="font-serif font-medium"
+              style={{
+                fontSize: "clamp(4rem, 9vw, 8rem)",
+                lineHeight: 0.94,
+                letterSpacing: "-0.04em",
+                color: "rgba(245,240,230,0.98)",
+              }}
+            >
+              name me
+              <span style={{ color: accent, opacity: 0.9 }}>.</span>
+            </motion.h1>
+
+            {/* Sub-prompt */}
+            <motion.p
+              initial={reduced ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.6,
+                delay: 0.35,
+                ease: [0.2, 0.7, 0.2, 1],
+              }}
+              className="mt-6 font-serif italic max-w-[36ch]"
+              style={{
+                fontSize: "clamp(1.0625rem, 1.4vw, 1.25rem)",
+                lineHeight: 1.45,
+                color: "rgba(245,240,230,0.55)",
+              }}
+            >
+              Speak it, or type one below.
+            </motion.p>
+
+            {/* Input */}
+            <motion.div
+              initial={reduced ? false : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.7,
+                delay: 0.55,
+                ease: [0.2, 0.7, 0.2, 1],
+              }}
+              className="mt-14 w-full max-w-[560px] relative"
+            >
+              {/* Warm accent bloom under the input */}
+              <motion.div
+                aria-hidden
+                className="absolute pointer-events-none"
+                style={{
+                  left: "-10%",
+                  right: "-10%",
+                  bottom: "-40%",
+                  top: "-15%",
+                  background: `radial-gradient(ellipse at center, ${accent}14 0%, ${accent}05 40%, transparent 70%)`,
+                  filter: "blur(32px)",
+                }}
+                animate={{
+                  opacity: trimmed ? 1 : inputFocused ? 0.55 : 0,
+                }}
+                transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+              />
+              <AnimatePresence mode="popLayout">
+                <motion.input
+                  key={name || "empty"}
+                  ref={inputRef}
+                  type="text"
+                  value={name}
+                  onChange={(e) =>
+                    setName(e.target.value.slice(0, MAX_LEN))
+                  }
+                  onKeyDown={onKeyDown}
+                  onFocus={() => setInputFocused(true)}
+                  onBlur={() => setInputFocused(false)}
+                  placeholder={personality.suggestedNames[0]}
+                  maxLength={MAX_LEN}
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-label="Agent name"
+                  initial={reduced ? false : { opacity: 0.6, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.35,
+                    ease: [0.2, 0.7, 0.2, 1],
+                  }}
+                  className="relative w-full bg-transparent border-0 outline-none text-center font-serif font-medium pb-4 placeholder:opacity-25"
+                  style={{
+                    fontSize: "clamp(2.75rem, 5vw, 4.5rem)",
+                    lineHeight: 1,
+                    letterSpacing: "-0.03em",
+                    color: "rgba(245,240,230,0.98)",
+                    caretColor: accent,
+                  }}
+                />
+              </AnimatePresence>
+              <motion.div
+                className="relative h-px mx-auto"
+                style={{
+                  background: accent,
+                  boxShadow: `0 0 8px ${accent}`,
+                  transformOrigin: "center",
+                  maxWidth: 420,
+                }}
+                animate={{
+                  scaleX: trimmed ? 1 : inputFocused ? 0.4 : 0.2,
+                  opacity: trimmed ? 0.92 : inputFocused ? 0.6 : 0.45,
+                }}
+                transition={{
+                  duration: 0.5,
+                  ease: [0.2, 0.7, 0.2, 1],
+                }}
+              />
+              {trimmed.length > MAX_LEN - 4 && (
+                <div
+                  className="absolute right-0 top-1 text-[10.5px] tracking-[0.22em] uppercase"
+                  style={{
+                    color: "rgba(245,240,230,0.42)",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  {trimmed.length} / {MAX_LEN}
+                </div>
+              )}
+            </motion.div>
+
+            {/* Suggested chips */}
+            <motion.div
+              initial={reduced ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.6,
+                delay: 0.85,
+                ease: [0.2, 0.7, 0.2, 1],
+              }}
+              className="mt-10 flex items-center justify-center flex-wrap gap-x-7 gap-y-3"
+            >
+              <span
+                className="text-[10.5px] tracking-[0.28em] uppercase"
+                style={{
+                  color: "rgba(245,240,230,0.32)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                Or try
+              </span>
+              {personality.suggestedNames.map((suggested, i) => {
+                const isCurrent =
+                  trimmed.length > 0 &&
+                  trimmed.toLowerCase() === suggested.toLowerCase();
+                return (
+                  <motion.button
+                    key={suggested}
+                    type="button"
+                    onClick={() => {
+                      setName(suggested);
+                      inputRef.current?.focus();
+                    }}
+                    initial={reduced ? false : { opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      delay: 0.9 + i * 0.05,
+                      duration: 0.4,
+                      ease: [0.2, 0.7, 0.2, 1],
+                    }}
+                    whileHover={reduced ? undefined : { y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="font-serif italic relative"
+                    style={{
+                      fontSize: "clamp(1rem, 1.3vw, 1.125rem)",
+                      color: isCurrent
+                        ? "rgba(245,240,230,0.96)"
+                        : "rgba(245,240,230,0.55)",
+                      transition: "color 0.3s ease",
+                    }}
+                  >
+                    {suggested}
+                    {isCurrent && (
+                      <motion.span
+                        layoutId="suggested-underline"
+                        className="absolute -bottom-1 left-0 right-0 h-[1.5px] rounded-full"
+                        style={{
+                          background: accent,
+                          boxShadow: `0 0 6px ${accent}`,
+                        }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 380,
+                          damping: 32,
+                          mass: 0.9,
+                        }}
+                      />
+                    )}
+                  </motion.button>
+                );
+              })}
+            </motion.div>
+
+            {/* Continue */}
+            <motion.button
+              type="button"
+              onClick={onContinue}
+              disabled={!canContinue}
+              initial={reduced ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.55,
+                delay: 1.1,
+                ease: [0.2, 0.7, 0.2, 1],
+              }}
+              whileHover={
+                reduced || !canContinue
+                  ? undefined
+                  : {
+                      scale: 1.03,
+                      backgroundColor: `${accent}14`,
+                      boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
+                    }
+              }
+              whileTap={canContinue ? { scale: 0.97 } : undefined}
+              className="mt-14 inline-flex items-center gap-3 h-12 px-7 rounded-full font-serif relative disabled:cursor-not-allowed"
+              style={{
+                fontSize: 16,
+                background: "transparent",
+                border: `1.5px solid ${
+                  canContinue ? `${accent}cc` : "rgba(245,240,230,0.12)"
+                }`,
+                color: canContinue
+                  ? "rgba(245,240,230,0.96)"
+                  : "rgba(245,240,230,0.3)",
+                boxShadow: canContinue
+                  ? `0 0 26px -6px ${accent}aa`
+                  : "none",
+              }}
+            >
+              <span>
+                {canContinue ? (
+                  <>
+                    Continue as{" "}
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={trimmed}
+                        initial={
+                          reduced ? false : { opacity: 0, y: 4 }
+                        }
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={
+                          reduced ? undefined : { opacity: 0, y: -4 }
+                        }
+                        transition={{
+                          duration: 0.3,
+                          ease: [0.2, 0.7, 0.2, 1],
+                        }}
+                        style={{
+                          color: accent,
+                          display: "inline-block",
+                        }}
+                      >
+                        {trimmed}
+                      </motion.span>
+                    </AnimatePresence>
+                  </>
+                ) : (
+                  "Say a name, or type one"
+                )}
+              </span>
+              {canContinue && (
+                <motion.span
+                  aria-hidden
+                  className="inline-block"
+                  style={{ color: accent }}
+                  animate={reduced ? undefined : { x: [0, 4, 0] }}
+                  transition={{
+                    duration: 1.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                >
+                  →
+                </motion.span>
+              )}
+            </motion.button>
+
+            {/* Back */}
+            <motion.button
+              type="button"
+              onClick={() => {
+                try {
+                  conversation.endSession();
+                } catch {
+                  /* ignore */
+                }
+                router.push("/onboarding/personality");
+              }}
+              initial={reduced ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 1.3 }}
+              className="mt-8 text-[11px] tracking-[0.24em] uppercase transition-opacity hover:opacity-80"
+              style={{
+                color: "rgba(245,240,230,0.32)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              ← Back
+            </motion.button>
+          </div>
+        </div>
+
+        {/* Floating live agent — bottom right */}
+        <FloatingAgent
+          voiceState={voiceState}
+          accent={accent}
+          onClick={onWidgetClick}
+          voiceError={voiceError}
+          retry={startVoice}
+        />
+      </div>
+    </OnboardingFrame>
+  );
+}
+
+/* ============================================================
+ * FloatingAgent — pinned bottom-right. Glass disc with audio
+ * wave bars that pulse while the agent is speaking. Doubles as
+ * the start/stop control. Status label slides out to the left
+ * while connected so the user always knows what the agent is
+ * doing without it occupying the page composition.
+ * ============================================================ */
+function FloatingAgent({
+  voiceState,
+  accent,
+  onClick,
+  voiceError,
+  retry,
+}: {
+  voiceState: VoiceState;
+  accent: string;
+  onClick: () => void;
+  voiceError: string | null;
+  retry: () => void;
+}) {
+  const reduced = useReducedMotion();
+  const [hovered, setHovered] = useState(false);
+  const isConnecting = voiceState === "connecting";
+  const speaking = voiceState === "speaking";
+  const listening = voiceState === "listening";
+  const active = speaking || listening;
+  const errored = voiceState === "error";
+
+  const statusLabel =
     voiceState === "connecting"
       ? "Connecting"
       : voiceState === "speaking"
@@ -348,707 +721,6 @@ function NamePageInner({
             ? "Tap to retry"
             : "Tap to talk";
 
-  return (
-    <OnboardingFrame step={2} totalSteps={5} bloomTint={accent}>
-      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center">
-        {/* Ambient accent bloom — pulses while the agent has the floor */}
-        <motion.div
-          aria-hidden
-          className="absolute pointer-events-none"
-          style={{
-            left: "5%",
-            top: "20%",
-            width: 520,
-            height: 520,
-            borderRadius: "50%",
-            background: `radial-gradient(circle, ${accent}16 0%, ${accent}06 35%, transparent 65%)`,
-            filter: "blur(60px)",
-          }}
-          animate={
-            reduced
-              ? { opacity: 0.7 }
-              : agentActive
-                ? { opacity: [0.55, 0.95, 0.55], scale: [1, 1.06, 1] }
-                : { opacity: 0.45, scale: 1 }
-          }
-          transition={
-            agentActive && !reduced
-              ? { duration: 3.6, repeat: Infinity, ease: "easeInOut" }
-              : { duration: 0.8, ease: [0.2, 0.7, 0.2, 1] }
-          }
-        />
-
-        <div className="relative w-full max-w-[1440px] flex flex-col gap-14 lg:gap-20">
-          {/* Act header */}
-          <motion.div
-            initial={
-              reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }
-            }
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-            className="flex items-center gap-4"
-          >
-            <span
-              className="inline-block h-px w-10"
-              style={{ background: "rgba(245,240,230,0.2)" }}
-            />
-            <span
-              className="text-[11px] tracking-[0.32em] uppercase"
-              style={{
-                color: "rgba(245,240,230,0.4)",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              Act Two — The Name
-            </span>
-          </motion.div>
-
-          {/* Script-page composition */}
-          <div
-            className="grid items-start gap-12 lg:gap-20"
-            style={{
-              gridTemplateColumns: "minmax(0, 1.08fr) minmax(0, 1fr)",
-            }}
-          >
-            {/* LEFT — the agent speaks */}
-            <div className="relative flex flex-col gap-8">
-              {/* Speaker row: live mic + glass label pill with status */}
-              <motion.div
-                initial={reduced ? false : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-                className="flex items-center gap-3"
-              >
-                <SpeakingIcon
-                  voiceState={voiceState}
-                  accent={accent}
-                  onClick={onMicClick}
-                />
-                <SpeakerPill accent={accent} active={agentActive}>
-                  <span
-                    className="text-[11px] tracking-[0.32em] uppercase"
-                    style={{
-                      color: "rgba(245,240,230,0.86)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    {personality.name}
-                  </span>
-                  <span
-                    style={{
-                      color: "rgba(245,240,230,0.28)",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 11,
-                    }}
-                  >
-                    ·
-                  </span>
-                  <span
-                    className="text-[11px] tracking-[0.28em] uppercase"
-                    style={{
-                      color: "rgba(245,240,230,0.55)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    {voice.name}
-                  </span>
-                  <span
-                    style={{
-                      color: "rgba(245,240,230,0.28)",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 11,
-                    }}
-                  >
-                    ·
-                  </span>
-                  <motion.span
-                    key={agentStatusLabel}
-                    initial={
-                      reduced ? false : { opacity: 0, y: 2 }
-                    }
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="text-[11px] tracking-[0.28em] uppercase"
-                    style={{
-                      color: agentActive
-                        ? accent
-                        : voiceState === "error"
-                          ? "rgba(255,150,150,0.7)"
-                          : "rgba(245,240,230,0.4)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    {agentStatusLabel}
-                  </motion.span>
-                </SpeakerPill>
-              </motion.div>
-
-              {/* Hero opener — editorial quote */}
-              <div className="relative">
-                <motion.span
-                  aria-hidden
-                  initial={reduced ? false : { opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.8,
-                    delay: 0.2,
-                    ease: [0.2, 0.7, 0.2, 1],
-                  }}
-                  className="absolute select-none pointer-events-none font-serif"
-                  style={{
-                    left: "-0.55em",
-                    top: "-0.42em",
-                    fontSize: "clamp(7rem, 14vw, 13rem)",
-                    lineHeight: 1,
-                    color: accent,
-                    opacity: 0.22,
-                  }}
-                >
-                  &ldquo;
-                </motion.span>
-                <motion.h1
-                  initial={
-                    reduced
-                      ? false
-                      : { opacity: 0, y: 14, filter: "blur(6px)" }
-                  }
-                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  transition={{
-                    duration: 0.8,
-                    delay: 0.35,
-                    ease: [0.2, 0.7, 0.2, 1],
-                  }}
-                  className="relative font-serif font-medium"
-                  style={{
-                    fontSize: "clamp(3.5rem, 7vw, 6.5rem)",
-                    lineHeight: 0.96,
-                    letterSpacing: "-0.035em",
-                    color: "rgba(245,240,230,0.98)",
-                  }}
-                >
-                  Hey, you
-                  <span style={{ color: accent, opacity: 0.85 }}>.</span>
-                </motion.h1>
-              </div>
-
-              {/* Live agent transcript — swaps in when the agent
-                  is speaking. Falls back to a static prompt line
-                  while connecting / idle. */}
-              <div
-                className="relative font-serif italic"
-                style={{
-                  fontSize: "clamp(1.1875rem, 1.65vw, 1.5rem)",
-                  lineHeight: 1.5,
-                  color: "rgba(245,240,230,0.66)",
-                  maxWidth: "38ch",
-                  minHeight: "5.4em",
-                }}
-              >
-                <AnimatePresence mode="wait">
-                  {agentLine ? (
-                    <motion.p
-                      key={agentLine}
-                      initial={
-                        reduced ? false : { opacity: 0, y: 6, filter: "blur(4px)" }
-                      }
-                      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                      exit={
-                        reduced
-                          ? undefined
-                          : { opacity: 0, y: -4, filter: "blur(4px)" }
-                      }
-                      transition={{
-                        duration: 0.5,
-                        ease: [0.2, 0.7, 0.2, 1],
-                      }}
-                    >
-                      {agentLine}
-                    </motion.p>
-                  ) : voiceState === "error" ? (
-                    <motion.p
-                      key="error"
-                      initial={reduced ? false : { opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.4 }}
-                      style={{ color: "rgba(255,170,170,0.7)" }}
-                    >
-                      Voice didn&rsquo;t start —{" "}
-                      <button
-                        type="button"
-                        onClick={startVoice}
-                        className="underline underline-offset-4"
-                        style={{ color: "rgba(255,200,200,0.85)" }}
-                      >
-                        retry
-                      </button>{" "}
-                      or just type a name on the right.
-                      {voiceError && (
-                        <span
-                          className="block mt-2 text-[11px] tracking-[0.18em] uppercase"
-                          style={{
-                            color: "rgba(255,170,170,0.45)",
-                            fontFamily: "var(--font-mono)",
-                            fontStyle: "normal",
-                          }}
-                        >
-                          {voiceError}
-                        </span>
-                      )}
-                    </motion.p>
-                  ) : voiceState === "connecting" ? (
-                    <motion.p
-                      key="connecting"
-                      initial={reduced ? false : { opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.4 }}
-                    >
-                      Opening a line…
-                    </motion.p>
-                  ) : (
-                    <motion.p
-                      key="ready"
-                      initial={reduced ? false : { opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.5, delay: 0.5 }}
-                    >
-                      Glad you picked me. From here on, I&rsquo;ll guide
-                      you through every brief, every reply, every line.
-                      But first — name me.
-                    </motion.p>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-
-            {/* RIGHT — the user replies */}
-            <div className="relative flex flex-col items-start pt-1">
-              {/* Speaker pill mirrors the LEFT label */}
-              <motion.div
-                initial={reduced ? false : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.6,
-                  delay: 0.5,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
-                className="mb-9"
-              >
-                <SpeakerPill
-                  accent={accent}
-                  active={inputFocused || voiceState === "listening"}
-                >
-                  <span
-                    className="text-[11px] tracking-[0.32em] uppercase"
-                    style={{
-                      color: "rgba(245,240,230,0.55)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    Scene 02
-                  </span>
-                  <span
-                    style={{
-                      color: "rgba(245,240,230,0.28)",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 11,
-                    }}
-                  >
-                    ·
-                  </span>
-                  <span
-                    className="text-[11px] tracking-[0.32em] uppercase"
-                    style={{
-                      color: "rgba(245,240,230,0.86)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    You
-                  </span>
-                </SpeakerPill>
-              </motion.div>
-
-              {/* Input — editorial scale, fills when agent calls set_agent_name */}
-              <motion.div
-                initial={reduced ? false : { opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.7,
-                  delay: 0.7,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
-                className="w-full max-w-[640px] relative"
-              >
-                {/* Warm accent bloom under input — fades in as name fills */}
-                <motion.div
-                  aria-hidden
-                  className="absolute pointer-events-none"
-                  style={{
-                    left: "-8%",
-                    right: "-8%",
-                    bottom: "-30%",
-                    top: "-10%",
-                    background: `radial-gradient(ellipse at center, ${accent}12 0%, ${accent}04 40%, transparent 70%)`,
-                    filter: "blur(28px)",
-                  }}
-                  animate={{
-                    opacity: trimmed ? 1 : inputFocused ? 0.55 : 0,
-                  }}
-                  transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
-                />
-                <AnimatePresence mode="popLayout">
-                  <motion.input
-                    key={name || "empty"}
-                    ref={inputRef}
-                    type="text"
-                    value={name}
-                    onChange={(e) =>
-                      setName(e.target.value.slice(0, MAX_LEN))
-                    }
-                    onKeyDown={onKeyDown}
-                    onFocus={() => setInputFocused(true)}
-                    onBlur={() => setInputFocused(false)}
-                    placeholder={personality.suggestedNames[0]}
-                    maxLength={MAX_LEN}
-                    autoComplete="off"
-                    spellCheck={false}
-                    aria-label="Agent name"
-                    initial={
-                      reduced ? false : { opacity: 0.6, y: 6 }
-                    }
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.35,
-                      ease: [0.2, 0.7, 0.2, 1],
-                    }}
-                    className="relative w-full bg-transparent border-0 outline-none text-left font-serif font-medium pb-4 placeholder:opacity-25"
-                    style={{
-                      fontSize: "clamp(3rem, 5.4vw, 5rem)",
-                      lineHeight: 1,
-                      letterSpacing: "-0.03em",
-                      color: "rgba(245,240,230,0.98)",
-                      caretColor: accent,
-                    }}
-                  />
-                </AnimatePresence>
-                <motion.div
-                  className="relative h-px origin-left"
-                  style={{
-                    background: accent,
-                    boxShadow: `0 0 8px ${accent}`,
-                  }}
-                  animate={{
-                    scaleX: trimmed ? 1 : inputFocused ? 0.32 : 0.18,
-                    opacity: trimmed ? 0.92 : inputFocused ? 0.6 : 0.4,
-                  }}
-                  transition={{
-                    duration: 0.5,
-                    ease: [0.2, 0.7, 0.2, 1],
-                  }}
-                />
-
-                {/* User transcript — what the agent heard you say */}
-                <AnimatePresence>
-                  {userLine && (
-                    <motion.div
-                      key={userLine}
-                      initial={
-                        reduced ? false : { opacity: 0, y: 4 }
-                      }
-                      animate={{ opacity: 0.65, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.4 }}
-                      className="absolute -bottom-7 left-0 text-[11px] tracking-[0.22em] uppercase"
-                      style={{
-                        color: "rgba(245,240,230,0.45)",
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    >
-                      Heard: &ldquo;{userLine}&rdquo;
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {trimmed.length > MAX_LEN - 4 && (
-                  <div
-                    className="absolute right-0 top-1 text-[10.5px] tracking-[0.22em] uppercase"
-                    style={{
-                      color: "rgba(245,240,230,0.42)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    {trimmed.length} / {MAX_LEN}
-                  </div>
-                )}
-              </motion.div>
-
-              {/* Suggested chips */}
-              <motion.div
-                initial={reduced ? false : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.6,
-                  delay: 0.95,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
-                className="mt-12 flex items-center flex-wrap gap-x-7 gap-y-3"
-              >
-                <span
-                  className="text-[10.5px] tracking-[0.28em] uppercase"
-                  style={{
-                    color: "rgba(245,240,230,0.32)",
-                    fontFamily: "var(--font-mono)",
-                  }}
-                >
-                  Or try
-                </span>
-                {personality.suggestedNames.map((suggested, i) => {
-                  const isCurrent =
-                    trimmed.length > 0 &&
-                    trimmed.toLowerCase() === suggested.toLowerCase();
-                  return (
-                    <motion.button
-                      key={suggested}
-                      type="button"
-                      onClick={() => {
-                        setName(suggested);
-                        inputRef.current?.focus();
-                      }}
-                      initial={reduced ? false : { opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        delay: 1.0 + i * 0.05,
-                        duration: 0.4,
-                        ease: [0.2, 0.7, 0.2, 1],
-                      }}
-                      whileHover={reduced ? undefined : { y: -1 }}
-                      whileTap={{ scale: 0.97 }}
-                      className="font-serif italic relative"
-                      style={{
-                        fontSize: "clamp(1rem, 1.3vw, 1.125rem)",
-                        color: isCurrent
-                          ? "rgba(245,240,230,0.96)"
-                          : "rgba(245,240,230,0.55)",
-                        transition: "color 0.3s ease",
-                      }}
-                    >
-                      {suggested}
-                      {isCurrent && (
-                        <motion.span
-                          layoutId="suggested-underline"
-                          className="absolute -bottom-1 left-0 right-0 h-[1.5px] rounded-full"
-                          style={{
-                            background: accent,
-                            boxShadow: `0 0 6px ${accent}`,
-                          }}
-                          transition={{
-                            type: "spring",
-                            stiffness: 380,
-                            damping: 32,
-                            mass: 0.9,
-                          }}
-                        />
-                      )}
-                    </motion.button>
-                  );
-                })}
-              </motion.div>
-
-              {/* Continue */}
-              <motion.button
-                type="button"
-                onClick={onContinue}
-                disabled={!canContinue}
-                initial={reduced ? false : { opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.55,
-                  delay: 1.2,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
-                whileHover={
-                  reduced || !canContinue
-                    ? undefined
-                    : {
-                        scale: 1.03,
-                        backgroundColor: `${accent}14`,
-                        boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
-                      }
-                }
-                whileTap={canContinue ? { scale: 0.97 } : undefined}
-                className="mt-12 inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative disabled:cursor-not-allowed"
-                style={{
-                  fontSize: 16,
-                  background: "transparent",
-                  border: `1.5px solid ${
-                    canContinue ? `${accent}cc` : "rgba(245,240,230,0.12)"
-                  }`,
-                  color: canContinue
-                    ? "rgba(245,240,230,0.96)"
-                    : "rgba(245,240,230,0.3)",
-                  boxShadow: canContinue
-                    ? `0 0 26px -6px ${accent}aa`
-                    : "none",
-                }}
-              >
-                <span>
-                  {canContinue ? (
-                    <>
-                      Continue as{" "}
-                      <AnimatePresence mode="wait">
-                        <motion.span
-                          key={trimmed}
-                          initial={
-                            reduced ? false : { opacity: 0, y: 4 }
-                          }
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={
-                            reduced ? undefined : { opacity: 0, y: -4 }
-                          }
-                          transition={{
-                            duration: 0.3,
-                            ease: [0.2, 0.7, 0.2, 1],
-                          }}
-                          style={{
-                            color: accent,
-                            display: "inline-block",
-                          }}
-                        >
-                          {trimmed}
-                        </motion.span>
-                      </AnimatePresence>
-                    </>
-                  ) : (
-                    "Say a name, or type one"
-                  )}
-                </span>
-                {canContinue && (
-                  <motion.span
-                    aria-hidden
-                    className="inline-block"
-                    style={{ color: accent }}
-                    animate={reduced ? undefined : { x: [0, 4, 0] }}
-                    transition={{
-                      duration: 1.8,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                  >
-                    →
-                  </motion.span>
-                )}
-              </motion.button>
-            </div>
-          </div>
-
-          {/* Back link */}
-          <motion.div
-            initial={reduced ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 1.4 }}
-            className="relative"
-          >
-            <button
-              type="button"
-              onClick={() => {
-                try {
-      conversation.endSession();
-    } catch {
-      /* ignore */
-    }
-                router.push("/onboarding/personality");
-              }}
-              className="text-[11px] tracking-[0.24em] uppercase transition-opacity hover:opacity-80"
-              style={{
-                color: "rgba(245,240,230,0.32)",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              ← Back
-            </button>
-          </motion.div>
-        </div>
-      </div>
-    </OnboardingFrame>
-  );
-}
-
-/* ============================================================
- * SpeakerPill — frosted glass capsule that wraps the speaker label
- * row on both sides. Accent rim lights up when that speaker has
- * the floor (agent speaking on left, input focused on right).
- * ============================================================ */
-function SpeakerPill({
-  children,
-  accent,
-  active,
-}: {
-  children: React.ReactNode;
-  accent: string;
-  active: boolean;
-}) {
-  return (
-    <motion.div
-      className="inline-flex items-center gap-2 px-3.5 h-9 rounded-full relative"
-      style={{
-        background: `linear-gradient(180deg, rgba(255,255,255,0.045) 0%, ${accent}0a 100%)`,
-        backdropFilter: "blur(18px)",
-        WebkitBackdropFilter: "blur(18px)",
-      }}
-      animate={{
-        boxShadow: active
-          ? `0 0 22px -4px ${accent}66, inset 0 1px 0 rgba(255,255,255,0.18)`
-          : "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 12px -6px rgba(0,0,0,0.4)",
-      }}
-      transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
-      initial={false}
-    >
-      <motion.div
-        aria-hidden
-        className="absolute inset-0 rounded-full pointer-events-none"
-        animate={{
-          borderColor: active ? `${accent}88` : "rgba(255,255,255,0.14)",
-        }}
-        transition={{ duration: 0.5 }}
-        style={{
-          borderWidth: 1,
-          borderStyle: "solid",
-        }}
-      />
-      {children}
-    </motion.div>
-  );
-}
-
-/* ============================================================
- * SpeakingIcon — glass disc with audio-wave bars. Behaves as the
- * live agent state indicator AND the tap-to-start/stop control.
- * Bars animate while listening or speaking; spinner while
- * connecting; quiet bars while idle.
- * ============================================================ */
-function SpeakingIcon({
-  voiceState,
-  accent,
-  onClick,
-}: {
-  voiceState: VoiceState;
-  accent: string;
-  onClick: () => void;
-}) {
-  const reduced = useReducedMotion();
-  const [hovered, setHovered] = useState(false);
-  const isConnecting = voiceState === "connecting";
-  const active = voiceState === "listening" || voiceState === "speaking";
-  const errored = voiceState === "error";
-
-  const bars = [
-    { phase: 0, peak: 0.95 },
-    { phase: 0.18, peak: 1 },
-    { phase: 0.36, peak: 0.7 },
-  ];
-
   const ringColor = errored
     ? "rgba(255,150,150,0.7)"
     : active || hovered
@@ -1056,168 +728,277 @@ function SpeakingIcon({
       : "rgba(255,255,255,0.18)";
 
   return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      onHoverStart={() => setHovered(true)}
-      onHoverEnd={() => setHovered(false)}
-      whileTap={{ scale: 0.92 }}
-      whileHover={reduced ? undefined : { scale: 1.06, y: -1 }}
-      transition={{ type: "spring", stiffness: 280, damping: 22 }}
-      className="relative grid place-items-center rounded-full"
-      style={{
-        width: 50,
-        height: 50,
-        background: `linear-gradient(180deg, rgba(255,255,255,0.07) 0%, ${accent}14 100%)`,
-        backdropFilter: "blur(22px)",
-        WebkitBackdropFilter: "blur(22px)",
-        border: `1px solid ${ringColor}`,
-        boxShadow:
-          active || hovered
-            ? `0 0 28px -4px ${accent}aa, inset 0 1px 0 rgba(255,255,255,0.24)`
-            : "inset 0 1px 0 rgba(255,255,255,0.16), 0 10px 22px -8px rgba(0,0,0,0.55)",
-        transition: "border-color 0.4s ease, box-shadow 0.4s ease",
-      }}
-      aria-label={
-        voiceState === "speaking" || voiceState === "listening"
-          ? "Stop the conversation"
-          : "Start the conversation"
-      }
+    <div
+      className="fixed z-40 flex items-center gap-3"
+      style={{ bottom: 40, right: 40 }}
     >
-      {/* Specular highlight */}
-      <div
-        aria-hidden
-        className="absolute pointer-events-none"
-        style={{
-          top: "8%",
-          left: "12%",
-          width: "52%",
-          height: "32%",
-          borderRadius: "50%",
-          background:
-            "radial-gradient(ellipse, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 70%)",
-          filter: "blur(8px)",
-        }}
-      />
-
-      {/* Accent reflection bottom */}
-      <div
-        aria-hidden
-        className="absolute pointer-events-none"
-        style={{
-          bottom: "8%",
-          left: "20%",
-          width: "60%",
-          height: "30%",
-          borderRadius: "50%",
-          background: `radial-gradient(ellipse, ${accent}38 0%, transparent 70%)`,
-          filter: "blur(10px)",
-        }}
-      />
-
-      {/* "Tap to talk" invitation ring while idle */}
-      {!reduced && voiceState === "idle" && (
-        <motion.div
-          aria-hidden
-          className="absolute rounded-full pointer-events-none"
-          style={{ inset: -8, border: `1px solid ${accent}44` }}
-          initial={{ opacity: 0, scale: 0.94 }}
-          animate={{ opacity: [0, 0.55, 0], scale: [0.94, 1.06, 1.18] }}
-          transition={{
-            duration: 2.6,
-            repeat: Infinity,
-            ease: "easeOut",
-            repeatDelay: 0.6,
-          }}
-        />
-      )}
-
-      {/* Speaking pulse ring */}
-      {active && !reduced && (
-        <motion.div
-          aria-hidden
-          className="absolute rounded-full pointer-events-none"
-          style={{ inset: 0, border: `1px solid ${accent}66` }}
-          animate={{ scale: [1, 1.18, 1.32], opacity: [0.55, 0.18, 0] }}
-          transition={{
-            duration: 2.2,
-            repeat: Infinity,
-            ease: "easeOut",
-          }}
-        />
-      )}
-
-      {isConnecting ? (
-        <svg
-          width={20}
-          height={20}
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden
-          className="relative"
-        >
-          <circle
-            cx="12"
-            cy="12"
-            r="9"
-            stroke={accent}
-            strokeOpacity="0.3"
-            strokeWidth="2.5"
-          />
-          <path
-            d="M21 12a9 9 0 0 0-9-9"
-            stroke="white"
-            strokeWidth="2.5"
-            strokeLinecap="round"
+      {/* Status label — fades in alongside the widget */}
+      <AnimatePresence>
+        {(active || isConnecting || errored || hovered) && (
+          <motion.div
+            initial={
+              reduced ? false : { opacity: 0, x: 8, filter: "blur(4px)" }
+            }
+            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+            exit={
+              reduced
+                ? undefined
+                : { opacity: 0, x: 8, filter: "blur(4px)" }
+            }
+            transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
+            className="relative inline-flex items-center h-9 px-3.5 rounded-full"
+            style={{
+              background: `linear-gradient(180deg, rgba(255,255,255,0.05) 0%, ${accent}0a 100%)`,
+              backdropFilter: "blur(18px)",
+              WebkitBackdropFilter: "blur(18px)",
+              border: `1px solid ${active ? `${accent}66` : "rgba(255,255,255,0.14)"}`,
+              boxShadow: active
+                ? `0 0 22px -4px ${accent}55, inset 0 1px 0 rgba(255,255,255,0.18)`
+                : "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 12px -6px rgba(0,0,0,0.4)",
+            }}
           >
-            <animateTransform
-              attributeName="transform"
-              type="rotate"
-              from="0 12 12"
-              to="360 12 12"
-              dur="0.9s"
-              repeatCount="indefinite"
-            />
-          </path>
-        </svg>
-      ) : (
-        <div className="relative flex items-center gap-[3px]" aria-hidden>
-          {bars.map((bar, i) => (
-            <motion.span
-              key={i}
+            <span
+              className="text-[11px] tracking-[0.28em] uppercase"
               style={{
-                display: "inline-block",
-                width: 2.5,
-                borderRadius: 2,
-                background: errored ? "rgba(255,150,150,0.7)" : accent,
-                boxShadow: active ? `0 0 6px ${accent}` : "none",
-                transformOrigin: "center",
+                color: errored
+                  ? "rgba(255,170,170,0.85)"
+                  : active
+                    ? accent
+                    : "rgba(245,240,230,0.62)",
+                fontFamily: "var(--font-mono)",
               }}
-              animate={
-                reduced
-                  ? { height: 4 }
-                  : active
-                    ? {
-                        height: [4, 18 * bar.peak, 4, 13 * bar.peak, 4],
-                      }
-                    : { height: 4 }
-              }
-              transition={
-                reduced
-                  ? { duration: 0.2 }
-                  : active
-                    ? {
-                        duration: 0.9,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: bar.phase,
-                      }
-                    : { duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }
-              }
+            >
+              {statusLabel}
+            </span>
+            {errored && voiceError && (
+              <button
+                type="button"
+                onClick={retry}
+                className="ml-3 text-[10.5px] tracking-[0.22em] uppercase underline underline-offset-4"
+                style={{
+                  color: "rgba(255,200,200,0.8)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                Retry
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Widget */}
+      <motion.button
+        type="button"
+        onClick={onClick}
+        onHoverStart={() => setHovered(true)}
+        onHoverEnd={() => setHovered(false)}
+        whileTap={{ scale: 0.92 }}
+        whileHover={reduced ? undefined : { scale: 1.06, y: -2 }}
+        transition={{ type: "spring", stiffness: 280, damping: 22 }}
+        className="relative grid place-items-center rounded-full"
+        style={{
+          width: 64,
+          height: 64,
+          background: `linear-gradient(180deg, rgba(255,255,255,0.08) 0%, ${accent}1a 100%)`,
+          backdropFilter: "blur(28px)",
+          WebkitBackdropFilter: "blur(28px)",
+          border: `1px solid ${ringColor}`,
+          boxShadow: active
+            ? `0 0 44px -4px ${accent}aa, 0 14px 36px -10px rgba(0,0,0,0.7)`
+            : `0 0 30px -10px ${accent}88, 0 12px 28px -10px rgba(0,0,0,0.6)`,
+          transition: "border-color 0.4s ease, box-shadow 0.4s ease",
+        }}
+        aria-label={
+          active ? "Stop the agent" : "Start the agent"
+        }
+      >
+        {/* Specular highlight */}
+        <div
+          aria-hidden
+          className="absolute pointer-events-none"
+          style={{
+            top: "8%",
+            left: "12%",
+            width: "52%",
+            height: "32%",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(ellipse, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0) 70%)",
+            filter: "blur(10px)",
+          }}
+        />
+
+        {/* Accent reflection bottom */}
+        <div
+          aria-hidden
+          className="absolute pointer-events-none"
+          style={{
+            bottom: "8%",
+            left: "20%",
+            width: "60%",
+            height: "30%",
+            borderRadius: "50%",
+            background: `radial-gradient(ellipse, ${accent}40 0%, transparent 70%)`,
+            filter: "blur(12px)",
+          }}
+        />
+
+        {/* Idle invitation ring */}
+        {!reduced && voiceState === "idle" && (
+          <motion.div
+            aria-hidden
+            className="absolute rounded-full pointer-events-none"
+            style={{ inset: -8, border: `1px solid ${accent}44` }}
+            initial={{ opacity: 0, scale: 0.94 }}
+            animate={{ opacity: [0, 0.55, 0], scale: [0.94, 1.08, 1.2] }}
+            transition={{
+              duration: 2.6,
+              repeat: Infinity,
+              ease: "easeOut",
+              repeatDelay: 0.6,
+            }}
+          />
+        )}
+
+        {/* Speaking ripple */}
+        {speaking && !reduced && (
+          <>
+            {[0, 0.6].map((delay, i) => (
+              <motion.div
+                key={i}
+                aria-hidden
+                className="absolute rounded-full pointer-events-none"
+                style={{ inset: 0, border: `1px solid ${accent}66` }}
+                animate={{
+                  scale: [1, 1.32, 1.6],
+                  opacity: [0.55, 0.18, 0],
+                }}
+                transition={{
+                  duration: 2.2,
+                  repeat: Infinity,
+                  delay,
+                  ease: "easeOut",
+                }}
+              />
+            ))}
+          </>
+        )}
+
+        {/* Glyph */}
+        {isConnecting ? (
+          <svg
+            width={24}
+            height={24}
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
+            className="relative"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              stroke={accent}
+              strokeOpacity="0.3"
+              strokeWidth="2.5"
             />
-          ))}
-        </div>
-      )}
-    </motion.button>
+            <path
+              d="M21 12a9 9 0 0 0-9-9"
+              stroke="white"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
+              <animateTransform
+                attributeName="transform"
+                type="rotate"
+                from="0 12 12"
+                to="360 12 12"
+                dur="0.9s"
+                repeatCount="indefinite"
+              />
+            </path>
+          </svg>
+        ) : (
+          <AudioBars
+            active={active}
+            speaking={speaking}
+            accent={accent}
+            errored={errored}
+          />
+        )}
+      </motion.button>
+    </div>
+  );
+}
+
+function AudioBars({
+  active,
+  speaking,
+  accent,
+  errored,
+}: {
+  active: boolean;
+  speaking: boolean;
+  accent: string;
+  errored: boolean;
+}) {
+  const reduced = useReducedMotion();
+  // 4 bars with staggered phases. Speaking peaks tall and animated;
+  // listening idles short with a gentle breath; idle/errored stay
+  // flat short.
+  const bars = [
+    { phase: 0, peak: 1 },
+    { phase: 0.15, peak: 0.85 },
+    { phase: 0.3, peak: 1 },
+    { phase: 0.45, peak: 0.7 },
+  ];
+
+  return (
+    <div className="relative flex items-center gap-[3px]" aria-hidden>
+      {bars.map((bar, i) => (
+        <motion.span
+          key={i}
+          style={{
+            display: "inline-block",
+            width: 3,
+            borderRadius: 2,
+            background: errored ? "rgba(255,150,150,0.7)" : accent,
+            boxShadow: active ? `0 0 8px ${accent}` : "none",
+            transformOrigin: "center",
+          }}
+          animate={
+            reduced
+              ? { height: 5 }
+              : speaking
+                ? {
+                    height: [5, 24 * bar.peak, 5, 16 * bar.peak, 5],
+                  }
+                : active
+                  ? { height: [5, 9, 5, 7, 5] }
+                  : { height: 5 }
+          }
+          transition={
+            reduced
+              ? { duration: 0.2 }
+              : speaking
+                ? {
+                    duration: 0.9,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: bar.phase,
+                  }
+                : active
+                  ? {
+                      duration: 2.4,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: bar.phase,
+                    }
+                  : { duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }
+          }
+        />
+      ))}
+    </div>
   );
 }
