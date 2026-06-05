@@ -225,7 +225,8 @@ export default function NamePage() {
                   Or try
                 </span>
                 {personality.suggestedNames.map((suggested, i) => {
-                  const picked =
+                  const isCurrent =
+                    trimmed.length > 0 &&
                     trimmed.toLowerCase() === suggested.toLowerCase();
                   return (
                     <motion.button
@@ -247,14 +248,14 @@ export default function NamePage() {
                       className="font-serif italic relative"
                       style={{
                         fontSize: "clamp(1rem, 1.3vw, 1.125rem)",
-                        color: picked
-                          ? accent
+                        color: isCurrent
+                          ? "rgba(245,240,230,0.96)"
                           : "rgba(245,240,230,0.55)",
                         transition: "color 0.3s ease",
                       }}
                     >
                       {suggested}
-                      {picked && (
+                      {isCurrent && (
                         <motion.span
                           layoutId="suggested-underline"
                           className="absolute -bottom-1 left-0 right-0 h-[1.5px] rounded-full"

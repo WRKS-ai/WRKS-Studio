@@ -4,7 +4,8 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { OnboardingFrame } from "@/components/onboarding-frame";
-import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
+import { PERSONALITIES } from "@/lib/personalities";
+import type { PersonalityId } from "@/lib/personalities";
 import { VOICES } from "@/lib/voices";
 
 const STORAGE_KEY = "wrks-onboarding-personality";
@@ -25,12 +26,10 @@ export default function PersonalityPage() {
   const reduced = useReducedMotion();
 
   const [index, setIndex] = useState<number>(0);
-  const [committed, setCommitted] = useState<PersonalityId | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY) as PersonalityId | null;
     if (saved && PERSONALITIES.some((p) => p.id === saved)) {
-      setCommitted(saved);
       const i = PERSONALITIES.findIndex((p) => p.id === saved);
       if (i >= 0) setIndex(i);
     }
@@ -113,7 +112,6 @@ export default function PersonalityPage() {
     stopAudio();
     localStorage.setItem(STORAGE_KEY, previewed.id);
     localStorage.setItem(VOICE_KEY, previewed.voiceId);
-    setCommitted(previewed.id);
     router.push("/onboarding/name");
   }, [previewed.id, previewed.voiceId, router, stopAudio]);
 
@@ -242,37 +240,13 @@ export default function PersonalityPage() {
             </div>
 
             {/* RIGHT — premium glass play button (the voice) */}
-            <div className="relative h-full min-h-[420px] flex flex-col items-center justify-center gap-7">
+            <div className="relative h-full min-h-[420px] flex items-center justify-center">
               <GlassPlayButton
                 state={playState}
                 progressRatio={progressRatio}
                 accent={accent}
                 onToggle={toggleListen}
               />
-
-              {/* Tiny caption — quiet voice direction */}
-              <AnimatePresence mode="wait">
-                <motion.span
-                  key={previewed.id + "-" + playState}
-                  initial={reduced ? false : { opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={reduced ? undefined : { opacity: 0 }}
-                  transition={{ duration: 0.4 }}
-                  className="text-[11px] tracking-[0.32em] uppercase"
-                  style={{
-                    color: "rgba(245,240,230,0.4)",
-                    fontFamily: "var(--font-mono)",
-                  }}
-                >
-                  {playState === "playing"
-                    ? "Speaking"
-                    : playState === "loading"
-                      ? "Loading"
-                      : playState === "error"
-                        ? "Sample unavailable"
-                        : "Press to listen"}
-                </motion.span>
-              </AnimatePresence>
             </div>
           </div>
 
@@ -281,12 +255,6 @@ export default function PersonalityPage() {
             <nav className="flex items-center gap-8">
               {PERSONALITIES.map((p, i) => {
                 const isCurrent = i === index;
-                const isCommittedHere = committed === p.id;
-                const nameColor = isCurrent
-                  ? "rgba(245,240,230,0.96)"
-                  : isCommittedHere
-                    ? p.accent
-                    : "rgba(245,240,230,0.32)";
                 return (
                   <button
                     key={p.id}
@@ -301,7 +269,9 @@ export default function PersonalityPage() {
                         letterSpacing: "-0.01em",
                       }}
                       animate={{
-                        color: nameColor,
+                        color: isCurrent
+                          ? "rgba(245,240,230,0.96)"
+                          : "rgba(245,240,230,0.32)",
                         y: isCurrent ? -1 : 0,
                       }}
                       transition={{
@@ -317,12 +287,8 @@ export default function PersonalityPage() {
                         layoutId="nav-underline"
                         className="absolute bottom-0 left-0 right-0 h-[1.5px] rounded-full"
                         style={{
-                          background: isCommittedHere
-                            ? p.accent
-                            : "rgba(245,240,230,0.85)",
-                          boxShadow: isCommittedHere
-                            ? `0 0 8px ${p.accent}, 0 0 18px ${p.accent}55`
-                            : "none",
+                          background: accent,
+                          boxShadow: `0 0 8px ${accent}, 0 0 18px ${accent}55`,
                         }}
                         transition={{
                           type: "spring",
@@ -415,6 +381,7 @@ function GlassPlayButton({
   onToggle: () => void;
 }) {
   const reduced = useReducedMotion();
+  const [hovered, setHovered] = useState(false);
   const isPlaying = state === "playing";
   const isLoading = state === "loading";
   const isError = state === "error";
@@ -426,36 +393,73 @@ function GlassPlayButton({
     <motion.button
       type="button"
       onClick={onToggle}
+      onHoverStart={() => setHovered(true)}
+      onHoverEnd={() => setHovered(false)}
       disabled={isError}
       whileHover={
-        reduced || isError ? undefined : { scale: 1.025 }
+        reduced || isError
+          ? undefined
+          : {
+              scale: 1.035,
+              y: -3,
+            }
       }
-      whileTap={isError ? undefined : { scale: 0.97 }}
-      transition={{ duration: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
+      whileTap={isError ? undefined : { scale: 0.97, y: 0 }}
+      transition={{
+        scale: { type: "spring", stiffness: 240, damping: 22, mass: 0.9 },
+        y: { type: "spring", stiffness: 240, damping: 22, mass: 0.9 },
+      }}
       className="relative grid place-items-center group disabled:cursor-not-allowed"
       style={{ width: size, height: size }}
       aria-label={isPlaying ? "Stop voice sample" : "Play voice sample"}
     >
-      {/* Outer atmospheric glow halo */}
+      {/* Outer atmospheric glow halo — grows on hover */}
       <motion.div
         aria-hidden
         className="absolute rounded-full pointer-events-none"
         style={{
-          inset: -60,
-          background: `radial-gradient(circle, ${accent}22 0%, ${accent}05 35%, transparent 65%)`,
-          filter: "blur(24px)",
+          inset: -80,
+          background: `radial-gradient(circle, ${accent}30 0%, ${accent}08 35%, transparent 65%)`,
+          filter: "blur(30px)",
         }}
-        animate={
-          reduced
-            ? undefined
-            : { opacity: isPlaying ? [0.7, 1, 0.7] : [0.5, 0.7, 0.5] }
+        animate={{
+          opacity: hovered
+            ? 1
+            : isPlaying
+              ? [0.7, 1, 0.7]
+              : reduced
+                ? 0.5
+                : [0.45, 0.65, 0.45],
+          scale: hovered ? 1.15 : 1,
+        }}
+        transition={
+          hovered
+            ? {
+                opacity: { duration: 0.5, ease: [0.2, 0.7, 0.2, 1] },
+                scale: { duration: 0.6, ease: [0.2, 0.7, 0.2, 1] },
+              }
+            : {
+                duration: isPlaying ? 1.6 : 4,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }
         }
-        transition={{
-          duration: isPlaying ? 1.6 : 4,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
       />
+
+      {/* Idle breathing ring — appears only on hover */}
+      {!reduced && hovered && !isPlaying && (
+        <motion.div
+          aria-hidden
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            inset: -8,
+            border: `1px solid ${accent}55`,
+          }}
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: [0, 0.7, 0], scale: [0.96, 1.08, 1.16] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }}
+        />
+      )}
 
       {/* Pulse ring when playing */}
       {isPlaying && !reduced && (
@@ -482,25 +486,45 @@ function GlassPlayButton({
       )}
 
       {/* Glass body */}
-      <div
+      <motion.div
         aria-hidden
         className="absolute inset-0 rounded-full"
         style={{
           background: `linear-gradient(180deg, rgba(255,255,255,0.06) 0%, ${accent}12 100%)`,
           backdropFilter: "blur(40px)",
           WebkitBackdropFilter: "blur(40px)",
+        }}
+        animate={{
+          borderColor: hovered
+            ? "rgba(255,255,255,0.28)"
+            : "rgba(255,255,255,0.14)",
+          boxShadow: hovered
+            ? [
+                "inset 0 1px 0 rgba(255,255,255,0.32)",
+                `inset 0 -2px 22px ${accent}55`,
+                "0 30px 90px -12px rgba(0,0,0,0.7)",
+                `0 0 120px -8px ${accent}aa`,
+              ].join(", ")
+            : [
+                "inset 0 1px 0 rgba(255,255,255,0.22)",
+                `inset 0 -2px 16px ${accent}33`,
+                "0 24px 70px -12px rgba(0,0,0,0.6)",
+                `0 0 90px -12px ${accent}66`,
+              ].join(", "),
+        }}
+        transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+        initial={false}
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 rounded-full pointer-events-none"
+        style={{
           border: "1px solid rgba(255,255,255,0.14)",
-          boxShadow: [
-            "inset 0 1px 0 rgba(255,255,255,0.22)",
-            `inset 0 -2px 16px ${accent}33`,
-            "0 24px 70px -12px rgba(0,0,0,0.6)",
-            `0 0 90px -12px ${accent}66`,
-          ].join(", "),
         }}
       />
 
-      {/* Specular highlight — top-left soft glint */}
-      <div
+      {/* Specular highlight — top-left soft glint, brightens on hover */}
+      <motion.div
         aria-hidden
         className="absolute pointer-events-none"
         style={{
@@ -509,14 +533,19 @@ function GlassPlayButton({
           width: "52%",
           height: "32%",
           borderRadius: "50%",
-          background:
-            "radial-gradient(ellipse, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 70%)",
           filter: "blur(10px)",
         }}
+        animate={{
+          background: hovered
+            ? "radial-gradient(ellipse, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0) 70%)"
+            : "radial-gradient(ellipse, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 70%)",
+        }}
+        transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
       />
 
-      {/* Bottom accent reflection — color bleeding up from below */}
-      <div
+      {/* Bottom accent reflection — color bleeding up from below,
+          intensifies on hover */}
+      <motion.div
         aria-hidden
         className="absolute pointer-events-none"
         style={{
@@ -525,9 +554,14 @@ function GlassPlayButton({
           width: "60%",
           height: "30%",
           borderRadius: "50%",
-          background: `radial-gradient(ellipse, ${accent}30 0%, transparent 70%)`,
           filter: "blur(14px)",
         }}
+        animate={{
+          background: hovered
+            ? `radial-gradient(ellipse, ${accent}55 0%, transparent 70%)`
+            : `radial-gradient(ellipse, ${accent}30 0%, transparent 70%)`,
+        }}
+        transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
       />
 
       {/* Progress arc — traces circumference while playing */}
