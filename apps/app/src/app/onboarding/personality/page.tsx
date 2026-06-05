@@ -139,8 +139,8 @@ export default function PersonalityPage() {
 
   return (
     <OnboardingFrame step={1} totalSteps={5} bloomTint={accent}>
-      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 pt-10 pb-14 flex flex-col items-center">
-        <div className="w-full max-w-[1100px] flex flex-col flex-1">
+      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center">
+        <div className="w-full max-w-[1440px] flex flex-col gap-14 lg:gap-20">
           {/* Act header — top-left anchor */}
           <motion.div
             initial={
@@ -148,7 +148,7 @@ export default function PersonalityPage() {
             }
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-            className="flex items-center gap-4 mb-10"
+            className="flex items-center gap-4"
           >
             <span
               className="inline-block h-px w-10"
@@ -170,13 +170,13 @@ export default function PersonalityPage() {
               counterweight on the right. Tight gap so they read as
               one composition. */}
           <div
-            className="grid items-center gap-10 lg:gap-12 flex-1"
+            className="grid items-center gap-14 lg:gap-20"
             style={{
-              gridTemplateColumns: "minmax(0, 1.35fr) minmax(0, 0.65fr)",
+              gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 0.7fr)",
             }}
           >
             {/* LEFT — agent no, name, tagline */}
-            <div className="relative min-h-[380px] flex flex-col justify-center">
+            <div className="relative">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={previewed.id}
@@ -197,7 +197,7 @@ export default function PersonalityPage() {
                   }}
                 >
                   {/* Agent number */}
-                  <div className="mb-7 flex flex-col gap-2">
+                  <div className="mb-8 flex flex-col gap-2">
                     <span
                       className="text-[11px] tracking-[0.32em] uppercase"
                       style={{
@@ -217,7 +217,7 @@ export default function PersonalityPage() {
                   <h1
                     className="font-serif font-medium"
                     style={{
-                      fontSize: "clamp(4.5rem, 10vw, 8.5rem)",
+                      fontSize: "clamp(5rem, 10.5vw, 10rem)",
                       lineHeight: 0.94,
                       letterSpacing: "-0.035em",
                       color: "rgba(245,240,230,0.98)",
@@ -229,9 +229,9 @@ export default function PersonalityPage() {
 
                   {/* Tagline */}
                   <p
-                    className="mt-7 font-serif italic max-w-[30ch]"
+                    className="mt-8 font-serif italic max-w-[32ch]"
                     style={{
-                      fontSize: "clamp(1.125rem, 1.6vw, 1.4375rem)",
+                      fontSize: "clamp(1.1875rem, 1.7vw, 1.5rem)",
                       lineHeight: 1.3,
                       color: "rgba(245,240,230,0.6)",
                     }}
@@ -243,7 +243,7 @@ export default function PersonalityPage() {
             </div>
 
             {/* RIGHT — premium glass play button */}
-            <div className="relative h-full min-h-[380px] flex items-center justify-center">
+            <div className="relative flex items-center justify-center">
               <GlassPlayButton
                 state={playState}
                 progressRatio={progressRatio}
@@ -254,7 +254,7 @@ export default function PersonalityPage() {
           </div>
 
           {/* Bottom row — cast nav left, Continue pill right */}
-          <div className="relative mt-10 flex items-center justify-between gap-8">
+          <div className="relative flex items-center justify-between gap-8">
             <nav className="flex items-center gap-8">
               {PERSONALITIES.map((p, i) => {
                 const isCurrent = i === index;
@@ -376,7 +376,7 @@ function GlassPlayButton({
   const isPlaying = state === "playing";
   const isLoading = state === "loading";
   const isError = state === "error";
-  const size = 240;
+  const size = 300;
   const radius = size / 2 - 4;
   const circumference = 2 * Math.PI * radius;
 
@@ -601,11 +601,11 @@ function GlassPlayButton({
         transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
       >
         {isLoading ? (
-          <Spinner size={42} accent={accent} />
+          <Spinner size={52} accent={accent} />
         ) : isPlaying ? (
-          <StopIcon size={32} accent={accent} />
+          <StopIcon size={40} accent={accent} />
         ) : (
-          <PlayIcon size={44} accent={accent} />
+          <PlayIcon size={54} accent={accent} />
         )}
       </motion.div>
     </motion.button>
