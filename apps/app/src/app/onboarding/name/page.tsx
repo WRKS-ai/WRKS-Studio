@@ -313,6 +313,53 @@ function NamePageInner({
             competing for attention. */}
         <AuroraBackground accent={accent} amplified={agentSpeaking} />
 
+        {/* Grid backdrop — subtle dotted-line pattern with radial
+            mask from the top, fading into the canvas. Adds substance
+            without visual noise. */}
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none opacity-50"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px)",
+            backgroundSize: "84px 84px",
+            maskImage:
+              "radial-gradient(ellipse 65% 50% at 50% 30%, #000 55%, transparent 100%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse 65% 50% at 50% 30%, #000 55%, transparent 100%)",
+          }}
+        />
+
+        {/* Bottom radial accent — big ambient light source rising
+            from below center. Anchors the whole composition the way
+            a stage spotlight does. Pulses with the agent's voice. */}
+        <motion.div
+          aria-hidden
+          className="absolute pointer-events-none"
+          style={{
+            left: "50%",
+            bottom: "-420px",
+            width: "140%",
+            height: "780px",
+            transform: "translateX(-50%)",
+            borderRadius: "100%",
+            background: `radial-gradient(closest-side, ${accent}44 8%, ${accent}1a 50%, transparent 75%)`,
+            filter: "blur(20px)",
+          }}
+          animate={
+            reduced
+              ? { opacity: 0.7 }
+              : agentSpeaking
+                ? { opacity: [0.6, 1, 0.6] }
+                : { opacity: 0.72 }
+          }
+          transition={
+            agentSpeaking && !reduced
+              ? { duration: 3.4, repeat: Infinity, ease: "easeInOut" }
+              : { duration: 0.8 }
+          }
+        />
+
         {/* Top metadata row */}
         <div className="relative flex items-start justify-between pt-2">
           <motion.div
@@ -377,7 +424,9 @@ function NamePageInner({
         {/* Center stage — single focal element: the typed name */}
         <div className="relative min-h-[calc(100vh-260px)] flex items-center justify-center">
           <div className="relative w-full max-w-[1100px] flex flex-col items-center">
-            {/* Tiny prompt above */}
+            {/* Eyebrow pill — glass capsule with a live accent dot.
+                Replaces the two-hairlines treatment with something
+                with actual material. */}
             <motion.div
               initial={reduced ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -386,25 +435,43 @@ function NamePageInner({
                 delay: 0.2,
                 ease: [0.2, 0.7, 0.2, 1],
               }}
-              className="mb-10 flex items-center gap-3"
+              className="mb-12 relative inline-flex items-center gap-2.5 h-9 px-4 rounded-full"
+              style={{
+                background: `linear-gradient(180deg, rgba(255,255,255,0.05) 0%, ${accent}10 100%)`,
+                backdropFilter: "blur(18px)",
+                WebkitBackdropFilter: "blur(18px)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                boxShadow:
+                  "inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 14px -6px rgba(0,0,0,0.4)",
+              }}
             >
-              <span
-                className="inline-block h-px w-6"
-                style={{ background: `${accent}88` }}
+              <motion.span
+                aria-hidden
+                className="inline-block w-1.5 h-1.5 rounded-full"
+                style={{
+                  background: accent,
+                  boxShadow: `0 0 10px ${accent}`,
+                }}
+                animate={
+                  reduced
+                    ? { opacity: 1 }
+                    : { opacity: [0.4, 1, 0.4] }
+                }
+                transition={{
+                  duration: 2.2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
               />
               <span
-                className="text-[10.5px] tracking-[0.4em] uppercase"
+                className="text-[10.5px] tracking-[0.36em] uppercase"
                 style={{
-                  color: "rgba(245,240,230,0.45)",
+                  color: "rgba(245,240,230,0.65)",
                   fontFamily: "var(--font-mono)",
                 }}
               >
                 {trimmed ? "Your agent is named" : "Give me a name"}
               </span>
-              <span
-                className="inline-block h-px w-6"
-                style={{ background: `${accent}88` }}
-              />
             </motion.div>
 
             {/* The typed name displayed at poster scale. Click-anywhere
@@ -413,7 +480,10 @@ function NamePageInner({
               className="relative w-full cursor-text"
               onClick={() => inputRef.current?.focus()}
             >
-              {/* Display layer */}
+              {/* Display layer — when filled, the type is rendered as
+                  a bg-clip gradient (white at top fading toward the
+                  accent at the bottom) so the letterforms feel lit
+                  rather than flat-colored. */}
               <div
                 aria-hidden
                 className="font-serif font-medium text-center select-none pointer-events-none"
@@ -421,12 +491,17 @@ function NamePageInner({
                   fontSize: "clamp(4rem, 11vw, 10rem)",
                   lineHeight: 1,
                   letterSpacing: trimmed ? "0.06em" : "-0.04em",
-                  color: trimmed
-                    ? "rgba(245,240,230,0.98)"
-                    : "rgba(245,240,230,0.42)",
-                  textShadow: trimmed ? `0 0 60px ${accent}40` : "none",
+                  color: trimmed ? "transparent" : "rgba(245,240,230,0.42)",
+                  backgroundImage: trimmed
+                    ? `linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.85) 45%, ${accent} 105%)`
+                    : undefined,
+                  WebkitBackgroundClip: trimmed ? "text" : undefined,
+                  backgroundClip: trimmed ? "text" : undefined,
+                  filter: trimmed
+                    ? `drop-shadow(0 0 40px ${accent}55)`
+                    : undefined,
                   transition:
-                    "letter-spacing 0.6s cubic-bezier(0.2,0.7,0.2,1), color 0.4s ease, text-shadow 0.6s ease",
+                    "letter-spacing 0.6s cubic-bezier(0.2,0.7,0.2,1), color 0.4s ease, filter 0.6s ease",
                   textTransform: trimmed ? "none" : "lowercase",
                 }}
               >
