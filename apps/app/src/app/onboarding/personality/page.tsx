@@ -286,7 +286,6 @@ export default function PersonalityPage() {
                       state={playState}
                       currentTime={currentTime}
                       duration={duration}
-                      voiceName={pairedVoice.name}
                       progressRatio={progressRatio}
                       accent={accent}
                       onToggle={toggleListen}
@@ -491,7 +490,6 @@ function ListenControl({
   state,
   currentTime,
   duration,
-  voiceName,
   progressRatio,
   accent,
   onToggle,
@@ -499,7 +497,6 @@ function ListenControl({
   state: PlayState;
   currentTime: number;
   duration: number;
-  voiceName: string;
   progressRatio: number;
   accent: string;
   onToggle: () => void;
@@ -514,7 +511,7 @@ function ListenControl({
       ? "Loading…"
       : isPlaying
         ? `Stop · ${formatTime(currentTime)} / ${formatTime(duration)}`
-        : `Listen — ${voiceName}${duration > 0 ? ` · ${formatTime(duration)}` : ""}`;
+        : `Listen${duration > 0 ? ` · ${formatTime(duration)}` : ""}`;
 
   return (
     <div className="mt-5 flex flex-col gap-2 max-w-[40ch]">
