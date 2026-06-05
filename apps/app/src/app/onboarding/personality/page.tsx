@@ -242,13 +242,17 @@ export default function PersonalityPage() {
               </AnimatePresence>
             </div>
 
-            {/* RIGHT — premium glass play button */}
-            <div className="relative flex items-center justify-center">
-              <GlassPlayButton
-                state={playState}
+            {/* RIGHT — orb carousel.
+                Prev / current / next visible at once; side orbs are
+                blurred + scaled-down ghosts in their own accent.
+                Clicking a side orb navigates to that agent. */}
+            <div className="relative flex items-center justify-center overflow-visible">
+              <OrbCarousel
+                currentIndex={index}
+                setIndex={setIndex}
+                playState={playState}
                 progressRatio={progressRatio}
-                accent={accent}
-                onToggle={toggleListen}
+                onTogglePlay={toggleListen}
               />
             </div>
           </div>
@@ -365,17 +369,22 @@ function GlassPlayButton({
   progressRatio,
   accent,
   onToggle,
+  interactive = true,
 }: {
   state: PlayState;
   progressRatio: number;
   accent: string;
   onToggle: () => void;
+  /** When false, the button renders as a quiet glass orb (no play
+   *  icon, no progress arc, no pulse rings). Used for side orbs in
+   *  the carousel which act as navigation targets only. */
+  interactive?: boolean;
 }) {
   const reduced = useReducedMotion();
   const [hovered, setHovered] = useState(false);
-  const isPlaying = state === "playing";
-  const isLoading = state === "loading";
-  const isError = state === "error";
+  const isPlaying = interactive && state === "playing";
+  const isLoading = interactive && state === "loading";
+  const isError = interactive && state === "error";
   const size = 300;
   const radius = size / 2 - 4;
   const circumference = 2 * Math.PI * radius;
@@ -591,24 +600,119 @@ function GlassPlayButton({
         </svg>
       )}
 
-      {/* Center icon — refined geometry, accent glow */}
-      <motion.div
-        className="relative"
-        animate={{
-          opacity: hovered ? 1 : 0.78,
-          scale: hovered ? 1.06 : 1,
-        }}
-        transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
-      >
-        {isLoading ? (
-          <Spinner size={52} accent={accent} />
-        ) : isPlaying ? (
-          <StopIcon size={40} accent={accent} />
-        ) : (
-          <PlayIcon size={54} accent={accent} />
-        )}
-      </motion.div>
+      {/* Center icon — refined geometry, accent glow.
+          Hidden when the orb is a non-interactive side preview. */}
+      {interactive && (
+        <motion.div
+          className="relative"
+          animate={{
+            opacity: hovered ? 1 : 0.78,
+            scale: hovered ? 1.06 : 1,
+          }}
+          transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
+        >
+          {isLoading ? (
+            <Spinner size={52} accent={accent} />
+          ) : isPlaying ? (
+            <StopIcon size={40} accent={accent} />
+          ) : (
+            <PlayIcon size={54} accent={accent} />
+          )}
+        </motion.div>
+      )}
     </motion.button>
+  );
+}
+
+/* ============================================================
+ * OrbCarousel — prev / current / next glass orbs visible at once.
+ * Smooth spring transitions between positions; side orbs are
+ * blurred + reduced-opacity ghosts in their own personality's
+ * accent color. Clicking a side orb navigates to that agent;
+ * clicking the current orb plays / stops its sample.
+ * ============================================================ */
+function OrbCarousel({
+  currentIndex,
+  setIndex,
+  playState,
+  progressRatio,
+  onTogglePlay,
+}: {
+  currentIndex: number;
+  setIndex: (i: number) => void;
+  playState: PlayState;
+  progressRatio: number;
+  onTogglePlay: () => void;
+}) {
+  const total = PERSONALITIES.length;
+
+  return (
+    <div
+      className="relative flex items-center justify-center"
+      style={{ width: 540, height: 320 }}
+    >
+      {PERSONALITIES.map((p, i) => {
+        const diff = ((i - currentIndex) % total + total) % total;
+        const isCurrent = diff === 0;
+        const isNext = diff === 1;
+        const isPrev = diff === total - 1;
+
+        let x = 0;
+        let scale = 1;
+        let opacity = 1;
+        let blur = 0;
+        let z = 3;
+
+        if (!isCurrent) {
+          if (isNext) {
+            x = 260;
+            scale = 0.55;
+            opacity = 0.32;
+            blur = 8;
+            z = 2;
+          } else if (isPrev) {
+            x = -260;
+            scale = 0.55;
+            opacity = 0.32;
+            blur = 8;
+            z = 2;
+          } else {
+            // far / opposite — hidden behind
+            x = 0;
+            scale = 0.3;
+            opacity = 0;
+            blur = 24;
+            z = 1;
+          }
+        }
+
+        return (
+          <motion.div
+            key={p.id}
+            className="absolute"
+            animate={{ x, scale, opacity, filter: `blur(${blur}px)` }}
+            transition={{
+              type: "spring",
+              stiffness: 200,
+              damping: 28,
+              mass: 1.1,
+            }}
+            style={{ zIndex: z }}
+          >
+            <GlassPlayButton
+              state={isCurrent ? playState : "idle"}
+              progressRatio={isCurrent ? progressRatio : 0}
+              accent={p.accent}
+              interactive={isCurrent}
+              onToggle={() => {
+                if (isCurrent) onTogglePlay();
+                else setIndex(i);
+              }}
+            />
+          </motion.div>
+        );
+      })}
+    </div>
   );
 }
 
