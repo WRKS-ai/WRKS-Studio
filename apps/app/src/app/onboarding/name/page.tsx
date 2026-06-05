@@ -123,6 +123,7 @@ function NamePageInner({
   const BACK_WORDS = ["back", "previous", "personality"];
 
   useConversationClientTool("set_field", (params) => {
+    console.log("[onboarding/name] set_field called with:", params);
     const fieldName = String(params?.field ?? "")
       .trim()
       .toLowerCase();
@@ -132,8 +133,13 @@ function NamePageInner({
     const matchesName = NAME_ALIASES.some(
       (a) => fieldName === a || fieldName.includes(a) || a.includes(fieldName),
     );
-    if (matchesName) {
+    // The agent's name is the ONLY editable field on this page. If
+    // the agent calls set_field with no/unrecognized field but a
+    // clear value, treat it as the name anyway — better UX than
+    // refusing and forcing the agent to retry.
+    if (matchesName || !fieldName) {
       const next = value.slice(0, MAX_LEN);
+      console.log("[onboarding/name] setting name to:", next);
       setName(next);
       setTimeout(() => inputRef.current?.focus(), 0);
       return `Set the name to "${next}".`;
@@ -142,6 +148,7 @@ function NamePageInner({
   });
 
   useConversationClientTool("navigate", (params) => {
+    console.log("[onboarding/name] navigate called with:", params);
     const destination = String(params?.destination ?? "")
       .trim()
       .toLowerCase();
@@ -321,8 +328,51 @@ function NamePageInner({
           </span>
         </motion.div>
 
-        {/* Subtle accent bloom drifting from the corner toward the
-            widget, gives the page atmosphere without a card */}
+        {/* Atmospheric depth — three layered accent blooms. The
+            top-center one sits behind the hero, the mid-left one
+            counterweights the floating widget on the right, and
+            the bottom-right one breathes with the agent. */}
+        <motion.div
+          aria-hidden
+          className="absolute pointer-events-none"
+          style={{
+            left: "50%",
+            top: "15%",
+            transform: "translateX(-50%)",
+            width: 900,
+            height: 600,
+            borderRadius: "50%",
+            background: `radial-gradient(ellipse, ${accent}14 0%, ${accent}05 40%, transparent 70%)`,
+            filter: "blur(70px)",
+          }}
+          animate={
+            reduced
+              ? { opacity: 0.55 }
+              : agentSpeaking
+                ? { opacity: [0.55, 0.85, 0.55], scale: [1, 1.04, 1] }
+                : { opacity: 0.55, scale: 1 }
+          }
+          transition={
+            agentSpeaking && !reduced
+              ? { duration: 4.2, repeat: Infinity, ease: "easeInOut" }
+              : { duration: 0.8 }
+          }
+        />
+        <motion.div
+          aria-hidden
+          className="absolute pointer-events-none"
+          style={{
+            left: "-8%",
+            top: "40%",
+            width: 480,
+            height: 480,
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${accent}10 0%, transparent 65%)`,
+            filter: "blur(60px)",
+          }}
+          animate={{ opacity: 0.5 }}
+          transition={{ duration: 0.8 }}
+        />
         <motion.div
           aria-hidden
           className="absolute pointer-events-none"
@@ -352,30 +402,68 @@ function NamePageInner({
         {/* Center stage */}
         <div className="flex-1 flex items-center justify-center">
           <div className="relative w-full max-w-[760px] flex flex-col items-center text-center">
-            {/* Hero */}
-            <motion.h1
-              initial={
-                reduced
-                  ? false
-                  : { opacity: 0, y: 14, filter: "blur(8px)" }
-              }
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              transition={{
-                duration: 0.8,
-                delay: 0.15,
-                ease: [0.2, 0.7, 0.2, 1],
-              }}
-              className="font-serif font-medium"
-              style={{
-                fontSize: "clamp(4rem, 9vw, 8rem)",
-                lineHeight: 0.94,
-                letterSpacing: "-0.04em",
-                color: "rgba(245,240,230,0.98)",
-              }}
-            >
-              name me
-              <span style={{ color: accent, opacity: 0.9 }}>.</span>
-            </motion.h1>
+            {/* Hero — with a soft accent halo radiating behind so
+                the type feels backlit, not floating in void */}
+            <div className="relative">
+              <motion.div
+                aria-hidden
+                className="absolute pointer-events-none"
+                style={{
+                  inset: "-30% -20%",
+                  background: `radial-gradient(ellipse at center, ${accent}26 0%, ${accent}0a 35%, transparent 65%)`,
+                  filter: "blur(36px)",
+                }}
+                initial={reduced ? false : { opacity: 0, scale: 0.9 }}
+                animate={{
+                  opacity: agentSpeaking ? [0.8, 1, 0.8] : 0.75,
+                  scale: 1,
+                }}
+                transition={
+                  agentSpeaking && !reduced
+                    ? {
+                        opacity: {
+                          duration: 3.4,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        },
+                        scale: { duration: 0.8 },
+                      }
+                    : { duration: 1.0, ease: [0.2, 0.7, 0.2, 1] }
+                }
+              />
+              <motion.h1
+                initial={
+                  reduced
+                    ? false
+                    : { opacity: 0, y: 14, filter: "blur(8px)" }
+                }
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{
+                  duration: 0.8,
+                  delay: 0.15,
+                  ease: [0.2, 0.7, 0.2, 1],
+                }}
+                className="relative font-serif font-medium"
+                style={{
+                  fontSize: "clamp(4rem, 9vw, 8rem)",
+                  lineHeight: 0.94,
+                  letterSpacing: "-0.04em",
+                  color: "rgba(245,240,230,0.98)",
+                  textShadow: `0 0 60px ${accent}22`,
+                }}
+              >
+                name me
+                <span
+                  style={{
+                    color: accent,
+                    opacity: 0.92,
+                    textShadow: `0 0 24px ${accent}88`,
+                  }}
+                >
+                  .
+                </span>
+              </motion.h1>
+            </div>
 
             {/* Sub-prompt */}
             <motion.p
@@ -396,7 +484,10 @@ function NamePageInner({
               Speak it, or type one below.
             </motion.p>
 
-            {/* Input */}
+            {/* Input — sits on a frosted glass stage with a layered
+                accent halo. The "stage" is a soft elliptical glass
+                disc, not a box, so it catches light without reading
+                as a card. */}
             <motion.div
               initial={reduced ? false : { opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
@@ -405,24 +496,64 @@ function NamePageInner({
                 delay: 0.55,
                 ease: [0.2, 0.7, 0.2, 1],
               }}
-              className="mt-14 w-full max-w-[560px] relative"
+              className="mt-16 w-full max-w-[640px] relative"
             >
-              {/* Warm accent bloom under the input */}
+              {/* Outer accent halo — broad ambient glow */}
               <motion.div
                 aria-hidden
                 className="absolute pointer-events-none"
                 style={{
-                  left: "-10%",
-                  right: "-10%",
-                  bottom: "-40%",
-                  top: "-15%",
-                  background: `radial-gradient(ellipse at center, ${accent}14 0%, ${accent}05 40%, transparent 70%)`,
-                  filter: "blur(32px)",
+                  left: "-22%",
+                  right: "-22%",
+                  bottom: "-80%",
+                  top: "-50%",
+                  background: `radial-gradient(ellipse at center, ${accent}1c 0%, ${accent}08 35%, transparent 70%)`,
+                  filter: "blur(48px)",
                 }}
                 animate={{
-                  opacity: trimmed ? 1 : inputFocused ? 0.55 : 0,
+                  opacity: trimmed ? 1 : inputFocused ? 0.8 : 0.35,
+                  scale: trimmed || inputFocused ? 1.05 : 1,
                 }}
-                transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+                transition={{ duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
+              />
+              {/* Inner glass stage — frosted ellipse the input sits on */}
+              <motion.div
+                aria-hidden
+                className="absolute pointer-events-none"
+                style={{
+                  left: "-8%",
+                  right: "-8%",
+                  bottom: "-30%",
+                  top: "-25%",
+                  borderRadius: "50%",
+                  background: `linear-gradient(180deg, rgba(255,255,255,0.04) 0%, ${accent}0d 100%)`,
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.08)`,
+                }}
+                animate={{
+                  opacity: trimmed ? 1 : inputFocused ? 0.85 : 0.45,
+                }}
+                transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+              />
+              {/* Specular highlight on the stage */}
+              <motion.div
+                aria-hidden
+                className="absolute pointer-events-none"
+                style={{
+                  left: "15%",
+                  top: "-15%",
+                  width: "40%",
+                  height: "30%",
+                  borderRadius: "50%",
+                  background:
+                    "radial-gradient(ellipse, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 70%)",
+                  filter: "blur(14px)",
+                }}
+                animate={{
+                  opacity: trimmed || inputFocused ? 1 : 0.5,
+                }}
+                transition={{ duration: 0.5 }}
               />
               <AnimatePresence mode="popLayout">
                 <motion.input
@@ -447,30 +578,35 @@ function NamePageInner({
                     duration: 0.35,
                     ease: [0.2, 0.7, 0.2, 1],
                   }}
-                  className="relative w-full bg-transparent border-0 outline-none text-center font-serif font-medium pb-4 placeholder:opacity-25"
+                  className="relative w-full bg-transparent border-0 outline-none text-center font-serif font-medium pb-5 placeholder:opacity-25"
                   style={{
                     fontSize: "clamp(2.75rem, 5vw, 4.5rem)",
                     lineHeight: 1,
                     letterSpacing: "-0.03em",
                     color: "rgba(245,240,230,0.98)",
                     caretColor: accent,
+                    textShadow: trimmed
+                      ? `0 0 30px ${accent}44`
+                      : "none",
                   }}
                 />
               </AnimatePresence>
+              {/* Glass underline — thicker, with soft edge fade and
+                  layered accent glow */}
               <motion.div
-                className="relative h-px mx-auto"
+                className="relative h-[2px] mx-auto rounded-full"
                 style={{
-                  background: accent,
-                  boxShadow: `0 0 8px ${accent}`,
+                  background: `linear-gradient(90deg, transparent 0%, ${accent} 18%, ${accent} 82%, transparent 100%)`,
+                  boxShadow: `0 0 14px ${accent}66, 0 0 4px ${accent}aa`,
                   transformOrigin: "center",
-                  maxWidth: 420,
+                  maxWidth: 480,
                 }}
                 animate={{
-                  scaleX: trimmed ? 1 : inputFocused ? 0.4 : 0.2,
-                  opacity: trimmed ? 0.92 : inputFocused ? 0.6 : 0.45,
+                  scaleX: trimmed ? 1 : inputFocused ? 0.55 : 0.28,
+                  opacity: trimmed ? 0.95 : inputFocused ? 0.7 : 0.45,
                 }}
                 transition={{
-                  duration: 0.5,
+                  duration: 0.55,
                   ease: [0.2, 0.7, 0.2, 1],
                 }}
               />
@@ -526,40 +662,58 @@ function NamePageInner({
                       duration: 0.4,
                       ease: [0.2, 0.7, 0.2, 1],
                     }}
-                    whileHover={reduced ? undefined : { y: -1 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="font-serif italic relative"
+                    whileHover={
+                      reduced
+                        ? undefined
+                        : { y: -1.5, scale: 1.02 }
+                    }
+                    whileTap={{ scale: 0.96 }}
+                    className="relative inline-flex items-center justify-center h-9 px-4 rounded-full font-serif italic"
                     style={{
-                      fontSize: "clamp(1rem, 1.3vw, 1.125rem)",
+                      fontSize: "clamp(0.95rem, 1.15vw, 1.0625rem)",
+                      background: isCurrent
+                        ? `linear-gradient(180deg, rgba(255,255,255,0.07) 0%, ${accent}1f 100%)`
+                        : "rgba(255,255,255,0.025)",
+                      backdropFilter: "blur(14px)",
+                      WebkitBackdropFilter: "blur(14px)",
+                      border: isCurrent
+                        ? `1px solid ${accent}aa`
+                        : "1px solid rgba(255,255,255,0.1)",
                       color: isCurrent
-                        ? "rgba(245,240,230,0.96)"
-                        : "rgba(245,240,230,0.55)",
-                      transition: "color 0.3s ease",
+                        ? "rgba(245,240,230,0.98)"
+                        : "rgba(245,240,230,0.62)",
+                      boxShadow: isCurrent
+                        ? `0 0 20px -4px ${accent}99, inset 0 1px 0 rgba(255,255,255,0.22)`
+                        : "inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 12px -6px rgba(0,0,0,0.4)",
+                      transition:
+                        "background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, color 0.3s ease",
                     }}
                   >
-                    {suggested}
+                    {/* Specular highlight on selected pill */}
                     {isCurrent && (
-                      <motion.span
-                        layoutId="suggested-underline"
-                        className="absolute -bottom-1 left-0 right-0 h-[1.5px] rounded-full"
+                      <span
+                        aria-hidden
+                        className="absolute pointer-events-none"
                         style={{
-                          background: accent,
-                          boxShadow: `0 0 6px ${accent}`,
-                        }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 380,
-                          damping: 32,
-                          mass: 0.9,
+                          top: 1,
+                          left: "20%",
+                          width: "35%",
+                          height: "40%",
+                          borderRadius: "50%",
+                          background:
+                            "radial-gradient(ellipse, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 70%)",
+                          filter: "blur(5px)",
                         }}
                       />
                     )}
+                    <span className="relative">{suggested}</span>
                   </motion.button>
                 );
               })}
             </motion.div>
 
-            {/* Continue */}
+            {/* Continue — premium glass capsule with specular
+                highlight + accent reflection */}
             <motion.button
               type="button"
               onClick={onContinue}
@@ -575,28 +729,66 @@ function NamePageInner({
                 reduced || !canContinue
                   ? undefined
                   : {
-                      scale: 1.03,
-                      backgroundColor: `${accent}14`,
-                      boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
+                      scale: 1.04,
+                      y: -2,
                     }
               }
-              whileTap={canContinue ? { scale: 0.97 } : undefined}
-              className="mt-14 inline-flex items-center gap-3 h-12 px-7 rounded-full font-serif relative disabled:cursor-not-allowed"
+              whileTap={canContinue ? { scale: 0.96 } : undefined}
+              className="mt-14 relative inline-flex items-center gap-3 h-[52px] px-8 rounded-full font-serif overflow-hidden disabled:cursor-not-allowed"
               style={{
                 fontSize: 16,
-                background: "transparent",
+                background: canContinue
+                  ? `linear-gradient(180deg, rgba(255,255,255,0.09) 0%, ${accent}1f 100%)`
+                  : "rgba(255,255,255,0.02)",
+                backdropFilter: "blur(28px)",
+                WebkitBackdropFilter: "blur(28px)",
                 border: `1.5px solid ${
                   canContinue ? `${accent}cc` : "rgba(245,240,230,0.12)"
                 }`,
                 color: canContinue
-                  ? "rgba(245,240,230,0.96)"
+                  ? "rgba(245,240,230,0.98)"
                   : "rgba(245,240,230,0.3)",
                 boxShadow: canContinue
-                  ? `0 0 26px -6px ${accent}aa`
-                  : "none",
+                  ? `0 0 38px -6px ${accent}aa, 0 14px 32px -10px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.22)`
+                  : "inset 0 1px 0 rgba(255,255,255,0.05)",
+                transition:
+                  "background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, color 0.3s ease",
               }}
             >
-              <span>
+              {/* Specular highlight (top-left) */}
+              {canContinue && (
+                <span
+                  aria-hidden
+                  className="absolute pointer-events-none"
+                  style={{
+                    top: 1,
+                    left: "16%",
+                    width: "40%",
+                    height: "55%",
+                    borderRadius: "50%",
+                    background:
+                      "radial-gradient(ellipse, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0) 70%)",
+                    filter: "blur(8px)",
+                  }}
+                />
+              )}
+              {/* Accent reflection (bottom-right) */}
+              {canContinue && (
+                <span
+                  aria-hidden
+                  className="absolute pointer-events-none"
+                  style={{
+                    bottom: 0,
+                    right: "12%",
+                    width: "55%",
+                    height: "60%",
+                    borderRadius: "50%",
+                    background: `radial-gradient(ellipse, ${accent}55 0%, transparent 70%)`,
+                    filter: "blur(12px)",
+                  }}
+                />
+              )}
+              <span className="relative">
                 {canContinue ? (
                   <>
                     Continue as{" "}
@@ -617,6 +809,7 @@ function NamePageInner({
                         style={{
                           color: accent,
                           display: "inline-block",
+                          textShadow: `0 0 12px ${accent}66`,
                         }}
                       >
                         {trimmed}
@@ -630,7 +823,7 @@ function NamePageInner({
               {canContinue && (
                 <motion.span
                   aria-hidden
-                  className="inline-block"
+                  className="relative inline-block"
                   style={{ color: accent }}
                   animate={reduced ? undefined : { x: [0, 4, 0] }}
                   transition={{

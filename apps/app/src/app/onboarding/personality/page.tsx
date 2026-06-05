@@ -108,10 +108,23 @@ export default function PersonalityPage() {
     setIndex((i) => (i + 1) % total);
   }, [total]);
 
-  const onContinue = useCallback(() => {
+  const onContinue = useCallback(async () => {
     stopAudio();
     localStorage.setItem(STORAGE_KEY, previewed.id);
     localStorage.setItem(VOICE_KEY, previewed.voiceId);
+    // Pre-grant mic permission while we still have a fresh user
+    // gesture. /onboarding/name auto-starts the live agent on mount;
+    // without this the browser blocks the mic request and the agent
+    // can't speak until the user taps the floating widget.
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch {
+      // User denied or browser blocked — the next page will fall back
+      // to its tap-to-start affordance.
+    }
     router.push("/onboarding/name");
   }, [previewed.id, previewed.voiceId, router, stopAudio]);
 
