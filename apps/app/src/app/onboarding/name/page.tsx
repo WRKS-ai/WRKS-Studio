@@ -129,35 +129,85 @@ function NamePageInner({
     },
   });
 
-  /* ── Client tools the agent calls ── */
-  useConversationClientTool("set_agent_name", (params) => {
-    const value = String(params?.name ?? "").trim();
-    if (!value) return "I didn't catch a name. Say it again?";
-    const trimmed = value.slice(0, MAX_LEN);
-    setName(trimmed);
-    setTimeout(() => inputRef.current?.focus(), 0);
-    return `Filled the name field with ${trimmed}.`;
+  /* ── Client tools the agent calls.
+       These two — set_field and navigate — are the same tools the
+       studio inspector exposes (and the same tools registered on
+       the agent in the ElevenLabs dashboard). We override the
+       handlers locally so they do the right thing for THIS page:
+       set_field("name", …) fills the name input; navigate("next" |
+       "continue") advances to /onboarding/intake. ── */
+  const NAME_ALIASES = [
+    "name",
+    "my name",
+    "your name",
+    "agent name",
+    "the name",
+  ];
+  const NEXT_WORDS = ["next", "continue", "intake", "forward", "go", "ready"];
+  const BACK_WORDS = ["back", "previous", "personality"];
+
+  useConversationClientTool("set_field", (params) => {
+    const fieldName = String(params?.field ?? "")
+      .trim()
+      .toLowerCase();
+    const value = String(params?.value ?? "").trim();
+    if (!value) return "Tell me what to set it to.";
+
+    const matchesName = NAME_ALIASES.some(
+      (a) => fieldName === a || fieldName.includes(a) || a.includes(fieldName),
+    );
+    if (matchesName) {
+      const next = value.slice(0, MAX_LEN);
+      setName(next);
+      setTimeout(() => inputRef.current?.focus(), 0);
+      return `Set the name to "${next}".`;
+    }
+
+    return `The only field editable here is the agent's name. I don't see "${fieldName}".`;
   });
 
-  useConversationClientTool("continue_onboarding", () => {
-    const final = name.trim();
-    if (!final) {
-      return "There's no name in the field yet. Pick one first.";
+  useConversationClientTool("navigate", (params) => {
+    const destination = String(params?.destination ?? "")
+      .trim()
+      .toLowerCase();
+    if (!destination) return "Where to?";
+
+    const wantsNext = NEXT_WORDS.some(
+      (w) => destination === w || destination.includes(w),
+    );
+    if (wantsNext) {
+      const final = name.trim();
+      if (!final) return "There's no name in the field yet. Pick one first.";
+      if (continuing.current) return "Already going.";
+      continuing.current = true;
+      localStorage.setItem(NAME_KEY, final);
+      setTimeout(() => {
+        try {
+          conversation.endSession();
+        } catch {
+          /* ignore */
+        }
+        router.push("/onboarding/intake");
+      }, 900);
+      return `Continuing as ${final}.`;
     }
-    if (continuing.current) return "Already going.";
-    continuing.current = true;
-    localStorage.setItem(NAME_KEY, final);
-    // Small delay so the agent's voice confirmation lands before
-    // the route changes
-    setTimeout(() => {
-      try {
-      conversation.endSession();
-    } catch {
-      /* ignore */
+
+    const wantsBack = BACK_WORDS.some(
+      (w) => destination === w || destination.includes(w),
+    );
+    if (wantsBack) {
+      setTimeout(() => {
+        try {
+          conversation.endSession();
+        } catch {
+          /* ignore */
+        }
+        router.push("/onboarding/personality");
+      }, 600);
+      return "Going back.";
     }
-      router.push("/onboarding/intake");
-    }, 900);
-    return `Continuing as ${final}.`;
+
+    return `From this page I can only go "next" (to the next step) or "back" (to personality).`;
   });
 
   /* ── Start / stop session ── */
