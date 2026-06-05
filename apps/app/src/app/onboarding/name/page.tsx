@@ -16,12 +16,17 @@ import {
 } from "@/lib/voice-agent";
 import { VOICES } from "@/lib/voices";
 
-// Act Two — The Name. The page is a focused naming form
-// (hero + input + chips + continue) center-stage. The live agent
-// runs as a small floating glass widget pinned to the bottom-right
-// corner — it auto-greets on mount, talks naturally, fills the input
-// via the set_field tool, and advances via the navigate tool. The
-// user can ignore the widget and type if they prefer.
+// Act Two — The Name. The page is composed around ONE focal element:
+// the typed name itself, rendered at editorial-poster scale. When
+// empty, that slot shows the prompt "name me." in a dimmed treatment;
+// as soon as the agent (or the user) fills it, the prompt swaps for
+// the typed name with wider letter-spacing — a confident reveal that
+// the act of naming has happened.
+//
+// The agent runs in a small floating glass widget bottom-right with
+// auto-connect, voice-reactive audio bars, and a status pill. A slow
+// aurora of accent gradients drifts behind everything for atmosphere
+// without competing for attention.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
@@ -73,9 +78,9 @@ function NamePageInner({
   const accent = personality.accent;
 
   const [name, setName] = useState("");
-  const [inputFocused, setInputFocused] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [agentLine, setAgentLine] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const startAttempted = useRef(false);
   const continuing = useRef(false);
@@ -104,6 +109,15 @@ function NamePageInner({
       setVoiceError(msg);
       setVoiceState("error");
     },
+    onMessage: (event) => {
+      const source = (event as { source?: string }).source;
+      const text =
+        (event as { message?: string }).message ??
+        (event as { text?: string }).text ??
+        "";
+      if (!text) return;
+      if (source === "ai") setAgentLine(text);
+    },
     onModeChange: (event) => {
       const mode = (event as { mode?: string }).mode;
       if (mode === "speaking") setVoiceState("speaking");
@@ -111,7 +125,7 @@ function NamePageInner({
     },
   });
 
-  /* ── Client tools (reuse dashboard tools: set_field + navigate) ── */
+  /* ── Client tools — reuse the dashboard agent's tools ── */
   const NAME_ALIASES = [
     "name",
     "my name",
@@ -124,19 +138,12 @@ function NamePageInner({
 
   useConversationClientTool("set_field", (params) => {
     console.log("[onboarding/name] set_field called with:", params);
-    const fieldName = String(params?.field ?? "")
-      .trim()
-      .toLowerCase();
+    const fieldName = String(params?.field ?? "").trim().toLowerCase();
     const value = String(params?.value ?? "").trim();
     if (!value) return "Tell me what to set it to.";
-
     const matchesName = NAME_ALIASES.some(
       (a) => fieldName === a || fieldName.includes(a) || a.includes(fieldName),
     );
-    // The agent's name is the ONLY editable field on this page. If
-    // the agent calls set_field with no/unrecognized field but a
-    // clear value, treat it as the name anyway — better UX than
-    // refusing and forcing the agent to retry.
     if (matchesName || !fieldName) {
       const next = value.slice(0, MAX_LEN);
       console.log("[onboarding/name] setting name to:", next);
@@ -190,7 +197,7 @@ function NamePageInner({
     return `From this page I can only go "next" or "back".`;
   });
 
-  /* ── Start / stop session ── */
+  /* ── Session control ── */
   const startVoice = useCallback(async () => {
     setVoiceError(null);
     setVoiceState("connecting");
@@ -217,8 +224,6 @@ function NamePageInner({
         suggestedNames: personality.suggestedNames,
       });
 
-      // Not overriding tts.voiceId — the dashboard agent's voice is
-      // canonical. See memory: feedback_no_tts_voice_override.
       await conversation.startSession({
         signedUrl,
         connectionType: "websocket",
@@ -231,8 +236,7 @@ function NamePageInner({
         },
       });
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Couldn't start voice";
+      const msg = err instanceof Error ? err.message : "Couldn't start voice";
       setVoiceError(msg);
       setVoiceState("error");
     }
@@ -247,14 +251,12 @@ function NamePageInner({
     setVoiceState("idle");
   }, [conversation]);
 
-  // Auto-start on mount. If the browser blocks mic permission without
-  // a fresh gesture, startVoice errors and the widget shows a retry.
   useEffect(() => {
     if (startAttempted.current) return;
     startAttempted.current = true;
     const t = setTimeout(() => {
       startVoice();
-    }, 500);
+    }, 400);
     return () => clearTimeout(t);
   }, [startVoice]);
 
@@ -270,7 +272,7 @@ function NamePageInner({
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 1400);
+    const t = setTimeout(() => inputRef.current?.focus(), 1100);
     return () => clearTimeout(t);
   }, []);
 
@@ -282,6 +284,7 @@ function NamePageInner({
   const trimmed = name.trim();
   const canContinue = trimmed.length > 0 && trimmed.length <= MAX_LEN;
   const agentSpeaking = voiceState === "speaking";
+  const display = trimmed || "";
 
   const onContinue = () => {
     if (!canContinue) return;
@@ -303,345 +306,236 @@ function NamePageInner({
 
   return (
     <OnboardingFrame step={2} totalSteps={5} bloomTint={accent}>
-      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col">
-        {/* Eyebrow anchored top-left */}
-        <motion.div
-          initial={
-            reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }
-          }
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-          className="flex items-center gap-4"
-        >
-          <span
-            className="inline-block h-px w-10"
-            style={{ background: "rgba(245,240,230,0.2)" }}
-          />
-          <span
-            className="text-[11px] tracking-[0.32em] uppercase"
-            style={{
-              color: "rgba(245,240,230,0.4)",
-              fontFamily: "var(--font-mono)",
-            }}
+      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 overflow-hidden">
+        {/* Slow aurora — three accent gradients drifting at different
+            speeds. The atmosphere feels alive without specific shapes
+            competing for attention. */}
+        <AuroraBackground accent={accent} amplified={agentSpeaking} />
+
+        {/* Top metadata row */}
+        <div className="relative flex items-start justify-between pt-2">
+          <motion.div
+            initial={
+              reduced ? false : { opacity: 0, y: 6, filter: "blur(6px)" }
+            }
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+            className="flex items-center gap-3"
           >
-            Act Two — The Name
-          </span>
-        </motion.div>
+            <span
+              className="inline-block h-px w-8"
+              style={{ background: "rgba(245,240,230,0.2)" }}
+            />
+            <span
+              className="text-[10.5px] tracking-[0.36em] uppercase"
+              style={{
+                color: "rgba(245,240,230,0.4)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              Act Two — The Name
+            </span>
+          </motion.div>
 
-        {/* Atmospheric depth — three layered accent blooms. The
-            top-center one sits behind the hero, the mid-left one
-            counterweights the floating widget on the right, and
-            the bottom-right one breathes with the agent. */}
-        <motion.div
-          aria-hidden
-          className="absolute pointer-events-none"
-          style={{
-            left: "50%",
-            top: "15%",
-            transform: "translateX(-50%)",
-            width: 900,
-            height: 600,
-            borderRadius: "50%",
-            background: `radial-gradient(ellipse, ${accent}14 0%, ${accent}05 40%, transparent 70%)`,
-            filter: "blur(70px)",
-          }}
-          animate={
-            reduced
-              ? { opacity: 0.55 }
-              : agentSpeaking
-                ? { opacity: [0.55, 0.85, 0.55], scale: [1, 1.04, 1] }
-                : { opacity: 0.55, scale: 1 }
-          }
-          transition={
-            agentSpeaking && !reduced
-              ? { duration: 4.2, repeat: Infinity, ease: "easeInOut" }
-              : { duration: 0.8 }
-          }
-        />
-        <motion.div
-          aria-hidden
-          className="absolute pointer-events-none"
-          style={{
-            left: "-8%",
-            top: "40%",
-            width: 480,
-            height: 480,
-            borderRadius: "50%",
-            background: `radial-gradient(circle, ${accent}10 0%, transparent 65%)`,
-            filter: "blur(60px)",
-          }}
-          animate={{ opacity: 0.5 }}
-          transition={{ duration: 0.8 }}
-        />
-        <motion.div
-          aria-hidden
-          className="absolute pointer-events-none"
-          style={{
-            right: "-6%",
-            bottom: "-6%",
-            width: 720,
-            height: 720,
-            borderRadius: "50%",
-            background: `radial-gradient(circle, ${accent}1a 0%, ${accent}08 35%, transparent 65%)`,
-            filter: "blur(80px)",
-          }}
-          animate={
-            reduced
-              ? { opacity: 0.6 }
-              : agentSpeaking
-                ? { opacity: [0.55, 0.95, 0.55] }
-                : { opacity: 0.55 }
-          }
-          transition={
-            agentSpeaking && !reduced
-              ? { duration: 3.6, repeat: Infinity, ease: "easeInOut" }
-              : { duration: 0.8 }
-          }
-        />
+          <motion.div
+            initial={reduced ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="flex items-center gap-2.5"
+          >
+            <span
+              className="text-[10.5px] tracking-[0.36em] uppercase"
+              style={{
+                color: "rgba(245,240,230,0.78)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              {personality.name}
+            </span>
+            <span
+              style={{
+                color: "rgba(245,240,230,0.28)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+              }}
+            >
+              ·
+            </span>
+            <span
+              className="text-[10.5px] tracking-[0.32em] uppercase"
+              style={{
+                color: "rgba(245,240,230,0.45)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              {voice.name}
+            </span>
+          </motion.div>
+        </div>
 
-        {/* Center stage */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="relative w-full max-w-[760px] flex flex-col items-center text-center">
-            {/* Hero — with a soft accent halo radiating behind so
-                the type feels backlit, not floating in void */}
-            <div className="relative">
-              <motion.div
-                aria-hidden
-                className="absolute pointer-events-none"
-                style={{
-                  inset: "-30% -20%",
-                  background: `radial-gradient(ellipse at center, ${accent}26 0%, ${accent}0a 35%, transparent 65%)`,
-                  filter: "blur(36px)",
-                }}
-                initial={reduced ? false : { opacity: 0, scale: 0.9 }}
-                animate={{
-                  opacity: agentSpeaking ? [0.8, 1, 0.8] : 0.75,
-                  scale: 1,
-                }}
-                transition={
-                  agentSpeaking && !reduced
-                    ? {
-                        opacity: {
-                          duration: 3.4,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                        },
-                        scale: { duration: 0.8 },
-                      }
-                    : { duration: 1.0, ease: [0.2, 0.7, 0.2, 1] }
-                }
-              />
-              <motion.h1
-                initial={
-                  reduced
-                    ? false
-                    : { opacity: 0, y: 14, filter: "blur(8px)" }
-                }
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{
-                  duration: 0.8,
-                  delay: 0.15,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
-                className="relative font-serif font-medium"
-                style={{
-                  fontSize: "clamp(4rem, 9vw, 8rem)",
-                  lineHeight: 0.94,
-                  letterSpacing: "-0.04em",
-                  color: "rgba(245,240,230,0.98)",
-                  textShadow: `0 0 60px ${accent}22`,
-                }}
-              >
-                name me
-                <span
-                  style={{
-                    color: accent,
-                    opacity: 0.92,
-                    textShadow: `0 0 24px ${accent}88`,
-                  }}
-                >
-                  .
-                </span>
-              </motion.h1>
-            </div>
-
-            {/* Sub-prompt */}
-            <motion.p
+        {/* Center stage — single focal element: the typed name */}
+        <div className="relative min-h-[calc(100vh-260px)] flex items-center justify-center">
+          <div className="relative w-full max-w-[1100px] flex flex-col items-center">
+            {/* Tiny prompt above */}
+            <motion.div
               initial={reduced ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
-                duration: 0.6,
-                delay: 0.35,
+                duration: 0.5,
+                delay: 0.2,
                 ease: [0.2, 0.7, 0.2, 1],
               }}
-              className="mt-6 font-serif italic max-w-[36ch]"
-              style={{
-                fontSize: "clamp(1.0625rem, 1.4vw, 1.25rem)",
-                lineHeight: 1.45,
-                color: "rgba(245,240,230,0.55)",
-              }}
+              className="mb-10 flex items-center gap-3"
             >
-              Speak it, or type one below.
-            </motion.p>
-
-            {/* Input — sits on a frosted glass stage with a layered
-                accent halo. The "stage" is a soft elliptical glass
-                disc, not a box, so it catches light without reading
-                as a card. */}
-            <motion.div
-              initial={reduced ? false : { opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.7,
-                delay: 0.55,
-                ease: [0.2, 0.7, 0.2, 1],
-              }}
-              className="mt-16 w-full max-w-[640px] relative"
-            >
-              {/* Outer accent halo — broad ambient glow */}
-              <motion.div
-                aria-hidden
-                className="absolute pointer-events-none"
-                style={{
-                  left: "-22%",
-                  right: "-22%",
-                  bottom: "-80%",
-                  top: "-50%",
-                  background: `radial-gradient(ellipse at center, ${accent}1c 0%, ${accent}08 35%, transparent 70%)`,
-                  filter: "blur(48px)",
-                }}
-                animate={{
-                  opacity: trimmed ? 1 : inputFocused ? 0.8 : 0.35,
-                  scale: trimmed || inputFocused ? 1.05 : 1,
-                }}
-                transition={{ duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
+              <span
+                className="inline-block h-px w-6"
+                style={{ background: `${accent}88` }}
               />
-              {/* Inner glass stage — frosted ellipse the input sits on */}
-              <motion.div
-                aria-hidden
-                className="absolute pointer-events-none"
+              <span
+                className="text-[10.5px] tracking-[0.4em] uppercase"
                 style={{
-                  left: "-8%",
-                  right: "-8%",
-                  bottom: "-30%",
-                  top: "-25%",
-                  borderRadius: "50%",
-                  background: `linear-gradient(180deg, rgba(255,255,255,0.04) 0%, ${accent}0d 100%)`,
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.08)`,
+                  color: "rgba(245,240,230,0.45)",
+                  fontFamily: "var(--font-mono)",
                 }}
-                animate={{
-                  opacity: trimmed ? 1 : inputFocused ? 0.85 : 0.45,
-                }}
-                transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+              >
+                {trimmed ? "Your agent is named" : "Give me a name"}
+              </span>
+              <span
+                className="inline-block h-px w-6"
+                style={{ background: `${accent}88` }}
               />
-              {/* Specular highlight on the stage */}
-              <motion.div
-                aria-hidden
-                className="absolute pointer-events-none"
-                style={{
-                  left: "15%",
-                  top: "-15%",
-                  width: "40%",
-                  height: "30%",
-                  borderRadius: "50%",
-                  background:
-                    "radial-gradient(ellipse, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 70%)",
-                  filter: "blur(14px)",
-                }}
-                animate={{
-                  opacity: trimmed || inputFocused ? 1 : 0.5,
-                }}
-                transition={{ duration: 0.5 }}
-              />
-              <AnimatePresence mode="popLayout">
-                <motion.input
-                  key={name || "empty"}
-                  ref={inputRef}
-                  type="text"
-                  value={name}
-                  onChange={(e) =>
-                    setName(e.target.value.slice(0, MAX_LEN))
-                  }
-                  onKeyDown={onKeyDown}
-                  onFocus={() => setInputFocused(true)}
-                  onBlur={() => setInputFocused(false)}
-                  placeholder={personality.suggestedNames[0]}
-                  maxLength={MAX_LEN}
-                  autoComplete="off"
-                  spellCheck={false}
-                  aria-label="Agent name"
-                  initial={reduced ? false : { opacity: 0.6, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.35,
-                    ease: [0.2, 0.7, 0.2, 1],
-                  }}
-                  className="relative w-full bg-transparent border-0 outline-none text-center font-serif font-medium pb-5 placeholder:opacity-25"
-                  style={{
-                    fontSize: "clamp(2.75rem, 5vw, 4.5rem)",
-                    lineHeight: 1,
-                    letterSpacing: "-0.03em",
-                    color: "rgba(245,240,230,0.98)",
-                    caretColor: accent,
-                    textShadow: trimmed
-                      ? `0 0 30px ${accent}44`
-                      : "none",
-                  }}
-                />
-              </AnimatePresence>
-              {/* Glass underline — thicker, with soft edge fade and
-                  layered accent glow */}
-              <motion.div
-                className="relative h-[2px] mx-auto rounded-full"
-                style={{
-                  background: `linear-gradient(90deg, transparent 0%, ${accent} 18%, ${accent} 82%, transparent 100%)`,
-                  boxShadow: `0 0 14px ${accent}66, 0 0 4px ${accent}aa`,
-                  transformOrigin: "center",
-                  maxWidth: 480,
-                }}
-                animate={{
-                  scaleX: trimmed ? 1 : inputFocused ? 0.55 : 0.28,
-                  opacity: trimmed ? 0.95 : inputFocused ? 0.7 : 0.45,
-                }}
-                transition={{
-                  duration: 0.55,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
-              />
-              {trimmed.length > MAX_LEN - 4 && (
-                <div
-                  className="absolute right-0 top-1 text-[10.5px] tracking-[0.22em] uppercase"
-                  style={{
-                    color: "rgba(245,240,230,0.42)",
-                    fontFamily: "var(--font-mono)",
-                  }}
-                >
-                  {trimmed.length} / {MAX_LEN}
-                </div>
-              )}
             </motion.div>
 
-            {/* Suggested chips */}
+            {/* The typed name displayed at poster scale. Click-anywhere
+                focuses the underlying input. */}
+            <div
+              className="relative w-full cursor-text"
+              onClick={() => inputRef.current?.focus()}
+            >
+              {/* Display layer */}
+              <div
+                aria-hidden
+                className="font-serif font-medium text-center select-none pointer-events-none"
+                style={{
+                  fontSize: "clamp(4rem, 11vw, 10rem)",
+                  lineHeight: 1,
+                  letterSpacing: trimmed ? "0.06em" : "-0.04em",
+                  color: trimmed
+                    ? "rgba(245,240,230,0.98)"
+                    : "rgba(245,240,230,0.42)",
+                  textShadow: trimmed ? `0 0 60px ${accent}40` : "none",
+                  transition:
+                    "letter-spacing 0.6s cubic-bezier(0.2,0.7,0.2,1), color 0.4s ease, text-shadow 0.6s ease",
+                  textTransform: trimmed ? "none" : "lowercase",
+                }}
+              >
+                <AnimatePresence mode="wait">
+                  {trimmed ? (
+                    <motion.span
+                      key={trimmed}
+                      initial={
+                        reduced
+                          ? false
+                          : { opacity: 0, y: 12, filter: "blur(6px)" }
+                      }
+                      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                      exit={
+                        reduced
+                          ? undefined
+                          : { opacity: 0, y: -6, filter: "blur(6px)" }
+                      }
+                      transition={{
+                        duration: 0.55,
+                        ease: [0.2, 0.7, 0.2, 1],
+                      }}
+                      style={{ display: "inline-block" }}
+                    >
+                      {display}
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="prompt"
+                      initial={reduced ? false : { opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={
+                        reduced ? undefined : { opacity: 0, y: 6 }
+                      }
+                      transition={{ duration: 0.4 }}
+                      style={{ display: "inline-block" }}
+                    >
+                      name me
+                      <span
+                        style={{
+                          color: accent,
+                          opacity: 0.85,
+                          textShadow: `0 0 20px ${accent}88`,
+                        }}
+                      >
+                        .
+                      </span>
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Invisible input overlay handles real typing */}
+              <input
+                ref={inputRef}
+                type="text"
+                value={name}
+                onChange={(e) =>
+                  setName(e.target.value.slice(0, MAX_LEN))
+                }
+                onKeyDown={onKeyDown}
+                placeholder=""
+                maxLength={MAX_LEN}
+                autoComplete="off"
+                spellCheck={false}
+                aria-label="Agent name"
+                className="absolute inset-0 w-full h-full bg-transparent border-0 outline-none text-center font-serif font-medium opacity-0"
+                style={{
+                  fontSize: "clamp(4rem, 11vw, 10rem)",
+                  lineHeight: 1,
+                  caretColor: "transparent",
+                }}
+              />
+            </div>
+
+            {/* Animated accent underline — a thin breathing line */}
+            <motion.div
+              className="mt-6 h-[2px] rounded-full"
+              style={{
+                background: `linear-gradient(90deg, transparent 0%, ${accent} 18%, ${accent} 82%, transparent 100%)`,
+                boxShadow: `0 0 16px ${accent}88, 0 0 4px ${accent}`,
+                transformOrigin: "center",
+                width: "min(540px, 60%)",
+              }}
+              animate={{
+                opacity: trimmed ? 0.95 : 0.4,
+                scaleX: trimmed ? 1 : 0.45,
+              }}
+              transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+            />
+
+            {/* Suggested names — inline metadata, not chips */}
             <motion.div
               initial={reduced ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
-                duration: 0.6,
-                delay: 0.85,
+                duration: 0.5,
+                delay: 0.5,
                 ease: [0.2, 0.7, 0.2, 1],
               }}
-              className="mt-10 flex items-center justify-center flex-wrap gap-x-7 gap-y-3"
+              className="mt-12 flex items-center justify-center flex-wrap gap-x-5 gap-y-2.5"
             >
               <span
-                className="text-[10.5px] tracking-[0.28em] uppercase"
+                className="text-[10px] tracking-[0.32em] uppercase"
                 style={{
                   color: "rgba(245,240,230,0.32)",
                   fontFamily: "var(--font-mono)",
                 }}
               >
-                Or try
+                Or also
               </span>
               {personality.suggestedNames.map((suggested, i) => {
                 const isCurrent =
@@ -658,62 +552,78 @@ function NamePageInner({
                     initial={reduced ? false : { opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{
-                      delay: 0.9 + i * 0.05,
-                      duration: 0.4,
+                      delay: 0.55 + i * 0.04,
+                      duration: 0.35,
                       ease: [0.2, 0.7, 0.2, 1],
                     }}
-                    whileHover={
-                      reduced
-                        ? undefined
-                        : { y: -1.5, scale: 1.02 }
-                    }
-                    whileTap={{ scale: 0.96 }}
-                    className="relative inline-flex items-center justify-center h-9 px-4 rounded-full font-serif italic"
+                    whileHover={reduced ? undefined : { y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="relative font-serif italic"
                     style={{
-                      fontSize: "clamp(0.95rem, 1.15vw, 1.0625rem)",
-                      background: isCurrent
-                        ? `linear-gradient(180deg, rgba(255,255,255,0.07) 0%, ${accent}1f 100%)`
-                        : "rgba(255,255,255,0.025)",
-                      backdropFilter: "blur(14px)",
-                      WebkitBackdropFilter: "blur(14px)",
-                      border: isCurrent
-                        ? `1px solid ${accent}aa`
-                        : "1px solid rgba(255,255,255,0.1)",
+                      fontSize: "clamp(0.95rem, 1.2vw, 1.0625rem)",
                       color: isCurrent
-                        ? "rgba(245,240,230,0.98)"
-                        : "rgba(245,240,230,0.62)",
-                      boxShadow: isCurrent
-                        ? `0 0 20px -4px ${accent}99, inset 0 1px 0 rgba(255,255,255,0.22)`
-                        : "inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 12px -6px rgba(0,0,0,0.4)",
-                      transition:
-                        "background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, color 0.3s ease",
+                        ? "rgba(245,240,230,0.95)"
+                        : "rgba(245,240,230,0.55)",
+                      transition: "color 0.3s ease",
                     }}
                   >
-                    {/* Specular highlight on selected pill */}
+                    {suggested}
                     {isCurrent && (
-                      <span
-                        aria-hidden
-                        className="absolute pointer-events-none"
+                      <motion.span
+                        layoutId="suggested-underline"
+                        className="absolute -bottom-1 left-0 right-0 h-[1.5px] rounded-full"
                         style={{
-                          top: 1,
-                          left: "20%",
-                          width: "35%",
-                          height: "40%",
-                          borderRadius: "50%",
-                          background:
-                            "radial-gradient(ellipse, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 70%)",
-                          filter: "blur(5px)",
+                          background: accent,
+                          boxShadow: `0 0 8px ${accent}`,
+                        }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 380,
+                          damping: 32,
+                          mass: 0.9,
                         }}
                       />
                     )}
-                    <span className="relative">{suggested}</span>
                   </motion.button>
                 );
               })}
             </motion.div>
 
-            {/* Continue — premium glass capsule with specular
-                highlight + accent reflection */}
+            {/* Live agent line — appears as small italic when speaking */}
+            <div className="mt-10 min-h-[1.4em] w-full text-center">
+              <AnimatePresence mode="wait">
+                {agentSpeaking && agentLine && (
+                  <motion.p
+                    key={agentLine}
+                    initial={
+                      reduced
+                        ? false
+                        : { opacity: 0, y: 6, filter: "blur(4px)" }
+                    }
+                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                    exit={
+                      reduced
+                        ? undefined
+                        : { opacity: 0, y: -4, filter: "blur(4px)" }
+                    }
+                    transition={{
+                      duration: 0.45,
+                      ease: [0.2, 0.7, 0.2, 1],
+                    }}
+                    className="font-serif italic mx-auto max-w-[42ch]"
+                    style={{
+                      fontSize: "clamp(0.95rem, 1.1vw, 1.0625rem)",
+                      color: `${accent}cc`,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {agentLine}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Continue — premium glass capsule */}
             <motion.button
               type="button"
               onClick={onContinue}
@@ -722,21 +632,18 @@ function NamePageInner({
               animate={{ opacity: 1, y: 0 }}
               transition={{
                 duration: 0.55,
-                delay: 1.1,
+                delay: 0.75,
                 ease: [0.2, 0.7, 0.2, 1],
               }}
               whileHover={
                 reduced || !canContinue
                   ? undefined
-                  : {
-                      scale: 1.04,
-                      y: -2,
-                    }
+                  : { scale: 1.04, y: -2 }
               }
               whileTap={canContinue ? { scale: 0.96 } : undefined}
-              className="mt-14 relative inline-flex items-center gap-3 h-[52px] px-8 rounded-full font-serif overflow-hidden disabled:cursor-not-allowed"
+              className="mt-12 relative inline-flex items-center gap-3 h-[52px] px-8 rounded-full font-serif overflow-hidden disabled:cursor-not-allowed"
               style={{
-                fontSize: 16,
+                fontSize: 15.5,
                 background: canContinue
                   ? `linear-gradient(180deg, rgba(255,255,255,0.09) 0%, ${accent}1f 100%)`
                   : "rgba(255,255,255,0.02)",
@@ -751,42 +658,41 @@ function NamePageInner({
                 boxShadow: canContinue
                   ? `0 0 38px -6px ${accent}aa, 0 14px 32px -10px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.22)`
                   : "inset 0 1px 0 rgba(255,255,255,0.05)",
+                letterSpacing: "0.01em",
                 transition:
                   "background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, color 0.3s ease",
               }}
             >
-              {/* Specular highlight (top-left) */}
               {canContinue && (
-                <span
-                  aria-hidden
-                  className="absolute pointer-events-none"
-                  style={{
-                    top: 1,
-                    left: "16%",
-                    width: "40%",
-                    height: "55%",
-                    borderRadius: "50%",
-                    background:
-                      "radial-gradient(ellipse, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0) 70%)",
-                    filter: "blur(8px)",
-                  }}
-                />
-              )}
-              {/* Accent reflection (bottom-right) */}
-              {canContinue && (
-                <span
-                  aria-hidden
-                  className="absolute pointer-events-none"
-                  style={{
-                    bottom: 0,
-                    right: "12%",
-                    width: "55%",
-                    height: "60%",
-                    borderRadius: "50%",
-                    background: `radial-gradient(ellipse, ${accent}55 0%, transparent 70%)`,
-                    filter: "blur(12px)",
-                  }}
-                />
+                <>
+                  <span
+                    aria-hidden
+                    className="absolute pointer-events-none"
+                    style={{
+                      top: 1,
+                      left: "16%",
+                      width: "40%",
+                      height: "55%",
+                      borderRadius: "50%",
+                      background:
+                        "radial-gradient(ellipse, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0) 70%)",
+                      filter: "blur(8px)",
+                    }}
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute pointer-events-none"
+                    style={{
+                      bottom: 0,
+                      right: "12%",
+                      width: "55%",
+                      height: "60%",
+                      borderRadius: "50%",
+                      background: `radial-gradient(ellipse, ${accent}55 0%, transparent 70%)`,
+                      filter: "blur(12px)",
+                    }}
+                  />
+                </>
               )}
               <span className="relative">
                 {canContinue ? (
@@ -817,7 +723,7 @@ function NamePageInner({
                     </AnimatePresence>
                   </>
                 ) : (
-                  "Say a name, or type one"
+                  "Say a name to continue"
                 )}
               </span>
               {canContinue && (
@@ -837,7 +743,6 @@ function NamePageInner({
               )}
             </motion.button>
 
-            {/* Back */}
             <motion.button
               type="button"
               onClick={() => {
@@ -850,10 +755,10 @@ function NamePageInner({
               }}
               initial={reduced ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 1.3 }}
-              className="mt-8 text-[11px] tracking-[0.24em] uppercase transition-opacity hover:opacity-80"
+              transition={{ duration: 0.6, delay: 1.0 }}
+              className="mt-7 text-[10.5px] tracking-[0.32em] uppercase transition-opacity hover:opacity-80"
               style={{
-                color: "rgba(245,240,230,0.32)",
+                color: "rgba(245,240,230,0.3)",
                 fontFamily: "var(--font-mono)",
               }}
             >
@@ -862,7 +767,7 @@ function NamePageInner({
           </div>
         </div>
 
-        {/* Floating live agent — bottom right */}
+        {/* Floating live agent */}
         <FloatingAgent
           voiceState={voiceState}
           accent={accent}
@@ -876,11 +781,123 @@ function NamePageInner({
 }
 
 /* ============================================================
+ * AuroraBackground — three radial accent gradients drifting slowly
+ * at different rates. Gives the dark canvas a living atmosphere
+ * without occupying a specific zone of the page.
+ * ============================================================ */
+function AuroraBackground({
+  accent,
+  amplified,
+}: {
+  accent: string;
+  amplified: boolean;
+}) {
+  const reduced = useReducedMotion();
+  return (
+    <div
+      aria-hidden
+      className="absolute inset-0 pointer-events-none overflow-hidden"
+    >
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: 900,
+          height: 900,
+          left: "10%",
+          top: "-25%",
+          background: `radial-gradient(circle, ${accent}1a 0%, ${accent}06 38%, transparent 65%)`,
+          filter: "blur(80px)",
+        }}
+        animate={
+          reduced
+            ? { opacity: 0.55 }
+            : {
+                x: [0, 60, -40, 0],
+                y: [0, 50, 90, 0],
+                opacity: amplified ? [0.55, 0.85, 0.55] : 0.55,
+              }
+        }
+        transition={
+          reduced
+            ? { duration: 0.5 }
+            : {
+                x: { duration: 22, repeat: Infinity, ease: "easeInOut" },
+                y: { duration: 22, repeat: Infinity, ease: "easeInOut" },
+                opacity: amplified
+                  ? { duration: 3.6, repeat: Infinity, ease: "easeInOut" }
+                  : { duration: 0.8 },
+              }
+        }
+      />
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: 720,
+          height: 720,
+          right: "5%",
+          bottom: "-15%",
+          background: `radial-gradient(circle, ${accent}18 0%, ${accent}06 35%, transparent 65%)`,
+          filter: "blur(70px)",
+        }}
+        animate={
+          reduced
+            ? { opacity: 0.55 }
+            : {
+                x: [0, -50, 30, 0],
+                y: [0, -40, -80, 0],
+                opacity: amplified ? [0.55, 0.95, 0.55] : 0.55,
+              }
+        }
+        transition={
+          reduced
+            ? { duration: 0.5 }
+            : {
+                x: { duration: 26, repeat: Infinity, ease: "easeInOut" },
+                y: { duration: 26, repeat: Infinity, ease: "easeInOut" },
+                opacity: amplified
+                  ? { duration: 3.6, repeat: Infinity, ease: "easeInOut" }
+                  : { duration: 0.8 },
+              }
+        }
+      />
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: 800,
+          height: 800,
+          left: "50%",
+          top: "55%",
+          marginLeft: -400,
+          marginTop: -400,
+          background: `radial-gradient(circle, ${accent}0e 0%, transparent 60%)`,
+          filter: "blur(90px)",
+        }}
+        animate={
+          reduced
+            ? { opacity: 0.5 }
+            : {
+                x: [0, 40, -30, 0],
+                y: [0, -50, 30, 0],
+                opacity: 0.5,
+              }
+        }
+        transition={
+          reduced
+            ? { duration: 0.5 }
+            : {
+                x: { duration: 30, repeat: Infinity, ease: "easeInOut" },
+                y: { duration: 30, repeat: Infinity, ease: "easeInOut" },
+              }
+        }
+      />
+    </div>
+  );
+}
+
+/* ============================================================
  * FloatingAgent — pinned bottom-right. Glass disc with audio
  * wave bars that pulse while the agent is speaking. Doubles as
- * the start/stop control. Status label slides out to the left
- * while connected so the user always knows what the agent is
- * doing without it occupying the page composition.
+ * the start/stop control.
  * ============================================================ */
 function FloatingAgent({
   voiceState,
@@ -923,9 +940,8 @@ function FloatingAgent({
   return (
     <div
       className="fixed z-40 flex items-center gap-3"
-      style={{ bottom: 40, right: 40 }}
+      style={{ bottom: 32, right: 32 }}
     >
-      {/* Status label — fades in alongside the widget */}
       <AnimatePresence>
         {(active || isConnecting || errored || hovered) && (
           <motion.div
@@ -951,7 +967,7 @@ function FloatingAgent({
             }}
           >
             <span
-              className="text-[11px] tracking-[0.28em] uppercase"
+              className="text-[10.5px] tracking-[0.3em] uppercase"
               style={{
                 color: errored
                   ? "rgba(255,170,170,0.85)"
@@ -967,7 +983,7 @@ function FloatingAgent({
               <button
                 type="button"
                 onClick={retry}
-                className="ml-3 text-[10.5px] tracking-[0.22em] uppercase underline underline-offset-4"
+                className="ml-3 text-[10px] tracking-[0.22em] uppercase underline underline-offset-4"
                 style={{
                   color: "rgba(255,200,200,0.8)",
                   fontFamily: "var(--font-mono)",
@@ -980,7 +996,6 @@ function FloatingAgent({
         )}
       </AnimatePresence>
 
-      {/* Widget */}
       <motion.button
         type="button"
         onClick={onClick}
@@ -1002,11 +1017,8 @@ function FloatingAgent({
             : `0 0 30px -10px ${accent}88, 0 12px 28px -10px rgba(0,0,0,0.6)`,
           transition: "border-color 0.4s ease, box-shadow 0.4s ease",
         }}
-        aria-label={
-          active ? "Stop the agent" : "Start the agent"
-        }
+        aria-label={active ? "Stop the agent" : "Start the agent"}
       >
-        {/* Specular highlight */}
         <div
           aria-hidden
           className="absolute pointer-events-none"
@@ -1021,8 +1033,6 @@ function FloatingAgent({
             filter: "blur(10px)",
           }}
         />
-
-        {/* Accent reflection bottom */}
         <div
           aria-hidden
           className="absolute pointer-events-none"
@@ -1037,7 +1047,6 @@ function FloatingAgent({
           }}
         />
 
-        {/* Idle invitation ring */}
         {!reduced && voiceState === "idle" && (
           <motion.div
             aria-hidden
@@ -1054,7 +1063,6 @@ function FloatingAgent({
           />
         )}
 
-        {/* Speaking ripple */}
         {speaking && !reduced && (
           <>
             {[0, 0.6].map((delay, i) => (
@@ -1078,7 +1086,6 @@ function FloatingAgent({
           </>
         )}
 
-        {/* Glyph */}
         {isConnecting ? (
           <svg
             width={24}
@@ -1137,9 +1144,6 @@ function AudioBars({
   errored: boolean;
 }) {
   const reduced = useReducedMotion();
-  // 4 bars with staggered phases. Speaking peaks tall and animated;
-  // listening idles short with a gentle breath; idle/errored stay
-  // flat short.
   const bars = [
     { phase: 0, peak: 1 },
     { phase: 0.15, peak: 0.85 },
@@ -1164,9 +1168,7 @@ function AudioBars({
             reduced
               ? { height: 5 }
               : speaking
-                ? {
-                    height: [5, 24 * bar.peak, 5, 16 * bar.peak, 5],
-                  }
+                ? { height: [5, 24 * bar.peak, 5, 16 * bar.peak, 5] }
                 : active
                   ? { height: [5, 9, 5, 7, 5] }
                   : { height: 5 }
