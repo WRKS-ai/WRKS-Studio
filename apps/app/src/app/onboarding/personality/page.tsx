@@ -224,8 +224,11 @@ export default function PersonalityPage() {
 
         {/* Bottom row — name nav + pick button */}
         <div className="relative mt-12 flex items-center justify-between gap-8">
-          {/* Left — personality name nav (acts as compact paginator) */}
-          <nav className="flex items-center gap-7">
+          {/* Left — personality name nav (acts as compact paginator).
+              Uses two independent shared-layout underlines so the
+              "current" (white) and "committed" (accent) markers slide
+              smoothly between positions with spring physics. */}
+          <nav className="flex items-center gap-8">
             {PERSONALITIES.map((p, i) => {
               const isCurrent = i === index;
               const isCommittedHere = committed === p.id;
@@ -234,36 +237,62 @@ export default function PersonalityPage() {
                   key={p.id}
                   type="button"
                   onClick={() => setIndex(i)}
-                  className="relative group"
+                  className="relative px-1 pt-1 pb-2"
                 >
-                  <span
-                    className="font-serif transition-colors duration-300"
+                  <motion.span
+                    className="font-serif inline-block"
                     style={{
                       fontSize: 18,
                       letterSpacing: "-0.01em",
+                    }}
+                    animate={{
                       color: isCurrent
                         ? "rgba(245,240,230,0.96)"
-                        : "rgba(245,240,230,0.32)",
+                        : isCommittedHere
+                          ? "rgba(245,240,230,0.78)"
+                          : "rgba(245,240,230,0.32)",
+                      y: isCurrent ? -1 : 0,
+                    }}
+                    transition={{
+                      duration: 0.45,
+                      ease: [0.2, 0.7, 0.2, 1],
                     }}
                   >
                     {p.name}
-                  </span>
-                  {/* Underline accent — current = white hairline, picked = colored */}
-                  {(isCurrent || isCommittedHere) && (
+                  </motion.span>
+
+                  {/* Current — white underline that slides between names */}
+                  {isCurrent && (
                     <motion.span
-                      layoutId="persona-underline"
-                      className="absolute -bottom-1.5 left-0 right-0 h-px"
+                      layoutId="nav-current-underline"
+                      className="absolute bottom-0 left-0 right-0 h-[1.5px] rounded-full"
+                      style={{ background: "rgba(245,240,230,0.85)" }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 380,
+                        damping: 32,
+                        mass: 0.9,
+                      }}
+                    />
+                  )}
+
+                  {/* Committed — accent underline with glow that slides
+                      to whichever name is picked. Independent from the
+                      current marker so both can coexist (e.g. picked
+                      Maven while previewing Sage). */}
+                  {isCommittedHere && (
+                    <motion.span
+                      layoutId="nav-committed-underline"
+                      className="absolute bottom-0 left-0 right-0 h-[1.5px] rounded-full"
                       style={{
-                        background: isCommittedHere
-                          ? p.accent
-                          : "rgba(245,240,230,0.7)",
-                        boxShadow: isCommittedHere
-                          ? `0 0 6px ${p.accent}`
-                          : "none",
+                        background: p.accent,
+                        boxShadow: `0 0 8px ${p.accent}, 0 0 18px ${p.accent}55`,
                       }}
                       transition={{
-                        duration: 0.5,
-                        ease: [0.2, 0.7, 0.2, 1],
+                        type: "spring",
+                        stiffness: 380,
+                        damping: 32,
+                        mass: 0.9,
                       }}
                     />
                   )}
