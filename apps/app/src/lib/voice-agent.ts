@@ -136,7 +136,7 @@ const ONBOARDING_GREETING: Record<
   (suggested: string) => string
 > = {
   maven: (s) =>
-    `I'm yours. Before we keep going — what should I be called? ${s} works, or pick your own.`,
+    `Hey! I'm here, ready to help. First thing — pick a name for me. ${s} works, or anything you like.`,
   sage: (s) =>
     `Hello. Glad you picked me. To get us started — what would you like to call me? ${s}, perhaps, or anything that feels right.`,
   spark: (s) =>
