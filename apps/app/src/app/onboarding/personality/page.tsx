@@ -239,17 +239,6 @@ export default function PersonalityPage() {
                     }}
                   >
                     {previewed.name}
-                    <span
-                      style={{
-                        color: accent,
-                        opacity: 0.72,
-                        fontSize: "0.7em",
-                        verticalAlign: "0.04em",
-                        marginLeft: "0.04em",
-                      }}
-                    >
-                      .
-                    </span>
                   </h1>
 
                   <p
