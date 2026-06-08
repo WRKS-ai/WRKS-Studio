@@ -221,39 +221,11 @@ export default function PersonalityPage() {
                   }}
                   className="w-full"
                 >
-                  {/* Editorial meta — full plate above the name.
-                      Reads as a magazine masthead rather than a
-                      casual "Agent No. 03" label. */}
-                  <div className="mb-7 flex items-center gap-3">
-                    <span
-                      className="text-[10.5px] tracking-[0.42em] uppercase"
-                      style={{
-                        color: "rgba(245,240,230,0.5)",
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    >
-                      Agent N° {String(index + 1).padStart(2, "0")}
-                    </span>
-                    <span
-                      className="inline-block h-px w-6"
-                      style={{ background: "rgba(245,240,230,0.2)" }}
-                    />
-                    <span
-                      className="text-[10.5px] tracking-[0.42em] uppercase"
-                      style={{
-                        color: "rgba(245,240,230,0.32)",
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    >
-                      Est. 2026
-                    </span>
-                  </div>
-
-                  {/* Name — editorial refined.
-                      Smaller scale (was up to 10rem, now 7.5rem),
-                      much tighter tracking (-0.055em), lighter
-                      weight (400). Reads as Stripe Press / Aesop,
-                      not a cartoon. */}
+                  {/* Name — quiet confidence. No "AGENT N° XX EST.
+                      2026" meta cruft, no "THE BRIEF" divider —
+                      every decorative mono label was reading as an
+                      AI-template tell. Just the name and the
+                      tagline, given room to breathe. */}
                   <h1
                     className="font-serif"
                     style={{
@@ -278,30 +250,8 @@ export default function PersonalityPage() {
                     </span>
                   </h1>
 
-                  {/* Editorial divider between name and tagline */}
-                  <div className="mt-6 mb-5 flex items-center gap-3">
-                    <span
-                      className="inline-block h-px w-10"
-                      style={{
-                        background: `linear-gradient(90deg, ${accent}aa, transparent)`,
-                      }}
-                    />
-                    <span
-                      className="text-[9.5px] tracking-[0.5em] uppercase"
-                      style={{
-                        color: "rgba(245,240,230,0.32)",
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    >
-                      The Brief
-                    </span>
-                  </div>
-
-                  {/* Tagline — refined italic, calmer scale, tighter
-                      line-height. Reads as a pull-quote, not a chat
-                      message. */}
                   <p
-                    className="font-serif italic max-w-[30ch]"
+                    className="mt-7 font-serif italic max-w-[30ch]"
                     style={{
                       fontSize: "clamp(1rem, 1.35vw, 1.1875rem)",
                       lineHeight: 1.45,
