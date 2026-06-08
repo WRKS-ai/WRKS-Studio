@@ -40,7 +40,10 @@ export function OnboardingFrame({
     <main
       className="relative min-h-screen w-full overflow-hidden"
       style={{
-        background: "#0a0a0c",
+        // Transparent so the shared LiquidAurora (rendered by the
+        // onboarding agent provider) bleeds through. Body bg
+        // (--canvas, #08080a) provides the dark canvas underneath.
+        background: "transparent",
         color: "#f5f0e6",
       }}
     >
