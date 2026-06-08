@@ -29,12 +29,17 @@ export type Voice = {
 // you have them.
 export const VOICES: Voice[] = [
   {
+    // NOTE: the internal id stays "owen" so personalities.ts +
+    // every existing consumer of VoiceId keeps working. Display
+    // name + sample are Brad now — the voice our ElevenLabs
+    // dashboard agent actually uses. When/if we refactor VoiceId,
+    // rename id → "brad".
     id: "owen",
-    name: "Owen",
-    tagline: "Engaging, clear storyteller.",
+    name: "Brad",
+    tagline: "Welcoming, casual, warm.",
     pairsWith: "Pairs well with Maven",
-    elevenLabsId: "pNInz6obpgDQGcFmaJgB", // Adam
-    sample: "/voices/owen.mp3",
+    elevenLabsId: "pNInz6obpgDQGcFmaJgB", // unused (we don't override tts.voice_id anymore)
+    sample: "/voices/Brad.mp3",
     accent: "#a78bfa",
     accentDeep: "#6d28d9",
     glow: "rgba(167,139,250,0.45)",
