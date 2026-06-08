@@ -218,67 +218,45 @@ export default function PersonalityPage() {
               gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.05fr)",
             }}
           >
-            {/* LEFT — agent no, name, tagline, continue.
-                The Continue button sits under the tagline, anchored
-                to the text column rather than centered on the page. */}
+            {/* LEFT — static voice-pick hero + Continue. */}
             <div className="relative flex flex-col items-start">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={previewed.id}
-                  initial={
-                    reduced
-                      ? false
-                      : { opacity: 0, y: 14, filter: "blur(8px)" }
-                  }
-                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  exit={
-                    reduced
-                      ? undefined
-                      : { opacity: 0, y: -8, filter: "blur(6px)" }
-                  }
-                  transition={{
-                    duration: 0.55,
-                    ease: [0.2, 0.7, 0.2, 1],
+              <motion.div
+                initial={
+                  reduced
+                    ? false
+                    : { opacity: 0, y: 14, filter: "blur(8px)" }
+                }
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{
+                  duration: 0.55,
+                  ease: [0.2, 0.7, 0.2, 1],
+                }}
+                className="w-full"
+              >
+                <h1
+                  className="font-serif"
+                  style={{
+                    fontSize: "clamp(3.75rem, 8vw, 7.5rem)",
+                    fontWeight: 400,
+                    lineHeight: 0.96,
+                    letterSpacing: "-0.055em",
+                    color: "rgba(245,240,230,0.98)",
                   }}
-                  className="w-full"
                 >
-                  {/* Name — quiet confidence. No "AGENT N° XX EST.
-                      2026" meta cruft, no "THE BRIEF" divider —
-                      every decorative mono label was reading as an
-                      AI-template tell. Just the name and the
-                      tagline, given room to breathe. */}
-                  {/* Tiny "PREMIUM" pill above the hero when locked
-                      — keeps the status visible without crowding
-                      the descriptor below. */}
-                  {VOICE_INFO[previewed.id].isLocked && (
-                    <span
-                      className="mb-5 inline-block text-[10px] tracking-[0.32em] uppercase"
-                      style={{
-                        color: "rgba(245,240,230,0.55)",
-                        fontFamily: "var(--font-mono)",
-                        padding: "3px 10px",
-                        borderRadius: 999,
-                        border: "1px solid rgba(255,255,255,0.18)",
-                        background: "rgba(255,255,255,0.04)",
-                      }}
-                    >
-                      Premium
-                    </span>
-                  )}
-                  <h1
-                    className="font-serif"
-                    style={{
-                      fontSize: "clamp(3rem, 6.5vw, 6rem)",
-                      fontWeight: 400,
-                      lineHeight: 1.02,
-                      letterSpacing: "-0.04em",
-                      color: "rgba(245,240,230,0.98)",
-                    }}
-                  >
-                    {VOICE_INFO[previewed.id].character}
-                  </h1>
-                </motion.div>
-              </AnimatePresence>
+                  Pick your voice
+                </h1>
+                <p
+                  className="mt-5 font-serif italic"
+                  style={{
+                    fontSize: "clamp(1rem, 1.35vw, 1.1875rem)",
+                    lineHeight: 1.45,
+                    letterSpacing: "-0.005em",
+                    color: "rgba(245,240,230,0.55)",
+                  }}
+                >
+                  Tap the orb to hear it.
+                </p>
+              </motion.div>
 
               {/* Continue — neutral copy (no voice/agent name yet —
                   the user picks a name on the next page). Locked
