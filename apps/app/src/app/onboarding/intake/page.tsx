@@ -295,59 +295,75 @@ export default function IntakePage() {
             gridTemplateColumns: "minmax(0, 1.55fr) minmax(0, 1fr)",
           }}
         >
-          {/* Left — hero question + inline answer */}
+          {/* Left — hero question + inline answer.
+              Only the headline animates on question change. Everything
+              below it stays mounted and just swaps text in place — that's
+              what kills the cross-fade flicker that was reading as the
+              column "jumping left/right". The headline area reserves the
+              tallest possible height (2 lines) so 1↔2-line content swaps
+              don't shift the input or button below. */}
           <div className="flex flex-col">
-            <AnimatePresence mode="wait">
-              <motion.h1
-                key={currentKey}
-                initial={
-                  reduced
-                    ? false
-                    : { opacity: 0, y: 14, filter: "blur(8px)" }
-                }
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={
-                  reduced
-                    ? undefined
-                    : { opacity: 0, y: -10, filter: "blur(6px)" }
-                }
-                transition={{ duration: 0.55, ease: [0.2, 0.7, 0.2, 1] }}
-                className="font-serif"
-                style={{
-                  fontSize: "clamp(3.25rem, 6.4vw, 5.75rem)",
-                  fontWeight: 500,
-                  lineHeight: 0.98,
-                  letterSpacing: "-0.035em",
-                  color: "rgba(245,240,230,0.97)",
-                  maxWidth: "12ch",
-                }}
-              >
-                {currentMeta.hero}
-              </motion.h1>
-            </AnimatePresence>
-
-            {/* Listening line + answer */}
-            <div className="mt-12 max-w-[640px]">
+            <div
+              className="relative"
+              style={{
+                minHeight:
+                  "calc(2 * 0.98 * clamp(3.25rem, 6.4vw, 5.75rem))",
+              }}
+            >
               <AnimatePresence mode="wait">
-                <motion.div
-                  key={`${currentKey}-hint`}
-                  initial={reduced ? false : { opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={reduced ? undefined : { opacity: 0, y: -4 }}
-                  transition={{ duration: 0.4, delay: 0.05 }}
-                  className="flex items-center gap-3"
+                <motion.h1
+                  key={currentKey}
+                  initial={
+                    reduced
+                      ? false
+                      : { opacity: 0, y: 14, filter: "blur(8px)" }
+                  }
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  exit={
+                    reduced
+                      ? undefined
+                      : { opacity: 0, y: -10, filter: "blur(6px)" }
+                  }
+                  transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+                  className="font-serif absolute inset-0"
+                  style={{
+                    fontSize: "clamp(3.25rem, 6.4vw, 5.75rem)",
+                    fontWeight: 500,
+                    lineHeight: 0.98,
+                    letterSpacing: "-0.035em",
+                    color: "rgba(245,240,230,0.97)",
+                    maxWidth: "12ch",
+                    margin: 0,
+                  }}
                 >
-                  <ListeningDot
-                    active={
-                      voiceState === "listening" || voiceState === "speaking"
-                    }
-                    reduced={!!reduced}
-                  />
-                  <p
+                  {currentMeta.hero}
+                </motion.h1>
+              </AnimatePresence>
+            </div>
+
+            {/* Listening line + answer — persistent. Voice-state changes
+                drive a subtle crossfade on the label; question changes
+                just swap the hint text without remounting anything. */}
+            <div className="mt-12 max-w-[640px]">
+              <div className="flex items-center gap-3">
+                <ListeningDot
+                  active={
+                    voiceState === "listening" || voiceState === "speaking"
+                  }
+                  reduced={!!reduced}
+                />
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={voiceState}
+                    initial={reduced ? false : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={reduced ? undefined : { opacity: 0 }}
+                    transition={{ duration: 0.25 }}
                     className="text-[11px] tracking-[0.28em] uppercase"
                     style={{
                       color: "rgba(245,240,230,0.46)",
                       fontFamily: "var(--font-mono)",
+                      margin: 0,
                     }}
                   >
                     {voiceState === "speaking"
@@ -355,16 +371,18 @@ export default function IntakePage() {
                       : voiceState === "listening"
                         ? `${voice?.name ?? "Agent"} listening — speak or type`
                         : "Speak or type your answer"}
-                  </p>
-                </motion.div>
-              </AnimatePresence>
+                  </motion.p>
+                </AnimatePresence>
+              </div>
 
               <p
+                key={`${currentKey}-hint-text`}
                 className="mt-3 font-sans"
                 style={{
                   fontSize: 13,
                   letterSpacing: "0.005em",
                   color: "rgba(245,240,230,0.36)",
+                  minHeight: 20,
                 }}
               >
                 {currentMeta.hint}
@@ -377,60 +395,51 @@ export default function IntakePage() {
                   className="absolute -top-2 left-0 right-0 h-px"
                   style={{ background: "rgba(245,240,230,0.09)" }}
                 />
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={`${currentKey}-input`}
-                    initial={
-                      reduced
-                        ? false
-                        : { opacity: 0, y: 8, filter: "blur(4px)" }
-                    }
-                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    exit={reduced ? undefined : { opacity: 0, y: -4 }}
-                    transition={{ duration: 0.45, delay: 0.12 }}
-                  >
-                    <textarea
-                      ref={inputRef}
-                      value={currentValue}
-                      onChange={(e) =>
-                        setFields((f) => ({ ...f, [currentKey]: e.target.value }))
-                      }
-                      onKeyDown={onKeyDown}
-                      placeholder="Your answer…"
-                      rows={3}
-                      aria-label={currentMeta.label}
-                      spellCheck={false}
-                      autoComplete="off"
-                      className="w-full bg-transparent border-0 outline-none resize-none font-sans"
-                      style={{
-                        fontSize: "clamp(1.25rem, 1.9vw, 1.625rem)",
-                        lineHeight: 1.45,
-                        letterSpacing: "-0.012em",
-                        color: "rgba(245,240,230,0.96)",
-                        caretColor: "rgba(245,240,230,0.96)",
-                        padding: "8px 0 4px",
-                        minHeight: 96,
-                      }}
-                    />
-                  </motion.div>
-                </AnimatePresence>
+                <textarea
+                  ref={inputRef}
+                  value={currentValue}
+                  onChange={(e) =>
+                    setFields((f) => ({ ...f, [currentKey]: e.target.value }))
+                  }
+                  onKeyDown={onKeyDown}
+                  placeholder="Your answer…"
+                  rows={3}
+                  aria-label={currentMeta.label}
+                  spellCheck={false}
+                  autoComplete="off"
+                  className="w-full bg-transparent border-0 outline-none resize-none font-sans"
+                  style={{
+                    fontSize: "clamp(1.25rem, 1.9vw, 1.625rem)",
+                    lineHeight: 1.45,
+                    letterSpacing: "-0.012em",
+                    color: "rgba(245,240,230,0.96)",
+                    caretColor: "rgba(245,240,230,0.96)",
+                    padding: "8px 0 4px",
+                    height: 112,
+                  }}
+                />
               </div>
 
-              {/* Next / Continue */}
-              <div className="mt-10 min-h-[64px] flex items-center">
-                <AnimatePresence>
-                  {currentFilled && (
+              {/* Next / Continue — single mount; visibility animates on
+                  currentFilled only. Button does NOT remount per question,
+                  so it never glitches sideways across the transition. */}
+              <div
+                className="mt-10 flex items-center"
+                style={{ minHeight: 64 }}
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  {currentFilled ? (
                     <motion.div
-                      key={`${currentKey}-cta`}
+                      key="cta"
                       initial={
                         reduced
                           ? false
-                          : { opacity: 0, y: 8, filter: "blur(4px)" }
+                          : { opacity: 0, y: 6, filter: "blur(3px)" }
                       }
                       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                      exit={reduced ? undefined : { opacity: 0, y: -4 }}
+                      exit={reduced ? undefined : { opacity: 0, y: -3 }}
                       transition={{
-                        duration: 0.4,
+                        duration: 0.3,
                         ease: [0.2, 0.7, 0.2, 1],
                       }}
                     >
@@ -444,24 +453,29 @@ export default function IntakePage() {
                         </span>
                       </ContinueButton>
                     </motion.div>
+                  ) : (
+                    <motion.p
+                      key="cta-hint"
+                      initial={reduced ? false : { opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={reduced ? undefined : { opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="font-sans"
+                      style={{
+                        fontSize: 12,
+                        color: "rgba(245,240,230,0.32)",
+                        letterSpacing: "0.02em",
+                        margin: 0,
+                      }}
+                    >
+                      {filledCount === 0
+                        ? `${agentName || "Your agent"} is ready. Start with this one.`
+                        : `${filledCount} of ${FIELD_ORDER.length} answered — one more${
+                            isLast ? "" : " of three"
+                          } to go.`}
+                    </motion.p>
                   )}
                 </AnimatePresence>
-                {!currentFilled && (
-                  <p
-                    className="font-sans"
-                    style={{
-                      fontSize: 12,
-                      color: "rgba(245,240,230,0.32)",
-                      letterSpacing: "0.02em",
-                    }}
-                  >
-                    {filledCount === 0
-                      ? `${agentName || "Your agent"} is ready. Start with this one.`
-                      : `${filledCount} of ${FIELD_ORDER.length} answered — one more${
-                          isLast ? "" : " of three"
-                        } to go.`}
-                  </p>
-                )}
               </div>
             </div>
           </div>
