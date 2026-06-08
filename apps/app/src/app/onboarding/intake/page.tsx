@@ -163,6 +163,16 @@ export default function IntakePage() {
     return () => clearTimeout(t);
   }, [currentIdx]);
 
+  // Auto-size the textarea to its content. Keeps the spacing tight
+  // when the answer is a single line and lets the field grow cleanly
+  // for longer answers — without leaving a dead zone above the CTA.
+  useEffect(() => {
+    const ta = inputRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.max(72, ta.scrollHeight)}px`;
+  }, [currentIdx, fields]);
+
   const advance = () => {
     if (!currentFilled) return;
     if (!isLast) {
@@ -343,8 +353,10 @@ export default function IntakePage() {
 
             {/* Listening line + answer — persistent. Voice-state changes
                 drive a subtle crossfade on the label; question changes
-                just swap the hint text without remounting anything. */}
-            <div className="mt-12 max-w-[640px]">
+                just swap the hint text without remounting anything.
+                Section width matches the /name card (720px) for
+                cross-step visual consistency. */}
+            <div className="mt-12 max-w-[720px]">
               <div className="flex items-center gap-3">
                 <ListeningDot
                   active={
@@ -403,11 +415,11 @@ export default function IntakePage() {
                   }
                   onKeyDown={onKeyDown}
                   placeholder="Your answer…"
-                  rows={3}
+                  rows={2}
                   aria-label={currentMeta.label}
                   spellCheck={false}
                   autoComplete="off"
-                  className="w-full bg-transparent border-0 outline-none resize-none font-sans"
+                  className="w-full bg-transparent border-0 outline-none resize-none font-sans overflow-hidden"
                   style={{
                     fontSize: "clamp(1.25rem, 1.9vw, 1.625rem)",
                     lineHeight: 1.45,
@@ -415,7 +427,7 @@ export default function IntakePage() {
                     color: "rgba(245,240,230,0.96)",
                     caretColor: "rgba(245,240,230,0.96)",
                     padding: "8px 0 4px",
-                    height: 112,
+                    minHeight: 72,
                   }}
                 />
               </div>
@@ -424,8 +436,8 @@ export default function IntakePage() {
                   currentFilled only. Button does NOT remount per question,
                   so it never glitches sideways across the transition. */}
               <div
-                className="mt-10 flex items-center"
-                style={{ minHeight: 64 }}
+                className="mt-7 flex items-center"
+                style={{ minHeight: 56 }}
               >
                 <AnimatePresence mode="wait" initial={false}>
                   {currentFilled ? (
