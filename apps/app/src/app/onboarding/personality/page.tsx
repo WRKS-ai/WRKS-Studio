@@ -152,8 +152,16 @@ export default function PersonalityPage() {
 
   return (
     <OnboardingFrame step={1} totalSteps={5} bloomTint={accent}>
-      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center">
-        <div className="w-full max-w-[1440px] flex flex-col gap-14 lg:gap-20">
+      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center overflow-hidden">
+        {/* Liquid aurora — slow morphing color clouds. Five layered
+            radial gradients translating + scaling on independent
+            long-period loops. mix-blend-mode: screen lets the
+            colors mingle organically. The whole thing is keyed to
+            the active personality accent so the atmosphere shifts
+            as you cycle through agents. */}
+        <LiquidAurora accent={accent} accentDeep={previewed.accentDeep} />
+
+        <div className="relative w-full max-w-[1440px] flex flex-col gap-14 lg:gap-20">
           {/* Act header — top-left anchor */}
           <motion.div
             initial={
@@ -213,44 +221,92 @@ export default function PersonalityPage() {
                   }}
                   className="w-full"
                 >
-                  {/* Agent number */}
-                  <div className="mb-8 flex flex-col gap-2">
+                  {/* Editorial meta — full plate above the name.
+                      Reads as a magazine masthead rather than a
+                      casual "Agent No. 03" label. */}
+                  <div className="mb-7 flex items-center gap-3">
                     <span
-                      className="text-[11px] tracking-[0.32em] uppercase"
+                      className="text-[10.5px] tracking-[0.42em] uppercase"
                       style={{
-                        color: "rgba(245,240,230,0.4)",
+                        color: "rgba(245,240,230,0.5)",
                         fontFamily: "var(--font-mono)",
                       }}
                     >
-                      Agent No. 0{index + 1}
+                      Agent N° {String(index + 1).padStart(2, "0")}
                     </span>
                     <span
-                      className="inline-block h-px w-12"
-                      style={{ background: "rgba(245,240,230,0.16)" }}
+                      className="inline-block h-px w-6"
+                      style={{ background: "rgba(245,240,230,0.2)" }}
                     />
+                    <span
+                      className="text-[10.5px] tracking-[0.42em] uppercase"
+                      style={{
+                        color: "rgba(245,240,230,0.32)",
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      Est. 2026
+                    </span>
                   </div>
 
-                  {/* Name */}
+                  {/* Name — editorial refined.
+                      Smaller scale (was up to 10rem, now 7.5rem),
+                      much tighter tracking (-0.055em), lighter
+                      weight (400). Reads as Stripe Press / Aesop,
+                      not a cartoon. */}
                   <h1
-                    className="font-serif font-medium"
+                    className="font-serif"
                     style={{
-                      fontSize: "clamp(5rem, 10.5vw, 10rem)",
-                      lineHeight: 0.94,
-                      letterSpacing: "-0.035em",
+                      fontSize: "clamp(3.75rem, 8vw, 7.5rem)",
+                      fontWeight: 400,
+                      lineHeight: 0.92,
+                      letterSpacing: "-0.055em",
                       color: "rgba(245,240,230,0.98)",
                     }}
                   >
                     {previewed.name}
-                    <span style={{ color: accent, opacity: 0.85 }}>.</span>
+                    <span
+                      style={{
+                        color: accent,
+                        opacity: 0.72,
+                        fontSize: "0.7em",
+                        verticalAlign: "0.04em",
+                        marginLeft: "0.04em",
+                      }}
+                    >
+                      .
+                    </span>
                   </h1>
 
-                  {/* Tagline */}
+                  {/* Editorial divider between name and tagline */}
+                  <div className="mt-6 mb-5 flex items-center gap-3">
+                    <span
+                      className="inline-block h-px w-10"
+                      style={{
+                        background: `linear-gradient(90deg, ${accent}aa, transparent)`,
+                      }}
+                    />
+                    <span
+                      className="text-[9.5px] tracking-[0.5em] uppercase"
+                      style={{
+                        color: "rgba(245,240,230,0.32)",
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      The Brief
+                    </span>
+                  </div>
+
+                  {/* Tagline — refined italic, calmer scale, tighter
+                      line-height. Reads as a pull-quote, not a chat
+                      message. */}
                   <p
-                    className="mt-8 font-serif italic max-w-[32ch]"
+                    className="font-serif italic max-w-[30ch]"
                     style={{
-                      fontSize: "clamp(1.1875rem, 1.7vw, 1.5rem)",
-                      lineHeight: 1.3,
-                      color: "rgba(245,240,230,0.6)",
+                      fontSize: "clamp(1rem, 1.35vw, 1.1875rem)",
+                      lineHeight: 1.45,
+                      letterSpacing: "-0.005em",
+                      color: "rgba(245,240,230,0.62)",
                     }}
                   >
                     {previewed.tagline}
@@ -860,5 +916,134 @@ function Spinner({ size, accent }: { size: number; accent: string }) {
         />
       </path>
     </svg>
+  );
+}
+
+/* ============================================================
+ * LiquidAurora — slow morphing accent-color clouds that drift
+ * across the page as a backdrop. Five large radial gradients,
+ * each translating + scaling on its own long-period loop, blended
+ * with mix-blend-mode: screen so they mingle into the dark canvas
+ * rather than stacking opaquely. Keyed to the active personality
+ * accent so the atmosphere shifts with the carousel.
+ *
+ * The blobs sit BEHIND content (z-0 of the inner container) and
+ * BEHIND the orb carousel's own bloom — heavy blur + low base
+ * opacity means it reads as ambient lighting, never competing
+ * with the orb's foreground glow.
+ * ============================================================ */
+function LiquidAurora({
+  accent,
+  accentDeep,
+}: {
+  accent: string;
+  accentDeep: string;
+}) {
+  const reduced = useReducedMotion();
+
+  // Five blobs with hand-tuned starting positions, sizes, durations,
+  // and color stops. Mismatched durations (24/29/35/19/41 seconds)
+  // mean the configuration never repeats — the page feels alive.
+  const blobs = [
+    {
+      x: "8%",
+      y: "10%",
+      size: 720,
+      color: `${accent}33`,
+      duration: 24,
+      path: { x: [0, 80, -40, 0], y: [0, 60, 120, 0], scale: [1, 1.1, 0.95, 1] },
+    },
+    {
+      x: "70%",
+      y: "5%",
+      size: 620,
+      color: `${accentDeep}40`,
+      duration: 29,
+      path: {
+        x: [0, -60, 40, 0],
+        y: [0, 50, -30, 0],
+        scale: [1, 0.92, 1.08, 1],
+      },
+    },
+    {
+      x: "20%",
+      y: "60%",
+      size: 800,
+      color: `${accent}22`,
+      duration: 35,
+      path: {
+        x: [0, 90, 30, 0],
+        y: [0, -40, -90, 0],
+        scale: [1, 1.05, 0.9, 1],
+      },
+    },
+    {
+      x: "75%",
+      y: "55%",
+      size: 700,
+      color: `${accent}2a`,
+      duration: 19,
+      path: {
+        x: [0, -50, -20, 0],
+        y: [0, 70, -50, 0],
+        scale: [1, 1.12, 0.88, 1],
+      },
+    },
+    {
+      x: "45%",
+      y: "30%",
+      size: 540,
+      color: `${accentDeep}33`,
+      duration: 41,
+      path: {
+        x: [0, 40, -60, 0],
+        y: [0, -80, 40, 0],
+        scale: [1, 0.95, 1.15, 1],
+      },
+    },
+  ];
+
+  return (
+    <div
+      aria-hidden
+      className="absolute inset-0 pointer-events-none overflow-hidden"
+      style={{ zIndex: 0, mixBlendMode: "screen" }}
+    >
+      {blobs.map((blob, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            left: blob.x,
+            top: blob.y,
+            width: blob.size,
+            height: blob.size,
+            marginLeft: -blob.size / 2,
+            marginTop: -blob.size / 2,
+            background: `radial-gradient(circle, ${blob.color} 0%, transparent 65%)`,
+            filter: "blur(90px)",
+          }}
+          animate={
+            reduced
+              ? { opacity: 0.55 }
+              : {
+                  x: blob.path.x,
+                  y: blob.path.y,
+                  scale: blob.path.scale,
+                }
+          }
+          transition={
+            reduced
+              ? { duration: 0.5 }
+              : {
+                  duration: blob.duration,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  times: [0, 0.33, 0.67, 1],
+                }
+          }
+        />
+      ))}
+    </div>
   );
 }
