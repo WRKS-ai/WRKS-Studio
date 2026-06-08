@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ShinyText } from "./shiny-text";
 
 // Onboarding chrome — the quietest possible version.
 //
@@ -147,19 +148,25 @@ export function OnboardingFrame({
               }}
             />
             <span
-              className="font-serif leading-none"
+              className="leading-none"
               style={{
                 fontSize: 15,
-                fontWeight: 500,
-                letterSpacing: "-0.02em",
-                color: "rgba(245,240,230,0.88)",
+                lineHeight: 1,
               }}
             >
-              WRKS
-              <span style={{ color: "rgba(245,240,230,0.45)" }}>
-                {" "}
-                Studio
-              </span>
+              <ShinyText
+                text="WRKS Studio"
+                speed={7}
+                delay={0.5}
+                yoyo
+                /* Lighter base than the marketing version — at 15px the
+                   dark #262030 base reads as illegible mush. */
+                color="#857c92"
+                shineColor="#f5f0e6"
+                spread={100}
+                direction="left"
+                className="font-serif font-medium tracking-[-0.025em]"
+              />
             </span>
           </Link>
         </motion.div>
