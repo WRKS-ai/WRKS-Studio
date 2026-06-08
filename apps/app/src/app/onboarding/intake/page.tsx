@@ -275,7 +275,7 @@ export default function IntakePage() {
 
   return (
     <OnboardingFrame step={3} totalSteps={5} bloomTint={accent}>
-      <div className="relative mx-auto max-w-[1440px] min-h-[calc(100vh-120px)] px-10 sm:px-14 py-12">
+      <div className="relative mx-auto flex flex-col max-w-[1440px] min-h-[calc(100vh-120px)] px-10 sm:px-14 py-12">
         {/* Eyebrow */}
         <motion.div
           initial={reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }}
@@ -561,14 +561,17 @@ export default function IntakePage() {
           </div>
         </div>
 
-        {/* Back link */}
+        {/* Back link — pushed to the bottom of the flex-column wrapper
+            with mt-auto, with pt-16 clearance so it can never collide
+            with the CTA above (the original absolute bottom-10 was
+            ignoring the content's auto-grown height). */}
         <motion.button
           type="button"
           onClick={regress}
           initial={reduced ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.6 }}
-          className="absolute bottom-10 left-10 sm:left-14 text-[10.5px] tracking-[0.32em] uppercase transition-opacity hover:opacity-80"
+          className="mt-auto self-start pt-16 text-[10.5px] tracking-[0.32em] uppercase transition-opacity hover:opacity-80"
           style={{
             color: "rgba(245,240,230,0.34)",
             fontFamily: "var(--font-mono)",
