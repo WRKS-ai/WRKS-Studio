@@ -956,7 +956,7 @@ function LiquidAurora({
   return (
     <div
       aria-hidden
-      className="absolute inset-0 pointer-events-none overflow-hidden"
+      className="fixed inset-0 pointer-events-none overflow-hidden"
       style={{ zIndex: 0, mixBlendMode: "screen" }}
     >
       {blobs.map((blob, i) => (
