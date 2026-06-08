@@ -17,11 +17,16 @@ export async function GET() {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   const agentId = process.env.ELEVENLABS_AGENT_ID;
 
-  if (!apiKey || !agentId) {
+  // Be specific about which env var is missing so the client console
+  // tells us exactly what to add on Vercel — saves a debug round trip.
+  const missing: string[] = [];
+  if (!apiKey) missing.push("ELEVENLABS_API_KEY");
+  if (!agentId) missing.push("ELEVENLABS_AGENT_ID");
+  if (missing.length > 0) {
     return NextResponse.json(
       {
-        error:
-          "Voice not configured. Set ELEVENLABS_API_KEY and ELEVENLABS_AGENT_ID in env.",
+        error: `Voice not configured. Missing env var(s): ${missing.join(", ")}.`,
+        missing,
       },
       { status: 503 },
     );
