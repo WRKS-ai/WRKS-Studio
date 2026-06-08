@@ -396,9 +396,52 @@ function NamePageInner({
                         duration: 0.5,
                         ease: [0.2, 0.7, 0.2, 1],
                       }}
-                      style={{ display: "inline-block" }}
+                      style={{ display: "inline-block", position: "relative" }}
                     >
-                      {trimmed}
+                      {/* Type — neutral silver wash (NOT accent-colored).
+                          White at top fading to slightly muted bottom so
+                          the letterforms catch ambient light from above
+                          instead of reading as flat-painted. */}
+                      <span
+                        style={{
+                          display: "inline-block",
+                          backgroundImage:
+                            "linear-gradient(180deg, rgba(255,252,245,1) 0%, rgba(232,226,214,0.96) 55%, rgba(196,190,178,0.9) 100%)",
+                          WebkitBackgroundClip: "text",
+                          backgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          color: "transparent",
+                        }}
+                      >
+                        {trimmed}
+                      </span>
+                      {/* Mirror reflection — same word flipped, faded
+                          out via a mask gradient. Reads as the name
+                          sitting on a polished glass surface. */}
+                      <span
+                        aria-hidden
+                        style={{
+                          display: "inline-block",
+                          position: "absolute",
+                          left: 0,
+                          right: 0,
+                          top: "100%",
+                          transform: "scaleY(-1)",
+                          backgroundImage:
+                            "linear-gradient(180deg, rgba(255,252,245,0.55) 0%, rgba(232,226,214,0.25) 60%, transparent 100%)",
+                          WebkitBackgroundClip: "text",
+                          backgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          color: "transparent",
+                          WebkitMaskImage:
+                            "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 70%)",
+                          maskImage:
+                            "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 70%)",
+                          filter: "blur(1px)",
+                        }}
+                      >
+                        {trimmed}
+                      </span>
                     </motion.span>
                   ) : (
                     <motion.span
