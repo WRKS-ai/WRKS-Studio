@@ -4,7 +4,6 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ContinueButton } from "@/components/continue-button";
-import { LiquidAurora } from "@/components/liquid-aurora";
 import { OnboardingFrame } from "@/components/onboarding-frame";
 import { PERSONALITIES } from "@/lib/personalities";
 import type { PersonalityId } from "@/lib/personalities";
@@ -185,13 +184,11 @@ export default function PersonalityPage() {
   return (
     <OnboardingFrame step={1} totalSteps={5} bloomTint={accent}>
       <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center overflow-hidden">
-        {/* Liquid aurora — slow morphing color clouds. Five layered
-            radial gradients translating + scaling on independent
-            long-period loops. mix-blend-mode: screen lets the
-            colors mingle organically. The whole thing is keyed to
-            the active personality accent so the atmosphere shifts
-            as you cycle through agents. */}
-        <LiquidAurora accent={accent} accentDeep={previewed.accentDeep} />
+        {/* LiquidAurora now lives on the shared onboarding provider
+            (apps/app/src/lib/onboarding-agent.tsx) so every act gets
+            the same purple morphing backdrop. Keyed to the saved
+            personality accent — defaults to maven's purple until the
+            user picks. */}
 
         <div className="relative w-full max-w-[1440px] flex flex-col gap-10">
           {/* Act header — top-left anchor */}

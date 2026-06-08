@@ -18,6 +18,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { LiquidAurora } from "@/components/liquid-aurora";
 import { orbColorsFromAccent, SiriOrb } from "@/components/siri-orb";
 import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
 import {
@@ -272,7 +273,7 @@ function AgentHost({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={value}>
-      <OnboardingBackdrop accent={accent} accentDeep={accentDeep} />
+      <LiquidAurora accent={accent} accentDeep={accentDeep} />
       {children}
       <ConversationPanel
         messages={messages}
@@ -286,75 +287,6 @@ function AgentHost({ children }: { children: ReactNode }) {
         onClick={onWidgetClick}
       />
     </Ctx.Provider>
-  );
-}
-
-/* ============================================================
- * OnboardingBackdrop — shared dark backdrop. Two faint accent
- * glows breathing on mismatched long loops (32s + 47s). Sits
- * behind everything as fixed inset-0.
- * ============================================================ */
-function OnboardingBackdrop({
-  accent,
-  accentDeep,
-}: {
-  accent: string;
-  accentDeep: string;
-}) {
-  const reduced = useReducedMotion();
-  return (
-    <div
-      aria-hidden
-      className="fixed inset-0 pointer-events-none overflow-hidden"
-      style={{ zIndex: 0, mixBlendMode: "screen" }}
-    >
-      <motion.div
-        className="absolute rounded-full"
-        style={{
-          left: "20%",
-          top: "30%",
-          width: 900,
-          height: 900,
-          marginLeft: -450,
-          marginTop: -450,
-          background: `radial-gradient(circle, ${accent}1c 0%, ${accent}08 35%, transparent 65%)`,
-          filter: "blur(110px)",
-        }}
-        animate={
-          reduced
-            ? { opacity: 0.5 }
-            : { opacity: [0.4, 0.7, 0.4], scale: [1, 1.06, 1] }
-        }
-        transition={
-          reduced
-            ? { duration: 0.5 }
-            : { duration: 32, repeat: Infinity, ease: "easeInOut" }
-        }
-      />
-      <motion.div
-        className="absolute rounded-full"
-        style={{
-          right: "10%",
-          bottom: "20%",
-          width: 720,
-          height: 720,
-          marginRight: -360,
-          marginBottom: -360,
-          background: `radial-gradient(circle, ${accentDeep}22 0%, ${accentDeep}0a 35%, transparent 65%)`,
-          filter: "blur(110px)",
-        }}
-        animate={
-          reduced
-            ? { opacity: 0.5 }
-            : { opacity: [0.6, 0.35, 0.6], scale: [1, 0.95, 1] }
-        }
-        transition={
-          reduced
-            ? { duration: 0.5 }
-            : { duration: 47, repeat: Infinity, ease: "easeInOut" }
-        }
-      />
-    </div>
   );
 }
 

@@ -100,7 +100,7 @@ function resolveFieldKey(spoken: string): FieldKey | null {
 export default function IntakePage() {
   const router = useRouter();
   const reduced = useReducedMotion();
-  const { voice, voiceState } = useOnboardingAgent();
+  const { voice, voiceState, accent } = useOnboardingAgent();
 
   const [agentName, setAgentName] = useState<string>("");
   const [fields, setFields] = useState<Record<FieldKey, string>>({
@@ -274,7 +274,7 @@ export default function IntakePage() {
   const ctaLabel = isLast && allFilled ? "Continue" : "Next";
 
   return (
-    <OnboardingFrame step={3} totalSteps={5} bloomTint={undefined}>
+    <OnboardingFrame step={3} totalSteps={5} bloomTint={accent}>
       <div className="relative mx-auto max-w-[1440px] min-h-[calc(100vh-120px)] px-10 sm:px-14 py-12">
         {/* Eyebrow */}
         <motion.div
