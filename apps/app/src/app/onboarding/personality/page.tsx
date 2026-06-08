@@ -12,14 +12,31 @@ import { VOICES } from "@/lib/voices";
 
 const STORAGE_KEY = "wrks-onboarding-personality";
 const VOICE_KEY = "wrks-onboarding-voice";
+const PLANS_ROUTE = "/studio/plans";
 
-// Casting program — Act One. Stripped down to: agent name, one
-// tagline, and a big premium glass play button that IS the voice.
+// Act One — pick your AGENT'S VOICE. Only one voice (the one our
+// ElevenLabs dashboard agent is wired to — currently Brad) is on the
+// free plan; the rest are premium previews with a glass lock overlay.
+// Clicking a locked voice routes to the plans page.
 //
-// The play button is the hero element on the right — backdrop-blurred
-// glass, accent rim glow, progress arc tracing the circumference while
-// playing. No "Listen — Owen" text, no traits chips, no sample quote.
-// The voice plays directly when you press the glass.
+// VOICE_INFO replaces the personality name+tagline on the LEFT side
+// with voice-centric framing. The PERSONALITY system (Maven / Sage /
+// etc.) still lives underneath — the conversational character — but
+// the page UI treats each option as "a voice you can pick" because
+// that's what the user is choosing.
+
+const VOICE_INFO: Record<
+  PersonalityId,
+  { name: string; description: string; isLocked: boolean }
+> = {
+  // The dashboard agent currently runs on Brad — this is the free
+  // voice. Keep one personality slot unlocked.
+  maven: { name: "Brad", description: "Welcoming & casual", isLocked: false },
+  // Premium previews — clicking them routes to plans.
+  sage: { name: "Aria", description: "Confident & bright", isLocked: true },
+  spark: { name: "Charlotte", description: "Smooth & elegant", isLocked: true },
+  echo: { name: "River", description: "Deep & resonant", isLocked: true },
+};
 
 type PlayState = "idle" | "loading" | "playing" | "error";
 
@@ -238,7 +255,7 @@ export default function PersonalityPage() {
                       color: "rgba(245,240,230,0.98)",
                     }}
                   >
-                    {previewed.name}
+                    {VOICE_INFO[previewed.id].name}
                   </h1>
 
                   <p
@@ -250,38 +267,65 @@ export default function PersonalityPage() {
                       color: "rgba(245,240,230,0.62)",
                     }}
                   >
-                    {previewed.tagline}
+                    {VOICE_INFO[previewed.id].description}
+                    {VOICE_INFO[previewed.id].isLocked && (
+                      <span
+                        className="ml-2 inline-block align-middle text-[10px] tracking-[0.32em] uppercase"
+                        style={{
+                          color: "rgba(245,240,230,0.4)",
+                          fontFamily: "var(--font-mono)",
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          border: "1px solid rgba(255,255,255,0.16)",
+                          background: "rgba(255,255,255,0.04)",
+                        }}
+                      >
+                        Premium
+                      </span>
+                    )}
                   </p>
                 </motion.div>
               </AnimatePresence>
 
-              {/* Continue — shared component, fixed indigo color
-                  scheme across all agents (the per-agent accent
-                  driving the button is gone). */}
-              <ContinueButton
-                onClick={onContinue}
-                className="mt-10"
-              >
-                Continue as{" "}
-                <AnimatePresence mode="wait">
-                  <motion.span
-                    key={previewed.id}
-                    initial={reduced ? false : { opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={reduced ? undefined : { opacity: 0, y: -4 }}
-                    transition={{
-                      duration: 0.3,
-                      ease: [0.2, 0.7, 0.2, 1],
-                    }}
-                    style={{ display: "inline-block" }}
-                  >
-                    {previewed.name}
-                  </motion.span>
-                </AnimatePresence>
-                <span aria-hidden style={{ marginLeft: "0.6em" }}>
-                  →
-                </span>
-              </ContinueButton>
+              {/* Continue — locked voices get an upgrade CTA that
+                  routes to /studio/plans instead of advancing the
+                  onboarding flow. */}
+              {VOICE_INFO[previewed.id].isLocked ? (
+                <ContinueButton
+                  onClick={() => router.push(PLANS_ROUTE)}
+                  className="mt-10"
+                >
+                  Unlock{" "}
+                  <span style={{ display: "inline-block" }}>
+                    {VOICE_INFO[previewed.id].name}
+                  </span>
+                  <span aria-hidden style={{ marginLeft: "0.6em" }}>
+                    →
+                  </span>
+                </ContinueButton>
+              ) : (
+                <ContinueButton onClick={onContinue} className="mt-10">
+                  Continue with{" "}
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={previewed.id}
+                      initial={reduced ? false : { opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={reduced ? undefined : { opacity: 0, y: -4 }}
+                      transition={{
+                        duration: 0.3,
+                        ease: [0.2, 0.7, 0.2, 1],
+                      }}
+                      style={{ display: "inline-block" }}
+                    >
+                      {VOICE_INFO[previewed.id].name}
+                    </motion.span>
+                  </AnimatePresence>
+                  <span aria-hidden style={{ marginLeft: "0.6em" }}>
+                    →
+                  </span>
+                </ContinueButton>
+              )}
             </div>
 
             {/* RIGHT — orb carousel with glass nav arrows.
@@ -307,6 +351,7 @@ export default function PersonalityPage() {
                   playState={playState}
                   progressRatio={progressRatio}
                   onTogglePlay={toggleListen}
+                  onLockedSideClick={() => router.push(PLANS_ROUTE)}
                 />
                 <GlassNavArrow
                   direction="right"
@@ -590,10 +635,16 @@ function GlassPlayButton({
 
 /* ============================================================
  * OrbCarousel — prev / current / next glass orbs visible at once.
- * Smooth spring transitions between positions; side orbs are
- * blurred + reduced-opacity ghosts in their own personality's
- * accent color. Clicking a side orb navigates to that agent;
- * clicking the current orb plays / stops its sample.
+ * Smooth spring transitions; side orbs are blurred + reduced-
+ * opacity ghosts in their own personality's accent color.
+ *
+ * Lock behavior: voices that are isLocked in VOICE_INFO render a
+ * glass lock badge centered on their orb. Tapping a locked SIDE
+ * orb routes to /studio/plans (the user is asking to upgrade);
+ * tapping a locked CURRENT orb is handled by the Continue button
+ * below the orb (which becomes "Unlock {voice} →").
+ *
+ * The current orb (free or locked) still plays its sample on tap.
  * ============================================================ */
 function OrbCarousel({
   currentIndex,
@@ -601,12 +652,14 @@ function OrbCarousel({
   playState,
   progressRatio,
   onTogglePlay,
+  onLockedSideClick,
 }: {
   currentIndex: number;
   setIndex: (i: number) => void;
   playState: PlayState;
   progressRatio: number;
   onTogglePlay: () => void;
+  onLockedSideClick: () => void;
 }) {
   const total = PERSONALITIES.length;
 
@@ -620,6 +673,7 @@ function OrbCarousel({
         const isCurrent = diff === 0;
         const isNext = diff === 1;
         const isPrev = diff === total - 1;
+        const isLocked = VOICE_INFO[p.id].isLocked;
 
         let x = 0;
         let scale = 1;
@@ -663,19 +717,74 @@ function OrbCarousel({
             }}
             style={{ zIndex: z }}
           >
-            <GlassPlayButton
-              state={isCurrent ? playState : "idle"}
-              progressRatio={isCurrent ? progressRatio : 0}
-              accent={p.accent}
-              interactive={isCurrent}
-              onToggle={() => {
-                if (isCurrent) onTogglePlay();
-                else setIndex(i);
-              }}
-            />
+            <div className="relative">
+              <GlassPlayButton
+                state={isCurrent ? playState : "idle"}
+                progressRatio={isCurrent ? progressRatio : 0}
+                accent={p.accent}
+                interactive={isCurrent && !isLocked}
+                onToggle={() => {
+                  if (!isCurrent) {
+                    // Side orb — either navigate (free) or upsell (locked)
+                    if (isLocked) onLockedSideClick();
+                    else setIndex(i);
+                    return;
+                  }
+                  // Current orb — play / stop voice sample
+                  if (!isLocked) onTogglePlay();
+                  // If current AND locked, the Continue button below
+                  // handles the upgrade CTA; tapping the orb is a no-op.
+                }}
+              />
+              {/* Glass lock badge overlay — centered on locked orbs */}
+              {isLocked && <LockBadge accent={p.accent} />}
+            </div>
           </motion.div>
         );
       })}
+    </div>
+  );
+}
+
+/* ============================================================
+ * LockBadge — small frosted-glass disc centered on a locked orb.
+ * Lock SVG inside, accent rim tint to match the voice's color
+ * family. Reads as "premium — tap to upgrade."
+ * ============================================================ */
+function LockBadge({ accent }: { accent: string }) {
+  return (
+    <div
+      aria-hidden
+      className="absolute pointer-events-none grid place-items-center rounded-full"
+      style={{
+        width: 64,
+        height: 64,
+        top: "50%",
+        left: "50%",
+        marginTop: -32,
+        marginLeft: -32,
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        border: `1px solid ${accent}66`,
+        boxShadow: `0 0 24px -6px ${accent}77, inset 0 1px 0 rgba(255,255,255,0.16)`,
+      }}
+    >
+      <svg
+        width={22}
+        height={22}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="rgba(245,240,230,0.92)"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ filter: `drop-shadow(0 0 4px ${accent}aa)` }}
+      >
+        <rect x="4.5" y="11" width="15" height="9.5" rx="2" />
+        <path d="M7.5 11V7a4.5 4.5 0 1 1 9 0v4" />
+      </svg>
     </div>
   );
 }
