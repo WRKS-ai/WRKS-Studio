@@ -138,20 +138,44 @@ function NamePageInner({
 
   useConversationClientTool("set_field", (params) => {
     console.log("[onboarding/name] set_field called with:", params);
-    const fieldName = String(params?.field ?? "").trim().toLowerCase();
-    const value = String(params?.value ?? "").trim();
-    if (!value) return "Tell me what to set it to.";
-    const matchesName = NAME_ALIASES.some(
-      (a) => fieldName === a || fieldName.includes(a) || a.includes(fieldName),
-    );
-    if (matchesName || !fieldName) {
-      const next = value.slice(0, MAX_LEN);
-      console.log("[onboarding/name] setting name to:", next);
-      setName(next);
-      setTimeout(() => inputRef.current?.focus(), 0);
-      return `Set the name to "${next}".`;
+    const rawField = String(params?.field ?? "").trim().toLowerCase();
+    // Accept either `value` (canonical) or `name` (in case the agent
+    // passes the value under the field name) or `new_value` / `text`.
+    const rawValue = String(
+      params?.value ??
+        (params as { name?: unknown })?.name ??
+        (params as { new_value?: unknown })?.new_value ??
+        (params as { text?: unknown })?.text ??
+        "",
+    ).trim();
+    if (!rawValue) {
+      console.warn("[onboarding/name] set_field with empty value");
+      return "Tell me what to set it to.";
     }
-    return `The only field editable here is the agent's name. I don't see "${fieldName}".`;
+    const matchesName = NAME_ALIASES.some(
+      (a) => rawField === a || rawField.includes(a) || a.includes(rawField),
+    );
+    // On THIS page the only editable thing is the name — so any
+    // set_field call with a real value is treated as a name update,
+    // regardless of what field key the agent passed.
+    const next = rawValue.slice(0, MAX_LEN);
+    console.log(
+      "[onboarding/name] setting name to:",
+      next,
+      "(matched alias:",
+      matchesName,
+      ")",
+    );
+    // Functional update guarantees latest state, not stale closure.
+    setName(() => next);
+    // Persist immediately so the page reload after Continue is safe.
+    try {
+      localStorage.setItem(NAME_KEY, next);
+    } catch {
+      /* ignore */
+    }
+    setTimeout(() => inputRef.current?.focus(), 0);
+    return `Set the agent name to "${next}". The on-screen input now reads "${next}".`;
   });
 
   useConversationClientTool("navigate", (params) => {
