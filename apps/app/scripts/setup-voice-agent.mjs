@@ -295,8 +295,11 @@ const AGENT_BODY = {
       mode: "turn",
     },
     tts: {
-      model_id: "eleven_turbo_v2_5",
-      voice_id: DEFAULT_VOICE_ID,
+      model_id: "eleven_turbo_v2",
+      // voice_id intentionally OMITTED — preserves whatever voice
+      // the user already picked on the dashboard. Set it on the
+      // dashboard, not here. Memory note: don't override dashboard
+      // voice from client-side overrides either.
       stability: 0.5,
       similarity_boost: 0.75,
       style: 0,
