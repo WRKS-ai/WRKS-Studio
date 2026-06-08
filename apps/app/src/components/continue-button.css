@@ -6,10 +6,10 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
-  height: 56px;
-  min-width: 220px;
-  padding: 0 30px;
+  justify-content: center;
+  height: 52px;
+  min-width: 168px;
+  padding: 0 28px;
   border-radius: 999px;
   background: rgba(12, 12, 14, 0.75);
   border: 1.5px solid rgba(255, 255, 255, 0.08);
