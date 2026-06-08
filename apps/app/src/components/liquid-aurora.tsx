@@ -33,8 +33,8 @@ export function LiquidAurora({
     {
       x: "8%",
       y: "10%",
-      size: 820,
-      color: `${accent}55`,
+      size: 720,
+      color: `${accent}33`,
       duration: 24,
       path: {
         x: [0, 80, -40, 0],
@@ -45,8 +45,8 @@ export function LiquidAurora({
     {
       x: "70%",
       y: "5%",
-      size: 720,
-      color: `${accentDeep}5e`,
+      size: 620,
+      color: `${accentDeep}40`,
       duration: 29,
       path: {
         x: [0, -60, 40, 0],
@@ -57,8 +57,8 @@ export function LiquidAurora({
     {
       x: "20%",
       y: "60%",
-      size: 900,
-      color: `${accent}3e`,
+      size: 800,
+      color: `${accent}22`,
       duration: 35,
       path: {
         x: [0, 90, 30, 0],
@@ -69,8 +69,8 @@ export function LiquidAurora({
     {
       x: "75%",
       y: "55%",
-      size: 800,
-      color: `${accent}48`,
+      size: 700,
+      color: `${accent}2a`,
       duration: 19,
       path: {
         x: [0, -50, -20, 0],
@@ -81,8 +81,8 @@ export function LiquidAurora({
     {
       x: "45%",
       y: "30%",
-      size: 640,
-      color: `${accentDeep}50`,
+      size: 540,
+      color: `${accentDeep}33`,
       duration: 41,
       path: {
         x: [0, 40, -60, 0],
@@ -98,37 +98,6 @@ export function LiquidAurora({
       className="fixed inset-0 pointer-events-none overflow-hidden"
       style={{ zIndex: 0, mixBlendMode: "screen" }}
     >
-      {/* Soft always-on ambient wash — lifts the canvas from near-
-          black so the dark feels backlit instead of dead. Centered
-          high so the eye is drawn into the page. Breathes very
-          slowly (12s) for a barely-there premium pulse. */}
-      <motion.div
-        className="absolute rounded-full"
-        style={{
-          left: "50%",
-          top: "30%",
-          width: 1400,
-          height: 1000,
-          marginLeft: -700,
-          marginTop: -500,
-          background: `radial-gradient(ellipse, ${accent}18 0%, ${accent}08 35%, transparent 70%)`,
-          filter: "blur(60px)",
-        }}
-        animate={
-          reduced
-            ? { opacity: 0.7 }
-            : { opacity: [0.55, 0.85, 0.55], scale: [1, 1.04, 1] }
-        }
-        transition={
-          reduced
-            ? { duration: 0.5 }
-            : {
-                duration: 12,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }
-        }
-      />
       {blobs.map((blob, i) => (
         <motion.div
           key={i}

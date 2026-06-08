@@ -8,7 +8,6 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LiquidAurora } from "@/components/liquid-aurora";
 import { OnboardingFrame } from "@/components/onboarding-frame";
 import { orbColorsFromAccent, SiriOrb } from "@/components/siri-orb";
 import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
@@ -285,7 +284,7 @@ function NamePageInner({
 
   return (
     <OnboardingFrame step={2} totalSteps={5} bloomTint={accent}>
-      <LiquidAurora accent={accent} accentDeep={accentDeep} />
+      <NameBackdrop accent={accent} accentDeep={accentDeep} />
 
       <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10">
         {/* Eyebrow — anchored top-left, same pattern as personality */}
@@ -667,5 +666,92 @@ function FloatingAgent({
         </svg>
       )}
     </motion.button>
+  );
+}
+
+/* ============================================================
+ * NameBackdrop — name-page-specific dark backdrop. Much more
+ * black-dominant than the personality page's LiquidAurora. Just
+ * two faint accent glows breathing on long mismatched loops
+ * (32s + 47s) for premium ambient motion without color noise.
+ * Sits behind everything as fixed inset-0.
+ * ============================================================ */
+function NameBackdrop({
+  accent,
+  accentDeep,
+}: {
+  accent: string;
+  accentDeep: string;
+}) {
+  const reduced = useReducedMotion();
+  return (
+    <div
+      aria-hidden
+      className="fixed inset-0 pointer-events-none overflow-hidden"
+      style={{ zIndex: 0, mixBlendMode: "screen" }}
+    >
+      {/* Quiet accent breath — top-left quadrant, very faint */}
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          left: "20%",
+          top: "30%",
+          width: 900,
+          height: 900,
+          marginLeft: -450,
+          marginTop: -450,
+          background: `radial-gradient(circle, ${accent}1c 0%, ${accent}08 35%, transparent 65%)`,
+          filter: "blur(110px)",
+        }}
+        animate={
+          reduced
+            ? { opacity: 0.5 }
+            : {
+                opacity: [0.4, 0.7, 0.4],
+                scale: [1, 1.06, 1],
+              }
+        }
+        transition={
+          reduced
+            ? { duration: 0.5 }
+            : {
+                duration: 32,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }
+        }
+      />
+      {/* Deep accent breath — bottom-right, slower, offset phase */}
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          right: "10%",
+          bottom: "20%",
+          width: 720,
+          height: 720,
+          marginRight: -360,
+          marginBottom: -360,
+          background: `radial-gradient(circle, ${accentDeep}22 0%, ${accentDeep}0a 35%, transparent 65%)`,
+          filter: "blur(110px)",
+        }}
+        animate={
+          reduced
+            ? { opacity: 0.5 }
+            : {
+                opacity: [0.6, 0.35, 0.6],
+                scale: [1, 0.95, 1],
+              }
+        }
+        transition={
+          reduced
+            ? { duration: 0.5 }
+            : {
+                duration: 47,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }
+        }
+      />
+    </div>
   );
 }
