@@ -1,146 +1,65 @@
 "use client";
 
-import {
-  ConversationProvider,
-  useConversation,
-  useConversationClientTool,
-} from "@elevenlabs/react";
+import { useConversationClientTool } from "@elevenlabs/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ContinueButton } from "@/components/continue-button";
 import { OnboardingFrame } from "@/components/onboarding-frame";
-import { orbColorsFromAccent, SiriOrb } from "@/components/siri-orb";
+import { useOnboardingAgent } from "@/lib/onboarding-agent";
 import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
-import {
-  buildOnboardingFirstMessage,
-  buildOnboardingSystemPrompt,
-} from "@/lib/voice-agent";
-import { VOICES } from "@/lib/voices";
 
-// Act Two — The Name. Mirrors the personality page's editorial
-// asymmetric grammar: top-left eyebrow → grid with text-left /
-// agent-right → balanced 40-24-40 rhythm in the text column. The
-// LEFT column shows "name me." (or the typed name when filled) as a
-// huge serif focal element. The RIGHT column carries the agent's
-// live transcript so the voice has on-page presence. A Siri orb
-// floats bottom-right as the start/stop control.
+// Act Two — The Name. The agent + Siri orb + conversation panel live
+// in the onboarding layout now (apps/app/src/lib/onboarding-agent.tsx)
+// and persist across pages. This page contributes:
+//   - a glass card with the typed name display + Continue
+//   - client-tool handlers for set_field("name", ...) and
+//     navigate("next" / "back")
+//
+// The agent auto-greets on entry (handled by the layout's AgentHost).
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
 const MAX_LEN = 24;
 
-type VoiceState =
-  | "idle"
-  | "connecting"
-  | "listening"
-  | "speaking"
-  | "error";
+const NAME_ALIASES = [
+  "name",
+  "my name",
+  "your name",
+  "agent name",
+  "the name",
+];
+const NEXT_WORDS = ["next", "continue", "intake", "forward", "go", "ready"];
+const BACK_WORDS = ["back", "previous", "personality"];
 
 export default function NamePage() {
   const router = useRouter();
-  const [personalityId, setPersonalityId] = useState<PersonalityId | null>(
-    null,
-  );
+  const reduced = useReducedMotion();
+  const { accent } = useOnboardingAgent();
 
+  const [name, setName] = useState("");
+  const [inputFocused, setInputFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const continuing = useRef(false);
+
+  // Bounce out if the user landed here without picking a personality.
   useEffect(() => {
     const saved = localStorage.getItem(PERSONALITY_KEY) as PersonalityId | null;
     if (!saved || !PERSONALITIES.some((p) => p.id === saved)) {
       router.replace("/onboarding/personality");
-      return;
     }
-    setPersonalityId(saved);
   }, [router]);
 
-  if (!personalityId) return null;
-
-  const personality = PERSONALITIES.find((p) => p.id === personalityId)!;
-  const voice = VOICES.find((v) => v.id === personality.voiceId)!;
-
-  return (
-    <ConversationProvider>
-      <NamePageInner personality={personality} voice={voice} />
-    </ConversationProvider>
-  );
-}
-
-function NamePageInner({
-  personality,
-  voice,
-}: {
-  personality: (typeof PERSONALITIES)[number];
-  voice: (typeof VOICES)[number];
-}) {
-  const router = useRouter();
-  const reduced = useReducedMotion();
-  const accent = personality.accent;
-  const accentDeep = personality.accentDeep;
-
-  const [name, setName] = useState("");
-  const [inputFocused, setInputFocused] = useState(false);
-  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
-  const [messages, setMessages] = useState<
-    Array<{ id: number; role: "agent" | "user"; text: string }>
-  >([]);
-  const messageIdRef = useRef(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const startAttempted = useRef(false);
-  const continuing = useRef(false);
-  // voice error state is captured by FloatingAgent's tint, no on-page text
-
+  // Hydrate previously-typed name
   useEffect(() => {
     const savedName = localStorage.getItem(NAME_KEY);
     if (savedName) setName(savedName);
   }, []);
 
-  /* ── ElevenLabs conversation ── */
-  const conversation = useConversation({
-    onConnect: () => {
-      setVoiceState("listening");
-    },
-    onDisconnect: () => {
-      setVoiceState("idle");
-    },
-    onError: (err: unknown) => {
-      console.error("[onboarding/name] voice error:", err);
-      setVoiceState("error");
-    },
-    onMessage: (event) => {
-      const source = (event as { source?: string }).source;
-      const text =
-        (event as { message?: string }).message ??
-        (event as { text?: string }).text ??
-        "";
-      if (!text) return;
-      const role =
-        source === "user" ? "user" : source === "ai" ? "agent" : null;
-      if (!role) return;
-      const id = ++messageIdRef.current;
-      setMessages((m) => [...m, { id, role, text }]);
-    },
-    onModeChange: (event) => {
-      const mode = (event as { mode?: string }).mode;
-      if (mode === "speaking") setVoiceState("speaking");
-      else if (mode === "listening") setVoiceState("listening");
-    },
-  });
-
-  /* ── Client tools — reuse the dashboard agent's tools ── */
-  const NAME_ALIASES = [
-    "name",
-    "my name",
-    "your name",
-    "agent name",
-    "the name",
-  ];
-  const NEXT_WORDS = ["next", "continue", "intake", "forward", "go", "ready"];
-  const BACK_WORDS = ["back", "previous", "personality"];
-
+  /* ── Tool handlers — set_field for name, navigate for next/back ── */
   useConversationClientTool("set_field", (params) => {
     console.log("[onboarding/name] set_field called with:", params);
-    const rawField = String(params?.field ?? "").trim().toLowerCase();
-    // Accept either `value` (canonical) or `name` (in case the agent
-    // passes the value under the field name) or `new_value` / `text`.
+    const fieldName = String(params?.field ?? "").trim().toLowerCase();
     const rawValue = String(
       params?.value ??
         (params as { name?: unknown })?.name ??
@@ -148,34 +67,22 @@ function NamePageInner({
         (params as { text?: unknown })?.text ??
         "",
     ).trim();
-    if (!rawValue) {
-      console.warn("[onboarding/name] set_field with empty value");
-      return "Tell me what to set it to.";
-    }
+    if (!rawValue) return "Tell me what to set it to.";
     const matchesName = NAME_ALIASES.some(
-      (a) => rawField === a || rawField.includes(a) || a.includes(rawField),
+      (a) => fieldName === a || fieldName.includes(a) || a.includes(fieldName),
     );
-    // On THIS page the only editable thing is the name — so any
-    // set_field call with a real value is treated as a name update,
-    // regardless of what field key the agent passed.
-    const next = rawValue.slice(0, MAX_LEN);
-    console.log(
-      "[onboarding/name] setting name to:",
-      next,
-      "(matched alias:",
-      matchesName,
-      ")",
-    );
-    // Functional update guarantees latest state, not stale closure.
-    setName(() => next);
-    // Persist immediately so the page reload after Continue is safe.
-    try {
-      localStorage.setItem(NAME_KEY, next);
-    } catch {
-      /* ignore */
+    if (matchesName || !fieldName) {
+      const next = rawValue.slice(0, MAX_LEN);
+      setName(next);
+      try {
+        localStorage.setItem(NAME_KEY, next);
+      } catch {
+        /* ignore */
+      }
+      setTimeout(() => inputRef.current?.focus(), 0);
+      return `Set the agent name to "${next}".`;
     }
-    setTimeout(() => inputRef.current?.focus(), 0);
-    return `Set the agent name to "${next}". The on-screen input now reads "${next}".`;
+    return `The only field editable here is the agent's name. I don't see "${fieldName}".`;
   });
 
   useConversationClientTool("navigate", (params) => {
@@ -193,125 +100,25 @@ function NamePageInner({
       if (continuing.current) return "Already going.";
       continuing.current = true;
       localStorage.setItem(NAME_KEY, final);
-      setTimeout(() => {
-        try {
-          conversation.endSession();
-        } catch {
-          /* ignore */
-        }
-        router.push("/onboarding/intake");
-      }, 900);
+      setTimeout(() => router.push("/onboarding/intake"), 900);
       return `Continuing as ${final}.`;
     }
 
     if (
       BACK_WORDS.some((w) => destination === w || destination.includes(w))
     ) {
-      setTimeout(() => {
-        try {
-          conversation.endSession();
-        } catch {
-          /* ignore */
-        }
-        router.push("/onboarding/personality");
-      }, 600);
+      setTimeout(() => router.push("/onboarding/personality"), 600);
       return "Going back.";
     }
 
     return `From this page I can only go "next" or "back".`;
   });
 
-  /* ── Session control ── */
-  const startVoice = useCallback(async () => {
-    console.log("[onboarding/name] startVoice begin");
-    setVoiceState("connecting");
-    try {
-      console.log("[onboarding/name] requesting mic…");
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log("[onboarding/name] mic granted");
-
-      console.log("[onboarding/name] fetching signed URL…");
-      const res = await fetch("/api/voice/signed-url");
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as
-          | { error?: string }
-          | null;
-        throw new Error(
-          body?.error ?? `Signed-URL endpoint returned ${res.status}`,
-        );
-      }
-      const { signedUrl } = (await res.json()) as { signedUrl: string };
-      console.log("[onboarding/name] signed URL ready, opening session…");
-
-      const systemPrompt = buildOnboardingSystemPrompt({
-        personality,
-        voiceName: voice.name,
-        suggestedNames: personality.suggestedNames,
-      });
-      const firstMessage = buildOnboardingFirstMessage({
-        personality,
-        suggestedNames: personality.suggestedNames,
-      });
-
-      await conversation.startSession({
-        signedUrl,
-        connectionType: "websocket",
-        overrides: {
-          agent: {
-            prompt: { prompt: systemPrompt },
-            firstMessage,
-            language: "en",
-          },
-        },
-      });
-      console.log("[onboarding/name] session started");
-    } catch (err) {
-      console.error("[onboarding/name] startVoice failed:", err);
-      setVoiceState("error");
-    }
-  }, [personality, voice, conversation]);
-
-  const stopVoice = useCallback(async () => {
-    try {
-      await conversation.endSession();
-    } catch {
-      /* ignore */
-    }
-    setVoiceState("idle");
-  }, [conversation]);
-
-  // Auto-start the live agent on mount. No setTimeout — the cleanup
-  // race in React Strict Mode (dev) was killing the start: first mount
-  // schedules timeout; cleanup clears it; second mount sees
-  // startAttempted=true and bails. Fire immediately, with no cleanup,
-  // so the timeout doesn't get cancelled.
-  useEffect(() => {
-    if (startAttempted.current) return;
-    startAttempted.current = true;
-    console.log("[onboarding/name] auto-start firing");
-    startVoice();
-  }, [startVoice]);
-
-  useEffect(() => {
-    return () => {
-      try {
-        conversation.endSession();
-      } catch {
-        /* ignore */
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // Focus input after a beat
   useEffect(() => {
     const t = setTimeout(() => inputRef.current?.focus(), 1100);
     return () => clearTimeout(t);
   }, []);
-
-  const onWidgetClick = () => {
-    if (voiceState === "listening" || voiceState === "speaking") stopVoice();
-    else startVoice();
-  };
 
   const trimmed = name.trim();
   const canContinue = trimmed.length > 0 && trimmed.length <= MAX_LEN;
@@ -319,11 +126,6 @@ function NamePageInner({
   const onContinue = () => {
     if (!canContinue) return;
     localStorage.setItem(NAME_KEY, trimmed);
-    try {
-      conversation.endSession();
-    } catch {
-      /* ignore */
-    }
     router.push("/onboarding/intake");
   };
 
@@ -336,10 +138,8 @@ function NamePageInner({
 
   return (
     <OnboardingFrame step={2} totalSteps={5} bloomTint={accent}>
-      <NameBackdrop accent={accent} accentDeep={accentDeep} />
-
       <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10">
-        {/* Eyebrow — anchored top-left, same pattern as personality */}
+        {/* Eyebrow */}
         <motion.div
           initial={
             reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }
@@ -363,46 +163,8 @@ function NamePageInner({
           </span>
         </motion.div>
 
-        {/* Center stage — header + name + Continue inside ONE glass
-            card. The card is the "glass effect around the text" the
-            user asked for. Typography switches to Geist sans (clean
-            modern tech feel — Fraunces serif was reading cartoonish
-            for the typed name). */}
+        {/* Center-stage glass card */}
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-260px)]">
-          {/* Soft accent halo behind the card. Only when name typed. */}
-          <AnimatePresence>
-            {trimmed && (
-              <motion.div
-                aria-hidden
-                key="card-halo"
-                className="absolute pointer-events-none"
-                style={{
-                  width: 1000,
-                  height: 600,
-                  background: `radial-gradient(ellipse at center, ${accent}22 0%, ${accent}0a 40%, transparent 70%)`,
-                  filter: "blur(80px)",
-                  zIndex: 0,
-                }}
-                initial={reduced ? false : { opacity: 0 }}
-                animate={
-                  reduced
-                    ? { opacity: 0.6 }
-                    : { opacity: [0.5, 0.75, 0.5], scale: [1, 1.04, 1] }
-                }
-                exit={reduced ? undefined : { opacity: 0 }}
-                transition={
-                  reduced
-                    ? { duration: 0.5 }
-                    : {
-                        duration: 16,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                      }
-                }
-              />
-            )}
-          </AnimatePresence>
-
           <motion.div
             initial={
               reduced
@@ -429,7 +191,6 @@ function NamePageInner({
               zIndex: 1,
             }}
           >
-            {/* Quiet header */}
             <p
               className="font-sans text-center"
               style={{
@@ -442,7 +203,6 @@ function NamePageInner({
               Select a name for your agent
             </p>
 
-            {/* Name display + hidden input. Font is Geist sans now. */}
             <div
               className="relative cursor-text"
               onClick={() => inputRef.current?.focus()}
@@ -467,11 +227,7 @@ function NamePageInner({
                           ? false
                           : { opacity: 0, y: 10, filter: "blur(4px)" }
                       }
-                      animate={{
-                        opacity: 1,
-                        y: 0,
-                        filter: "blur(0px)",
-                      }}
+                      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                       exit={
                         reduced
                           ? undefined
@@ -489,12 +245,8 @@ function NamePageInner({
                     <motion.span
                       key="prompt"
                       initial={reduced ? false : { opacity: 0 }}
-                      animate={{
-                        opacity: inputFocused ? 0.2 : 1,
-                      }}
-                      exit={
-                        reduced ? undefined : { opacity: 0, y: 6 }
-                      }
+                      animate={{ opacity: inputFocused ? 0.2 : 1 }}
+                      exit={reduced ? undefined : { opacity: 0, y: 6 }}
                       transition={{ duration: 0.3 }}
                       style={{
                         display: "inline-block",
@@ -510,9 +262,7 @@ function NamePageInner({
                 ref={inputRef}
                 type="text"
                 value={name}
-                onChange={(e) =>
-                  setName(e.target.value.slice(0, MAX_LEN))
-                }
+                onChange={(e) => setName(e.target.value.slice(0, MAX_LEN))}
                 onKeyDown={onKeyDown}
                 onFocus={() => setInputFocused(true)}
                 onBlur={() => setInputFocused(false)}
@@ -533,7 +283,6 @@ function NamePageInner({
               />
             </div>
 
-            {/* Continue — inside the card, fades in once name is set */}
             <div className="mt-10 flex justify-center min-h-[56px]">
               <AnimatePresence>
                 {canContinue && (
@@ -544,14 +293,8 @@ function NamePageInner({
                         ? false
                         : { opacity: 0, y: 10, filter: "blur(4px)" }
                     }
-                    animate={{
-                      opacity: 1,
-                      y: 0,
-                      filter: "blur(0px)",
-                    }}
-                    exit={
-                      reduced ? undefined : { opacity: 0, y: -4 }
-                    }
+                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                    exit={reduced ? undefined : { opacity: 0, y: -4 }}
                     transition={{
                       duration: 0.45,
                       ease: [0.2, 0.7, 0.2, 1],
@@ -570,17 +313,10 @@ function NamePageInner({
           </motion.div>
         </div>
 
-        {/* Back link — bottom-left, mono, muted */}
+        {/* Back link */}
         <motion.button
           type="button"
-          onClick={() => {
-            try {
-              conversation.endSession();
-            } catch {
-              /* ignore */
-            }
-            router.push("/onboarding/personality");
-          }}
+          onClick={() => router.push("/onboarding/personality")}
           initial={reduced ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.8 }}
@@ -592,485 +328,7 @@ function NamePageInner({
         >
           ← Back
         </motion.button>
-
-        {/* Live conversation panel — opens above the orb when there
-            are messages, shows the live agent ↔ user exchange */}
-        <ConversationPanel
-          messages={messages}
-          agentName={voice.name}
-          visible={messages.length > 0}
-          accent={accent}
-        />
-
-        {/* Floating live agent — Siri orb bottom-right */}
-        <FloatingAgent
-          voiceState={voiceState}
-          accent={accent}
-          onClick={onWidgetClick}
-        />
       </div>
     </OnboardingFrame>
-  );
-}
-
-/* ============================================================
- * FloatingAgent — Siri orb pinned bottom-right. Animation speed
- * varies with voice state (faster while speaking). Doubles as the
- * start/stop control.
- * ============================================================ */
-function FloatingAgent({
-  voiceState,
-  accent,
-  onClick,
-}: {
-  voiceState: VoiceState;
-  accent: string;
-  onClick: () => void;
-}) {
-  const reduced = useReducedMotion();
-  const [hovered, setHovered] = useState(false);
-  const isConnecting = voiceState === "connecting";
-  const speaking = voiceState === "speaking";
-  const listening = voiceState === "listening";
-  const active = speaking || listening;
-  const errored = voiceState === "error";
-
-  const ringColor = errored
-    ? "rgba(255,150,150,0.7)"
-    : active || hovered
-      ? `${accent}aa`
-      : "rgba(255,255,255,0.18)";
-
-  const orbColors = orbColorsFromAccent(accent);
-  const orbDuration = speaking ? 5 : listening ? 16 : isConnecting ? 12 : 30;
-
-  return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      onHoverStart={() => setHovered(true)}
-      onHoverEnd={() => setHovered(false)}
-      whileTap={{ scale: 0.92 }}
-      whileHover={reduced ? undefined : { scale: 1.06, y: -2 }}
-      transition={{ type: "spring", stiffness: 280, damping: 22 }}
-      className="fixed grid place-items-center rounded-full z-40"
-      style={{
-        bottom: 32,
-        right: 32,
-        width: 64,
-        height: 64,
-        background: `linear-gradient(180deg, rgba(255,255,255,0.08) 0%, ${accent}1a 100%)`,
-        backdropFilter: "blur(28px)",
-        WebkitBackdropFilter: "blur(28px)",
-        border: `1px solid ${ringColor}`,
-        boxShadow: active
-          ? `0 0 44px -4px ${accent}aa, 0 14px 36px -10px rgba(0,0,0,0.7)`
-          : `0 0 30px -10px ${accent}88, 0 12px 28px -10px rgba(0,0,0,0.6)`,
-        transition: "border-color 0.4s ease, box-shadow 0.4s ease",
-      }}
-      aria-label={active ? "Stop the agent" : "Start the agent"}
-    >
-      {/* Speaking pulse ring */}
-      {speaking && !reduced && (
-        <>
-          {[0, 0.6].map((delay, i) => (
-            <motion.div
-              key={i}
-              aria-hidden
-              className="absolute rounded-full pointer-events-none"
-              style={{ inset: 0, border: `1px solid ${accent}66` }}
-              animate={{
-                scale: [1, 1.32, 1.6],
-                opacity: [0.55, 0.18, 0],
-              }}
-              transition={{
-                duration: 2.2,
-                repeat: Infinity,
-                delay,
-                ease: "easeOut",
-              }}
-            />
-          ))}
-        </>
-      )}
-
-      {/* Idle invitation ring */}
-      {!reduced && voiceState === "idle" && (
-        <motion.div
-          aria-hidden
-          className="absolute rounded-full pointer-events-none"
-          style={{ inset: -8, border: `1px solid ${accent}44` }}
-          initial={{ opacity: 0, scale: 0.94 }}
-          animate={{ opacity: [0, 0.55, 0], scale: [0.94, 1.08, 1.2] }}
-          transition={{
-            duration: 2.6,
-            repeat: Infinity,
-            ease: "easeOut",
-            repeatDelay: 0.6,
-          }}
-        />
-      )}
-
-      <SiriOrb
-        size="50px"
-        colors={orbColors}
-        animationDuration={orbDuration}
-        className="relative"
-      />
-
-      {/* Errored tint */}
-      {errored && (
-        <div
-          aria-hidden
-          className="absolute inset-0 rounded-full pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(255,140,140,0.25), transparent 70%)",
-          }}
-        />
-      )}
-
-      {/* Connecting spinner overlay */}
-      {isConnecting && (
-        <svg
-          width={20}
-          height={20}
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden
-          className="absolute"
-          style={{ filter: `drop-shadow(0 0 6px ${accent}88)` }}
-        >
-          <circle
-            cx="12"
-            cy="12"
-            r="9"
-            stroke="white"
-            strokeOpacity="0.4"
-            strokeWidth="2.5"
-          />
-          <path
-            d="M21 12a9 9 0 0 0-9-9"
-            stroke="white"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          >
-            <animateTransform
-              attributeName="transform"
-              type="rotate"
-              from="0 12 12"
-              to="360 12 12"
-              dur="0.9s"
-              repeatCount="indefinite"
-            />
-          </path>
-        </svg>
-      )}
-    </motion.button>
-  );
-}
-
-/* ============================================================
- * ConversationPanel — premium glass card that "opens up" above
- * the floating orb when a live exchange is happening. Shows the
- * agent's and user's messages with small mono labels and sans
- * body copy. Auto-scrolls to the latest. Closes when empty.
- * ============================================================ */
-function ConversationPanel({
-  messages,
-  agentName,
-  visible,
-  accent,
-}: {
-  messages: Array<{ id: number; role: "agent" | "user"; text: string }>;
-  agentName: string;
-  visible: boolean;
-  accent: string;
-}) {
-  const reduced = useReducedMotion();
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages.length]);
-
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          key="convo-panel"
-          initial={
-            reduced
-              ? false
-              : { opacity: 0, y: 16, scale: 0.95, filter: "blur(8px)" }
-          }
-          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-          exit={
-            reduced
-              ? undefined
-              : {
-                  opacity: 0,
-                  y: 12,
-                  scale: 0.96,
-                  filter: "blur(6px)",
-                }
-          }
-          transition={{
-            duration: 0.45,
-            ease: [0.2, 0.7, 0.2, 1],
-          }}
-          className="fixed z-30 flex flex-col"
-          style={{
-            bottom: 112,
-            right: 32,
-            width: 400,
-            maxHeight: 360,
-            borderRadius: 26,
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.018) 50%, rgba(255,255,255,0.01) 100%)",
-            border: "1px solid rgba(255,255,255,0.11)",
-            backdropFilter: "blur(36px) saturate(160%)",
-            WebkitBackdropFilter: "blur(36px) saturate(160%)",
-            boxShadow:
-              "inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(255,255,255,0.02), 0 32px 64px -16px rgba(0,0,0,0.7), 0 8px 24px -8px rgba(0,0,0,0.5)",
-            overflow: "hidden",
-            transformOrigin: "bottom right",
-          }}
-        >
-          {/* Specular highlight — soft light catching on the top edge,
-              gives the glass a real refractive feel */}
-          <div
-            aria-hidden
-            className="absolute pointer-events-none"
-            style={{
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 60,
-              background:
-                "radial-gradient(ellipse 80% 100% at 50% 0%, rgba(255,255,255,0.06), transparent 70%)",
-            }}
-          />
-
-          {/* Header — refined LIVE pill + agent name */}
-          <div
-            className="relative flex items-center justify-between px-5 pt-4 pb-3.5"
-            style={{
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="relative flex items-center justify-center">
-                <motion.span
-                  aria-hidden
-                  className="inline-block rounded-full"
-                  style={{
-                    width: 7,
-                    height: 7,
-                    background: accent,
-                    boxShadow: `0 0 10px ${accent}, 0 0 4px ${accent}`,
-                  }}
-                  animate={
-                    reduced ? { opacity: 1 } : { opacity: [0.5, 1, 0.5] }
-                  }
-                  transition={{
-                    duration: 1.8,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-                {!reduced && (
-                  <motion.span
-                    aria-hidden
-                    className="absolute inline-block rounded-full"
-                    style={{
-                      width: 7,
-                      height: 7,
-                      border: `1px solid ${accent}`,
-                    }}
-                    animate={{
-                      scale: [1, 2.2],
-                      opacity: [0.6, 0],
-                    }}
-                    transition={{
-                      duration: 1.8,
-                      repeat: Infinity,
-                      ease: "easeOut",
-                    }}
-                  />
-                )}
-              </div>
-              <span
-                className="text-[10px] tracking-[0.32em] uppercase"
-                style={{
-                  color: "rgba(245,240,230,0.55)",
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
-                Live
-              </span>
-            </div>
-            <span
-              className="text-[10.5px] tracking-[0.28em] uppercase"
-              style={{
-                color: "rgba(245,240,230,0.7)",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              {agentName}
-            </span>
-          </div>
-
-          {/* Message list — scrollable bubbles with role-based treatment */}
-          <div
-            ref={scrollRef}
-            className="relative flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3"
-          >
-            {messages.map((msg) => {
-              const isAgent = msg.role === "agent";
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex ${isAgent ? "justify-start" : "justify-end"}`}
-                >
-                  <div
-                    className="max-w-[85%] flex flex-col gap-1.5"
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: 16,
-                      background: isAgent
-                        ? "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)"
-                        : `linear-gradient(180deg, ${accent}22 0%, ${accent}10 100%)`,
-                      border: isAgent
-                        ? "1px solid rgba(255,255,255,0.06)"
-                        : `1px solid ${accent}33`,
-                      boxShadow: isAgent
-                        ? "inset 0 1px 0 rgba(255,255,255,0.04)"
-                        : `inset 0 1px 0 ${accent}1f`,
-                    }}
-                  >
-                    <span
-                      className="text-[9px] tracking-[0.28em] uppercase"
-                      style={{
-                        color: isAgent
-                          ? "rgba(245,240,230,0.38)"
-                          : `${accent}cc`,
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    >
-                      {isAgent ? agentName : "You"}
-                    </span>
-                    <p
-                      className="font-sans"
-                      style={{
-                        fontSize: 13,
-                        lineHeight: 1.5,
-                        letterSpacing: "-0.005em",
-                        color: isAgent
-                          ? "rgba(245,240,230,0.94)"
-                          : "rgba(245,240,230,0.92)",
-                      }}
-                    >
-                      {msg.text}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-/* ============================================================
- * NameBackdrop — name-page-specific dark backdrop. Much more
- * black-dominant than the personality page's LiquidAurora. Just
- * two faint accent glows breathing on long mismatched loops
- * (32s + 47s) for premium ambient motion without color noise.
- * Sits behind everything as fixed inset-0.
- * ============================================================ */
-function NameBackdrop({
-  accent,
-  accentDeep,
-}: {
-  accent: string;
-  accentDeep: string;
-}) {
-  const reduced = useReducedMotion();
-  return (
-    <div
-      aria-hidden
-      className="fixed inset-0 pointer-events-none overflow-hidden"
-      style={{ zIndex: 0, mixBlendMode: "screen" }}
-    >
-      {/* Quiet accent breath — top-left quadrant, very faint */}
-      <motion.div
-        className="absolute rounded-full"
-        style={{
-          left: "20%",
-          top: "30%",
-          width: 900,
-          height: 900,
-          marginLeft: -450,
-          marginTop: -450,
-          background: `radial-gradient(circle, ${accent}1c 0%, ${accent}08 35%, transparent 65%)`,
-          filter: "blur(110px)",
-        }}
-        animate={
-          reduced
-            ? { opacity: 0.5 }
-            : {
-                opacity: [0.4, 0.7, 0.4],
-                scale: [1, 1.06, 1],
-              }
-        }
-        transition={
-          reduced
-            ? { duration: 0.5 }
-            : {
-                duration: 32,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }
-        }
-      />
-      {/* Deep accent breath — bottom-right, slower, offset phase */}
-      <motion.div
-        className="absolute rounded-full"
-        style={{
-          right: "10%",
-          bottom: "20%",
-          width: 720,
-          height: 720,
-          marginRight: -360,
-          marginBottom: -360,
-          background: `radial-gradient(circle, ${accentDeep}22 0%, ${accentDeep}0a 35%, transparent 65%)`,
-          filter: "blur(110px)",
-        }}
-        animate={
-          reduced
-            ? { opacity: 0.5 }
-            : {
-                opacity: [0.6, 0.35, 0.6],
-                scale: [1, 0.95, 1],
-              }
-        }
-        transition={
-          reduced
-            ? { duration: 0.5 }
-            : {
-                duration: 47,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }
-        }
-      />
-    </div>
   );
 }
