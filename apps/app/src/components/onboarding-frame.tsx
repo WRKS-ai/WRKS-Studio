@@ -149,13 +149,17 @@ export function OnboardingFrame({
             <span
               className="font-serif leading-none"
               style={{
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: 500,
-                letterSpacing: "-0.01em",
-                color: "rgba(245,240,230,0.82)",
+                letterSpacing: "-0.02em",
+                color: "rgba(245,240,230,0.88)",
               }}
             >
-              Wrks
+              WRKS
+              <span style={{ color: "rgba(245,240,230,0.45)" }}>
+                {" "}
+                Studio
+              </span>
             </span>
           </Link>
         </motion.div>
