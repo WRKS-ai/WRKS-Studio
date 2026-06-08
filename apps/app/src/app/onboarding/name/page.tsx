@@ -324,16 +324,17 @@ function NamePageInner({
                 className="font-serif select-none pointer-events-none"
                 style={{
                   fontSize: "clamp(3.75rem, 9vw, 8.5rem)",
-                  fontWeight: 400,
                   lineHeight: 0.92,
-                  letterSpacing: trimmed ? "-0.03em" : "-0.055em",
-                  color: "rgba(245,240,230,0.98)",
                   transition:
                     "letter-spacing 0.55s cubic-bezier(0.2,0.7,0.2,1)",
                 }}
               >
                 <AnimatePresence mode="wait">
                   {trimmed ? (
+                    /* Typed name — italic, light weight, with a soft
+                       white→accent gradient via bg-clip-text and a
+                       drop-shadow glow. Reads as an engraved wordmark,
+                       not plain set type. */
                     <motion.span
                       key={trimmed}
                       initial={
@@ -351,11 +352,25 @@ function NamePageInner({
                         duration: 0.5,
                         ease: [0.2, 0.7, 0.2, 1],
                       }}
-                      style={{ display: "inline-block" }}
+                      style={{
+                        display: "inline-block",
+                        fontStyle: "italic",
+                        fontWeight: 300,
+                        letterSpacing: "-0.018em",
+                        backgroundImage: `linear-gradient(180deg, rgba(255,251,244,0.98) 0%, rgba(245,240,230,0.92) 50%, ${accent} 130%)`,
+                        WebkitBackgroundClip: "text",
+                        backgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        color: "transparent",
+                        filter: `drop-shadow(0 0 38px ${accent}33) drop-shadow(0 2px 0 rgba(0,0,0,0.4))`,
+                      }}
                     >
                       {trimmed}
                     </motion.span>
                   ) : (
+                    /* Empty-state prompt — roman, refined, dimmed.
+                       Different style than typed so the act of naming
+                       is a visible transformation. */
                     <motion.span
                       key="prompt"
                       initial={reduced ? false : { opacity: 0 }}
@@ -366,6 +381,8 @@ function NamePageInner({
                       transition={{ duration: 0.4 }}
                       style={{
                         display: "inline-block",
+                        fontWeight: 400,
+                        letterSpacing: "-0.055em",
                         color: "rgba(245,240,230,0.45)",
                       }}
                     >
