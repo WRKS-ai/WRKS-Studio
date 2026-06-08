@@ -8,6 +8,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LiquidAurora } from "@/components/liquid-aurora";
 import { OnboardingFrame } from "@/components/onboarding-frame";
 import { orbColorsFromAccent, SiriOrb } from "@/components/siri-orb";
 import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
@@ -17,17 +18,13 @@ import {
 } from "@/lib/voice-agent";
 import { VOICES } from "@/lib/voices";
 
-// Act Two — The Name. The page is composed around ONE focal element:
-// the typed name itself, rendered at editorial-poster scale. When
-// empty, that slot shows the prompt "name me." in a dimmed treatment;
-// as soon as the agent (or the user) fills it, the prompt swaps for
-// the typed name with wider letter-spacing — a confident reveal that
-// the act of naming has happened.
-//
-// The agent runs in a small floating glass widget bottom-right with
-// auto-connect, voice-reactive audio bars, and a status pill. A slow
-// aurora of accent gradients drifts behind everything for atmosphere
-// without competing for attention.
+// Act Two — The Name. Mirrors the personality page's editorial
+// asymmetric grammar: top-left eyebrow → grid with text-left /
+// agent-right → balanced 40-24-40 rhythm in the text column. The
+// LEFT column shows "name me." (or the typed name when filled) as a
+// huge serif focal element. The RIGHT column carries the agent's
+// live transcript so the voice has on-page presence. A Siri orb
+// floats bottom-right as the start/stop control.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
@@ -77,6 +74,7 @@ function NamePageInner({
   const router = useRouter();
   const reduced = useReducedMotion();
   const accent = personality.accent;
+  const accentDeep = personality.accentDeep;
 
   const [name, setName] = useState("");
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
@@ -284,8 +282,10 @@ function NamePageInner({
 
   const trimmed = name.trim();
   const canContinue = trimmed.length > 0 && trimmed.length <= MAX_LEN;
-  const agentSpeaking = voiceState === "speaking";
-  const display = trimmed || "";
+  const agentActive =
+    voiceState === "speaking" ||
+    voiceState === "listening" ||
+    voiceState === "connecting";
 
   const onContinue = () => {
     if (!canContinue) return;
@@ -307,75 +307,28 @@ function NamePageInner({
 
   return (
     <OnboardingFrame step={2} totalSteps={5} bloomTint={accent}>
-      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 overflow-hidden">
-        {/* Slow aurora — three accent gradients drifting at different
-            speeds. The atmosphere feels alive without specific shapes
-            competing for attention. */}
-        <AuroraBackground accent={accent} amplified={agentSpeaking} />
+      {/* Liquid aurora — shared component, same as the personality
+          page. Fixed inset-0 so it covers the full viewport, not
+          just the page content area. */}
+      <LiquidAurora accent={accent} accentDeep={accentDeep} />
 
-        {/* Grid backdrop — subtle dotted-line pattern with radial
-            mask from the top, fading into the canvas. Adds substance
-            without visual noise. */}
-        <div
-          aria-hidden
-          className="absolute inset-0 pointer-events-none opacity-50"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px)",
-            backgroundSize: "84px 84px",
-            maskImage:
-              "radial-gradient(ellipse 65% 50% at 50% 30%, #000 55%, transparent 100%)",
-            WebkitMaskImage:
-              "radial-gradient(ellipse 65% 50% at 50% 30%, #000 55%, transparent 100%)",
-          }}
-        />
-
-        {/* Bottom radial accent — big ambient light source rising
-            from below center. Anchors the whole composition the way
-            a stage spotlight does. Pulses with the agent's voice. */}
-        <motion.div
-          aria-hidden
-          className="absolute pointer-events-none"
-          style={{
-            left: "50%",
-            bottom: "-420px",
-            width: "140%",
-            height: "780px",
-            transform: "translateX(-50%)",
-            borderRadius: "100%",
-            background: `radial-gradient(closest-side, ${accent}44 8%, ${accent}1a 50%, transparent 75%)`,
-            filter: "blur(20px)",
-          }}
-          animate={
-            reduced
-              ? { opacity: 0.7 }
-              : agentSpeaking
-                ? { opacity: [0.6, 1, 0.6] }
-                : { opacity: 0.72 }
-          }
-          transition={
-            agentSpeaking && !reduced
-              ? { duration: 3.4, repeat: Infinity, ease: "easeInOut" }
-              : { duration: 0.8 }
-          }
-        />
-
-        {/* Top metadata row */}
-        <div className="relative flex items-start justify-between pt-2">
+      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center">
+        <div className="relative w-full max-w-[1440px] flex flex-col gap-10">
+          {/* Act header — top-left anchor, mirrors personality page */}
           <motion.div
             initial={
-              reduced ? false : { opacity: 0, y: 6, filter: "blur(6px)" }
+              reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }
             }
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-            className="flex items-center gap-3"
+            className="flex items-center gap-4"
           >
             <span
-              className="inline-block h-px w-8"
+              className="inline-block h-px w-10"
               style={{ background: "rgba(245,240,230,0.2)" }}
             />
             <span
-              className="text-[10.5px] tracking-[0.36em] uppercase"
+              className="text-[11px] tracking-[0.32em] uppercase"
               style={{
                 color: "rgba(245,240,230,0.4)",
                 fontFamily: "var(--font-mono)",
@@ -385,300 +338,297 @@ function NamePageInner({
             </span>
           </motion.div>
 
-          <motion.div
-            initial={reduced ? false : { opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="flex items-center gap-2.5"
+          {/* Asymmetric hero — text on the left, agent transcript
+              on the right. Same grid proportions as the personality
+              page (1fr / 1.05fr, items-center). */}
+          <div
+            className="grid items-center gap-12 lg:gap-16"
+            style={{
+              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.05fr)",
+            }}
           >
-            <span
-              className="text-[10.5px] tracking-[0.36em] uppercase"
-              style={{
-                color: "rgba(245,240,230,0.78)",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              {personality.name}
-            </span>
-            <span
-              style={{
-                color: "rgba(245,240,230,0.28)",
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-              }}
-            >
-              ·
-            </span>
-            <span
-              className="text-[10.5px] tracking-[0.32em] uppercase"
-              style={{
-                color: "rgba(245,240,230,0.45)",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              {voice.name}
-            </span>
-          </motion.div>
-        </div>
-
-        {/* Center stage — single focal element: the typed name */}
-        <div className="relative min-h-[calc(100vh-260px)] flex items-center justify-center">
-          <div className="relative w-full max-w-[1100px] flex flex-col items-center">
-            {/* Eyebrow pill — glass capsule with a live accent dot.
-                Replaces the two-hairlines treatment with something
-                with actual material. */}
-            <motion.div
-              initial={reduced ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.5,
-                delay: 0.2,
-                ease: [0.2, 0.7, 0.2, 1],
-              }}
-              className="mb-12 relative inline-flex items-center gap-2.5 h-9 px-4 rounded-full"
-              style={{
-                background: `linear-gradient(180deg, rgba(255,255,255,0.05) 0%, ${accent}10 100%)`,
-                backdropFilter: "blur(18px)",
-                WebkitBackdropFilter: "blur(18px)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                boxShadow:
-                  "inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 14px -6px rgba(0,0,0,0.4)",
-              }}
-            >
-              <motion.span
-                aria-hidden
-                className="inline-block w-1.5 h-1.5 rounded-full"
-                style={{
-                  background: accent,
-                  boxShadow: `0 0 10px ${accent}`,
-                }}
-                animate={
-                  reduced
-                    ? { opacity: 1 }
-                    : { opacity: [0.4, 1, 0.4] }
-                }
-                transition={{
-                  duration: 2.2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              />
-              <span
-                className="text-[10.5px] tracking-[0.36em] uppercase"
-                style={{
-                  color: "rgba(245,240,230,0.65)",
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
-                {trimmed ? "Your agent is named" : "Give me a name"}
-              </span>
-            </motion.div>
-
-            {/* The typed name displayed at poster scale. Click-anywhere
-                focuses the underlying input. */}
-            <div
-              className="relative w-full cursor-text"
-              onClick={() => inputRef.current?.focus()}
-            >
-              {/* Display layer — when filled, the inner span carries a
-                  bg-clip gradient (white at top fading toward the
-                  accent at the bottom of the letterforms) so the
-                  type feels lit rather than flat-colored. */}
+            {/* LEFT — naming surface */}
+            <div className="relative flex flex-col items-start">
+              {/* Display — when empty shows "name me.", when typed
+                  shows the name itself. Click anywhere on it focuses
+                  the hidden input. Same scale + tracking as the
+                  personality page name. */}
               <div
-                aria-hidden
-                className="font-serif font-medium text-center select-none pointer-events-none"
-                style={{
-                  fontSize: "clamp(4rem, 11vw, 10rem)",
-                  lineHeight: 1,
-                  letterSpacing: trimmed ? "0.06em" : "-0.04em",
-                  filter: trimmed
-                    ? `drop-shadow(0 0 40px ${accent}55)`
-                    : undefined,
-                  transition:
-                    "letter-spacing 0.6s cubic-bezier(0.2,0.7,0.2,1), filter 0.6s ease",
-                  textTransform: trimmed ? "none" : "lowercase",
-                }}
+                className="relative w-full cursor-text"
+                onClick={() => inputRef.current?.focus()}
               >
-                <AnimatePresence mode="wait">
-                  {trimmed ? (
-                    <motion.span
-                      key={trimmed}
-                      initial={
-                        reduced
-                          ? false
-                          : { opacity: 0, y: 12, filter: "blur(6px)" }
-                      }
-                      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                      exit={
-                        reduced
-                          ? undefined
-                          : { opacity: 0, y: -6, filter: "blur(6px)" }
-                      }
-                      transition={{
-                        duration: 0.55,
-                        ease: [0.2, 0.7, 0.2, 1],
-                      }}
-                      style={{
-                        display: "inline-block",
-                        backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,240,230,0.92) 45%, ${accent} 110%)`,
-                        WebkitBackgroundClip: "text",
-                        backgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        color: "transparent",
-                      }}
-                    >
-                      {display}
-                    </motion.span>
-                  ) : (
-                    <motion.span
-                      key="prompt"
-                      initial={reduced ? false : { opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={
-                        reduced ? undefined : { opacity: 0, y: 6 }
-                      }
-                      transition={{ duration: 0.4 }}
-                      style={{
-                        display: "inline-block",
-                        color: "rgba(245,240,230,0.42)",
-                      }}
-                    >
-                      name me
-                      <span
+                <div
+                  aria-hidden
+                  className="font-serif select-none pointer-events-none"
+                  style={{
+                    fontSize: "clamp(3.75rem, 8vw, 7.5rem)",
+                    fontWeight: 400,
+                    lineHeight: 0.92,
+                    letterSpacing: trimmed ? "-0.03em" : "-0.055em",
+                    color: "rgba(245,240,230,0.98)",
+                    transition:
+                      "letter-spacing 0.55s cubic-bezier(0.2,0.7,0.2,1)",
+                  }}
+                >
+                  <AnimatePresence mode="wait">
+                    {trimmed ? (
+                      <motion.span
+                        key={trimmed}
+                        initial={
+                          reduced
+                            ? false
+                            : { opacity: 0, y: 12, filter: "blur(6px)" }
+                        }
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          filter: "blur(0px)",
+                        }}
+                        exit={
+                          reduced
+                            ? undefined
+                            : { opacity: 0, y: -6, filter: "blur(6px)" }
+                        }
+                        transition={{
+                          duration: 0.5,
+                          ease: [0.2, 0.7, 0.2, 1],
+                        }}
+                        style={{ display: "inline-block" }}
+                      >
+                        {trimmed}
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="prompt"
+                        initial={reduced ? false : { opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={
+                          reduced ? undefined : { opacity: 0, y: 6 }
+                        }
+                        transition={{ duration: 0.4 }}
                         style={{
-                          color: accent,
-                          opacity: 0.85,
-                          textShadow: `0 0 20px ${accent}88`,
+                          display: "inline-block",
+                          color: "rgba(245,240,230,0.45)",
                         }}
                       >
-                        .
-                      </span>
-                    </motion.span>
-                  )}
-                </AnimatePresence>
+                        name me
+                        <span
+                          style={{
+                            color: accent,
+                            opacity: 0.72,
+                            fontSize: "0.7em",
+                            verticalAlign: "0.04em",
+                            marginLeft: "0.04em",
+                          }}
+                        >
+                          .
+                        </span>
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </div>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={name}
+                  onChange={(e) =>
+                    setName(e.target.value.slice(0, MAX_LEN))
+                  }
+                  onKeyDown={onKeyDown}
+                  placeholder=""
+                  maxLength={MAX_LEN}
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-label="Agent name"
+                  className="absolute inset-0 w-full h-full bg-transparent border-0 outline-none font-serif opacity-0"
+                  style={{
+                    fontSize: "clamp(3.75rem, 8vw, 7.5rem)",
+                    lineHeight: 0.92,
+                    caretColor: "transparent",
+                  }}
+                />
               </div>
 
-              {/* Invisible input overlay handles real typing */}
-              <input
-                ref={inputRef}
-                type="text"
-                value={name}
-                onChange={(e) =>
-                  setName(e.target.value.slice(0, MAX_LEN))
-                }
-                onKeyDown={onKeyDown}
-                placeholder=""
-                maxLength={MAX_LEN}
-                autoComplete="off"
-                spellCheck={false}
-                aria-label="Agent name"
-                className="absolute inset-0 w-full h-full bg-transparent border-0 outline-none text-center font-serif font-medium opacity-0"
-                style={{
-                  fontSize: "clamp(4rem, 11vw, 10rem)",
-                  lineHeight: 1,
-                  caretColor: "transparent",
+              {/* Suggested names — inline italic list with magnetic
+                  underline on the current pick. Same pattern as the
+                  rest of the system, no chip pills. */}
+              <motion.div
+                initial={reduced ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.55,
+                  delay: 0.4,
+                  ease: [0.2, 0.7, 0.2, 1],
                 }}
-              />
-            </div>
+                className="mt-6 flex items-baseline flex-wrap gap-x-5 gap-y-2.5"
+              >
+                <span
+                  className="text-[10px] tracking-[0.32em] uppercase"
+                  style={{
+                    color: "rgba(245,240,230,0.32)",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  Or also
+                </span>
+                {personality.suggestedNames.map((suggested) => {
+                  const isCurrent =
+                    trimmed.length > 0 &&
+                    trimmed.toLowerCase() === suggested.toLowerCase();
+                  return (
+                    <motion.button
+                      key={suggested}
+                      type="button"
+                      onClick={() => {
+                        setName(suggested);
+                        inputRef.current?.focus();
+                      }}
+                      whileHover={reduced ? undefined : { y: -1 }}
+                      whileTap={{ scale: 0.97 }}
+                      className="relative font-serif italic"
+                      style={{
+                        fontSize: "clamp(0.95rem, 1.2vw, 1.0625rem)",
+                        color: isCurrent
+                          ? "rgba(245,240,230,0.95)"
+                          : "rgba(245,240,230,0.5)",
+                        transition: "color 0.3s ease",
+                      }}
+                    >
+                      {suggested}
+                      {isCurrent && (
+                        <motion.span
+                          layoutId="suggested-underline"
+                          className="absolute -bottom-1 left-0 right-0 h-[1.5px] rounded-full"
+                          style={{
+                            background: accent,
+                            boxShadow: `0 0 8px ${accent}`,
+                          }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 380,
+                            damping: 32,
+                            mass: 0.9,
+                          }}
+                        />
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </motion.div>
 
-            {/* Animated accent underline — a thin breathing line */}
-            <motion.div
-              className="mt-6 h-[2px] rounded-full"
-              style={{
-                background: `linear-gradient(90deg, transparent 0%, ${accent} 18%, ${accent} 82%, transparent 100%)`,
-                boxShadow: `0 0 16px ${accent}88, 0 0 4px ${accent}`,
-                transformOrigin: "center",
-                width: "min(540px, 60%)",
-              }}
-              animate={{
-                opacity: trimmed ? 0.95 : 0.4,
-                scaleX: trimmed ? 1 : 0.45,
-              }}
-              transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-            />
-
-            {/* Suggested names — inline metadata, not chips */}
-            <motion.div
-              initial={reduced ? false : { opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.5,
-                delay: 0.5,
-                ease: [0.2, 0.7, 0.2, 1],
-              }}
-              className="mt-12 flex items-center justify-center flex-wrap gap-x-5 gap-y-2.5"
-            >
-              <span
-                className="text-[10px] tracking-[0.32em] uppercase"
+              {/* Continue — same treatment as personality page */}
+              <motion.button
+                type="button"
+                onClick={onContinue}
+                disabled={!canContinue}
+                whileHover={
+                  reduced || !canContinue
+                    ? undefined
+                    : {
+                        scale: 1.03,
+                        backgroundColor: `${accent}14`,
+                        boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
+                      }
+                }
+                whileTap={canContinue ? { scale: 0.97 } : undefined}
+                transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
+                className="mt-10 inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative disabled:cursor-not-allowed"
                 style={{
-                  color: "rgba(245,240,230,0.32)",
+                  fontSize: 16,
+                  background: "transparent",
+                  border: `1.5px solid ${
+                    canContinue ? `${accent}cc` : "rgba(245,240,230,0.12)"
+                  }`,
+                  color: canContinue
+                    ? "rgba(245,240,230,0.96)"
+                    : "rgba(245,240,230,0.32)",
+                  boxShadow: canContinue
+                    ? `0 0 26px -6px ${accent}aa`
+                    : "none",
+                }}
+              >
+                <span>
+                  {canContinue ? (
+                    <>
+                      Continue as{" "}
+                      <AnimatePresence mode="wait">
+                        <motion.span
+                          key={trimmed}
+                          initial={
+                            reduced ? false : { opacity: 0, y: 4 }
+                          }
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={
+                            reduced ? undefined : { opacity: 0, y: -4 }
+                          }
+                          transition={{
+                            duration: 0.3,
+                            ease: [0.2, 0.7, 0.2, 1],
+                          }}
+                          style={{
+                            color: accent,
+                            display: "inline-block",
+                          }}
+                        >
+                          {trimmed}
+                        </motion.span>
+                      </AnimatePresence>
+                    </>
+                  ) : (
+                    "Say a name to continue"
+                  )}
+                </span>
+                {canContinue && (
+                  <motion.span
+                    aria-hidden
+                    className="inline-block"
+                    style={{ color: accent }}
+                    animate={reduced ? undefined : { x: [0, 4, 0] }}
+                    transition={{
+                      duration: 1.8,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  >
+                    →
+                  </motion.span>
+                )}
+              </motion.button>
+
+              {/* Back link */}
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    conversation.endSession();
+                  } catch {
+                    /* ignore */
+                  }
+                  router.push("/onboarding/personality");
+                }}
+                className="mt-6 text-[10.5px] tracking-[0.32em] uppercase transition-opacity hover:opacity-80"
+                style={{
+                  color: "rgba(245,240,230,0.3)",
                   fontFamily: "var(--font-mono)",
                 }}
               >
-                Or also
-              </span>
-              {personality.suggestedNames.map((suggested, i) => {
-                const isCurrent =
-                  trimmed.length > 0 &&
-                  trimmed.toLowerCase() === suggested.toLowerCase();
-                return (
-                  <motion.button
-                    key={suggested}
-                    type="button"
-                    onClick={() => {
-                      setName(suggested);
-                      inputRef.current?.focus();
-                    }}
-                    initial={reduced ? false : { opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      delay: 0.55 + i * 0.04,
-                      duration: 0.35,
-                      ease: [0.2, 0.7, 0.2, 1],
-                    }}
-                    whileHover={reduced ? undefined : { y: -1 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="relative font-serif italic"
-                    style={{
-                      fontSize: "clamp(0.95rem, 1.2vw, 1.0625rem)",
-                      color: isCurrent
-                        ? "rgba(245,240,230,0.95)"
-                        : "rgba(245,240,230,0.55)",
-                      transition: "color 0.3s ease",
-                    }}
-                  >
-                    {suggested}
-                    {isCurrent && (
-                      <motion.span
-                        layoutId="suggested-underline"
-                        className="absolute -bottom-1 left-0 right-0 h-[1.5px] rounded-full"
-                        style={{
-                          background: accent,
-                          boxShadow: `0 0 8px ${accent}`,
-                        }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 380,
-                          damping: 32,
-                          mass: 0.9,
-                        }}
-                      />
-                    )}
-                  </motion.button>
-                );
-              })}
-            </motion.div>
+                ← Back
+              </button>
+            </div>
 
-            {/* Live agent line — appears as small italic when speaking */}
-            <div className="mt-10 min-h-[1.4em] w-full text-center">
+            {/* RIGHT — live agent transcript + quiet voice attribution.
+                When the agent is speaking, its current line appears
+                as italic Fraunces at a calm scale. When silent, just
+                the personality + voice attribution. */}
+            <div className="relative flex flex-col items-start justify-center min-h-[320px]">
               <AnimatePresence mode="wait">
-                {agentSpeaking && agentLine && (
-                  <motion.p
+                {agentActive && agentLine ? (
+                  <motion.div
                     key={agentLine}
                     initial={
                       reduced
                         ? false
-                        : { opacity: 0, y: 6, filter: "blur(4px)" }
+                        : { opacity: 0, y: 8, filter: "blur(6px)" }
                     }
                     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                     exit={
@@ -686,174 +636,91 @@ function NamePageInner({
                         ? undefined
                         : { opacity: 0, y: -4, filter: "blur(4px)" }
                     }
-                    transition={{
-                      duration: 0.45,
-                      ease: [0.2, 0.7, 0.2, 1],
-                    }}
-                    className="font-serif italic mx-auto max-w-[42ch]"
-                    style={{
-                      fontSize: "clamp(0.95rem, 1.1vw, 1.0625rem)",
-                      color: `${accent}cc`,
-                      lineHeight: 1.5,
-                    }}
+                    transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+                    className="max-w-[42ch]"
                   >
-                    {agentLine}
-                  </motion.p>
+                    <p
+                      className="font-serif italic"
+                      style={{
+                        fontSize: "clamp(1.25rem, 1.85vw, 1.625rem)",
+                        lineHeight: 1.5,
+                        letterSpacing: "-0.01em",
+                        color: "rgba(245,240,230,0.88)",
+                      }}
+                    >
+                      {agentLine}
+                    </p>
+                    <div className="mt-5 flex items-center gap-3">
+                      <span
+                        className="inline-block h-px w-7"
+                        style={{
+                          background: `linear-gradient(90deg, ${accent}aa, transparent)`,
+                        }}
+                      />
+                      <span
+                        className="text-[10.5px] tracking-[0.32em] uppercase"
+                        style={{
+                          color: "rgba(245,240,230,0.5)",
+                          fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        {personality.name}, in {voice.name}&rsquo;s voice
+                      </span>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="quiet"
+                    initial={reduced ? false : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="max-w-[42ch]"
+                  >
+                    <p
+                      className="font-serif italic"
+                      style={{
+                        fontSize: "clamp(1.125rem, 1.55vw, 1.4375rem)",
+                        lineHeight: 1.5,
+                        letterSpacing: "-0.005em",
+                        color: "rgba(245,240,230,0.5)",
+                      }}
+                    >
+                      {voiceState === "error"
+                        ? voiceError ?? "Voice didn't start. Tap the orb to retry — or just type a name."
+                        : voiceState === "connecting"
+                          ? "Opening a line…"
+                          : "Listening. Speak the name, or type it."}
+                    </p>
+                    <div className="mt-5 flex items-center gap-3">
+                      <span
+                        className="inline-block h-px w-7"
+                        style={{
+                          background: `linear-gradient(90deg, ${accent}66, transparent)`,
+                        }}
+                      />
+                      <span
+                        className="text-[10.5px] tracking-[0.32em] uppercase"
+                        style={{
+                          color: "rgba(245,240,230,0.4)",
+                          fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        {personality.name} · {voice.name}
+                      </span>
+                    </div>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
-
-            {/* Continue — premium glass capsule */}
-            <motion.button
-              type="button"
-              onClick={onContinue}
-              disabled={!canContinue}
-              initial={reduced ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.55,
-                delay: 0.75,
-                ease: [0.2, 0.7, 0.2, 1],
-              }}
-              whileHover={
-                reduced || !canContinue
-                  ? undefined
-                  : { scale: 1.04, y: -2 }
-              }
-              whileTap={canContinue ? { scale: 0.96 } : undefined}
-              className="mt-12 relative inline-flex items-center gap-3 h-[52px] px-8 rounded-full font-serif overflow-hidden disabled:cursor-not-allowed"
-              style={{
-                fontSize: 15.5,
-                background: canContinue
-                  ? `linear-gradient(180deg, rgba(255,255,255,0.09) 0%, ${accent}1f 100%)`
-                  : "rgba(255,255,255,0.02)",
-                backdropFilter: "blur(28px)",
-                WebkitBackdropFilter: "blur(28px)",
-                border: `1.5px solid ${
-                  canContinue ? `${accent}cc` : "rgba(245,240,230,0.12)"
-                }`,
-                color: canContinue
-                  ? "rgba(245,240,230,0.98)"
-                  : "rgba(245,240,230,0.3)",
-                boxShadow: canContinue
-                  ? `0 0 38px -6px ${accent}aa, 0 14px 32px -10px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.22)`
-                  : "inset 0 1px 0 rgba(255,255,255,0.05)",
-                letterSpacing: "0.01em",
-                transition:
-                  "background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, color 0.3s ease",
-              }}
-            >
-              {canContinue && (
-                <>
-                  <span
-                    aria-hidden
-                    className="absolute pointer-events-none"
-                    style={{
-                      top: 1,
-                      left: "16%",
-                      width: "40%",
-                      height: "55%",
-                      borderRadius: "50%",
-                      background:
-                        "radial-gradient(ellipse, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0) 70%)",
-                      filter: "blur(8px)",
-                    }}
-                  />
-                  <span
-                    aria-hidden
-                    className="absolute pointer-events-none"
-                    style={{
-                      bottom: 0,
-                      right: "12%",
-                      width: "55%",
-                      height: "60%",
-                      borderRadius: "50%",
-                      background: `radial-gradient(ellipse, ${accent}55 0%, transparent 70%)`,
-                      filter: "blur(12px)",
-                    }}
-                  />
-                </>
-              )}
-              <span className="relative">
-                {canContinue ? (
-                  <>
-                    Continue as{" "}
-                    <AnimatePresence mode="wait">
-                      <motion.span
-                        key={trimmed}
-                        initial={
-                          reduced ? false : { opacity: 0, y: 4 }
-                        }
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={
-                          reduced ? undefined : { opacity: 0, y: -4 }
-                        }
-                        transition={{
-                          duration: 0.3,
-                          ease: [0.2, 0.7, 0.2, 1],
-                        }}
-                        style={{
-                          color: accent,
-                          display: "inline-block",
-                          textShadow: `0 0 12px ${accent}66`,
-                        }}
-                      >
-                        {trimmed}
-                      </motion.span>
-                    </AnimatePresence>
-                  </>
-                ) : (
-                  "Say a name to continue"
-                )}
-              </span>
-              {canContinue && (
-                <motion.span
-                  aria-hidden
-                  className="relative inline-block"
-                  style={{ color: accent }}
-                  animate={reduced ? undefined : { x: [0, 4, 0] }}
-                  transition={{
-                    duration: 1.8,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                >
-                  →
-                </motion.span>
-              )}
-            </motion.button>
-
-            <motion.button
-              type="button"
-              onClick={() => {
-                try {
-                  conversation.endSession();
-                } catch {
-                  /* ignore */
-                }
-                router.push("/onboarding/personality");
-              }}
-              initial={reduced ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 1.0 }}
-              className="mt-7 text-[10.5px] tracking-[0.32em] uppercase transition-opacity hover:opacity-80"
-              style={{
-                color: "rgba(245,240,230,0.3)",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              ← Back
-            </motion.button>
           </div>
         </div>
 
-        {/* Floating live agent */}
+        {/* Floating live agent — Siri orb bottom-right */}
         <FloatingAgent
           voiceState={voiceState}
           accent={accent}
           onClick={onWidgetClick}
-          voiceError={voiceError}
-          retry={startVoice}
         />
       </div>
     </OnboardingFrame>
@@ -861,138 +728,18 @@ function NamePageInner({
 }
 
 /* ============================================================
- * AuroraBackground — three radial accent gradients drifting slowly
- * at different rates. Gives the dark canvas a living atmosphere
- * without occupying a specific zone of the page.
- * ============================================================ */
-function AuroraBackground({
-  accent,
-  amplified,
-}: {
-  accent: string;
-  amplified: boolean;
-}) {
-  const reduced = useReducedMotion();
-  return (
-    <div
-      aria-hidden
-      className="absolute inset-0 pointer-events-none overflow-hidden"
-    >
-      <motion.div
-        className="absolute rounded-full"
-        style={{
-          width: 900,
-          height: 900,
-          left: "10%",
-          top: "-25%",
-          background: `radial-gradient(circle, ${accent}1a 0%, ${accent}06 38%, transparent 65%)`,
-          filter: "blur(80px)",
-        }}
-        animate={
-          reduced
-            ? { opacity: 0.55 }
-            : {
-                x: [0, 60, -40, 0],
-                y: [0, 50, 90, 0],
-                opacity: amplified ? [0.55, 0.85, 0.55] : 0.55,
-              }
-        }
-        transition={
-          reduced
-            ? { duration: 0.5 }
-            : {
-                x: { duration: 22, repeat: Infinity, ease: "easeInOut" },
-                y: { duration: 22, repeat: Infinity, ease: "easeInOut" },
-                opacity: amplified
-                  ? { duration: 3.6, repeat: Infinity, ease: "easeInOut" }
-                  : { duration: 0.8 },
-              }
-        }
-      />
-      <motion.div
-        className="absolute rounded-full"
-        style={{
-          width: 720,
-          height: 720,
-          right: "5%",
-          bottom: "-15%",
-          background: `radial-gradient(circle, ${accent}18 0%, ${accent}06 35%, transparent 65%)`,
-          filter: "blur(70px)",
-        }}
-        animate={
-          reduced
-            ? { opacity: 0.55 }
-            : {
-                x: [0, -50, 30, 0],
-                y: [0, -40, -80, 0],
-                opacity: amplified ? [0.55, 0.95, 0.55] : 0.55,
-              }
-        }
-        transition={
-          reduced
-            ? { duration: 0.5 }
-            : {
-                x: { duration: 26, repeat: Infinity, ease: "easeInOut" },
-                y: { duration: 26, repeat: Infinity, ease: "easeInOut" },
-                opacity: amplified
-                  ? { duration: 3.6, repeat: Infinity, ease: "easeInOut" }
-                  : { duration: 0.8 },
-              }
-        }
-      />
-      <motion.div
-        className="absolute rounded-full"
-        style={{
-          width: 800,
-          height: 800,
-          left: "50%",
-          top: "55%",
-          marginLeft: -400,
-          marginTop: -400,
-          background: `radial-gradient(circle, ${accent}0e 0%, transparent 60%)`,
-          filter: "blur(90px)",
-        }}
-        animate={
-          reduced
-            ? { opacity: 0.5 }
-            : {
-                x: [0, 40, -30, 0],
-                y: [0, -50, 30, 0],
-                opacity: 0.5,
-              }
-        }
-        transition={
-          reduced
-            ? { duration: 0.5 }
-            : {
-                x: { duration: 30, repeat: Infinity, ease: "easeInOut" },
-                y: { duration: 30, repeat: Infinity, ease: "easeInOut" },
-              }
-        }
-      />
-    </div>
-  );
-}
-
-/* ============================================================
- * FloatingAgent — pinned bottom-right. Premium Siri-style orb
- * (rotating conic-gradient blob) wrapped in a glass disc. The
- * orb's animation speed reflects state: idle drifts slowly,
- * listening rotates at a calm clip, speaking spins fast and
- * intense. Doubles as the start/stop control.
+ * FloatingAgent — Siri orb pinned bottom-right. Animation speed
+ * varies with voice state (faster while speaking). Doubles as the
+ * start/stop control.
  * ============================================================ */
 function FloatingAgent({
   voiceState,
   accent,
   onClick,
-  voiceError,
-  retry,
 }: {
   voiceState: VoiceState;
   accent: string;
   onClick: () => void;
-  voiceError: string | null;
-  retry: () => void;
 }) {
   const reduced = useReducedMotion();
   const [hovered, setHovered] = useState(false);
@@ -1002,17 +749,6 @@ function FloatingAgent({
   const active = speaking || listening;
   const errored = voiceState === "error";
 
-  const statusLabel =
-    voiceState === "connecting"
-      ? "Connecting"
-      : voiceState === "speaking"
-        ? "Speaking"
-        : voiceState === "listening"
-          ? "Listening"
-          : voiceState === "error"
-            ? "Tap to retry"
-            : "Tap to talk";
-
   const ringColor = errored
     ? "rgba(255,150,150,0.7)"
     : active || hovered
@@ -1020,224 +756,130 @@ function FloatingAgent({
       : "rgba(255,255,255,0.18)";
 
   const orbColors = orbColorsFromAccent(accent);
-  // Rotation speed varies by state. Lower = faster.
-  const orbDuration = speaking
-    ? 5
-    : listening
-      ? 16
-      : isConnecting
-        ? 12
-        : 30;
+  const orbDuration = speaking ? 5 : listening ? 16 : isConnecting ? 12 : 30;
 
   return (
-    <div
-      className="fixed z-40 flex items-center gap-3"
-      style={{ bottom: 32, right: 32 }}
+    <motion.button
+      type="button"
+      onClick={onClick}
+      onHoverStart={() => setHovered(true)}
+      onHoverEnd={() => setHovered(false)}
+      whileTap={{ scale: 0.92 }}
+      whileHover={reduced ? undefined : { scale: 1.06, y: -2 }}
+      transition={{ type: "spring", stiffness: 280, damping: 22 }}
+      className="fixed grid place-items-center rounded-full z-40"
+      style={{
+        bottom: 32,
+        right: 32,
+        width: 64,
+        height: 64,
+        background: `linear-gradient(180deg, rgba(255,255,255,0.08) 0%, ${accent}1a 100%)`,
+        backdropFilter: "blur(28px)",
+        WebkitBackdropFilter: "blur(28px)",
+        border: `1px solid ${ringColor}`,
+        boxShadow: active
+          ? `0 0 44px -4px ${accent}aa, 0 14px 36px -10px rgba(0,0,0,0.7)`
+          : `0 0 30px -10px ${accent}88, 0 12px 28px -10px rgba(0,0,0,0.6)`,
+        transition: "border-color 0.4s ease, box-shadow 0.4s ease",
+      }}
+      aria-label={active ? "Stop the agent" : "Start the agent"}
     >
-      <AnimatePresence>
-        {(active || isConnecting || errored || hovered) && (
-          <motion.div
-            initial={
-              reduced ? false : { opacity: 0, x: 8, filter: "blur(4px)" }
-            }
-            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-            exit={
-              reduced
-                ? undefined
-                : { opacity: 0, x: 8, filter: "blur(4px)" }
-            }
-            transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
-            className="relative inline-flex items-center h-9 px-3.5 rounded-full"
-            style={{
-              background: `linear-gradient(180deg, rgba(255,255,255,0.05) 0%, ${accent}0a 100%)`,
-              backdropFilter: "blur(18px)",
-              WebkitBackdropFilter: "blur(18px)",
-              border: `1px solid ${active ? `${accent}66` : "rgba(255,255,255,0.14)"}`,
-              boxShadow: active
-                ? `0 0 22px -4px ${accent}55, inset 0 1px 0 rgba(255,255,255,0.18)`
-                : "inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 12px -6px rgba(0,0,0,0.4)",
-            }}
-          >
-            <span
-              className="text-[10.5px] tracking-[0.3em] uppercase"
-              style={{
-                color: errored
-                  ? "rgba(255,170,170,0.85)"
-                  : active
-                    ? accent
-                    : "rgba(245,240,230,0.62)",
-                fontFamily: "var(--font-mono)",
+      {/* Speaking pulse ring */}
+      {speaking && !reduced && (
+        <>
+          {[0, 0.6].map((delay, i) => (
+            <motion.div
+              key={i}
+              aria-hidden
+              className="absolute rounded-full pointer-events-none"
+              style={{ inset: 0, border: `1px solid ${accent}66` }}
+              animate={{
+                scale: [1, 1.32, 1.6],
+                opacity: [0.55, 0.18, 0],
               }}
-            >
-              {statusLabel}
-            </span>
-            {errored && voiceError && (
-              <button
-                type="button"
-                onClick={retry}
-                className="ml-3 text-[10px] tracking-[0.22em] uppercase underline underline-offset-4"
-                style={{
-                  color: "rgba(255,200,200,0.8)",
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
-                Retry
-              </button>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.button
-        type="button"
-        onClick={onClick}
-        onHoverStart={() => setHovered(true)}
-        onHoverEnd={() => setHovered(false)}
-        whileTap={{ scale: 0.92 }}
-        whileHover={reduced ? undefined : { scale: 1.06, y: -2 }}
-        transition={{ type: "spring", stiffness: 280, damping: 22 }}
-        className="relative grid place-items-center rounded-full"
-        style={{
-          width: 64,
-          height: 64,
-          background: `linear-gradient(180deg, rgba(255,255,255,0.08) 0%, ${accent}1a 100%)`,
-          backdropFilter: "blur(28px)",
-          WebkitBackdropFilter: "blur(28px)",
-          border: `1px solid ${ringColor}`,
-          boxShadow: active
-            ? `0 0 44px -4px ${accent}aa, 0 14px 36px -10px rgba(0,0,0,0.7)`
-            : `0 0 30px -10px ${accent}88, 0 12px 28px -10px rgba(0,0,0,0.6)`,
-          transition: "border-color 0.4s ease, box-shadow 0.4s ease",
-        }}
-        aria-label={active ? "Stop the agent" : "Start the agent"}
-      >
-        <div
-          aria-hidden
-          className="absolute pointer-events-none"
-          style={{
-            top: "8%",
-            left: "12%",
-            width: "52%",
-            height: "32%",
-            borderRadius: "50%",
-            background:
-              "radial-gradient(ellipse, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0) 70%)",
-            filter: "blur(10px)",
-          }}
-        />
-        <div
-          aria-hidden
-          className="absolute pointer-events-none"
-          style={{
-            bottom: "8%",
-            left: "20%",
-            width: "60%",
-            height: "30%",
-            borderRadius: "50%",
-            background: `radial-gradient(ellipse, ${accent}40 0%, transparent 70%)`,
-            filter: "blur(12px)",
-          }}
-        />
-
-        {!reduced && voiceState === "idle" && (
-          <motion.div
-            aria-hidden
-            className="absolute rounded-full pointer-events-none"
-            style={{ inset: -8, border: `1px solid ${accent}44` }}
-            initial={{ opacity: 0, scale: 0.94 }}
-            animate={{ opacity: [0, 0.55, 0], scale: [0.94, 1.08, 1.2] }}
-            transition={{
-              duration: 2.6,
-              repeat: Infinity,
-              ease: "easeOut",
-              repeatDelay: 0.6,
-            }}
-          />
-        )}
-
-        {speaking && !reduced && (
-          <>
-            {[0, 0.6].map((delay, i) => (
-              <motion.div
-                key={i}
-                aria-hidden
-                className="absolute rounded-full pointer-events-none"
-                style={{ inset: 0, border: `1px solid ${accent}66` }}
-                animate={{
-                  scale: [1, 1.32, 1.6],
-                  opacity: [0.55, 0.18, 0],
-                }}
-                transition={{
-                  duration: 2.2,
-                  repeat: Infinity,
-                  delay,
-                  ease: "easeOut",
-                }}
-              />
-            ))}
-          </>
-        )}
-
-        {/* Siri orb — rotating conic-gradient blob keyed to accent.
-            Sits inside the glass disc; speeds up when speaking. */}
-        <SiriOrb
-          size="50px"
-          colors={orbColors}
-          animationDuration={orbDuration}
-          className="relative"
-        />
-
-        {/* Error tint overlay */}
-        {errored && (
-          <div
-            aria-hidden
-            className="absolute inset-0 rounded-full pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(255,140,140,0.25), transparent 70%)",
-            }}
-          />
-        )}
-
-        {/* Connecting spinner — overlays the orb */}
-        {isConnecting && (
-          <svg
-            width={20}
-            height={20}
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden
-            className="absolute"
-            style={{
-              filter: `drop-shadow(0 0 6px ${accent}88)`,
-            }}
-          >
-            <circle
-              cx="12"
-              cy="12"
-              r="9"
-              stroke="white"
-              strokeOpacity="0.4"
-              strokeWidth="2.5"
+              transition={{
+                duration: 2.2,
+                repeat: Infinity,
+                delay,
+                ease: "easeOut",
+              }}
             />
-            <path
-              d="M21 12a9 9 0 0 0-9-9"
-              stroke="white"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            >
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                from="0 12 12"
-                to="360 12 12"
-                dur="0.9s"
-                repeatCount="indefinite"
-              />
-            </path>
-          </svg>
-        )}
-      </motion.button>
-    </div>
+          ))}
+        </>
+      )}
+
+      {/* Idle invitation ring */}
+      {!reduced && voiceState === "idle" && (
+        <motion.div
+          aria-hidden
+          className="absolute rounded-full pointer-events-none"
+          style={{ inset: -8, border: `1px solid ${accent}44` }}
+          initial={{ opacity: 0, scale: 0.94 }}
+          animate={{ opacity: [0, 0.55, 0], scale: [0.94, 1.08, 1.2] }}
+          transition={{
+            duration: 2.6,
+            repeat: Infinity,
+            ease: "easeOut",
+            repeatDelay: 0.6,
+          }}
+        />
+      )}
+
+      <SiriOrb
+        size="50px"
+        colors={orbColors}
+        animationDuration={orbDuration}
+        className="relative"
+      />
+
+      {/* Errored tint */}
+      {errored && (
+        <div
+          aria-hidden
+          className="absolute inset-0 rounded-full pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(255,140,140,0.25), transparent 70%)",
+          }}
+        />
+      )}
+
+      {/* Connecting spinner overlay */}
+      {isConnecting && (
+        <svg
+          width={20}
+          height={20}
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden
+          className="absolute"
+          style={{ filter: `drop-shadow(0 0 6px ${accent}88)` }}
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+            stroke="white"
+            strokeOpacity="0.4"
+            strokeWidth="2.5"
+          />
+          <path
+            d="M21 12a9 9 0 0 0-9-9"
+            stroke="white"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              from="0 12 12"
+              to="360 12 12"
+              dur="0.9s"
+              repeatCount="indefinite"
+            />
+          </path>
+        </svg>
+      )}
+    </motion.button>
   );
 }
