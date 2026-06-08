@@ -12,10 +12,12 @@ import { VOICES } from "@/lib/voices";
 
 const STORAGE_KEY = "wrks-onboarding-personality";
 const VOICE_KEY = "wrks-onboarding-voice";
-// Pricing lives on the marketing site (separate Next.js app at
-// wrksstudio.com). Opens in a new tab so the user doesn't lose
-// their in-progress onboarding session.
-const PLANS_URL = "https://wrksstudio.com/#pricing";
+// Pricing lives on the marketing site (separate Next.js app
+// deployed at wrks-studio-marketing.vercel.app). Opens in a new
+// tab so the user doesn't lose their in-progress onboarding
+// session. Anchor #pricing scrolls to the Pricing component on
+// the homepage (apps/marketing/src/components/v2/pricing.tsx).
+const PLANS_URL = "https://wrks-studio-marketing.vercel.app/#pricing";
 const openPricing = () => {
   if (typeof window !== "undefined") {
     window.open(PLANS_URL, "_blank", "noopener,noreferrer");
