@@ -65,17 +65,17 @@ const FIELD_ALIASES: Record<FieldKey, string[]> = {
 
 const QUESTIONS: Record<FieldKey, { hero: string; label: string; hint: string }> = {
   business: {
-    hero: "What's your business.",
+    hero: "What you do.",
     label: "Business",
-    hint: "What you do. One or two sentences.",
+    hint: "One or two sentences on what the business is.",
   },
   audience: {
-    hero: "Who's it for.",
+    hero: "Who it's for.",
     label: "Audience",
     hint: "The people you're trying to reach.",
   },
   differentiator: {
-    hero: "What's your edge.",
+    hero: "Your edge.",
     label: "Edge",
     hint: "Why someone picks you over the alternatives.",
   },
@@ -306,50 +306,40 @@ export default function IntakePage() {
           }}
         >
           {/* Left — hero question + inline answer.
-              Only the headline animates on question change. Everything
-              below it stays mounted and just swaps text in place — that's
-              what kills the cross-fade flicker that was reading as the
-              column "jumping left/right". The headline area reserves the
-              tallest possible height (2 lines) so 1↔2-line content swaps
-              don't shift the input or button below. */}
+              Hero phrasing is parallel and always 1 line, so the wrapper
+              takes its natural height with no minHeight reservation.
+              popLayout mode keeps the exiting headline out of the layout
+              while the new one mounts, so there's no collapse-then-grow
+              gap that pushes the labels below up and down. */}
           <div className="flex flex-col">
-            <div
-              className="relative"
-              style={{
-                minHeight:
-                  "calc(2 * 0.98 * clamp(3.25rem, 6.4vw, 5.75rem))",
-              }}
-            >
-              <AnimatePresence mode="wait">
-                <motion.h1
-                  key={currentKey}
-                  initial={
-                    reduced
-                      ? false
-                      : { opacity: 0, y: 14, filter: "blur(8px)" }
-                  }
-                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  exit={
-                    reduced
-                      ? undefined
-                      : { opacity: 0, y: -10, filter: "blur(6px)" }
-                  }
-                  transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
-                  className="font-serif absolute inset-0"
-                  style={{
-                    fontSize: "clamp(3.25rem, 6.4vw, 5.75rem)",
-                    fontWeight: 500,
-                    lineHeight: 0.98,
-                    letterSpacing: "-0.035em",
-                    color: "rgba(245,240,230,0.97)",
-                    maxWidth: "12ch",
-                    margin: 0,
-                  }}
-                >
-                  {currentMeta.hero}
-                </motion.h1>
-              </AnimatePresence>
-            </div>
+            <AnimatePresence mode="popLayout">
+              <motion.h1
+                key={currentKey}
+                initial={
+                  reduced
+                    ? false
+                    : { opacity: 0, y: 14, filter: "blur(8px)" }
+                }
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={
+                  reduced
+                    ? undefined
+                    : { opacity: 0, y: -10, filter: "blur(6px)" }
+                }
+                transition={{ duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }}
+                className="font-serif"
+                style={{
+                  fontSize: "clamp(3.25rem, 6.4vw, 5.75rem)",
+                  fontWeight: 500,
+                  lineHeight: 1,
+                  letterSpacing: "-0.035em",
+                  color: "rgba(245,240,230,0.97)",
+                  margin: 0,
+                }}
+              >
+                {currentMeta.hero}
+              </motion.h1>
+            </AnimatePresence>
 
             {/* Listening line + answer — persistent. Voice-state changes
                 drive a subtle crossfade on the label; question changes
