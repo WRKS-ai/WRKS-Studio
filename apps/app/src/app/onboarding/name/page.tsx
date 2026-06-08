@@ -312,114 +312,99 @@ function NamePageInner({
           </span>
         </motion.div>
 
-        {/* Center stage — minimum text, max negative space */}
+        {/* Center stage — header + name + Continue inside ONE glass
+            card. The card is the "glass effect around the text" the
+            user asked for. Typography switches to Geist sans (clean
+            modern tech feel — Fraunces serif was reading cartoonish
+            for the typed name). */}
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-260px)]">
-          <div
-            className="relative w-full max-w-[1100px] flex flex-col items-center text-center cursor-text"
-            onClick={() => inputRef.current?.focus()}
+          {/* Soft accent halo behind the card. Only when name typed. */}
+          <AnimatePresence>
+            {trimmed && (
+              <motion.div
+                aria-hidden
+                key="card-halo"
+                className="absolute pointer-events-none"
+                style={{
+                  width: 1000,
+                  height: 600,
+                  background: `radial-gradient(ellipse at center, ${accent}22 0%, ${accent}0a 40%, transparent 70%)`,
+                  filter: "blur(80px)",
+                  zIndex: 0,
+                }}
+                initial={reduced ? false : { opacity: 0 }}
+                animate={
+                  reduced
+                    ? { opacity: 0.6 }
+                    : { opacity: [0.5, 0.75, 0.5], scale: [1, 1.04, 1] }
+                }
+                exit={reduced ? undefined : { opacity: 0 }}
+                transition={
+                  reduced
+                    ? { duration: 0.5 }
+                    : {
+                        duration: 16,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }
+                }
+              />
+            )}
+          </AnimatePresence>
+
+          <motion.div
+            initial={
+              reduced
+                ? false
+                : { opacity: 0, y: 16, filter: "blur(8px)" }
+            }
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{
+              duration: 0.7,
+              delay: 0.2,
+              ease: [0.2, 0.7, 0.2, 1],
+            }}
+            className="relative w-full max-w-[720px] mx-auto"
+            style={{
+              borderRadius: 32,
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              backdropFilter: "blur(28px)",
+              WebkitBackdropFilter: "blur(28px)",
+              boxShadow:
+                "inset 0 1px 0 rgba(255,255,255,0.07), 0 32px 80px -24px rgba(0,0,0,0.7)",
+              padding: "56px 64px 52px",
+              zIndex: 1,
+            }}
           >
-            {/* Hero — either the typed name or the prompt, centered */}
-            <div className="relative">
-              {/* Soft accent halo beneath the name. Only visible once
-                  a name is filled (the empty-state prompt stays clean
-                  with no light). Breathes very slowly on a 14s loop —
-                  one tiny spotlight on the named moment, tying the
-                  typed name visually to the agent's voice. */}
-              <AnimatePresence>
-                {trimmed && (
-                  <motion.div
-                    aria-hidden
-                    key="name-halo"
-                    className="absolute pointer-events-none"
-                    style={{
-                      left: "50%",
-                      bottom: "-30%",
-                      width: "80%",
-                      height: "100%",
-                      marginLeft: "-40%",
-                      background: `radial-gradient(ellipse at center, ${accent}28 0%, ${accent}0d 35%, transparent 70%)`,
-                      filter: "blur(46px)",
-                      zIndex: 0,
-                    }}
-                    initial={
-                      reduced ? false : { opacity: 0, scale: 0.92 }
-                    }
-                    animate={
-                      reduced
-                        ? { opacity: 0.7 }
-                        : {
-                            opacity: [0.55, 0.85, 0.55],
-                            scale: [1, 1.06, 1],
-                          }
-                    }
-                    exit={reduced ? undefined : { opacity: 0 }}
-                    transition={
-                      reduced
-                        ? { duration: 0.5 }
-                        : {
-                            duration: 14,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                          }
-                    }
-                  />
-                )}
-              </AnimatePresence>
-              {/* Frosted glass plate BEHIND the name — only when typed.
-                  Wide horizontal pill, generous padding, subtle
-                  backdrop-blur + 1px white rim + inset highlight.
-                  This is the "glass effect around the text" the user
-                  asked for — gives the name a stage to sit on without
-                  altering the typography. */}
-              <AnimatePresence>
-                {trimmed && (
-                  <motion.div
-                    key="name-plate"
-                    aria-hidden
-                    initial={
-                      reduced
-                        ? false
-                        : { opacity: 0, scale: 0.96, filter: "blur(8px)" }
-                    }
-                    animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                    exit={
-                      reduced
-                        ? undefined
-                        : { opacity: 0, scale: 0.96, filter: "blur(6px)" }
-                    }
-                    transition={{
-                      duration: 0.5,
-                      ease: [0.2, 0.7, 0.2, 1],
-                    }}
-                    className="absolute pointer-events-none"
-                    style={{
-                      left: "-12%",
-                      right: "-12%",
-                      top: "-22%",
-                      bottom: "-22%",
-                      borderRadius: 9999,
-                      background:
-                        "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      backdropFilter: "blur(14px)",
-                      WebkitBackdropFilter: "blur(14px)",
-                      boxShadow:
-                        "inset 0 1px 0 rgba(255,255,255,0.06), 0 24px 60px -20px rgba(0,0,0,0.5)",
-                      zIndex: 0,
-                    }}
-                  />
-                )}
-              </AnimatePresence>
+            {/* Quiet header */}
+            <p
+              className="font-sans text-center"
+              style={{
+                fontSize: 13,
+                letterSpacing: "0.02em",
+                color: "rgba(245,240,230,0.42)",
+                marginBottom: 28,
+              }}
+            >
+              Select a name for your agent
+            </p>
+
+            {/* Name display + hidden input. Font is Geist sans now. */}
+            <div
+              className="relative cursor-text"
+              onClick={() => inputRef.current?.focus()}
+            >
               <div
                 aria-hidden
-                className="relative font-serif select-none pointer-events-none"
+                className="font-sans select-none pointer-events-none text-center"
                 style={{
-                  fontSize: "clamp(3.75rem, 8vw, 7.5rem)",
-                  fontWeight: 400,
-                  lineHeight: 0.92,
-                  letterSpacing: "-0.055em",
+                  fontSize: "clamp(2.75rem, 5.6vw, 5rem)",
+                  fontWeight: 500,
+                  lineHeight: 1,
+                  letterSpacing: "-0.04em",
                   color: "rgba(245,240,230,0.98)",
-                  zIndex: 1,
                 }}
               >
                 <AnimatePresence mode="wait">
@@ -429,16 +414,20 @@ function NamePageInner({
                       initial={
                         reduced
                           ? false
-                          : { opacity: 0, y: 12, filter: "blur(6px)" }
+                          : { opacity: 0, y: 10, filter: "blur(4px)" }
                       }
-                      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        filter: "blur(0px)",
+                      }}
                       exit={
                         reduced
                           ? undefined
-                          : { opacity: 0, y: -6, filter: "blur(6px)" }
+                          : { opacity: 0, y: -6, filter: "blur(4px)" }
                       }
                       transition={{
-                        duration: 0.5,
+                        duration: 0.4,
                         ease: [0.2, 0.7, 0.2, 1],
                       }}
                       style={{ display: "inline-block" }}
@@ -458,21 +447,10 @@ function NamePageInner({
                       transition={{ duration: 0.3 }}
                       style={{
                         display: "inline-block",
-                        color: "rgba(245,240,230,0.45)",
+                        color: "rgba(245,240,230,0.32)",
                       }}
                     >
-                      name me
-                      <span
-                        style={{
-                          color: accent,
-                          opacity: 0.72,
-                          fontSize: "0.7em",
-                          verticalAlign: "0.04em",
-                          marginLeft: "0.04em",
-                        }}
-                      >
-                        .
-                      </span>
+                      Type a name
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -492,52 +470,53 @@ function NamePageInner({
                 autoComplete="off"
                 spellCheck={false}
                 aria-label="Agent name"
-                /* Input is positioned over the display layer. Its TEXT
-                   is transparent (the display shows the typed name)
-                   but its CARET is accent-colored so the user sees a
-                   live cursor when focused — that's the "I'm typing"
-                   feedback. */
-                className="absolute inset-0 w-full h-full bg-transparent border-0 outline-none font-serif text-center"
+                className="absolute inset-0 w-full h-full bg-transparent border-0 outline-none font-sans text-center"
                 style={{
-                  fontSize: "clamp(3.75rem, 8vw, 7.5rem)",
-                  fontWeight: 400,
-                  lineHeight: 0.92,
-                  letterSpacing: "-0.055em",
+                  fontSize: "clamp(2.75rem, 5.6vw, 5rem)",
+                  fontWeight: 500,
+                  lineHeight: 1,
+                  letterSpacing: "-0.04em",
                   color: "transparent",
                   caretColor: accent,
                 }}
               />
             </div>
 
-            {/* Continue — shared component, fixed indigo across all
-                agents. Only appears once there's a name. */}
-            <AnimatePresence>
-              {canContinue && (
-                <motion.div
-                  key="continue"
-                  initial={
-                    reduced
-                      ? false
-                      : { opacity: 0, y: 12, filter: "blur(6px)" }
-                  }
-                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  exit={reduced ? undefined : { opacity: 0, y: -4 }}
-                  transition={{
-                    duration: 0.45,
-                    ease: [0.2, 0.7, 0.2, 1],
-                  }}
-                  className="mt-12"
-                >
-                  <ContinueButton onClick={onContinue}>
-                    Continue
-                    <span aria-hidden style={{ marginLeft: "0.7em" }}>
-                      →
-                    </span>
-                  </ContinueButton>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+            {/* Continue — inside the card, fades in once name is set */}
+            <div className="mt-10 flex justify-center min-h-[56px]">
+              <AnimatePresence>
+                {canContinue && (
+                  <motion.div
+                    key="continue"
+                    initial={
+                      reduced
+                        ? false
+                        : { opacity: 0, y: 10, filter: "blur(4px)" }
+                    }
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                      filter: "blur(0px)",
+                    }}
+                    exit={
+                      reduced ? undefined : { opacity: 0, y: -4 }
+                    }
+                    transition={{
+                      duration: 0.45,
+                      ease: [0.2, 0.7, 0.2, 1],
+                    }}
+                  >
+                    <ContinueButton onClick={onContinue}>
+                      Continue
+                      <span aria-hidden style={{ marginLeft: "0.7em" }}>
+                        →
+                      </span>
+                    </ContinueButton>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
         </div>
 
         {/* Back link — bottom-left, mono, muted */}
