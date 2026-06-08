@@ -251,7 +251,7 @@ export default function PersonalityPage() {
                   </h1>
 
                   <p
-                    className="mt-7 font-serif italic max-w-[30ch]"
+                    className="mt-7 font-serif italic max-w-[50ch]"
                     style={{
                       fontSize: "clamp(1rem, 1.35vw, 1.1875rem)",
                       lineHeight: 1.45,
