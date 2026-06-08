@@ -320,15 +320,61 @@ function NamePageInner({
           >
             {/* Hero — either the typed name or the prompt, centered */}
             <div className="relative">
+              {/* Soft accent halo beneath the name. Only visible once
+                  a name is filled (the empty-state prompt stays clean
+                  with no light). Breathes very slowly on a 14s loop —
+                  one tiny spotlight on the named moment, tying the
+                  typed name visually to the agent's voice. */}
+              <AnimatePresence>
+                {trimmed && (
+                  <motion.div
+                    aria-hidden
+                    key="name-halo"
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: "50%",
+                      bottom: "-30%",
+                      width: "80%",
+                      height: "100%",
+                      marginLeft: "-40%",
+                      background: `radial-gradient(ellipse at center, ${accent}28 0%, ${accent}0d 35%, transparent 70%)`,
+                      filter: "blur(46px)",
+                      zIndex: 0,
+                    }}
+                    initial={
+                      reduced ? false : { opacity: 0, scale: 0.92 }
+                    }
+                    animate={
+                      reduced
+                        ? { opacity: 0.7 }
+                        : {
+                            opacity: [0.55, 0.85, 0.55],
+                            scale: [1, 1.06, 1],
+                          }
+                    }
+                    exit={reduced ? undefined : { opacity: 0 }}
+                    transition={
+                      reduced
+                        ? { duration: 0.5 }
+                        : {
+                            duration: 14,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                          }
+                    }
+                  />
+                )}
+              </AnimatePresence>
               <div
                 aria-hidden
-                className="font-serif select-none pointer-events-none"
+                className="relative font-serif select-none pointer-events-none"
                 style={{
                   fontSize: "clamp(3.75rem, 8vw, 7.5rem)",
                   fontWeight: 400,
                   lineHeight: 0.92,
                   letterSpacing: "-0.055em",
                   color: "rgba(245,240,230,0.98)",
+                  zIndex: 1,
                 }}
               >
                 <AnimatePresence mode="wait">
