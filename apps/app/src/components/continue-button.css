@@ -1,5 +1,6 @@
 /* ContinueButton — adapted from Uiverse (Javierrocadev) three-orb
-   pill button. Indigo color scheme is FIXED across agents. */
+   pill button. Pure NEUTRAL — no color anywhere — so it doesn't
+   compete with the changing personality accent in the page bg. */
 
 .continue-button {
   position: relative;
@@ -10,7 +11,7 @@
   min-width: 220px;
   padding: 0 30px;
   border-radius: 999px;
-  background: rgba(20, 20, 24, 0.6);
+  background: rgba(12, 12, 14, 0.75);
   border: 1.5px solid rgba(255, 255, 255, 0.08);
   color: rgba(245, 240, 230, 0.96);
   font-family: var(--font-serif);
@@ -27,7 +28,7 @@
   -webkit-backdrop-filter: blur(20px);
 }
 
-/* Smaller orb — top right corner */
+/* Smaller orb — top right corner. Neutral white at low alpha. */
 .continue-button::before {
   content: "";
   position: absolute;
@@ -35,19 +36,20 @@
   height: 48px;
   right: 6px;
   top: 4px;
-  background: #6366f1; /* indigo-500 — deeper */
+  background: rgba(255, 255, 255, 0.22);
   border-radius: 50%;
-  filter: blur(14px);
+  filter: blur(16px);
   z-index: 1;
   transition:
     right 500ms cubic-bezier(0.4, 0, 0.2, 1),
     top 500ms cubic-bezier(0.4, 0, 0.2, 1),
     bottom 500ms cubic-bezier(0.4, 0, 0.2, 1),
-    filter 500ms cubic-bezier(0.4, 0, 0.2, 1);
+    filter 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    background 500ms cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 
-/* Larger orb — middle right */
+/* Larger orb — middle right. Slightly brighter white wash. */
 .continue-button::after {
   content: "";
   position: absolute;
@@ -55,23 +57,24 @@
   height: 78px;
   right: 28px;
   top: 8px;
-  background: #a5b4fc; /* indigo-300 — lighter */
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 50%;
-  filter: blur(16px);
+  filter: blur(18px);
   z-index: 1;
   transition:
     right 500ms cubic-bezier(0.4, 0, 0.2, 1),
-    filter 500ms cubic-bezier(0.4, 0, 0.2, 1);
+    filter 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    background 500ms cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 
-/* Hover — both orbs drift, border picks up indigo glow */
+/* Hover — orbs drift; border + glow brighten neutrally (no color). */
 .continue-button:hover:not(:disabled) {
-  border-color: rgba(165, 180, 252, 0.55);
-  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(20, 20, 24, 0.82);
   box-shadow:
-    0 0 38px -6px rgba(99, 102, 241, 0.55),
-    inset 0 0 18px rgba(165, 180, 252, 0.08);
+    0 0 38px -6px rgba(255, 255, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .continue-button:hover:not(:disabled)::before {
