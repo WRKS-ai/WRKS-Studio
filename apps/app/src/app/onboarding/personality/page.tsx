@@ -161,7 +161,7 @@ export default function PersonalityPage() {
             as you cycle through agents. */}
         <LiquidAurora accent={accent} accentDeep={previewed.accentDeep} />
 
-        <div className="relative w-full max-w-[1440px] flex flex-col gap-14 lg:gap-20">
+        <div className="relative w-full max-w-[1440px] flex flex-col gap-10">
           {/* Act header — top-left anchor */}
           <motion.div
             initial={
@@ -251,7 +251,7 @@ export default function PersonalityPage() {
                   </h1>
 
                   <p
-                    className="mt-7 font-serif italic max-w-[50ch]"
+                    className="mt-6 font-serif italic max-w-[50ch]"
                     style={{
                       fontSize: "clamp(1rem, 1.35vw, 1.1875rem)",
                       lineHeight: 1.45,
@@ -282,7 +282,7 @@ export default function PersonalityPage() {
                 }
                 whileTap={{ scale: 0.97 }}
                 transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
-                className="mt-12 inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative"
+                className="mt-10 inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative"
                 style={{
                   fontSize: 16,
                   background: "transparent",
