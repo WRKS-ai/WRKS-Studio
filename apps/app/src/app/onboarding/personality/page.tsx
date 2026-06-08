@@ -137,6 +137,7 @@ export default function PersonalityPage() {
   }, [total]);
 
   const onContinue = useCallback(async () => {
+    console.log("[onboarding/personality] Continue clicked — pre-grant mic");
     stopAudio();
     localStorage.setItem(STORAGE_KEY, previewed.id);
     localStorage.setItem(VOICE_KEY, previewed.voiceId);
@@ -149,9 +150,12 @@ export default function PersonalityPage() {
         audio: true,
       });
       stream.getTracks().forEach((t) => t.stop());
-    } catch {
-      // User denied or browser blocked — the next page will fall back
-      // to its tap-to-start affordance.
+      console.log("[onboarding/personality] mic pre-grant succeeded");
+    } catch (err) {
+      console.warn(
+        "[onboarding/personality] mic pre-grant failed:",
+        err,
+      );
     }
     router.push("/onboarding/name");
   }, [previewed.id, previewed.voiceId, router, stopAudio]);

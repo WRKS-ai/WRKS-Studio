@@ -223,9 +223,14 @@ function NamePageInner({
 
   /* ── Session control ── */
   const startVoice = useCallback(async () => {
+    console.log("[onboarding/name] startVoice begin");
     setVoiceState("connecting");
     try {
+      console.log("[onboarding/name] requesting mic…");
       await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log("[onboarding/name] mic granted");
+
+      console.log("[onboarding/name] fetching signed URL…");
       const res = await fetch("/api/voice/signed-url");
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as
@@ -236,6 +241,7 @@ function NamePageInner({
         );
       }
       const { signedUrl } = (await res.json()) as { signedUrl: string };
+      console.log("[onboarding/name] signed URL ready, opening session…");
 
       const systemPrompt = buildOnboardingSystemPrompt({
         personality,
@@ -258,6 +264,7 @@ function NamePageInner({
           },
         },
       });
+      console.log("[onboarding/name] session started");
     } catch (err) {
       console.error("[onboarding/name] startVoice failed:", err);
       setVoiceState("error");
@@ -273,13 +280,16 @@ function NamePageInner({
     setVoiceState("idle");
   }, [conversation]);
 
+  // Auto-start the live agent on mount. No setTimeout — the cleanup
+  // race in React Strict Mode (dev) was killing the start: first mount
+  // schedules timeout; cleanup clears it; second mount sees
+  // startAttempted=true and bails. Fire immediately, with no cleanup,
+  // so the timeout doesn't get cancelled.
   useEffect(() => {
     if (startAttempted.current) return;
     startAttempted.current = true;
-    const t = setTimeout(() => {
-      startVoice();
-    }, 400);
-    return () => clearTimeout(t);
+    console.log("[onboarding/name] auto-start firing");
+    startVoice();
   }, [startVoice]);
 
   useEffect(() => {
