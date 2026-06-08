@@ -19,10 +19,10 @@ export async function GET() {
 
   // Be specific about which env var is missing so the client console
   // tells us exactly what to add on Vercel — saves a debug round trip.
-  const missing: string[] = [];
-  if (!apiKey) missing.push("ELEVENLABS_API_KEY");
-  if (!agentId) missing.push("ELEVENLABS_AGENT_ID");
-  if (missing.length > 0) {
+  if (!apiKey || !agentId) {
+    const missing: string[] = [];
+    if (!apiKey) missing.push("ELEVENLABS_API_KEY");
+    if (!agentId) missing.push("ELEVENLABS_AGENT_ID");
     return NextResponse.json(
       {
         error: `Voice not configured. Missing env var(s): ${missing.join(", ")}.`,
