@@ -136,21 +136,13 @@ export function OnboardingFrame({
         >
           <Link
             href="/"
-            className="inline-flex items-center gap-2.5 group"
+            className="inline-flex items-center group"
             aria-label="WRKS Studio home"
           >
             <span
-              className="size-2 rounded-full transition-transform group-hover:scale-110"
+              className="leading-none transition-transform group-hover:scale-[1.02]"
               style={{
-                background:
-                  "linear-gradient(135deg, #ffffff 0%, #d9c79c 60%, #927b3f 100%)",
-                boxShadow: "0 0 8px rgba(217,199,156,0.5)",
-              }}
-            />
-            <span
-              className="leading-none"
-              style={{
-                fontSize: 15,
+                fontSize: 19,
                 lineHeight: 1,
               }}
             >
@@ -159,8 +151,6 @@ export function OnboardingFrame({
                 speed={7}
                 delay={0.5}
                 yoyo
-                /* Lighter base than the marketing version — at 15px the
-                   dark #262030 base reads as illegible mush. */
                 color="#857c92"
                 shineColor="#f5f0e6"
                 spread={100}
