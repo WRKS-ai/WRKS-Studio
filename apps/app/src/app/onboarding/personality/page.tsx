@@ -54,15 +54,12 @@ export default function PersonalityPage() {
   const router = useRouter();
   const reduced = useReducedMotion();
 
+  // Always land on the free/unlocked voice (index 0 = maven/Brad).
+  // We don't restore from localStorage anymore — restoring a locked
+  // voice slot would just dump the user on an upgrade CTA when they
+  // hit the page, which is wrong. When/if more voices become free,
+  // revisit and restore the LAST FREE selection.
   const [index, setIndex] = useState<number>(0);
-
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY) as PersonalityId | null;
-    if (saved && PERSONALITIES.some((p) => p.id === saved)) {
-      const i = PERSONALITIES.findIndex((p) => p.id === saved);
-      if (i >= 0) setIndex(i);
-    }
-  }, []);
 
   const previewed = PERSONALITIES[index]!;
   const total = PERSONALITIES.length;
