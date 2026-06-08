@@ -135,11 +135,11 @@ export function OnboardingFrame({
         >
           <Link
             href="/"
-            className="inline-flex items-center gap-2 group"
+            className="inline-flex items-center gap-2.5 group"
             aria-label="WRKS Studio home"
           >
             <span
-              className="size-1.5 rounded-full transition-transform group-hover:scale-110"
+              className="size-2 rounded-full transition-transform group-hover:scale-110"
               style={{
                 background:
                   "linear-gradient(135deg, #ffffff 0%, #d9c79c 60%, #927b3f 100%)",
@@ -147,13 +147,15 @@ export function OnboardingFrame({
               }}
             />
             <span
-              className="text-[12px] tracking-[0.18em]"
+              className="font-serif leading-none"
               style={{
-                color: "rgba(245,240,230,0.6)",
-                fontFamily: "var(--font-mono)",
+                fontSize: 16,
+                fontWeight: 500,
+                letterSpacing: "-0.01em",
+                color: "rgba(245,240,230,0.82)",
               }}
             >
-              WRKS · STUDIO
+              Wrks
             </span>
           </Link>
         </motion.div>
