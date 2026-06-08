@@ -12,7 +12,15 @@ import { VOICES } from "@/lib/voices";
 
 const STORAGE_KEY = "wrks-onboarding-personality";
 const VOICE_KEY = "wrks-onboarding-voice";
-const PLANS_ROUTE = "/studio/plans";
+// Pricing lives on the marketing site (separate Next.js app at
+// wrksstudio.com). Opens in a new tab so the user doesn't lose
+// their in-progress onboarding session.
+const PLANS_URL = "https://wrksstudio.com/#pricing";
+const openPricing = () => {
+  if (typeof window !== "undefined") {
+    window.open(PLANS_URL, "_blank", "noopener,noreferrer");
+  }
+};
 
 // Act One — pick your AGENT'S VOICE. Only one voice (the one our
 // ElevenLabs dashboard agent is wired to — currently Brad) is on the
@@ -263,7 +271,7 @@ export default function PersonalityPage() {
                   voices route to /studio/plans instead of advancing. */}
               {VOICE_INFO[previewed.id].isLocked ? (
                 <ContinueButton
-                  onClick={() => router.push(PLANS_ROUTE)}
+                  onClick={openPricing}
                   className="mt-10"
                 >
                   Unlock with Premium
@@ -304,7 +312,7 @@ export default function PersonalityPage() {
                   playState={playState}
                   progressRatio={progressRatio}
                   onTogglePlay={toggleListen}
-                  onLockedSideClick={() => router.push(PLANS_ROUTE)}
+                  onLockedSideClick={openPricing}
                 />
                 <GlassNavArrow
                   direction="right"
