@@ -25,17 +25,19 @@ const PLANS_ROUTE = "/studio/plans";
 // the page UI treats each option as "a voice you can pick" because
 // that's what the user is choosing.
 
+// Voices are described by CHARACTER, not by proper name — the user
+// picks a name for their agent on the very next page, so showing
+// voice names like "Aria" / "Brad" here muddles which name is which.
+// A two-word character descriptor (warm & casual, confident & bright,
+// etc.) is what actually matters when choosing how the agent sounds.
 const VOICE_INFO: Record<
   PersonalityId,
-  { name: string; description: string; isLocked: boolean }
+  { character: string; isLocked: boolean }
 > = {
-  // The dashboard agent currently runs on Brad — this is the free
-  // voice. Keep one personality slot unlocked.
-  maven: { name: "Brad", description: "Welcoming & casual", isLocked: false },
-  // Premium previews — clicking them routes to plans.
-  sage: { name: "Aria", description: "Confident & bright", isLocked: true },
-  spark: { name: "Charlotte", description: "Smooth & elegant", isLocked: true },
-  echo: { name: "River", description: "Deep & resonant", isLocked: true },
+  maven: { character: "Warm & casual", isLocked: false },
+  sage: { character: "Confident & bright", isLocked: true },
+  spark: { character: "Smooth & elegant", isLocked: true },
+  echo: { character: "Deep & resonant", isLocked: true },
 };
 
 type PlayState = "idle" | "loading" | "playing" | "error";
@@ -201,7 +203,7 @@ export default function PersonalityPage() {
                 fontFamily: "var(--font-mono)",
               }}
             >
-              Act One — The Cast
+              Act One — Choose a Voice
             </span>
           </motion.div>
 
@@ -245,82 +247,55 @@ export default function PersonalityPage() {
                       every decorative mono label was reading as an
                       AI-template tell. Just the name and the
                       tagline, given room to breathe. */}
+                  {/* Tiny "PREMIUM" pill above the hero when locked
+                      — keeps the status visible without crowding
+                      the descriptor below. */}
+                  {VOICE_INFO[previewed.id].isLocked && (
+                    <span
+                      className="mb-5 inline-block text-[10px] tracking-[0.32em] uppercase"
+                      style={{
+                        color: "rgba(245,240,230,0.55)",
+                        fontFamily: "var(--font-mono)",
+                        padding: "3px 10px",
+                        borderRadius: 999,
+                        border: "1px solid rgba(255,255,255,0.18)",
+                        background: "rgba(255,255,255,0.04)",
+                      }}
+                    >
+                      Premium
+                    </span>
+                  )}
                   <h1
                     className="font-serif"
                     style={{
-                      fontSize: "clamp(3.75rem, 8vw, 7.5rem)",
+                      fontSize: "clamp(3rem, 6.5vw, 6rem)",
                       fontWeight: 400,
-                      lineHeight: 0.92,
-                      letterSpacing: "-0.055em",
+                      lineHeight: 1.02,
+                      letterSpacing: "-0.04em",
                       color: "rgba(245,240,230,0.98)",
                     }}
                   >
-                    {VOICE_INFO[previewed.id].name}
+                    {VOICE_INFO[previewed.id].character}
                   </h1>
-
-                  <p
-                    className="mt-6 font-serif italic max-w-[50ch]"
-                    style={{
-                      fontSize: "clamp(1rem, 1.35vw, 1.1875rem)",
-                      lineHeight: 1.45,
-                      letterSpacing: "-0.005em",
-                      color: "rgba(245,240,230,0.62)",
-                    }}
-                  >
-                    {VOICE_INFO[previewed.id].description}
-                    {VOICE_INFO[previewed.id].isLocked && (
-                      <span
-                        className="ml-2 inline-block align-middle text-[10px] tracking-[0.32em] uppercase"
-                        style={{
-                          color: "rgba(245,240,230,0.4)",
-                          fontFamily: "var(--font-mono)",
-                          padding: "2px 8px",
-                          borderRadius: 999,
-                          border: "1px solid rgba(255,255,255,0.16)",
-                          background: "rgba(255,255,255,0.04)",
-                        }}
-                      >
-                        Premium
-                      </span>
-                    )}
-                  </p>
                 </motion.div>
               </AnimatePresence>
 
-              {/* Continue — locked voices get an upgrade CTA that
-                  routes to /studio/plans instead of advancing the
-                  onboarding flow. */}
+              {/* Continue — neutral copy (no voice/agent name yet —
+                  the user picks a name on the next page). Locked
+                  voices route to /studio/plans instead of advancing. */}
               {VOICE_INFO[previewed.id].isLocked ? (
                 <ContinueButton
                   onClick={() => router.push(PLANS_ROUTE)}
                   className="mt-10"
                 >
-                  Unlock{" "}
-                  <span style={{ display: "inline-block" }}>
-                    {VOICE_INFO[previewed.id].name}
-                  </span>
+                  Unlock with Premium
                   <span aria-hidden style={{ marginLeft: "0.6em" }}>
                     →
                   </span>
                 </ContinueButton>
               ) : (
                 <ContinueButton onClick={onContinue} className="mt-10">
-                  Continue with{" "}
-                  <AnimatePresence mode="wait">
-                    <motion.span
-                      key={previewed.id}
-                      initial={reduced ? false : { opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={reduced ? undefined : { opacity: 0, y: -4 }}
-                      transition={{
-                        duration: 0.3,
-                        ease: [0.2, 0.7, 0.2, 1],
-                      }}
-                      style={{ display: "inline-block" }}
-                    >
-                      {VOICE_INFO[previewed.id].name}
-                    </motion.span>
-                  </AnimatePresence>
+                  Continue
                   <span aria-hidden style={{ marginLeft: "0.6em" }}>
                     →
                   </span>
