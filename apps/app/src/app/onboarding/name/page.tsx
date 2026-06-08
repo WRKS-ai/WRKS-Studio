@@ -8,6 +8,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ContinueButton } from "@/components/continue-button";
 import { OnboardingFrame } from "@/components/onboarding-frame";
 import { orbColorsFromAccent, SiriOrb } from "@/components/siri-orb";
 import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
@@ -417,62 +418,32 @@ function NamePageInner({
               />
             </div>
 
-            {/* Continue — only appears when there's a name */}
+            {/* Continue — shared component, fixed indigo across all
+                agents. Only appears once there's a name. */}
             <AnimatePresence>
               {canContinue && (
-                <motion.button
+                <motion.div
                   key="continue"
-                  type="button"
-                  onClick={onContinue}
                   initial={
                     reduced
                       ? false
                       : { opacity: 0, y: 12, filter: "blur(6px)" }
                   }
                   animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  exit={
-                    reduced ? undefined : { opacity: 0, y: -4 }
-                  }
-                  whileHover={
-                    reduced
-                      ? undefined
-                      : {
-                          scale: 1.03,
-                          backgroundColor: `${accent}14`,
-                          boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
-                        }
-                  }
-                  whileTap={{ scale: 0.97 }}
+                  exit={reduced ? undefined : { opacity: 0, y: -4 }}
                   transition={{
                     duration: 0.45,
                     ease: [0.2, 0.7, 0.2, 1],
                   }}
-                  className="mt-12 inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative"
-                  style={{
-                    fontSize: 16,
-                    background: "transparent",
-                    border: `1.5px solid ${accent}cc`,
-                    color: "rgba(245,240,230,0.96)",
-                    boxShadow: `0 0 26px -6px ${accent}aa`,
-                  }}
+                  className="mt-12"
                 >
-                  <span>
+                  <ContinueButton onClick={onContinue}>
                     Continue
-                  </span>
-                  <motion.span
-                    aria-hidden
-                    className="inline-block"
-                    style={{ color: accent }}
-                    animate={reduced ? undefined : { x: [0, 4, 0] }}
-                    transition={{
-                      duration: 1.8,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                  >
-                    →
-                  </motion.span>
-                </motion.button>
+                    <span aria-hidden style={{ marginLeft: "0.7em" }}>
+                      →
+                    </span>
+                  </ContinueButton>
+                </motion.div>
               )}
             </AnimatePresence>
           </div>

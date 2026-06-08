@@ -3,6 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ContinueButton } from "@/components/continue-button";
 import { LiquidAurora } from "@/components/liquid-aurora";
 import { OnboardingFrame } from "@/components/onboarding-frame";
 import { PERSONALITIES } from "@/lib/personalities";
@@ -265,65 +266,33 @@ export default function PersonalityPage() {
                 </motion.div>
               </AnimatePresence>
 
-              {/* Continue — anchored under the text column.
-                  Border uses the personality accent at 80% alpha so
-                  the color reads cleanly (was 40% which looked muddy
-                  / reddish against the dark canvas). */}
-              <motion.button
-                type="button"
+              {/* Continue — shared component, fixed indigo color
+                  scheme across all agents (the per-agent accent
+                  driving the button is gone). */}
+              <ContinueButton
                 onClick={onContinue}
-                whileHover={
-                  reduced
-                    ? undefined
-                    : {
-                        scale: 1.03,
-                        backgroundColor: `${accent}14`,
-                        boxShadow: `0 0 38px -4px ${accent}cc, inset 0 0 16px ${accent}22`,
-                      }
-                }
-                whileTap={{ scale: 0.97 }}
-                transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
-                className="mt-10 inline-flex items-center gap-3 h-12 px-6 rounded-full font-serif relative"
-                style={{
-                  fontSize: 16,
-                  background: "transparent",
-                  border: `1.5px solid ${accent}cc`,
-                  color: "rgba(245,240,230,0.96)",
-                  boxShadow: `0 0 26px -6px ${accent}aa`,
-                }}
+                className="mt-10"
               >
-                <span>
-                  Continue as{" "}
-                  <AnimatePresence mode="wait">
-                    <motion.span
-                      key={previewed.id}
-                      initial={reduced ? false : { opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={reduced ? undefined : { opacity: 0, y: -4 }}
-                      transition={{
-                        duration: 0.3,
-                        ease: [0.2, 0.7, 0.2, 1],
-                      }}
-                      style={{ color: accent, display: "inline-block" }}
-                    >
-                      {previewed.name}
-                    </motion.span>
-                  </AnimatePresence>
-                </span>
-                <motion.span
-                  aria-hidden
-                  className="inline-block"
-                  style={{ color: accent }}
-                  animate={reduced ? undefined : { x: [0, 4, 0] }}
-                  transition={{
-                    duration: 1.8,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                >
+                Continue as{" "}
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={previewed.id}
+                    initial={reduced ? false : { opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduced ? undefined : { opacity: 0, y: -4 }}
+                    transition={{
+                      duration: 0.3,
+                      ease: [0.2, 0.7, 0.2, 1],
+                    }}
+                    style={{ display: "inline-block" }}
+                  >
+                    {previewed.name}
+                  </motion.span>
+                </AnimatePresence>
+                <span aria-hidden style={{ marginLeft: "0.6em" }}>
                   →
-                </motion.span>
-              </motion.button>
+                </span>
+              </ContinueButton>
             </div>
 
             {/* RIGHT — orb carousel with glass nav arrows.
