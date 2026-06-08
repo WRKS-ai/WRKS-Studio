@@ -275,7 +275,7 @@ export default function IntakePage() {
 
   return (
     <OnboardingFrame step={3} totalSteps={5} bloomTint={undefined}>
-      <div className="relative mx-auto max-w-[1240px] min-h-[calc(100vh-120px)] px-10 sm:px-14 py-12">
+      <div className="relative mx-auto max-w-[1440px] min-h-[calc(100vh-120px)] px-10 sm:px-14 py-12">
         {/* Eyebrow */}
         <motion.div
           initial={reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }}
@@ -298,14 +298,15 @@ export default function IntakePage() {
           </span>
         </motion.div>
 
-        {/* Body — asymmetric grid, hard-capped so it matches step 1's
-            720px column on wide viewports instead of spreading across
-            the full screen. Left col tops out at 720px (the /name card
-            width), right col at 380px for the ledger. */}
+        {/* Body — asymmetric grid. Outer wrapper caps at 1440px to
+            match /personality; the grid fills that width with a 1.55:1
+            asymmetric proportion. Left col holds the focal headline +
+            answer (answer section itself stays at 720px max for visual
+            consistency with /name's card); right col is the ledger. */}
         <div
-          className="mt-20 grid gap-x-12 gap-y-10"
+          className="mt-20 grid gap-x-12 lg:gap-x-16 gap-y-10"
           style={{
-            gridTemplateColumns: "minmax(0, 720px) minmax(0, 380px)",
+            gridTemplateColumns: "minmax(0, 1.55fr) minmax(0, 1fr)",
           }}
         >
           {/* Left — hero question + inline answer.
