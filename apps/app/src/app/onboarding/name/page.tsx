@@ -77,6 +77,7 @@ function NamePageInner({
   const accentDeep = personality.accentDeep;
 
   const [name, setName] = useState("");
+  const [inputFocused, setInputFocused] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const inputRef = useRef<HTMLInputElement>(null);
   const startAttempted = useRef(false);
@@ -357,11 +358,13 @@ function NamePageInner({
                     <motion.span
                       key="prompt"
                       initial={reduced ? false : { opacity: 0 }}
-                      animate={{ opacity: 1 }}
+                      animate={{
+                        opacity: inputFocused ? 0.2 : 1,
+                      }}
                       exit={
                         reduced ? undefined : { opacity: 0, y: 6 }
                       }
-                      transition={{ duration: 0.4 }}
+                      transition={{ duration: 0.3 }}
                       style={{
                         display: "inline-block",
                         color: "rgba(245,240,230,0.45)",
@@ -391,16 +394,26 @@ function NamePageInner({
                   setName(e.target.value.slice(0, MAX_LEN))
                 }
                 onKeyDown={onKeyDown}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
                 placeholder=""
                 maxLength={MAX_LEN}
                 autoComplete="off"
                 spellCheck={false}
                 aria-label="Agent name"
-                className="absolute inset-0 w-full h-full bg-transparent border-0 outline-none font-serif text-center opacity-0"
+                /* Input is positioned over the display layer. Its TEXT
+                   is transparent (the display shows the typed name)
+                   but its CARET is accent-colored so the user sees a
+                   live cursor when focused — that's the "I'm typing"
+                   feedback. */
+                className="absolute inset-0 w-full h-full bg-transparent border-0 outline-none font-serif text-center"
                 style={{
                   fontSize: "clamp(3.75rem, 8vw, 7.5rem)",
+                  fontWeight: 400,
                   lineHeight: 0.92,
-                  caretColor: "transparent",
+                  letterSpacing: "-0.055em",
+                  color: "transparent",
+                  caretColor: accent,
                 }}
               />
             </div>
