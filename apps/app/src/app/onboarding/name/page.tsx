@@ -597,7 +597,7 @@ function NamePageInner({
             are messages, shows the live agent ↔ user exchange */}
         <ConversationPanel
           messages={messages}
-          agentName={personality.name}
+          agentName={voice.name}
           visible={messages.length > 0}
           accent={accent}
         />
@@ -827,91 +827,160 @@ function ConversationPanel({
           style={{
             bottom: 112,
             right: 32,
-            width: 360,
-            maxHeight: 320,
-            borderRadius: 22,
+            width: 400,
+            maxHeight: 360,
+            borderRadius: 26,
             background:
-              "linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)",
-            border: "1px solid rgba(255,255,255,0.09)",
-            backdropFilter: "blur(28px)",
-            WebkitBackdropFilter: "blur(28px)",
+              "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.018) 50%, rgba(255,255,255,0.01) 100%)",
+            border: "1px solid rgba(255,255,255,0.11)",
+            backdropFilter: "blur(36px) saturate(160%)",
+            WebkitBackdropFilter: "blur(36px) saturate(160%)",
             boxShadow:
-              "inset 0 1px 0 rgba(255,255,255,0.07), 0 24px 60px -16px rgba(0,0,0,0.65)",
+              "inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(255,255,255,0.02), 0 32px 64px -16px rgba(0,0,0,0.7), 0 8px 24px -8px rgba(0,0,0,0.5)",
             overflow: "hidden",
             transformOrigin: "bottom right",
           }}
         >
-          {/* Header strip — small "Live" indicator with pulsing dot */}
+          {/* Specular highlight — soft light catching on the top edge,
+              gives the glass a real refractive feel */}
           <div
-            className="flex items-center gap-2 px-4 py-3"
+            aria-hidden
+            className="absolute pointer-events-none"
             style={{
-              borderBottom: "1px solid rgba(255,255,255,0.05)",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 60,
+              background:
+                "radial-gradient(ellipse 80% 100% at 50% 0%, rgba(255,255,255,0.06), transparent 70%)",
+            }}
+          />
+
+          {/* Header — refined LIVE pill + agent name */}
+          <div
+            className="relative flex items-center justify-between px-5 pt-4 pb-3.5"
+            style={{
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
             }}
           >
-            <motion.span
-              aria-hidden
-              className="inline-block rounded-full"
-              style={{
-                width: 6,
-                height: 6,
-                background: accent,
-                boxShadow: `0 0 8px ${accent}`,
-              }}
-              animate={
-                reduced ? { opacity: 1 } : { opacity: [0.4, 1, 0.4] }
-              }
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            />
+            <div className="flex items-center gap-2.5">
+              <div className="relative flex items-center justify-center">
+                <motion.span
+                  aria-hidden
+                  className="inline-block rounded-full"
+                  style={{
+                    width: 7,
+                    height: 7,
+                    background: accent,
+                    boxShadow: `0 0 10px ${accent}, 0 0 4px ${accent}`,
+                  }}
+                  animate={
+                    reduced ? { opacity: 1 } : { opacity: [0.5, 1, 0.5] }
+                  }
+                  transition={{
+                    duration: 1.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+                {!reduced && (
+                  <motion.span
+                    aria-hidden
+                    className="absolute inline-block rounded-full"
+                    style={{
+                      width: 7,
+                      height: 7,
+                      border: `1px solid ${accent}`,
+                    }}
+                    animate={{
+                      scale: [1, 2.2],
+                      opacity: [0.6, 0],
+                    }}
+                    transition={{
+                      duration: 1.8,
+                      repeat: Infinity,
+                      ease: "easeOut",
+                    }}
+                  />
+                )}
+              </div>
+              <span
+                className="text-[10px] tracking-[0.32em] uppercase"
+                style={{
+                  color: "rgba(245,240,230,0.55)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                Live
+              </span>
+            </div>
             <span
-              className="text-[10px] tracking-[0.28em] uppercase"
+              className="text-[10.5px] tracking-[0.28em] uppercase"
               style={{
-                color: "rgba(245,240,230,0.55)",
+                color: "rgba(245,240,230,0.7)",
                 fontFamily: "var(--font-mono)",
               }}
             >
-              Live · {agentName}
+              {agentName}
             </span>
           </div>
 
-          {/* Message list — scrollable, auto-scrolls to latest */}
+          {/* Message list — scrollable bubbles with role-based treatment */}
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3.5"
+            className="relative flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3"
           >
-            {messages.map((msg) => (
-              <div key={msg.id} className="flex flex-col gap-1">
-                <span
-                  className="text-[9.5px] tracking-[0.28em] uppercase"
-                  style={{
-                    color:
-                      msg.role === "agent"
-                        ? "rgba(245,240,230,0.45)"
-                        : "rgba(245,240,230,0.32)",
-                    fontFamily: "var(--font-mono)",
-                  }}
+            {messages.map((msg) => {
+              const isAgent = msg.role === "agent";
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex ${isAgent ? "justify-start" : "justify-end"}`}
                 >
-                  {msg.role === "agent" ? agentName : "You"}
-                </span>
-                <p
-                  className="font-sans"
-                  style={{
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                    letterSpacing: "-0.005em",
-                    color:
-                      msg.role === "agent"
-                        ? "rgba(245,240,230,0.92)"
-                        : "rgba(245,240,230,0.75)",
-                  }}
-                >
-                  {msg.text}
-                </p>
-              </div>
-            ))}
+                  <div
+                    className="max-w-[85%] flex flex-col gap-1.5"
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 16,
+                      background: isAgent
+                        ? "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)"
+                        : `linear-gradient(180deg, ${accent}22 0%, ${accent}10 100%)`,
+                      border: isAgent
+                        ? "1px solid rgba(255,255,255,0.06)"
+                        : `1px solid ${accent}33`,
+                      boxShadow: isAgent
+                        ? "inset 0 1px 0 rgba(255,255,255,0.04)"
+                        : `inset 0 1px 0 ${accent}1f`,
+                    }}
+                  >
+                    <span
+                      className="text-[9px] tracking-[0.28em] uppercase"
+                      style={{
+                        color: isAgent
+                          ? "rgba(245,240,230,0.38)"
+                          : `${accent}cc`,
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      {isAgent ? agentName : "You"}
+                    </span>
+                    <p
+                      className="font-sans"
+                      style={{
+                        fontSize: 13,
+                        lineHeight: 1.5,
+                        letterSpacing: "-0.005em",
+                        color: isAgent
+                          ? "rgba(245,240,230,0.94)"
+                          : "rgba(245,240,230,0.92)",
+                      }}
+                    >
+                      {msg.text}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </motion.div>
       )}
