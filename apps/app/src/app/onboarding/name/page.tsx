@@ -79,6 +79,10 @@ function NamePageInner({
   const [name, setName] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const [messages, setMessages] = useState<
+    Array<{ id: number; role: "agent" | "user"; text: string }>
+  >([]);
+  const messageIdRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const startAttempted = useRef(false);
   const continuing = useRef(false);
@@ -100,6 +104,19 @@ function NamePageInner({
     onError: (err: unknown) => {
       console.error("[onboarding/name] voice error:", err);
       setVoiceState("error");
+    },
+    onMessage: (event) => {
+      const source = (event as { source?: string }).source;
+      const text =
+        (event as { message?: string }).message ??
+        (event as { text?: string }).text ??
+        "";
+      if (!text) return;
+      const role =
+        source === "user" ? "user" : source === "ai" ? "agent" : null;
+      if (!role) return;
+      const id = ++messageIdRef.current;
+      setMessages((m) => [...m, { id, role, text }]);
     },
     onModeChange: (event) => {
       const mode = (event as { mode?: string }).mode;
@@ -542,6 +559,15 @@ function NamePageInner({
           ← Back
         </motion.button>
 
+        {/* Live conversation panel — opens above the orb when there
+            are messages, shows the live agent ↔ user exchange */}
+        <ConversationPanel
+          messages={messages}
+          agentName={personality.name}
+          visible={messages.length > 0}
+          accent={accent}
+        />
+
         {/* Floating live agent — Siri orb bottom-right */}
         <FloatingAgent
           voiceState={voiceState}
@@ -707,6 +733,155 @@ function FloatingAgent({
         </svg>
       )}
     </motion.button>
+  );
+}
+
+/* ============================================================
+ * ConversationPanel — premium glass card that "opens up" above
+ * the floating orb when a live exchange is happening. Shows the
+ * agent's and user's messages with small mono labels and sans
+ * body copy. Auto-scrolls to the latest. Closes when empty.
+ * ============================================================ */
+function ConversationPanel({
+  messages,
+  agentName,
+  visible,
+  accent,
+}: {
+  messages: Array<{ id: number; role: "agent" | "user"; text: string }>;
+  agentName: string;
+  visible: boolean;
+  accent: string;
+}) {
+  const reduced = useReducedMotion();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages.length]);
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          key="convo-panel"
+          initial={
+            reduced
+              ? false
+              : { opacity: 0, y: 16, scale: 0.95, filter: "blur(8px)" }
+          }
+          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+          exit={
+            reduced
+              ? undefined
+              : {
+                  opacity: 0,
+                  y: 12,
+                  scale: 0.96,
+                  filter: "blur(6px)",
+                }
+          }
+          transition={{
+            duration: 0.45,
+            ease: [0.2, 0.7, 0.2, 1],
+          }}
+          className="fixed z-30 flex flex-col"
+          style={{
+            bottom: 112,
+            right: 32,
+            width: 360,
+            maxHeight: 320,
+            borderRadius: 22,
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)",
+            border: "1px solid rgba(255,255,255,0.09)",
+            backdropFilter: "blur(28px)",
+            WebkitBackdropFilter: "blur(28px)",
+            boxShadow:
+              "inset 0 1px 0 rgba(255,255,255,0.07), 0 24px 60px -16px rgba(0,0,0,0.65)",
+            overflow: "hidden",
+            transformOrigin: "bottom right",
+          }}
+        >
+          {/* Header strip — small "Live" indicator with pulsing dot */}
+          <div
+            className="flex items-center gap-2 px-4 py-3"
+            style={{
+              borderBottom: "1px solid rgba(255,255,255,0.05)",
+            }}
+          >
+            <motion.span
+              aria-hidden
+              className="inline-block rounded-full"
+              style={{
+                width: 6,
+                height: 6,
+                background: accent,
+                boxShadow: `0 0 8px ${accent}`,
+              }}
+              animate={
+                reduced ? { opacity: 1 } : { opacity: [0.4, 1, 0.4] }
+              }
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+            <span
+              className="text-[10px] tracking-[0.28em] uppercase"
+              style={{
+                color: "rgba(245,240,230,0.55)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              Live · {agentName}
+            </span>
+          </div>
+
+          {/* Message list — scrollable, auto-scrolls to latest */}
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3.5"
+          >
+            {messages.map((msg) => (
+              <div key={msg.id} className="flex flex-col gap-1">
+                <span
+                  className="text-[9.5px] tracking-[0.28em] uppercase"
+                  style={{
+                    color:
+                      msg.role === "agent"
+                        ? "rgba(245,240,230,0.45)"
+                        : "rgba(245,240,230,0.32)",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  {msg.role === "agent" ? agentName : "You"}
+                </span>
+                <p
+                  className="font-sans"
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                    letterSpacing: "-0.005em",
+                    color:
+                      msg.role === "agent"
+                        ? "rgba(245,240,230,0.92)"
+                        : "rgba(245,240,230,0.75)",
+                  }}
+                >
+                  {msg.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
