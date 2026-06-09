@@ -6,9 +6,17 @@ import { z } from "zod";
 import {
   WOW_SYSTEM_PROMPT,
   WowDeliverablesSchema,
+  type WowDeliverables,
 } from "@/lib/wow-prompt";
 import { pexelsSearch, pexelsSearchN } from "@/lib/pexels";
 import { composeStyleBrief } from "@/lib/style-references";
+import {
+  MEMORY_KIND,
+  MEMORY_SOURCE,
+  createServiceSupabaseClient,
+  writeMemoryEntries,
+} from "@/lib/supabase";
+import type { Json, TablesInsert } from "@/lib/supabase/types";
 
 // POST /api/wow
 // Takes a user's intake answers (personality, name, business, audience,
@@ -139,6 +147,15 @@ export async function POST(req: Request) {
     // Silence unused-var lint for the convenience wrapper
     void pexelsSearch;
 
+    // Persist the generated deliverables to the memory layer so the
+    // orchestrator can recall them on future turns ("what's been built
+    // for me?"). Best-effort: a Supabase hiccup here doesn't block the
+    // wow page render — the user still gets their deliverables on the
+    // screen, we just lose the recall hook for that session.
+    void persistWowToMemory({ userId, deliv }).catch((err) => {
+      console.error("[api/wow] persist failed (non-fatal):", err);
+    });
+
     return NextResponse.json({
       deliverables: deliv,
       images: {
@@ -184,4 +201,167 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+}
+
+// ============================================================
+// Memory persistence
+// ============================================================
+// After the wow generation lands, we want the deliverables in two places:
+//   1. The `deliverables` table — these are the agent's first concrete
+//      outputs for this business. They land as status='staging' so the
+//      brief §3.2 approval flow can promote them to 'approved' later.
+//   2. The `memory_entries` table as kind='sample_output' — gets pulled
+//      into the agent's prompt on future turns so it can remember what
+//      it made (brief §5.3: "What has been built: every page, funnel,
+//      post, and creative produced and approved").
+//
+// Idempotent: re-running wow (user redoes onboarding) replaces prior
+// wow-generated staging deliverables and their memory entries. Anything
+// the user has approved survives.
+//
+// We tag wow-generated rows via deliverables.framework = "wow_template"
+// so we know to clear only those, not orchestrator-generated work.
+
+const WOW_FRAMEWORK_TAG = "wow_template";
+
+async function persistWowToMemory(args: {
+  userId: string;
+  deliv: WowDeliverables;
+}): Promise<void> {
+  const supabase = createServiceSupabaseClient();
+
+  // Find the user's active profile. If they got to /wow without
+  // completing intake, there won't be one — skip persistence (the
+  // deliverables still render; we just can't tie them to a memory).
+  const { data: profile, error: profileErr } = await supabase
+    .from("business_profiles")
+    .select("id")
+    .eq("user_id", args.userId)
+    .eq("status", "active")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (profileErr) throw profileErr;
+  if (!profile) {
+    console.warn(
+      "[api/wow] no active profile for user — skipping memory persistence",
+    );
+    return;
+  }
+
+  const profileId = profile.id;
+
+  // Brand name lands on the profile so the orchestrator can refer to
+  // it on every future turn without a join. Always overwrite — wow
+  // generation is canonical for the brand name at this point.
+  const { error: brandErr } = await supabase
+    .from("business_profiles")
+    .update({ brand_name: args.deliv.brandName })
+    .eq("id", profileId);
+  if (brandErr) {
+    console.error("[api/wow] brand_name update failed:", brandErr);
+  }
+
+  // Clear prior wow-generated staging deliverables + their memory
+  // entries. Anything approved or rejected survives.
+  await Promise.all([
+    supabase
+      .from("deliverables")
+      .delete()
+      .eq("business_profile_id", profileId)
+      .eq("framework", WOW_FRAMEWORK_TAG)
+      .eq("status", "staging"),
+    supabase
+      .from("memory_entries")
+      .delete()
+      .eq("business_profile_id", profileId)
+      .eq("source", MEMORY_SOURCE.wowGeneration),
+  ]);
+
+  // Insert the five deliverables. Content shapes are deliberately
+  // permissive (Json) — different kinds have different schemas; we
+  // unify on retrieval via summarizeDeliverable() in compose.ts.
+  const deliverableRows: TablesInsert<"deliverables">[] = [
+    {
+      business_profile_id: profileId,
+      framework: WOW_FRAMEWORK_TAG,
+      kind: "landing",
+      status: "staging",
+      content: args.deliv.landing as unknown as Json,
+    },
+    {
+      business_profile_id: profileId,
+      framework: WOW_FRAMEWORK_TAG,
+      kind: "social_ig",
+      status: "staging",
+      content: { text: args.deliv.social.instagram } as Json,
+    },
+    {
+      business_profile_id: profileId,
+      framework: WOW_FRAMEWORK_TAG,
+      kind: "social_x",
+      status: "staging",
+      content: { text: args.deliv.social.twitter } as Json,
+    },
+    {
+      business_profile_id: profileId,
+      framework: WOW_FRAMEWORK_TAG,
+      kind: "social_li",
+      status: "staging",
+      content: { text: args.deliv.social.linkedin } as Json,
+    },
+    {
+      business_profile_id: profileId,
+      framework: WOW_FRAMEWORK_TAG,
+      kind: "ad",
+      status: "staging",
+      content: args.deliv.ad as unknown as Json,
+    },
+  ];
+
+  const { error: delivErr } = await supabase
+    .from("deliverables")
+    .insert(deliverableRows);
+  if (delivErr) {
+    console.error("[api/wow] deliverables insert failed:", delivErr);
+    throw delivErr;
+  }
+
+  // Sample-output memory entries — one per deliverable, with a tight
+  // summary so the compose pipeline can show them in the prompt
+  // without bloating the token budget. Weight 0.8 — below canonical
+  // intake facts (1.5) and reference picks (1.2) but in the same
+  // retrieval scope.
+  await writeMemoryEntries(
+    supabase,
+    [
+      {
+        kind: "landing",
+        summary: `Headline: "${args.deliv.landing.headline}" / CTA: ${args.deliv.landing.primaryCta}`,
+      },
+      {
+        kind: "social_ig",
+        summary: args.deliv.social.instagram.slice(0, 240),
+      },
+      {
+        kind: "social_x",
+        summary: args.deliv.social.twitter.slice(0, 240),
+      },
+      {
+        kind: "social_li",
+        summary: args.deliv.social.linkedin.slice(0, 240),
+      },
+      {
+        kind: "ad",
+        summary: `${args.deliv.ad.headline} / ${args.deliv.ad.body} / CTA: ${args.deliv.ad.cta}`,
+      },
+    ].map((d) => ({
+      businessProfileId: profileId,
+      kind: MEMORY_KIND.sampleOutput,
+      content: { kind: d.kind, summary: d.summary } as Json,
+      source: MEMORY_SOURCE.wowGeneration,
+      weight: 0.8,
+    })),
+  );
+
 }
