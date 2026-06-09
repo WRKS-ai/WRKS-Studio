@@ -8,6 +8,7 @@ import {
   SSE_DONE,
   type OpenAIChatCompletionRequest,
 } from "@/lib/agent/openai-compat";
+import { persistVoiceTurn } from "@/lib/agent/persist-turn";
 import { buildSystemPrompt, type AgentSurface } from "@/lib/agent/prompts";
 import { getToolsForSurface } from "@/lib/agent/tools";
 import { PERSONALITIES } from "@/lib/personalities";
@@ -84,6 +85,15 @@ export async function POST(req: NextRequest) {
   const surface: AgentSurface = SURFACE_SET.has(surfaceRaw as AgentSurface)
     ? (surfaceRaw as AgentSurface)
     : "onboarding";
+
+  // ElevenLabs conversation id — also forwarded via extra_body.
+  // Lets us tie multiple turns into a single voice_sessions row for
+  // Phase 8 signal extraction. Optional: turn persistence skips if
+  // missing (safe for local testing without the ElevenLabs hop).
+  const conversationId =
+    typeof (body as { conversation_id?: unknown }).conversation_id === "string"
+      ? ((body as { conversation_id?: string }).conversation_id as string)
+      : undefined;
 
   // ── 3. Resolve the user's active profile + memory ───────────────
   const supabase = createServiceSupabaseClient();
@@ -184,6 +194,16 @@ export async function POST(req: NextRequest) {
         // input JSON deltas with the right index in OpenAI format.
         const toolIndexById = new Map<string, number>();
         let nextToolIndex = 0;
+        // Accumulators for turn persistence. We stream out as we go
+        // but also collect everything into these so we can write the
+        // full assistant turn to voice_sessions after the stream ends.
+        let assistantText = "";
+        const assistantToolUses: Array<{
+          id: string;
+          name: string;
+          input: unknown;
+          inputJson: string;
+        }> = [];
 
         for await (const event of messageStream) {
           if (event.type === "content_block_start") {
@@ -191,6 +211,12 @@ export async function POST(req: NextRequest) {
             if (block.type === "tool_use") {
               const idx = nextToolIndex++;
               toolIndexById.set(block.id, idx);
+              assistantToolUses.push({
+                id: block.id,
+                name: block.name,
+                input: block.input ?? {},
+                inputJson: "",
+              });
               enqueue(
                 encodeOpenAIChunk({
                   id: requestId,
@@ -209,6 +235,7 @@ export async function POST(req: NextRequest) {
           if (event.type === "content_block_delta") {
             const delta = event.delta;
             if (delta.type === "text_delta") {
+              assistantText += delta.text;
               enqueue(
                 encodeOpenAIChunk({
                   id: requestId,
@@ -222,6 +249,8 @@ export async function POST(req: NextRequest) {
               // contiguously).
               const idx = nextToolIndex - 1;
               if (idx >= 0) {
+                const tool = assistantToolUses[idx];
+                if (tool) tool.inputJson += delta.partial_json;
                 enqueue(
                   encodeOpenAIChunk({
                     id: requestId,
@@ -262,6 +291,47 @@ export async function POST(req: NextRequest) {
 
         enqueue(SSE_DONE);
         controller.close();
+
+        // Fire-and-forget turn persistence. Has to happen AFTER the
+        // stream finishes (we need the accumulated assistant text +
+        // tool inputs) but BEFORE the route returns so the Vercel
+        // request lifecycle includes it. Errors don't propagate —
+        // the user already got their response.
+        if (conversationId && profile) {
+          // Pull the last user message out of the inbound history.
+          const lastUser = [...body.messages]
+            .reverse()
+            .find((m) => m.role === "user" && typeof m.content === "string");
+          const userTurn =
+            lastUser && typeof lastUser.content === "string"
+              ? { content: lastUser.content }
+              : null;
+
+          // Finalize tool inputs: prefer the streamed partial_json
+          // when present (most accurate), fall back to whatever
+          // input shipped with content_block_start.
+          const finalToolUses = assistantToolUses.map((t) => {
+            if (t.inputJson) {
+              try {
+                return { id: t.id, name: t.name, input: JSON.parse(t.inputJson) };
+              } catch {
+                return { id: t.id, name: t.name, input: t.input };
+              }
+            }
+            return { id: t.id, name: t.name, input: t.input };
+          });
+
+          void persistVoiceTurn(supabase, {
+            conversationId,
+            businessProfileId: profile.id,
+            surface,
+            user: userTurn,
+            assistant: {
+              content: assistantText,
+              toolUses: finalToolUses,
+            },
+          });
+        }
       } catch (err) {
         console.error("[api/agent/converse] stream error:", err);
         try {
