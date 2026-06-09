@@ -1,9 +1,11 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { OnboardingShell } from "@/components/onboarding-shell";
+import { ContinueButton } from "@/components/continue-button";
+import { OnboardingFrame } from "@/components/onboarding-frame";
+import { useOnboardingAgent } from "@/lib/onboarding-agent";
 import {
   PERSONALITIES,
   type Personality,
@@ -12,15 +14,19 @@ import {
 import { STYLE_REFERENCES, type StyleReference } from "@/lib/style-references";
 import { VOICES, type VoiceId } from "@/lib/voices";
 
-// Reference-style picker — sits between /onboarding/intake and
-// /onboarding/wow. The user multi-selects up to 3 visual references
-// they like; their picks are saved to localStorage and the wow API
-// injects their Claude briefs into the generation prompt so the output
-// adopts the chosen style's voice and structure.
+// Act Four — The Vibe.
 //
-// Skipping is allowed — wow falls back to its default voice in that
-// case. Coming-soon cards are visible but not selectable so the
-// product roadmap is legible.
+// User multi-selects up to 3 style references. Picks are saved to
+// localStorage and the wow API injects their Claude briefs into the
+// generation prompt so the deliverables adopt the chosen voice and
+// visual feel. Skipping is allowed — wow falls back to its default
+// voice in that case.
+//
+// Chrome matches the rest of the flow: OnboardingFrame + the shared
+// LiquidAurora backdrop (lifted to the provider). Layout is the
+// onboarding grammar — hairline eyebrow, asymmetric 2-col header
+// (hero left, intro right), then a 2x2 grid of glass cards using the
+// same glass treatment as the /name card.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
@@ -32,6 +38,7 @@ const MAX_PICKS = 3;
 export default function ReferencePage() {
   const router = useRouter();
   const reduced = useReducedMotion();
+  const { accent } = useOnboardingAgent();
 
   const [personality, setPersonality] = useState<Personality | null>(null);
   const [picks, setPicks] = useState<string[]>([]);
@@ -87,197 +94,336 @@ export default function ReferencePage() {
     router.push("/onboarding/wow");
   };
 
+  const canContinue = picks.length > 0;
+  const ctaLabel = canContinue
+    ? `Continue with ${picks.length} ${picks.length === 1 ? "reference" : "references"}`
+    : "Pick at least one to continue";
+
   return (
-    <OnboardingShell tint={personality.glow}>
-      <div className="w-full max-w-[1180px] flex flex-col items-center text-center">
+    <OnboardingFrame step={4} totalSteps={5} bloomTint={accent}>
+      <div className="relative mx-auto flex flex-col max-w-[1440px] min-h-[calc(100vh-120px)] px-10 sm:px-14 py-12">
+        {/* Eyebrow */}
         <motion.div
-          initial={reduced ? false : { opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-          className="text-[10px] tracking-[0.28em] uppercase text-ink-dim font-mono mb-3"
+          className="flex items-center gap-4"
         >
-          One last thing
+          <span
+            className="inline-block h-px w-10"
+            style={{ background: "rgba(245,240,230,0.22)" }}
+          />
+          <span
+            className="text-[11px] tracking-[0.32em] uppercase"
+            style={{
+              color: "rgba(245,240,230,0.42)",
+              fontFamily: "var(--font-mono)",
+            }}
+          >
+            Act Four — The Vibe
+          </span>
         </motion.div>
 
-        <motion.h1
-          initial={reduced ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.05, ease: [0.2, 0.7, 0.2, 1] }}
-          className="font-serif font-medium text-[clamp(1.875rem,3.2vw,2.625rem)] leading-[1.04] tracking-tight text-ink"
-          style={{ letterSpacing: "-0.025em" }}
+        {/* Asymmetric header — hero left, paragraph right */}
+        <div
+          className="mt-16 grid gap-x-12 lg:gap-x-16 gap-y-8 items-end"
+          style={{
+            gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
+          }}
         >
-          Pick the vibe.
-        </motion.h1>
+          <motion.h1
+            initial={
+              reduced ? false : { opacity: 0, y: 14, filter: "blur(8px)" }
+            }
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.55, delay: 0.1, ease: [0.2, 0.7, 0.2, 1] }}
+            className="font-serif"
+            style={{
+              fontSize: "clamp(3rem, 5.4vw, 5.25rem)",
+              fontWeight: 500,
+              lineHeight: 1,
+              letterSpacing: "-0.035em",
+              color: "rgba(245,240,230,0.97)",
+              margin: 0,
+            }}
+          >
+            Pick the vibe.
+          </motion.h1>
+          <motion.p
+            initial={reduced ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.18 }}
+            className="font-sans"
+            style={{
+              fontSize: 15,
+              lineHeight: 1.55,
+              letterSpacing: "0.005em",
+              color: "rgba(245,240,230,0.62)",
+              maxWidth: "44ch",
+              margin: 0,
+            }}
+          >
+            Pick up to three references. Your agent will use them to set
+            the voice, cadence, and visual feel of the deliverables
+            you&rsquo;re about to see. Skip if you trust the default.
+          </motion.p>
+        </div>
 
-        <motion.p
-          initial={reduced ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1, ease: [0.2, 0.7, 0.2, 1] }}
-          className="mt-4 font-serif italic text-[17px] max-w-[58ch] text-ink-muted leading-relaxed"
-        >
-          Pick up to three references. Your agent will use them to set the
-          voice, cadence, and visual feel of the deliverables you&rsquo;re
-          about to see. Skip if you trust the default.
-        </motion.p>
-
-        {/* Card grid */}
+        {/* 2×2 glass card grid */}
         <motion.div
           initial={reduced ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.18, ease: [0.2, 0.7, 0.2, 1] }}
-          className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 w-full"
+          transition={{ duration: 0.6, delay: 0.28, ease: [0.2, 0.7, 0.2, 1] }}
+          className="mt-14 grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8"
         >
           {STYLE_REFERENCES.map((ref, idx) => (
-            <StyleCard
+            <StyleGlassCard
               key={ref.id}
               styleRef={ref}
               index={idx}
               selected={picks.includes(ref.id)}
-              accent={personality.accent}
+              disabled={
+                picks.length >= MAX_PICKS && !picks.includes(ref.id)
+              }
+              accent={accent}
               onToggle={() => togglePick(ref.id)}
+              reduced={!!reduced}
             />
           ))}
         </motion.div>
 
-        {/* Actions */}
+        {/* Picks readout + actions */}
         <motion.div
-          initial={reduced ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.35 }}
-          className="mt-12 flex flex-col items-center gap-4"
+          initial={reduced ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+          className="mt-12 flex flex-col items-center gap-5"
         >
-          <button
-            type="button"
-            onClick={() => onContinue(false)}
-            disabled={picks.length === 0}
-            className="h-12 px-7 rounded-full inline-flex items-center gap-2.5 text-[15px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
-            style={{
-              background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-              boxShadow:
-                picks.length > 0
-                  ? `0 12px 32px -8px ${personality.glow}`
-                  : "none",
-            }}
-          >
-            <span>
-              {picks.length === 0
-                ? "Pick at least one"
-                : `Continue with ${picks.length} ${picks.length === 1 ? "reference" : "references"}`}
-            </span>
-            <span>→</span>
-          </button>
+          <PickCounter count={picks.length} max={MAX_PICKS} accent={accent} />
+
+          <AnimatePresence mode="wait" initial={false}>
+            {canContinue ? (
+              <motion.div
+                key="continue"
+                initial={
+                  reduced ? false : { opacity: 0, y: 6, filter: "blur(3px)" }
+                }
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={reduced ? undefined : { opacity: 0, y: -3 }}
+                transition={{ duration: 0.32, ease: [0.2, 0.7, 0.2, 1] }}
+              >
+                <ContinueButton onClick={() => onContinue(false)}>
+                  {ctaLabel}
+                  <span aria-hidden style={{ marginLeft: "0.7em" }}>
+                    →
+                  </span>
+                </ContinueButton>
+              </motion.div>
+            ) : (
+              <motion.p
+                key="cta-hint"
+                initial={reduced ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={reduced ? undefined : { opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="font-sans"
+                style={{
+                  fontSize: 12.5,
+                  color: "rgba(245,240,230,0.34)",
+                  letterSpacing: "0.02em",
+                  margin: 0,
+                }}
+              >
+                {ctaLabel}
+              </motion.p>
+            )}
+          </AnimatePresence>
+
           <button
             type="button"
             onClick={() => onContinue(true)}
-            className="text-[13.5px] tracking-[0.06em] hover:underline transition-colors"
-            style={{ color: "rgba(245,245,247,0.5)" }}
+            className="text-[11px] tracking-[0.28em] uppercase transition-opacity hover:opacity-80"
+            style={{
+              color: "rgba(245,240,230,0.42)",
+              fontFamily: "var(--font-mono)",
+            }}
           >
-            Skip — use the default voice
+            Skip — use the default
           </button>
         </motion.div>
+
+        {/* Back link — flex-pushed-bottom like /intake */}
+        <motion.button
+          type="button"
+          onClick={() => router.push("/onboarding/intake")}
+          initial={reduced ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.7 }}
+          className="mt-auto self-start pt-16 text-[10.5px] tracking-[0.32em] uppercase transition-opacity hover:opacity-80"
+          style={{
+            color: "rgba(245,240,230,0.34)",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          ← Back
+        </motion.button>
       </div>
-    </OnboardingShell>
+    </OnboardingFrame>
   );
 }
 
 /* ============================================================
- * StyleCard — one card per reference. The hero of this page.
- * Bigger preview area than v1, hand-designed per-style composition.
+ * StyleGlassCard — one card per style reference. Premium glass
+ * treatment matching the /name card (frosted bg, hairline rim,
+ * specular highlight, deep ambient shadow). Selected state lights
+ * the rim with the active accent and adds an outer glow.
  * ============================================================ */
-function StyleCard({
+function StyleGlassCard({
   styleRef,
   index,
   selected,
+  disabled,
   accent,
   onToggle,
+  reduced,
 }: {
   styleRef: StyleReference;
   index: number;
   selected: boolean;
+  disabled: boolean;
   accent: string;
   onToggle: () => void;
+  reduced: boolean;
 }) {
-  const reduced = useReducedMotion();
   const Preview = styleRef.Preview;
 
   return (
     <motion.button
       type="button"
       onClick={onToggle}
-      initial={reduced ? false : { opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
+      disabled={disabled}
+      initial={reduced ? false : { opacity: 0, y: 16, filter: "blur(6px)" }}
+      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       transition={{
-        duration: 0.6,
-        delay: 0.18 + index * 0.06,
+        duration: 0.55,
+        delay: 0.32 + index * 0.07,
         ease: [0.2, 0.7, 0.2, 1],
       }}
-      whileHover={reduced ? undefined : { y: -4 }}
-      className="relative text-left rounded-2xl overflow-hidden flex flex-col group cursor-pointer"
+      whileHover={reduced || disabled ? undefined : { y: -4 }}
+      whileTap={disabled ? undefined : { scale: 0.992 }}
+      className="relative text-left rounded-[28px] overflow-hidden flex flex-col group cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
       style={{
-        background: "rgba(255,255,255,0.02)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.014) 100%)",
         border: selected
-          ? `2px solid ${accent}`
-          : "1px solid rgba(255,255,255,0.08)",
+          ? `1px solid ${accent}80`
+          : "1px solid rgba(255,255,255,0.085)",
+        backdropFilter: "blur(28px) saturate(160%)",
+        WebkitBackdropFilter: "blur(28px) saturate(160%)",
         boxShadow: selected
-          ? `0 24px 50px -18px ${accent}55, 0 0 0 6px ${accent}14`
-          : "0 18px 40px -22px rgba(0,0,0,0.6)",
-        transition: "box-shadow 0.4s ease, border-color 0.3s ease",
+          ? `inset 0 1px 0 rgba(255,255,255,0.1), 0 0 0 6px ${accent}1a, 0 24px 60px -20px ${accent}66, 0 32px 80px -24px rgba(0,0,0,0.7)`
+          : "inset 0 1px 0 rgba(255,255,255,0.07), 0 32px 80px -24px rgba(0,0,0,0.7)",
+        transition: "border-color 0.4s ease, box-shadow 0.4s ease",
       }}
     >
+      {/* Specular highlight at the top edge */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute"
+        style={{
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 80,
+          background:
+            "radial-gradient(ellipse 80% 100% at 50% 0%, rgba(255,255,255,0.07), transparent 70%)",
+        }}
+      />
+
       {/* Preview pane — hand-designed per style */}
-      <div className="relative aspect-[4/3] overflow-hidden">
+      <div className="relative aspect-[5/3] overflow-hidden rounded-t-[28px]">
         <Preview />
-        {/* Selection indicator */}
-        <div className="absolute top-3.5 right-3.5 z-10">
-          <div
-            className="size-8 rounded-full grid place-items-center transition-all"
+        {/* Bottom-fade so the preview blends into the card body */}
+        <div
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 h-16 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(180deg, transparent 0%, rgba(10,10,12,0.55) 100%)",
+          }}
+        />
+        {/* Selection chip — glass pill in the top-right */}
+        <div className="absolute top-4 right-4 z-10">
+          <motion.div
+            animate={{
+              scale: selected ? 1 : 0.95,
+            }}
+            transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
+            className="size-9 rounded-full grid place-items-center"
             style={{
-              background: selected ? accent : "rgba(13,13,14,0.6)",
+              background: selected
+                ? `linear-gradient(180deg, ${accent} 0%, ${accent}dd 100%)`
+                : "rgba(13,13,14,0.55)",
               border: selected
-                ? "2px solid white"
-                : "1px solid rgba(255,255,255,0.25)",
-              backdropFilter: "blur(10px)",
+                ? "1px solid rgba(255,255,255,0.55)"
+                : "1px solid rgba(255,255,255,0.18)",
+              backdropFilter: "blur(14px)",
+              WebkitBackdropFilter: "blur(14px)",
               boxShadow: selected
-                ? `0 6px 18px -4px ${accent}88`
-                : "none",
+                ? `0 8px 22px -6px ${accent}aa, inset 0 1px 0 rgba(255,255,255,0.25)`
+                : "inset 0 1px 0 rgba(255,255,255,0.06)",
+              transition: "background 0.3s ease, border-color 0.3s ease",
             }}
           >
             {selected ? (
               <CheckIcon />
             ) : (
               <span
-                className="text-[15px] leading-none"
-                style={{ color: "rgba(255,255,255,0.85)" }}
+                className="text-[16px] leading-none font-sans"
+                style={{ color: "rgba(255,255,255,0.78)" }}
               >
                 +
               </span>
             )}
-          </div>
+          </motion.div>
         </div>
       </div>
 
       {/* Meta */}
-      <div className="p-5 flex flex-col gap-2.5">
+      <div className="px-7 pt-5 pb-6 flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-3">
           <h3
-            className="font-serif text-[20px] tracking-tight text-ink leading-none"
-            style={{ letterSpacing: "-0.02em" }}
+            className="font-serif"
+            style={{
+              fontSize: 26,
+              fontWeight: 500,
+              letterSpacing: "-0.02em",
+              lineHeight: 1.05,
+              color: "rgba(245,240,230,0.96)",
+              margin: 0,
+            }}
           >
             {styleRef.name}
           </h3>
           <span
-            className="text-[10.5px] tracking-[0.22em] uppercase shrink-0"
+            className="text-[10px] tracking-[0.28em] uppercase tabular-nums shrink-0"
             style={{
-              color: "rgba(245,245,247,0.4)",
+              color: "rgba(245,240,230,0.4)",
               fontFamily: "var(--font-mono)",
             }}
           >
-            0{index + 1}
+            {String(index + 1).padStart(2, "0")}
           </span>
         </div>
         <p
-          className="text-[13.5px] font-serif italic leading-relaxed"
-          style={{ color: "rgba(245,245,247,0.65)" }}
+          className="font-serif italic"
+          style={{
+            fontSize: 14.5,
+            lineHeight: 1.55,
+            letterSpacing: "0.005em",
+            color: "rgba(245,240,230,0.62)",
+            margin: 0,
+          }}
         >
           {styleRef.tagline}
         </p>
@@ -285,11 +431,11 @@ function StyleCard({
           {styleRef.influences.slice(0, 3).map((inf) => (
             <span
               key={inf}
-              className="px-2 py-0.5 rounded text-[10.5px] tracking-[0.04em]"
+              className="px-2.5 py-1 rounded-md text-[10.5px] tracking-[0.04em]"
               style={{
-                background: "rgba(255,255,255,0.04)",
-                color: "rgba(245,245,247,0.6)",
-                border: "1px solid rgba(255,255,255,0.05)",
+                background: "rgba(255,255,255,0.035)",
+                color: "rgba(245,240,230,0.58)",
+                border: "1px solid rgba(255,255,255,0.06)",
                 fontFamily: "var(--font-mono)",
               }}
             >
@@ -299,6 +445,46 @@ function StyleCard({
         </div>
       </div>
     </motion.button>
+  );
+}
+
+function PickCounter({
+  count,
+  max,
+  accent,
+}: {
+  count: number;
+  max: number;
+  accent: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      {Array.from({ length: max }).map((_, i) => {
+        const filled = i < count;
+        return (
+          <span
+            key={i}
+            className="block rounded-full transition-all duration-500"
+            style={{
+              width: filled ? 22 : 6,
+              height: 3,
+              background: filled ? accent : "rgba(255,255,255,0.16)",
+              boxShadow: filled ? `0 0 10px ${accent}aa` : undefined,
+            }}
+            aria-label={`Pick ${i + 1} ${filled ? "selected" : "empty"}`}
+          />
+        );
+      })}
+      <span
+        className="ml-2 text-[10px] tracking-[0.28em] uppercase tabular-nums"
+        style={{
+          color: "rgba(245,240,230,0.45)",
+          fontFamily: "var(--font-mono)",
+        }}
+      >
+        {count} / {max}
+      </span>
+    </div>
   );
 }
 
@@ -315,7 +501,7 @@ function CheckIcon() {
       <path
         d="m4 12 5 5L20 6"
         stroke="currentColor"
-        strokeWidth="2.2"
+        strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
