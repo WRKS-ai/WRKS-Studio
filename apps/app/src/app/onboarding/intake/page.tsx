@@ -28,6 +28,7 @@ import { PERSONALITIES, type PersonalityId } from "@/lib/personalities";
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
+const VOICE_KEY = "wrks-onboarding-voice";
 const INTAKE_KEY = "wrks-onboarding-intake";
 
 type FieldKey = "business" | "audience" | "differentiator";
@@ -173,7 +174,42 @@ export default function IntakePage() {
     ta.style.height = `${Math.max(72, ta.scrollHeight)}px`;
   }, [currentIdx, fields]);
 
-  const advance = () => {
+  // Persist intake to Supabase memory (creates / updates the
+  // business_profile + writes the three semantic memory entries).
+  // Idempotent: API upserts so refresh / back-navigation is safe.
+  const submitIntake = async (): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const personalityId = localStorage.getItem(PERSONALITY_KEY) ?? undefined;
+      const voiceId = localStorage.getItem(VOICE_KEY) ?? undefined;
+      const name = localStorage.getItem(NAME_KEY) ?? undefined;
+      const res = await fetch("/api/onboarding/business-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          business: fields.business.trim(),
+          audience: fields.audience.trim(),
+          differentiator: fields.differentiator.trim(),
+          agentName: name,
+          voiceId,
+          personalityId,
+        }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        return { ok: false, error: body?.error ?? `Server returned ${res.status}` };
+      }
+      return { ok: true };
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : "Network error",
+      };
+    }
+  };
+
+  const advance = async () => {
     if (!currentFilled) return;
     if (!isLast) {
       setCurrentIdx((i) => Math.min(i + 1, FIELD_ORDER.length - 1));
@@ -182,6 +218,14 @@ export default function IntakePage() {
     if (!allFilled || continuing.current) return;
     continuing.current = true;
     localStorage.setItem(INTAKE_KEY, JSON.stringify(fields));
+    const result = await submitIntake();
+    if (!result.ok) {
+      // Roll back the guard so the user can retry; surface error
+      // in the console for now (toast UI lands in Phase 5).
+      continuing.current = false;
+      console.error("[onboarding/intake] submit failed:", result.error);
+      return;
+    }
     router.push("/onboarding/reference");
   };
 
@@ -245,7 +289,17 @@ export default function IntakePage() {
       if (continuing.current) return "Already going.";
       continuing.current = true;
       localStorage.setItem(INTAKE_KEY, JSON.stringify(fields));
-      setTimeout(() => router.push("/onboarding/reference"), 700);
+      // Persist to memory before routing — same path as the typed
+      // submit. Fire-and-forget the router push only after the API
+      // call lands so we don't navigate away mid-write.
+      void submitIntake().then((result) => {
+        if (!result.ok) {
+          continuing.current = false;
+          console.error("[onboarding/intake] voice submit failed:", result.error);
+          return;
+        }
+        router.push("/onboarding/reference");
+      });
       return "Continuing.";
     }
 

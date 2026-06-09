@@ -85,11 +85,33 @@ export default function ReferencePage() {
     });
   };
 
-  const onContinue = (skipped: boolean) => {
+  const onContinue = async (skipped: boolean) => {
+    const finalPicks = skipped ? [] : picks;
     if (!skipped) {
       localStorage.setItem(STYLE_REFS_KEY, JSON.stringify(picks));
     } else {
       localStorage.removeItem(STYLE_REFS_KEY);
+    }
+    // Persist to memory — writes style_preference entry (or clears
+    // prior entries if user opted out). Idempotent on re-submit.
+    try {
+      const res = await fetch("/api/onboarding/references", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ picks: finalPicks }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        console.error(
+          "[onboarding/reference] submit failed:",
+          body?.error ?? res.status,
+        );
+        // Best-effort — don't block navigation on a memory write hiccup.
+      }
+    } catch (err) {
+      console.error("[onboarding/reference] network error:", err);
     }
     router.push("/onboarding/wow");
   };
