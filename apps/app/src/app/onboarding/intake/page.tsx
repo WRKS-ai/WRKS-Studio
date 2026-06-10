@@ -537,8 +537,11 @@ export default function IntakePage() {
             </div>
           </div>
 
-          {/* Right — sparse step ledger */}
-          <div className="hidden md:flex flex-col gap-5 pt-3">
+          {/* Right — sparse step ledger.
+              `justify-center` centers it vertically against the tall
+              left column (headline + answer + counter) so it doesn't
+              float to the top of the grid cell. */}
+          <div className="hidden md:flex flex-col justify-center gap-8">
               {FIELD_ORDER.map((key, i) => {
                 const isCurrent = i === currentIdx;
                 const isDone = fields[key].trim().length > 0;
@@ -548,7 +551,7 @@ export default function IntakePage() {
                     type="button"
                     key={key}
                     onClick={() => setCurrentIdx(i)}
-                    className="group text-left flex items-baseline gap-4 transition-opacity"
+                    className="group text-left flex items-baseline gap-5 transition-opacity"
                     style={{
                       opacity: isCurrent ? 1 : isFuture ? 0.32 : 0.62,
                       cursor: "pointer",
@@ -557,21 +560,22 @@ export default function IntakePage() {
                     <span
                       className="tabular-nums"
                       style={{
-                        fontSize: 11,
-                        letterSpacing: "0.18em",
-                        color: "rgba(245,240,230,0.6)",
+                        fontSize: 13,
+                        letterSpacing: "0.2em",
+                        color: "rgba(245,240,230,0.55)",
                         fontFamily: "var(--font-mono)",
                       }}
                     >
                       {String(i + 1).padStart(2, "0")}
                     </span>
-                    <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                    <div className="flex-1 flex flex-col gap-2 min-w-0">
                       <div className="flex items-center gap-3">
                         <span
                           className="font-serif"
                           style={{
-                            fontSize: 19,
-                            letterSpacing: "-0.015em",
+                            fontSize: 26,
+                            letterSpacing: "-0.018em",
+                            lineHeight: 1.1,
                             color: "rgba(245,240,230,0.94)",
                             fontWeight: 500,
                           }}
@@ -582,7 +586,7 @@ export default function IntakePage() {
                           <span
                             aria-hidden
                             style={{
-                              fontSize: 11,
+                              fontSize: 13,
                               color: "rgba(245,240,230,0.55)",
                             }}
                           >
@@ -594,11 +598,11 @@ export default function IntakePage() {
                         <p
                           className="font-sans truncate"
                           style={{
-                            fontSize: 12.5,
-                            lineHeight: 1.45,
+                            fontSize: 14,
+                            lineHeight: 1.5,
                             letterSpacing: "0.005em",
-                            color: "rgba(245,240,230,0.5)",
-                            maxWidth: "32ch",
+                            color: "rgba(245,240,230,0.52)",
+                            maxWidth: "36ch",
                           }}
                           title={fields[key]}
                         >
