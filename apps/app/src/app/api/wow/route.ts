@@ -9,7 +9,7 @@ import {
   type WowDeliverables,
 } from "@/lib/wow-prompt";
 import { pexelsSearch, pexelsSearchN } from "@/lib/pexels";
-import { composeStyleBrief } from "@/lib/style-references";
+import { composeStyleBrief } from "@/lib/palettes";
 import { invalidateMemoryCache } from "@/lib/agent/memory/compose";
 import {
   MEMORY_KIND,
@@ -38,7 +38,10 @@ const BodySchema = z.object({
   business: z.string().min(1).max(2000),
   audience: z.string().min(1).max(2000),
   differentiator: z.string().min(1).max(2000),
-  styleRefs: z.array(z.string()).max(3).optional(),
+  /** Palette id picked on /onboarding/reference. Optional — null when skipped. */
+  paletteId: z.string().min(1).max(64).optional().nullable(),
+  /** Theme picked on /onboarding/reference. Optional — null when skipped. */
+  theme: z.enum(["light", "dark"]).optional().nullable(),
 });
 
 const client = new Anthropic();
@@ -70,10 +73,10 @@ export async function POST(req: Request) {
     `DIFFERENTIATOR: ${body.differentiator}`,
   ].join("\n");
 
-  // Style references are appended AFTER the cached base prompt so the
+  // Style brief is appended AFTER the cached base prompt so the
   // 2048-token cache prefix stays stable across users with different
-  // style picks. Style brief content is small, ~600-1200 tokens.
-  const styleBrief = composeStyleBrief(body.styleRefs ?? []);
+  // palette picks. Brief content is ~800-1200 tokens.
+  const styleBrief = composeStyleBrief(body.paletteId, body.theme);
 
   try {
     // Highest-performance model for the wow generation. Latency

@@ -154,17 +154,12 @@ export default function WowPage() {
     let cancelled = false;
     setState({ kind: "loading" });
 
-    // Read the style references the user picked (or null if skipped)
-    let styleRefs: string[] = [];
-    try {
-      const raw = localStorage.getItem("wrks-onboarding-style-refs");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) styleRefs = parsed.filter((x) => typeof x === "string");
-      }
-    } catch {
-      // ignore
-    }
+    // Read the palette + theme the user picked on /reference (or
+    // null if they skipped). These flow into the wow system prompt
+    // as a style brief and visual identity hint.
+    const paletteId = localStorage.getItem("wrks-onboarding-palette");
+    const themeRaw = localStorage.getItem("wrks-onboarding-theme");
+    const theme = themeRaw === "light" || themeRaw === "dark" ? themeRaw : null;
 
     fetch("/api/wow", {
       method: "POST",
@@ -175,7 +170,8 @@ export default function WowPage() {
         business: intake.business,
         audience: intake.audience,
         differentiator: intake.differentiator,
-        styleRefs,
+        paletteId,
+        theme,
       }),
     })
       .then(async (res) => {
