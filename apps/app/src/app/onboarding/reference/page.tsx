@@ -6,10 +6,9 @@ import {
   useMotionValue,
   useReducedMotion,
   useSpring,
-  useTransform,
 } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type React from "react";
 import { ContinueButton } from "@/components/continue-button";
 import { OnboardingFrame } from "@/components/onboarding-frame";
@@ -29,20 +28,16 @@ import { VOICES, type VoiceId } from "@/lib/voices";
 
 // Act Four — The Look.
 //
-// Two decisions, one screen, fully animated:
-//   1. Mode (light vs dark) — two big glass tiles. Each renders the
-//      theme literally; the chosen palette's accent bleeds through.
-//   2. Palette — 8 glass cards. Each shows a 3D breathing orb in the
-//      primary color + 3 supporting swatches + name + tagline.
+// Two-column layout:
+//   LEFT  — vertical stack of 2 minimal premium glass cards (Light, Dark)
+//   RIGHT — orbital palette picker: big central primary orb, 3 supporting
+//           swatches orbiting around it, glass left/right arrows to cycle,
+//           position dots at the bottom.
 //
-// Stunning components used:
-//   • Letter-stagger headline reveal
-//   • Glass cards with backdrop-filter + specular highlights
-//   • 3D breathing orbs (radial gradients + ambient glow)
-//   • Cursor-tracking spotlight inside every card
-//   • Magnetic 3D tilt on hover
-//   • Selection burst ring animation
-//   • Cascade entry animations with stagger
+// The orbit is the wow component — continuous slow rotation + each
+// swatch has its own subtle floating motion + the central orb breathes.
+// Glass arrow buttons feel tactile. Dot indicators show position in
+// the 8-palette cycle.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
@@ -60,7 +55,7 @@ export default function ReferencePage() {
 
   const [personality, setPersonality] = useState<Personality | null>(null);
   const [theme, setTheme] = useState<Theme | null>(null);
-  const [paletteId, setPaletteId] = useState<string | null>(null);
+  const [paletteIndex, setPaletteIndex] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -87,14 +82,33 @@ export default function ReferencePage() {
     const storedTheme = localStorage.getItem(THEME_KEY) as Theme | null;
     if (storedTheme === "light" || storedTheme === "dark") setTheme(storedTheme);
     const storedPalette = localStorage.getItem(PALETTE_KEY);
-    if (storedPalette && PALETTES.some((p) => p.id === storedPalette)) {
-      setPaletteId(storedPalette);
+    if (storedPalette) {
+      const i = PALETTES.findIndex((x) => x.id === storedPalette);
+      if (i >= 0) setPaletteIndex(i);
     }
   }, [router]);
 
+  // Keyboard nav for the palette carousel
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        setPaletteIndex((i) =>
+          i === null ? 0 : (i - 1 + PALETTES.length) % PALETTES.length,
+        );
+      } else if (e.key === "ArrowRight") {
+        setPaletteIndex((i) =>
+          i === null ? 0 : (i + 1) % PALETTES.length,
+        );
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   if (!personality) return null;
 
-  const palette = paletteId ? getPalette(paletteId) : null;
+  const palette = paletteIndex !== null ? PALETTES[paletteIndex] : null;
+  const paletteId = palette?.id ?? null;
   const canContinue = !!theme && !!paletteId;
 
   const onContinue = async (skipped: boolean) => {
@@ -133,7 +147,11 @@ export default function ReferencePage() {
   };
 
   return (
-    <OnboardingFrame step={4} totalSteps={5} bloomTint={palette?.accent ?? agentAccent}>
+    <OnboardingFrame
+      step={4}
+      totalSteps={5}
+      bloomTint={palette?.accent ?? agentAccent}
+    >
       <div className="relative mx-auto flex flex-col max-w-[1440px] min-h-[calc(100vh-120px)] px-10 sm:px-14 py-12">
         {/* Eyebrow */}
         <motion.div
@@ -185,54 +203,49 @@ export default function ReferencePage() {
           </motion.p>
         </div>
 
-        {/* MODE TILES */}
+        {/* Two-column body: theme stack on left, palette orbital on right */}
         <motion.div
-          initial={reduced ? false : { opacity: 0, y: 12 }}
+          initial={reduced ? false : { opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.45, ease: [0.2, 0.7, 0.2, 1] }}
-          className="mt-14"
+          transition={{ duration: 0.6, delay: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+          className="mt-12 grid gap-6 lg:gap-8"
+          style={{
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.25fr)",
+          }}
         >
-          <SectionLabel>01 — Mode</SectionLabel>
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
-            <ModeTile
-              mode="light"
-              palette={palette}
-              selected={theme === "light"}
-              onSelect={() => setTheme("light")}
-              reduced={!!reduced}
-              index={0}
-            />
-            <ModeTile
-              mode="dark"
-              palette={palette}
-              selected={theme === "dark"}
-              onSelect={() => setTheme("dark")}
-              reduced={!!reduced}
-              index={1}
-            />
-          </div>
-        </motion.div>
-
-        {/* PALETTE GRID */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.55, ease: [0.2, 0.7, 0.2, 1] }}
-          className="mt-14"
-        >
-          <SectionLabel>02 — Palette</SectionLabel>
-          <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-5">
-            {PALETTES.map((p, i) => (
-              <PaletteCard
-                key={p.id}
-                palette={p}
-                theme={theme}
-                index={i}
-                selected={paletteId === p.id}
-                onSelect={() => setPaletteId(p.id)}
+          {/* LEFT — Theme stack */}
+          <div className="flex flex-col gap-5">
+            <SectionLabel>01 — Mode</SectionLabel>
+            <div className="flex flex-col gap-4 flex-1">
+              <ThemeCard
+                mode="light"
+                palette={palette}
+                selected={theme === "light"}
+                onSelect={() => setTheme("light")}
                 reduced={!!reduced}
+                index={0}
               />
-            ))}
+              <ThemeCard
+                mode="dark"
+                palette={palette}
+                selected={theme === "dark"}
+                onSelect={() => setTheme("dark")}
+                reduced={!!reduced}
+                index={1}
+              />
+            </div>
+          </div>
+
+          {/* RIGHT — Palette orbital picker */}
+          <div className="flex flex-col gap-5">
+            <SectionLabel>02 — Palette</SectionLabel>
+            <PaletteOrbital
+              palettes={PALETTES}
+              index={paletteIndex}
+              setIndex={setPaletteIndex}
+              theme={theme}
+              reduced={!!reduced}
+            />
           </div>
         </motion.div>
 
@@ -240,8 +253,8 @@ export default function ReferencePage() {
         <motion.div
           initial={reduced ? false : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.8 }}
-          className="mt-12 flex flex-col items-center gap-5"
+          transition={{ duration: 0.5, delay: 0.85 }}
+          className="mt-10 flex flex-col items-center gap-5"
         >
           <AnimatePresence mode="wait" initial={false}>
             {canContinue ? (
@@ -308,7 +321,7 @@ export default function ReferencePage() {
           onClick={() => router.push("/onboarding/intake")}
           initial={reduced ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.9 }}
+          transition={{ duration: 0.6, delay: 0.95 }}
           className="mt-auto self-start pt-16 text-[10.5px] tracking-[0.32em] uppercase transition-opacity hover:opacity-80"
           style={{
             color: "rgba(245,240,230,0.34)",
@@ -325,7 +338,13 @@ export default function ReferencePage() {
 /* ============================================================
  * StaggeredHeadline — letter-by-letter reveal with blur + lift.
  * ============================================================ */
-function StaggeredHeadline({ text, reduced }: { text: string; reduced: boolean }) {
+function StaggeredHeadline({
+  text,
+  reduced,
+}: {
+  text: string;
+  reduced: boolean;
+}) {
   const chars = text.split("");
   return (
     <h1
@@ -355,7 +374,7 @@ function StaggeredHeadline({ text, reduced }: { text: string; reduced: boolean }
           }}
           style={{ display: "inline-block", whiteSpace: "pre" }}
         >
-          {ch === " " ? " " : ch}
+          {ch === " " ? " " : ch}
         </motion.span>
       ))}
     </h1>
@@ -363,7 +382,7 @@ function StaggeredHeadline({ text, reduced }: { text: string; reduced: boolean }
 }
 
 /* ============================================================
- * SectionLabel — small mono header for the two sections.
+ * SectionLabel
  * ============================================================ */
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -386,62 +405,11 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 /* ============================================================
- * useCardInteractions — shared hook for cursor spotlight + tilt.
+ * ThemeCard — premium minimal glass card. Stacked vertically.
+ * Renders the theme with a glass + accent-bleed treatment so it
+ * literally looks like the mode it represents.
  * ============================================================ */
-function useCardInteractions(reduced: boolean) {
-  const ref = useRef<HTMLButtonElement>(null);
-  const mouseX = useMotionValue(0.5);
-  const mouseY = useMotionValue(0.5);
-  const [isHovered, setIsHovered] = useState(false);
-
-  // Smoothed values for tilt
-  const springConfig = { stiffness: 140, damping: 18 };
-  const rotateX = useSpring(
-    useTransform(mouseY, [0, 1], reduced ? [0, 0] : [4, -4]),
-    springConfig,
-  );
-  const rotateY = useSpring(
-    useTransform(mouseX, [0, 1], reduced ? [0, 0] : [-4, 4]),
-    springConfig,
-  );
-
-  // Spotlight position in pixels for the radial gradient
-  const spotlightX = useMotionValue("50%");
-  const spotlightY = useMotionValue("50%");
-
-  const onMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    const nx = (e.clientX - rect.left) / rect.width;
-    const ny = (e.clientY - rect.top) / rect.height;
-    mouseX.set(Math.max(0, Math.min(1, nx)));
-    mouseY.set(Math.max(0, Math.min(1, ny)));
-    spotlightX.set(`${nx * 100}%`);
-    spotlightY.set(`${ny * 100}%`);
-  };
-  const onMouseEnter = () => setIsHovered(true);
-  const onMouseLeave = () => {
-    setIsHovered(false);
-    mouseX.set(0.5);
-    mouseY.set(0.5);
-  };
-
-  return {
-    ref,
-    rotateX,
-    rotateY,
-    spotlightX,
-    spotlightY,
-    isHovered,
-    handlers: { onMouseMove, onMouseEnter, onMouseLeave },
-  };
-}
-
-/* ============================================================
- * ModeTile — glass card rendered IN its theme. Big serif label,
- * sample preview (mini hero), accent bleed from the chosen palette.
- * ============================================================ */
-function ModeTile({
+function ThemeCard({
   mode,
   palette,
   selected,
@@ -473,64 +441,39 @@ function ModeTile({
           inkMuted: "#9c8f78",
           rim: "rgba(245,240,230,0.1)",
         };
-
   const accent = palette?.accent ?? (mode === "light" ? "#2b2018" : "#a78bfa");
-
-  const {
-    ref,
-    rotateX,
-    rotateY,
-    spotlightX,
-    spotlightY,
-    isHovered,
-    handlers,
-  } = useCardInteractions(reduced);
-
-  const spotlightBg = useTransform(
-    () =>
-      `radial-gradient(circle 280px at ${spotlightX.get()} ${spotlightY.get()}, ${accent}22, transparent 70%)`,
-  );
 
   return (
     <motion.button
-      ref={ref}
       type="button"
       onClick={onSelect}
-      onMouseMove={handlers.onMouseMove}
-      onMouseEnter={handlers.onMouseEnter}
-      onMouseLeave={handlers.onMouseLeave}
-      initial={reduced ? false : { opacity: 0, y: 18, filter: "blur(6px)" }}
-      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      initial={reduced ? false : { opacity: 0, x: -16, filter: "blur(6px)" }}
+      animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
       transition={{
         duration: 0.55,
         delay: 0.55 + index * 0.08,
         ease: [0.2, 0.7, 0.2, 1],
       }}
+      whileHover={reduced ? undefined : { y: -2 }}
       whileTap={{ scale: 0.995 }}
-      style={{
-        rotateX,
-        rotateY,
-        transformPerspective: 1200,
-        transformStyle: "preserve-3d",
-      }}
-      className="relative text-left rounded-3xl overflow-hidden cursor-pointer group"
+      className="relative text-left rounded-3xl overflow-hidden cursor-pointer flex-1 min-h-[180px]"
     >
-      {/* Layer 1 — palette bg (the actual theme color) */}
+      {/* Layer 1 — theme bg */}
       <div className="absolute inset-0" style={{ background: render.bg }} />
 
-      {/* Layer 2 — accent bleed from selected palette (subtle gradient) */}
+      {/* Layer 2 — accent bleed gradient */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse 60% 50% at 90% 100%, ${accent}33, transparent 70%)`,
+          background: `radial-gradient(ellipse 60% 60% at 100% 100%, ${accent}33, transparent 70%)`,
         }}
       />
 
-      {/* Layer 3 — specular top highlight (glass feel) */}
+      {/* Layer 3 — specular top highlight */}
       <div
         aria-hidden
-        className="absolute inset-x-0 top-0 h-24 pointer-events-none"
+        className="absolute inset-x-0 top-0 h-20 pointer-events-none"
         style={{
           background:
             mode === "dark"
@@ -539,29 +482,33 @@ function ModeTile({
         }}
       />
 
-      {/* Layer 4 — cursor spotlight (only visible on hover) */}
-      <motion.div
+      {/* Layer 4 — border */}
+      <div
         aria-hidden
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none rounded-3xl"
         style={{
-          background: spotlightBg,
-          opacity: isHovered ? 1 : 0,
-          transition: "opacity 0.3s ease",
+          border: selected
+            ? `2px solid ${accent}`
+            : "1px solid rgba(255,255,255,0.08)",
+          boxShadow: selected
+            ? `0 0 0 5px ${accent}22, 0 26px 50px -20px ${accent}66, 0 18px 40px -18px rgba(0,0,0,0.55)`
+            : "0 18px 40px -22px rgba(0,0,0,0.55)",
+          transition: "border-color 0.3s ease, box-shadow 0.3s ease",
         }}
       />
 
-      {/* Layer 5 — selection burst ring */}
+      {/* Layer 5 — selection burst */}
       <AnimatePresence>
         {selected && (
           <motion.div
             key="burst"
-            initial={{ opacity: 1, scale: 0.95 }}
+            initial={{ opacity: 0.9, scale: 0.96 }}
             animate={{ opacity: 0, scale: 1.06 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
             className="absolute inset-0 pointer-events-none rounded-3xl"
             style={{
               border: `2px solid ${accent}`,
-              boxShadow: `0 0 80px ${accent}88, inset 0 0 40px ${accent}33`,
+              boxShadow: `0 0 60px ${accent}aa`,
             }}
           />
         )}
@@ -569,14 +516,10 @@ function ModeTile({
 
       {/* Content */}
       <div
-        className="relative"
-        style={{
-          padding: "32px 32px 28px",
-          minHeight: 260,
-          transform: "translateZ(20px)",
-        }}
+        className="relative h-full flex flex-col justify-between"
+        style={{ padding: "26px 28px 24px" }}
       >
-        {/* Eyebrow + sun/moon symbol + check */}
+        {/* Top row — eyebrow + check */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             {mode === "light" ? (
@@ -603,9 +546,7 @@ function ModeTile({
               border: selected
                 ? "1px solid rgba(255,255,255,0.55)"
                 : `1px solid ${render.rim}`,
-              boxShadow: selected
-                ? `0 4px 12px -2px ${accent}88`
-                : undefined,
+              boxShadow: selected ? `0 4px 12px -2px ${accent}88` : undefined,
               transition: "background 0.3s ease, border-color 0.3s ease",
             }}
           >
@@ -613,83 +554,35 @@ function ModeTile({
           </motion.div>
         </div>
 
-        {/* Big serif headline */}
-        <h3
-          className="mt-6 font-serif"
-          style={{
-            fontSize: 68,
-            fontWeight: 500,
-            letterSpacing: "-0.035em",
-            lineHeight: 0.95,
-            color: render.ink,
-            margin: 0,
-          }}
-        >
-          {mode === "light" ? "Light." : "Dark."}
-        </h3>
-
-        {/* Tagline */}
-        <p
-          className="mt-3 font-serif italic"
-          style={{
-            fontSize: 14,
-            lineHeight: 1.5,
-            color: render.inkMuted,
-            margin: 0,
-            maxWidth: "30ch",
-          }}
-        >
-          {mode === "light"
-            ? "Cream canvas. Ink headlines. Plain daylight."
-            : "Near-black canvas. Luminous accents. Premium gradient."}
-        </p>
-
-        {/* Mini sample preview — a tiny "hero card" rendered IN the
-            chosen palette/theme so the user sees what the look feels like. */}
-        <div
-          className="mt-6 rounded-xl px-4 py-3 flex items-center justify-between"
-          style={{
-            background:
-              mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
-            border: `1px solid ${render.rim}`,
-            backdropFilter: "blur(6px)",
-            WebkitBackdropFilter: "blur(6px)",
-          }}
-        >
-          <div className="flex flex-col gap-1">
-            <span
-              className="font-serif"
-              style={{
-                fontSize: 14,
-                fontWeight: 500,
-                color: render.ink,
-                letterSpacing: "-0.01em",
-                lineHeight: 1.1,
-              }}
-            >
-              Sample headline.
-            </span>
-            <span
-              className="text-[9.5px] tracking-[0.18em] uppercase"
-              style={{
-                color: render.inkMuted,
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              {mode}
-            </span>
-          </div>
-          <span
-            className="px-3 py-1 rounded-full text-[10.5px] font-medium"
+        {/* Big serif label + tagline */}
+        <div>
+          <h3
+            className="font-serif"
             style={{
-              background: accent,
-              color: mode === "dark" ? "#0a0a0c" : "#ffffff",
-              boxShadow: `0 4px 14px -2px ${accent}aa`,
-              letterSpacing: "0.01em",
+              fontSize: 52,
+              fontWeight: 500,
+              letterSpacing: "-0.035em",
+              lineHeight: 0.95,
+              color: render.ink,
+              margin: 0,
             }}
           >
-            Continue →
-          </span>
+            {mode === "light" ? "Light." : "Dark."}
+          </h3>
+          <p
+            className="mt-2 font-serif italic"
+            style={{
+              fontSize: 13,
+              lineHeight: 1.4,
+              color: render.inkMuted,
+              margin: 0,
+              maxWidth: "28ch",
+            }}
+          >
+            {mode === "light"
+              ? "Cream canvas. Ink headlines. Plain daylight."
+              : "Near-black canvas. Luminous accents. Premium gradient."}
+          </p>
         </div>
       </div>
     </motion.button>
@@ -697,24 +590,32 @@ function ModeTile({
 }
 
 /* ============================================================
- * PaletteCard — glass card with 3D breathing orb + supporting
- * swatches + cursor spotlight + selection burst.
+ * PaletteOrbital — the wow component. Big central primary orb
+ * + 3 supporting swatches orbiting around it + glass left/right
+ * arrow buttons + 8-position dot indicator.
+ *
+ * Continuous slow rotation (24s/revolution) with each swatch also
+ * gently floating in/out on its own sin cycle for an organic feel.
+ * The central orb breathes (4.5s pulse).
  * ============================================================ */
-function PaletteCard({
-  palette,
-  theme,
+function PaletteOrbital({
+  palettes,
   index,
-  selected,
-  onSelect,
+  setIndex,
+  theme,
   reduced,
 }: {
-  palette: Palette;
+  palettes: Palette[];
+  index: number | null;
+  setIndex: (i: number) => void;
   theme: Theme | null;
-  index: number;
-  selected: boolean;
-  onSelect: () => void;
   reduced: boolean;
 }) {
+  // Default to first palette if nothing picked yet — but treat that as
+  // "not selected" until the user actually interacts. Once the user
+  // touches an arrow or clicks "Pick this", we treat it as selected.
+  const displayIndex = index ?? 0;
+  const palette = palettes[displayIndex];
   const render = theme
     ? theme === "light"
       ? palette.light
@@ -722,268 +623,416 @@ function PaletteCard({
     : palette.dark;
   const isLight = theme === "light";
 
-  const {
-    ref,
-    rotateX,
-    rotateY,
-    spotlightX,
-    spotlightY,
-    isHovered,
-    handlers,
-  } = useCardInteractions(reduced);
-
-  const spotlightBg = useTransform(
-    () =>
-      `radial-gradient(circle 200px at ${spotlightX.get()} ${spotlightY.get()}, ${palette.accent}33, transparent 65%)`,
-  );
+  const onPrev = () =>
+    setIndex((displayIndex - 1 + palettes.length) % palettes.length);
+  const onNext = () => setIndex((displayIndex + 1) % palettes.length);
 
   return (
-    <motion.button
-      ref={ref}
-      type="button"
-      onClick={onSelect}
-      onMouseMove={handlers.onMouseMove}
-      onMouseEnter={handlers.onMouseEnter}
-      onMouseLeave={handlers.onMouseLeave}
-      initial={reduced ? false : { opacity: 0, y: 16, filter: "blur(5px)" }}
-      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+    <motion.div
+      initial={reduced ? false : { opacity: 0, x: 16, filter: "blur(6px)" }}
+      animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
       transition={{
-        duration: 0.5,
-        delay: 0.65 + index * 0.05,
+        duration: 0.65,
+        delay: 0.7,
         ease: [0.2, 0.7, 0.2, 1],
       }}
-      whileTap={{ scale: 0.985 }}
-      style={{
-        rotateX,
-        rotateY,
-        transformPerspective: 1200,
-        transformStyle: "preserve-3d",
-      }}
-      className="relative text-left rounded-2xl overflow-hidden cursor-pointer group"
+      className="relative rounded-3xl overflow-hidden flex-1"
+      style={{ minHeight: 420 }}
     >
       {/* Layer 1 — theme bg */}
       <div className="absolute inset-0" style={{ background: render.bg }} />
 
-      {/* Layer 2 — accent bleed gradient bg */}
+      {/* Layer 2 — accent ambient bleed */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse 70% 60% at 30% 0%, ${palette.accent}22, transparent 70%)`,
+          background: `radial-gradient(ellipse 70% 50% at 50% 40%, ${palette.accent}33, transparent 70%)`,
         }}
       />
 
-      {/* Layer 3 — specular top highlight */}
+      {/* Layer 3 — specular top */}
       <div
         aria-hidden
-        className="absolute inset-x-0 top-0 h-16 pointer-events-none"
+        className="absolute inset-x-0 top-0 h-24 pointer-events-none"
         style={{
           background: isLight
             ? "radial-gradient(ellipse 80% 100% at 50% 0%, rgba(255,255,255,0.5), transparent 70%)"
-            : "radial-gradient(ellipse 80% 100% at 50% 0%, rgba(255,255,255,0.06), transparent 70%)",
+            : "radial-gradient(ellipse 80% 100% at 50% 0%, rgba(255,255,255,0.08), transparent 70%)",
         }}
       />
 
-      {/* Layer 4 — cursor spotlight */}
-      <motion.div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: spotlightBg,
-          opacity: isHovered ? 1 : 0,
-          transition: "opacity 0.3s ease",
-        }}
-      />
-
-      {/* Layer 5 — border (changes with selection) */}
+      {/* Layer 4 — border (selected state when user has picked a palette) */}
       <div
         aria-hidden
-        className="absolute inset-0 pointer-events-none rounded-2xl"
+        className="absolute inset-0 pointer-events-none rounded-3xl"
         style={{
-          border: selected
-            ? `2px solid ${palette.accent}`
-            : `1px solid ${isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)"}`,
-          boxShadow: selected
-            ? `0 0 0 5px ${palette.accent}22, 0 28px 60px -18px ${palette.accent}66, 0 18px 36px -18px rgba(0,0,0,0.55)`
-            : "0 18px 36px -22px rgba(0,0,0,0.55)",
+          border:
+            index !== null
+              ? `2px solid ${palette.accent}`
+              : `1px solid ${isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)"}`,
+          boxShadow:
+            index !== null
+              ? `0 0 0 5px ${palette.accent}22, 0 30px 60px -20px ${palette.accent}66, 0 22px 50px -18px rgba(0,0,0,0.55)`
+              : "0 22px 50px -22px rgba(0,0,0,0.55)",
           transition: "border-color 0.3s ease, box-shadow 0.3s ease",
         }}
       />
 
-      {/* Layer 6 — selection burst */}
-      <AnimatePresence>
-        {selected && (
-          <motion.div
-            key="burst"
-            initial={{ opacity: 0.9, scale: 0.96 }}
-            animate={{ opacity: 0, scale: 1.08 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
-            className="absolute inset-0 pointer-events-none rounded-2xl"
-            style={{
-              border: `2px solid ${palette.accent}`,
-              boxShadow: `0 0 60px ${palette.accent}88`,
-            }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Selection chip */}
-      <div className="absolute top-3 right-3 z-10">
-        <motion.div
-          animate={{ scale: selected ? 1 : 0.92 }}
-          transition={{ duration: 0.22 }}
-          className="size-7 rounded-full grid place-items-center"
-          style={{
-            background: selected ? palette.accent : "transparent",
-            border: selected
-              ? "1px solid rgba(255,255,255,0.55)"
-              : `1px solid ${render.rim}`,
-            boxShadow: selected
-              ? `0 4px 12px -2px ${palette.accent}aa`
-              : undefined,
-            transition: "background 0.3s ease, border-color 0.3s ease",
-          }}
-        >
-          {selected && <CheckIcon />}
-        </motion.div>
-      </div>
-
       {/* Content */}
-      <div
-        className="relative"
-        style={{
-          padding: "22px 22px 20px",
-          minHeight: 250,
-          transform: "translateZ(15px)",
-        }}
-      >
-        {/* Hero row — 3D breathing orb + supporting swatches stack */}
-        <div className="flex items-end gap-3">
-          <BreathingOrb color={palette.accent} reduced={reduced} />
-          <div className="flex flex-col gap-1.5 pb-1">
-            {palette.supporting.map((c, i) => (
-              <motion.span
-                key={i}
-                initial={
-                  reduced ? false : { opacity: 0, x: -4 }
-                }
-                animate={{ opacity: 1, x: 0 }}
-                transition={{
-                  duration: 0.4,
-                  delay: 0.85 + i * 0.08,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
-                whileHover={reduced ? undefined : { scale: 1.18 }}
-                className="block rounded-full"
-                style={{
-                  width: 16,
-                  height: 16,
-                  background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.45), transparent 35%), radial-gradient(circle at 70% 70%, rgba(0,0,0,0.25), transparent 40%), ${c}`,
-                  boxShadow: `0 4px 10px -2px ${c}77, inset 0 -1px 2px rgba(0,0,0,0.2)`,
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Name + tagline */}
-        <div className="mt-6">
-          <h3
-            className="font-serif"
+      <div className="relative h-full flex flex-col" style={{ padding: 28 }}>
+        {/* Orbit stage */}
+        <div className="relative flex-1 flex items-center justify-center">
+          {/* Faint orbit ring */}
+          <div
+            aria-hidden
+            className="absolute rounded-full pointer-events-none"
             style={{
-              fontSize: 21,
-              fontWeight: 500,
-              letterSpacing: "-0.02em",
-              lineHeight: 1.1,
-              color: render.ink,
-              margin: 0,
+              width: 280,
+              height: 280,
+              border: `1px dashed ${render.rim}`,
+              opacity: 0.45,
             }}
-          >
-            {palette.name}
-          </h3>
-          <p
-            className="mt-1.5 font-serif italic"
-            style={{
-              fontSize: 12,
-              lineHeight: 1.45,
-              color: render.inkMuted,
-              margin: 0,
-            }}
-          >
-            {palette.tagline}
-          </p>
-        </div>
-
-        {/* Bottom hairline + number */}
-        <div className="mt-5 flex items-center gap-2">
-          <span
-            className="block h-px flex-1"
-            style={{ background: render.rim }}
           />
+
+          {/* Orbiting group — rotates continuously */}
+          <motion.div
+            className="absolute"
+            style={{ width: 280, height: 280 }}
+            animate={reduced ? undefined : { rotate: 360 }}
+            transition={{
+              duration: 26,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          >
+            {palette.supporting.map((c, i) => {
+              const angle = (i / palette.supporting.length) * 360;
+              return (
+                <OrbitingSwatch
+                  key={`${palette.id}-${i}`}
+                  color={c}
+                  angle={angle}
+                  index={i}
+                  reduced={reduced}
+                />
+              );
+            })}
+          </motion.div>
+
+          {/* Central primary orb — animates color on palette change */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={palette.id}
+              initial={
+                reduced
+                  ? false
+                  : { opacity: 0, scale: 0.6, filter: "blur(8px)" }
+              }
+              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+              exit={
+                reduced
+                  ? undefined
+                  : { opacity: 0, scale: 1.15, filter: "blur(10px)" }
+              }
+              transition={{ duration: 0.42, ease: [0.2, 0.7, 0.2, 1] }}
+              className="relative"
+            >
+              <CentralOrb color={palette.accent} reduced={reduced} />
+            </motion.div>
+          </AnimatePresence>
+
+          {/* LEFT arrow — glass pill */}
+          <GlassArrowButton
+            direction="left"
+            onClick={onPrev}
+            isLight={isLight}
+            inkMuted={render.inkMuted}
+            rim={render.rim}
+          />
+          {/* RIGHT arrow — glass pill */}
+          <GlassArrowButton
+            direction="right"
+            onClick={onNext}
+            isLight={isLight}
+            inkMuted={render.inkMuted}
+            rim={render.rim}
+          />
+        </div>
+
+        {/* Palette name + tagline (animates on palette change) */}
+        <div className="relative text-center min-h-[68px]">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={palette.id}
+              initial={
+                reduced ? false : { opacity: 0, y: 8, filter: "blur(4px)" }
+              }
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={reduced ? undefined : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.32, ease: [0.2, 0.7, 0.2, 1] }}
+            >
+              <h3
+                className="font-serif"
+                style={{
+                  fontSize: 28,
+                  fontWeight: 500,
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.05,
+                  color: render.ink,
+                  margin: 0,
+                }}
+              >
+                {palette.name}
+              </h3>
+              <p
+                className="mt-1 font-serif italic"
+                style={{
+                  fontSize: 13.5,
+                  lineHeight: 1.45,
+                  color: render.inkMuted,
+                  margin: 0,
+                }}
+              >
+                {palette.tagline}
+              </p>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Position dots */}
+        <div className="relative mt-5 flex items-center justify-center gap-1.5">
+          {palettes.map((p, i) => {
+            const isCurrent = i === displayIndex;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setIndex(i)}
+                className="block transition-all duration-300"
+                style={{
+                  width: isCurrent ? 22 : 6,
+                  height: 6,
+                  borderRadius: 3,
+                  background: isCurrent
+                    ? palette.accent
+                    : isLight
+                      ? "rgba(0,0,0,0.18)"
+                      : "rgba(255,255,255,0.18)",
+                  boxShadow: isCurrent ? `0 0 10px ${palette.accent}aa` : undefined,
+                }}
+                aria-label={`Palette ${i + 1} of ${palettes.length}: ${p.name}`}
+              />
+            );
+          })}
+        </div>
+
+        {/* Position counter (small) */}
+        <div className="relative mt-3 text-center">
           <span
-            className="text-[9px] tracking-[0.28em] uppercase tabular-nums"
+            className="text-[9.5px] tracking-[0.32em] uppercase tabular-nums"
             style={{
               color: render.inkMuted,
               fontFamily: "var(--font-mono)",
             }}
           >
-            {String(index + 1).padStart(2, "0")}
+            {String(displayIndex + 1).padStart(2, "0")} / {String(palettes.length).padStart(2, "0")} · use ← →
           </span>
         </div>
       </div>
-    </motion.button>
+    </motion.div>
   );
 }
 
 /* ============================================================
- * BreathingOrb — the 3D-feeling primary swatch. Radial gradient
- * for specular + shadow + ambient glow ring + slow scale breath.
+ * OrbitingSwatch — one of the 3 supporting colors. Positioned at
+ * a fixed angle on the orbit ring; the parent rotates the whole
+ * group. Each swatch also floats subtly in/out on its own.
  * ============================================================ */
-function BreathingOrb({ color, reduced }: { color: string; reduced: boolean }) {
+function OrbitingSwatch({
+  color,
+  angle,
+  index,
+  reduced,
+}: {
+  color: string;
+  angle: number;
+  index: number;
+  reduced: boolean;
+}) {
+  // Offsets so the 3 swatches don't all breathe in sync
+  const phaseDelay = index * 1.4;
+  return (
+    <div
+      className="absolute"
+      style={{
+        top: "50%",
+        left: "50%",
+        // Place at angle on a 280px-diameter orbit ring (radius 140)
+        transform: `rotate(${angle}deg) translate(140px) rotate(-${angle}deg) translate(-50%, -50%)`,
+      }}
+    >
+      <motion.div
+        animate={
+          reduced
+            ? undefined
+            : { scale: [1, 1.18, 1], y: [0, -4, 0] }
+        }
+        transition={{
+          duration: 3.6,
+          repeat: Infinity,
+          delay: phaseDelay,
+          ease: "easeInOut",
+        }}
+        className="rounded-full"
+        style={{
+          width: 28,
+          height: 28,
+          background: `
+            radial-gradient(circle at 30% 30%, rgba(255,255,255,0.55), transparent 35%),
+            radial-gradient(circle at 70% 75%, rgba(0,0,0,0.3), transparent 40%),
+            ${color}
+          `,
+          boxShadow: `0 8px 18px -4px ${color}aa, 0 0 0 1px rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.2)`,
+        }}
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+ * CentralOrb — the big focal primary swatch. 3D radial gradients
+ * + ambient pulse + breathing scale.
+ * ============================================================ */
+function CentralOrb({
+  color,
+  reduced,
+}: {
+  color: string;
+  reduced: boolean;
+}) {
   return (
     <div className="relative">
-      {/* Ambient outer glow that pulses with the breath */}
+      {/* Outer ambient glow */}
       <motion.div
         aria-hidden
         className="absolute rounded-full pointer-events-none"
         animate={
           reduced
             ? { opacity: 0.6 }
-            : { opacity: [0.4, 0.65, 0.4], scale: [1, 1.15, 1] }
+            : { opacity: [0.45, 0.7, 0.45], scale: [1, 1.15, 1] }
         }
-        transition={{
-          duration: 4.5,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
+        transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
         style={{
-          inset: -10,
-          background: `radial-gradient(circle, ${color}66, transparent 70%)`,
-          filter: "blur(8px)",
+          inset: -32,
+          background: `radial-gradient(circle, ${color}77, transparent 65%)`,
+          filter: "blur(18px)",
         }}
       />
-      {/* The orb itself — 3D from layered radial gradients */}
+      {/* Middle soft halo */}
+      <div
+        aria-hidden
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          inset: -10,
+          background: `radial-gradient(circle, ${color}55, transparent 70%)`,
+          filter: "blur(6px)",
+        }}
+      />
+      {/* The orb */}
       <motion.div
         aria-hidden
         animate={reduced ? undefined : { scale: [1, 1.04, 1] }}
-        transition={{
-          duration: 4.5,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
+        transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
         className="relative rounded-full"
         style={{
-          width: 66,
-          height: 66,
+          width: 140,
+          height: 140,
           background: `
-            radial-gradient(circle at 30% 28%, rgba(255,255,255,0.55), transparent 30%),
-            radial-gradient(circle at 70% 75%, rgba(0,0,0,0.35), transparent 35%),
+            radial-gradient(circle at 30% 28%, rgba(255,255,255,0.55), transparent 32%),
+            radial-gradient(circle at 70% 75%, rgba(0,0,0,0.4), transparent 38%),
             ${color}
           `,
-          boxShadow: `0 12px 28px -6px ${color}99, 0 0 0 1px rgba(255,255,255,0.08), inset 0 -3px 6px rgba(0,0,0,0.2)`,
+          boxShadow: `0 22px 50px -12px ${color}cc, 0 0 0 1px rgba(255,255,255,0.1), inset 0 -6px 12px rgba(0,0,0,0.25), inset 0 4px 8px rgba(255,255,255,0.18)`,
         }}
       />
     </div>
+  );
+}
+
+/* ============================================================
+ * GlassArrowButton — premium glass left/right navigation pill.
+ * ============================================================ */
+function GlassArrowButton({
+  direction,
+  onClick,
+  isLight,
+  inkMuted,
+  rim,
+}: {
+  direction: "left" | "right";
+  onClick: () => void;
+  isLight: boolean;
+  inkMuted: string;
+  rim: string;
+}) {
+  const hoverX = useMotionValue(0);
+  const x = useSpring(hoverX, { stiffness: 200, damping: 18 });
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => hoverX.set(direction === "right" ? 4 : -4)}
+      onMouseLeave={() => hoverX.set(0)}
+      whileTap={{ scale: 0.92 }}
+      style={{
+        x,
+        position: "absolute",
+        top: "50%",
+        [direction]: 8,
+        transform: "translateY(-50%)",
+      }}
+      className="grid place-items-center"
+      aria-label={direction === "left" ? "Previous palette" : "Next palette"}
+    >
+      <div
+        className="grid place-items-center rounded-full"
+        style={{
+          width: 48,
+          height: 48,
+          background: isLight
+            ? "linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.5) 100%)"
+            : "linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%)",
+          border: `1px solid ${isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.18)"}`,
+          backdropFilter: "blur(20px) saturate(160%)",
+          WebkitBackdropFilter: "blur(20px) saturate(160%)",
+          boxShadow: isLight
+            ? "0 8px 20px -6px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.6)"
+            : "0 8px 24px -6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.15)",
+        }}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden
+          style={{
+            color: inkMuted,
+            transform: direction === "right" ? "scaleX(-1)" : undefined,
+          }}
+        >
+          <path
+            d="M15 6l-6 6 6 6"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+    </motion.button>
   );
 }
 
