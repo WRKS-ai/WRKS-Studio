@@ -15,7 +15,7 @@ import { PERSONALITIES } from "@/lib/personalities";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { VOICES } from "@/lib/voices";
 
-// POST /api/agent/converse
+// POST /api/agent/chat/completions
 //
 // The custom-LLM endpoint that ElevenLabs Conversational AI points at.
 // Receives OpenAI-format chat completion requests, returns OpenAI-format
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     .limit(1)
     .maybeSingle();
   if (profileErr) {
-    console.error("[api/agent/converse] profile lookup failed:", profileErr);
+    console.error("[api/agent/chat/completions] profile lookup failed:", profileErr);
     return NextResponse.json(
       { error: "Profile lookup failed" },
       { status: 500 },
@@ -337,7 +337,7 @@ export async function POST(req: NextRequest) {
           });
         }
       } catch (err) {
-        console.error("[api/agent/converse] stream error:", err);
+        console.error("[api/agent/chat/completions] stream error:", err);
         try {
           enqueue(
             encodeOpenAIChunk({
