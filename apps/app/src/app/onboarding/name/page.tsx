@@ -100,14 +100,16 @@ export default function NamePage() {
       if (continuing.current) return "Already going.";
       continuing.current = true;
       localStorage.setItem(NAME_KEY, final);
-      setTimeout(() => router.push("/onboarding/intake"), 900);
+      // Tiny delay so the agent's confirmation can play. 200ms is
+      // imperceptible vs. the prior 900ms which felt sluggish.
+      setTimeout(() => router.push("/onboarding/intake"), 200);
       return `Continuing as ${final}.`;
     }
 
     if (
       BACK_WORDS.some((w) => destination === w || destination.includes(w))
     ) {
-      setTimeout(() => router.push("/onboarding/personality"), 600);
+      setTimeout(() => router.push("/onboarding/personality"), 200);
       return "Going back.";
     }
 

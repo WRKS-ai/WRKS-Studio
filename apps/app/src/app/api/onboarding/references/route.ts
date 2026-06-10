@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { invalidateMemoryCache } from "@/lib/agent/memory/compose";
 import {
   MEMORY_KIND,
   MEMORY_SOURCE,
@@ -99,6 +100,8 @@ export async function POST(req: Request) {
       );
     }
   }
+
+  invalidateMemoryCache(profile.id);
 
   return NextResponse.json({ ok: true, count: body.picks.length });
 }

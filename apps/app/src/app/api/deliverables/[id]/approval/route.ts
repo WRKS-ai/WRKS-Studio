@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { invalidateMemoryCache } from "@/lib/agent/memory/compose";
 import {
   MEMORY_KIND,
   MEMORY_SOURCE,
@@ -167,6 +168,10 @@ export async function POST(req: Request, context: RouteContext) {
     // — the entry can be backfilled by a follow-up job. Don't fail
     // the user's request on this.
   }
+
+  // Invalidate the in-memory cache so the next voice turn for this
+  // profile sees the new approval/rejection without waiting for TTL.
+  invalidateMemoryCache(deliv.business_profile_id);
 
   return NextResponse.json({
     ok: true,

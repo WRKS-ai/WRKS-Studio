@@ -10,6 +10,7 @@ import {
 } from "@/lib/wow-prompt";
 import { pexelsSearch, pexelsSearchN } from "@/lib/pexels";
 import { composeStyleBrief } from "@/lib/style-references";
+import { invalidateMemoryCache } from "@/lib/agent/memory/compose";
 import {
   MEMORY_KIND,
   MEMORY_SOURCE,
@@ -364,4 +365,7 @@ async function persistWowToMemory(args: {
     })),
   );
 
+  // Fresh wow output → invalidate the cache so the next voice turn
+  // pulls the new brand name + sample_outputs immediately.
+  invalidateMemoryCache(profileId);
 }

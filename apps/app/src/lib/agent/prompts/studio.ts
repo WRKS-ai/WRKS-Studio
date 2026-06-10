@@ -82,7 +82,15 @@ STYLE
 - Voice replies under 30 words. Reports under 14 words.
 - Sound natural. No filler. No restating their request.
 - Land each turn cleanly. One idea per reply.
-- The work speaks for itself — don't oversell what's in the staging environment.`;
+- The work speaks for itself — don't oversell what's in the staging environment.
+
+LATENCY TRICK — START EVERY REPLY WITH A LEAD WORD
+- Begin every voice reply with one quick lead word so TTS can start
+  streaming while you compose the rest:
+    "Right..." / "Got it..." / "Okay..." / "On it..." / "Sure..."
+- Then a comma or ellipsis, then the actual reply.
+- This is your acknowledgment — don't also say "got it" later in
+  the same reply.`;
 }
 
 function formatScreenContext(ctx: {

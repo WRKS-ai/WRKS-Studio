@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { invalidateMemoryCache } from "@/lib/agent/memory/compose";
 import {
   MEMORY_KIND,
   MEMORY_SOURCE,
@@ -162,6 +163,10 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+
+  // Fresh intake data → invalidate the cache so the next voice turn
+  // pulls the new facts.
+  invalidateMemoryCache(profileId);
 
   return NextResponse.json({ profileId });
 }

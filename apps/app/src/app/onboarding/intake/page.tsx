@@ -254,16 +254,13 @@ export default function IntakePage() {
       return `I don't recognize the field "${fieldName}". Try business, audience, or edge.`;
     }
     setFields((f) => ({ ...f, [target]: value }));
-    // If the agent answered the current question, auto-advance after a beat
-    // so the next serif headline swaps in cleanly.
+    // Advance the focal question right away — the prior 600ms beat
+    // felt sluggish and added perceived latency on top of voice
+    // round-trip.
     if (target === currentKey && !isLast) {
-      setTimeout(() => setCurrentIdx((i) => Math.min(i + 1, FIELD_ORDER.length - 1)), 600);
+      setCurrentIdx((i) => Math.min(i + 1, FIELD_ORDER.length - 1));
     } else if (target !== currentKey) {
-      // The agent jumped to a different field. Jump the focus to match.
-      setTimeout(
-        () => setCurrentIdx(FIELD_ORDER.indexOf(target)),
-        300,
-      );
+      setCurrentIdx(FIELD_ORDER.indexOf(target));
     }
     return `Set ${target} to "${value.slice(0, 80)}${value.length > 80 ? "…" : ""}".`;
   });
@@ -305,7 +302,7 @@ export default function IntakePage() {
 
     if (BACK_WORDS.some((w) => destination === w || destination.includes(w))) {
       if (currentIdx === 0) {
-        setTimeout(() => router.push("/onboarding/name"), 500);
+        setTimeout(() => router.push("/onboarding/name"), 200);
         return "Going back to the name step.";
       }
       setCurrentIdx((i) => Math.max(i - 1, 0));

@@ -55,10 +55,60 @@ const DEFAULTS = {
   recentRejectionsLimit: 5,
 };
 
+// ============================================================
+// In-memory cache for composed memory
+// ============================================================
+// Memory only changes between voice sessions (intake re-submit, wow
+// generation, approval flow). Within a single voice session, every
+// turn pulls the same data — so caching it server-side cuts 100-300ms
+// of Supabase round-trips per turn.
+//
+// Per-Lambda-instance Map. Each Vercel function instance has its own
+// cache; not shared across instances but that's fine — the Lambda
+// stays warm for the duration of an active voice session, so
+// successive turns from one user usually hit the same instance.
+//
+// TTL: 60 seconds. Voice sessions are typically 30s-5min, so this
+// covers a full session of turns from one user while also picking
+// up changes within a minute if the user re-completes intake or a
+// deliverable lands.
+
+type CacheEntry = { composed: ComposedMemory; expiresAt: number };
+const CACHE_TTL_MS = 60_000;
+const memoryCache = new Map<string, CacheEntry>();
+
+function getCached(profileId: string): ComposedMemory | null {
+  const entry = memoryCache.get(profileId);
+  if (!entry) return null;
+  if (entry.expiresAt < Date.now()) {
+    memoryCache.delete(profileId);
+    return null;
+  }
+  return entry.composed;
+}
+
+function setCached(profileId: string, composed: ComposedMemory): void {
+  memoryCache.set(profileId, {
+    composed,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  });
+}
+
+/**
+ * Manually invalidate the cache for a profile. Call this from write
+ * paths (approval flow, wow generation) so the next voice turn
+ * picks up the fresh state immediately without waiting for TTL.
+ */
+export function invalidateMemoryCache(profileId: string): void {
+  memoryCache.delete(profileId);
+}
+
 export async function composeMemoryContext(
   supabase: SupabaseClient<Database>,
   profile: BusinessProfile,
 ): Promise<ComposedMemory> {
+  const cached = getCached(profile.id);
+  if (cached) return cached;
   // Parallel fetches: semantic memory + episodic (approvals + rejections).
   const [semanticRows, approvedRows, rejectionRows] = await Promise.all([
     // current_memory view returns latest entry per (profile, kind)
@@ -106,7 +156,7 @@ export async function composeMemoryContext(
     if (row.kind && row.content) semanticByKind.set(row.kind, row.content);
   }
 
-  return {
+  const composed: ComposedMemory = {
     profile: {
       id: profile.id,
       brandName: profile.brand_name,
@@ -159,6 +209,9 @@ export async function composeMemoryContext(
       }),
     },
   };
+
+  setCached(profile.id, composed);
+  return composed;
 }
 
 // ============================================================

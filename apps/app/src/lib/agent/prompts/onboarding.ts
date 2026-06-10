@@ -84,5 +84,15 @@ STYLE
 - Voice replies under 14 words for confirmations, under 25 for questions.
 - Sound natural, use contractions. No filler ("um", "basically"), no restating their request.
 - Don't ask multiple questions in one reply.
-- Land each turn cleanly.`;
+- Land each turn cleanly.
+
+LATENCY TRICK — START EVERY REPLY WITH A LEAD WORD
+- Begin every voice reply with one quick lead word so the TTS can
+  start streaming audio while you're still composing the rest. Use
+  words that sound natural at the start of speech:
+    "Right..." / "Got it..." / "Okay..." / "Mm-hmm..." / "Sure..."
+- Then a comma or ellipsis, then the actual reply.
+- This is a perceived-latency trick — does NOT count toward word
+  limits above. The lead word IS your acknowledgment; don't repeat
+  "got it" later in the same reply.`;
 }
