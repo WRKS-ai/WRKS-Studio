@@ -253,12 +253,12 @@ export default function ReferencePage() {
     >
       <div
         className="relative mx-auto px-10 sm:px-14 py-10"
-        style={{ maxWidth: 1200 }}
+        style={{ maxWidth: 1440 }}
       >
         <div
-          className="grid items-center gap-12 lg:gap-16"
+          className="grid items-center gap-16 lg:gap-24"
           style={{
-            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.05fr)",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 520px)",
             minHeight: "calc(100vh - 160px)",
           }}
         >
@@ -313,30 +313,12 @@ export default function ReferencePage() {
               </motion.span>
             </motion.h1>
 
-            <motion.p
-              initial={reduced ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.3 }}
-              className="font-sans"
-              style={{
-                fontSize: 15,
-                lineHeight: 1.6,
-                color: "rgba(245,240,230,0.6)",
-                maxWidth: "44ch",
-                margin: "26px 0 0",
-              }}
-            >
-              Pick any color from the panel. We&rsquo;ll snap it to the
-              nearest curated palette under the hood so your agent
-              knows the matching writing voice.
-            </motion.p>
-
             {/* Voice panel — live nearest-palette indicator */}
             <motion.div
               initial={reduced ? false : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.45 }}
-              className="mt-12 max-w-[28rem]"
+              transition={{ duration: 0.55, delay: 0.35 }}
+              className="mt-14 max-w-[28rem]"
             >
               <div className="flex items-center gap-3">
                 <span
