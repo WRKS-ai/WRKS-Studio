@@ -391,9 +391,15 @@ function QuietSectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 /* ============================================================
- * ThemeCard — minimal glass, NO hard accent border on selection.
- * Selection is felt: subtle outer halo + soft inner accent wash +
- * tiny "SELECTED" eyebrow in top-right. Hairline rim, that's it.
+ * ThemeCard — compact premium glass pill. Frosted backdrop blur
+ * over the dark page canvas. The theme is conveyed by a small
+ * preview swatch (a tiny rendered hero) inside the card, NOT by
+ * making the whole card the theme color.
+ *
+ * Layout (horizontal, ~120px tall):
+ *   [ icon + eyebrow ]        [ ✓ selected dot ]
+ *   [ "Light." big serif ]    [ ~~~ preview ~~~ ]
+ *   [ tiny tagline ]
  * ============================================================ */
 function ThemeCard({
   mode,
@@ -410,7 +416,8 @@ function ThemeCard({
   reduced: boolean;
   index: number;
 }) {
-  const render = palette
+  // For preview, default to a neutral palette when none is picked
+  const previewRender = palette
     ? mode === "light"
       ? palette.light
       : palette.dark
@@ -441,147 +448,174 @@ function ThemeCard({
         ease: [0.2, 0.7, 0.2, 1],
       }}
       whileHover={reduced ? undefined : { y: -2 }}
-      whileTap={{ scale: 0.995 }}
-      className="relative text-left rounded-3xl overflow-hidden cursor-pointer flex-1 min-h-[180px]"
+      whileTap={{ scale: 0.99 }}
+      className="relative text-left rounded-2xl overflow-hidden cursor-pointer"
       style={{
-        // Selected = soft outer halo only. NO hard border swap.
+        minHeight: 116,
+        // Selected: soft outer halo in the palette accent
         boxShadow: selected
-          ? `0 0 80px -10px ${accent}66, 0 22px 50px -20px rgba(0,0,0,0.55)`
-          : "0 22px 50px -22px rgba(0,0,0,0.55)",
+          ? `0 0 50px -8px ${accent}88, 0 18px 36px -18px rgba(0,0,0,0.6)`
+          : "0 18px 36px -22px rgba(0,0,0,0.55)",
         transition: "box-shadow 0.5s ease",
       }}
     >
-      {/* Layer 1 — theme bg */}
-      <div className="absolute inset-0" style={{ background: render.bg }} />
+      {/* Layer 1 — frosted glass over the dark page canvas */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.018) 100%)",
+          backdropFilter: "blur(28px) saturate(170%)",
+          WebkitBackdropFilter: "blur(28px) saturate(170%)",
+        }}
+      />
 
-      {/* Layer 2 — accent inner wash when selected (very subtle) */}
+      {/* Layer 2 — accent wash from bottom-right corner. When selected,
+          the wash strengthens; when not, it's a quiet hint. */}
       <motion.div
         aria-hidden
-        animate={{ opacity: selected ? 1 : 0 }}
+        animate={{ opacity: selected ? 1 : 0.55 }}
         transition={{ duration: 0.5 }}
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse 80% 70% at 50% 100%, ${accent}33, transparent 75%)`,
+          background: `radial-gradient(ellipse 65% 70% at 100% 100%, ${accent}30, transparent 75%)`,
         }}
       />
 
-      {/* Layer 3 — corner accent bleed (always present at low opacity) */}
+      {/* Layer 3 — top specular highlight (glass rim of light) */}
       <div
         aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `radial-gradient(ellipse 50% 50% at 100% 100%, ${accent}1a, transparent 70%)`,
-        }}
-      />
-
-      {/* Layer 4 — top specular */}
-      <div
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-20 pointer-events-none"
+        className="absolute inset-x-0 top-0 h-10 pointer-events-none"
         style={{
           background:
-            mode === "dark"
-              ? "radial-gradient(ellipse 80% 100% at 50% 0%, rgba(255,255,255,0.07), transparent 70%)"
-              : "radial-gradient(ellipse 80% 100% at 50% 0%, rgba(255,255,255,0.45), transparent 70%)",
+            "radial-gradient(ellipse 70% 100% at 50% 0%, rgba(255,255,255,0.09), transparent 70%)",
         }}
       />
 
-      {/* Layer 5 — hairline rim (constant, very quiet) */}
+      {/* Layer 4 — hairline rim */}
       <div
         aria-hidden
-        className="absolute inset-0 pointer-events-none rounded-3xl"
-        style={{
-          border:
-            mode === "dark"
-              ? "1px solid rgba(255,255,255,0.06)"
-              : "1px solid rgba(0,0,0,0.06)",
-        }}
+        className="absolute inset-0 pointer-events-none rounded-2xl"
+        style={{ border: "1px solid rgba(255,255,255,0.08)" }}
       />
 
-      {/* Content */}
+      {/* Content — horizontal flex */}
       <div
-        className="relative h-full flex flex-col justify-between"
-        style={{ padding: "26px 28px 24px" }}
+        className="relative h-full flex items-center"
+        style={{ padding: "18px 22px" }}
       >
-        {/* Top — eyebrow + tiny "SELECTED" badge */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+        {/* Left column — icon + eyebrow + label + tagline */}
+        <div className="flex-1 min-w-0">
+          {/* Eyebrow row */}
+          <div className="flex items-center gap-2">
             {mode === "light" ? (
-              <SunIcon color={render.ink} />
+              <SunIcon color="rgba(245,240,230,0.78)" />
             ) : (
               <MoonIcon color={accent} />
             )}
             <span
-              className="text-[10px] tracking-[0.32em] uppercase"
+              className="text-[9.5px] tracking-[0.32em] uppercase"
               style={{
-                color: render.inkMuted,
+                color: "rgba(245,240,230,0.5)",
                 fontFamily: "var(--font-mono)",
               }}
             >
               {mode === "light" ? "Daylight" : "After dark"}
             </span>
           </div>
-          <AnimatePresence>
-            {selected && (
-              <motion.div
-                key="selected-badge"
-                initial={reduced ? false : { opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={reduced ? undefined : { opacity: 0, x: 8 }}
-                transition={{ duration: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
-                className="flex items-center gap-1.5"
-              >
-                <span
-                  className="block size-1 rounded-full"
-                  style={{
-                    background: accent,
-                    boxShadow: `0 0 8px ${accent}`,
-                  }}
-                />
-                <span
-                  className="text-[9.5px] tracking-[0.32em] uppercase"
-                  style={{
-                    color: render.ink,
-                    fontFamily: "var(--font-mono)",
-                    opacity: 0.85,
-                  }}
-                >
-                  Selected
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
 
-        {/* Big serif label + tagline */}
-        <div>
+          {/* Big serif label */}
           <h3
-            className="font-serif"
+            className="font-serif mt-1.5"
             style={{
-              fontSize: 52,
+              fontSize: 32,
               fontWeight: 500,
-              letterSpacing: "-0.035em",
-              lineHeight: 0.95,
-              color: render.ink,
+              letterSpacing: "-0.028em",
+              lineHeight: 1,
+              color: "rgba(245,240,230,0.97)",
               margin: 0,
             }}
           >
             {mode === "light" ? "Light." : "Dark."}
           </h3>
+
+          {/* Tagline — tight, one line */}
           <p
-            className="mt-2 font-serif italic"
+            className="font-serif italic mt-1"
             style={{
-              fontSize: 13,
-              lineHeight: 1.4,
-              color: render.inkMuted,
+              fontSize: 12,
+              lineHeight: 1.3,
+              color: "rgba(245,240,230,0.45)",
               margin: 0,
-              maxWidth: "28ch",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
           >
             {mode === "light"
-              ? "Cream canvas. Ink headlines. Plain daylight."
-              : "Near-black canvas. Luminous accents. Premium gradient."}
+              ? "Cream canvas. Ink headlines."
+              : "Near-black. Luminous accents."}
           </p>
+        </div>
+
+        {/* Right column — theme preview chip (a tiny rendered card
+            in the theme colors) + selection dot */}
+        <div className="ml-4 flex flex-col items-end gap-2 shrink-0">
+          {/* Selection indicator — small accent dot in palette accent */}
+          <motion.div
+            animate={{ scale: selected ? 1 : 0.85, opacity: selected ? 1 : 0.3 }}
+            transition={{ duration: 0.25 }}
+            className="rounded-full"
+            style={{
+              width: 8,
+              height: 8,
+              background: accent,
+              boxShadow: selected
+                ? `0 0 10px ${accent}, 0 0 16px ${accent}88`
+                : undefined,
+            }}
+            aria-hidden
+          />
+
+          {/* Preview chip — a small "Aa" rendered in the theme */}
+          <div
+            className="rounded-lg overflow-hidden grid place-items-center"
+            style={{
+              width: 62,
+              height: 62,
+              background: previewRender.bg,
+              border: `1px solid ${previewRender.rim}`,
+              boxShadow: `inset 0 1px 0 ${
+                mode === "light"
+                  ? "rgba(255,255,255,0.7)"
+                  : "rgba(255,255,255,0.04)"
+              }, 0 4px 12px -4px rgba(0,0,0,0.45)`,
+              position: "relative",
+            }}
+          >
+            {/* Accent corner bleed inside the preview */}
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: `radial-gradient(ellipse 70% 60% at 100% 100%, ${accent}3a, transparent 70%)`,
+              }}
+            />
+            {/* "Aa" sample */}
+            <span
+              className="relative font-serif italic"
+              style={{
+                fontSize: 22,
+                fontWeight: 500,
+                letterSpacing: "-0.025em",
+                color: previewRender.ink,
+                lineHeight: 1,
+              }}
+            >
+              Aa
+            </span>
+          </div>
         </div>
       </div>
     </motion.button>
