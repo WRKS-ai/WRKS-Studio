@@ -1,7 +1,12 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-// Public routes don't require a session.
+// Public routes don't require a Clerk session.
+//
+// The agent endpoints under /api/agent/* are called by ElevenLabs
+// (custom-LLM webhook) and Vercel Cron, neither of which carries a
+// Clerk JWT. They have their own auth via WRKS_AGENT_LLM_SECRET in
+// the Authorization header — Clerk must not bounce them to 404.
 const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
@@ -12,6 +17,8 @@ const isPublicRoute = createRouteMatcher([
   // Clerk's own handshake / verification endpoints
   "/sso-callback(.*)",
   "/verify(.*)",
+  // Agent endpoints — self-authenticated via shared secret
+  "/api/agent/(.*)",
 ]);
 
 // If a signed-in user lands here, route them into the studio instead of
