@@ -185,21 +185,21 @@ export default function ReferencePage() {
               margin: 0,
             }}
           >
-            Pick up to three references. Your agent will use them to set
-            the voice, cadence, and visual feel of the deliverables
-            you&rsquo;re about to see. Skip if you trust the default.
+            Pick up to three brands your work should feel like. Your agent
+            uses them as style anchors for everything it&rsquo;ll make next —
+            voice, cadence, structure. Skip if you trust the default.
           </motion.p>
         </div>
 
-        {/* 2×2 glass card grid */}
+        {/* 4×3 brand-tile grid */}
         <motion.div
           initial={reduced ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.28, ease: [0.2, 0.7, 0.2, 1] }}
-          className="mt-14 grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8"
+          className="mt-14 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 lg:gap-6"
         >
           {STYLE_REFERENCES.map((ref, idx) => (
-            <StyleGlassCard
+            <BrandPickCard
               key={ref.id}
               styleRef={ref}
               index={idx}
@@ -295,17 +295,17 @@ export default function ReferencePage() {
 }
 
 /* ============================================================
- * StyleGlassCard — one card per style reference. Premium glass
- * treatment matching the /name card (frosted bg, hairline rim,
- * specular highlight, deep ambient shadow). Selected state lights
- * the rim with the active accent and adds an outer glow.
+ * BrandPickCard — one card per real brand. The card IS the preview;
+ * no fake-website mock inside. Brand tile renders the brand's
+ * distinctive typography + background in the top area. Bottom area
+ * shows tagline + influences. Picks light up with the brand's own
+ * accent (much stronger signal than a generic glass rim).
  * ============================================================ */
-function StyleGlassCard({
+function BrandPickCard({
   styleRef,
   index,
   selected,
   disabled,
-  accent,
   onToggle,
   reduced,
 }: {
@@ -313,86 +313,62 @@ function StyleGlassCard({
   index: number;
   selected: boolean;
   disabled: boolean;
-  accent: string;
+  accent: string; // kept for API parity; we use brand's own accent
   onToggle: () => void;
   reduced: boolean;
 }) {
-  const Preview = styleRef.Preview;
+  const Tile = styleRef.Tile;
+  const brandAccent = styleRef.accent;
 
   return (
     <motion.button
       type="button"
       onClick={onToggle}
       disabled={disabled}
-      initial={reduced ? false : { opacity: 0, y: 16, filter: "blur(6px)" }}
+      initial={reduced ? false : { opacity: 0, y: 14, filter: "blur(5px)" }}
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       transition={{
-        duration: 0.55,
-        delay: 0.32 + index * 0.07,
+        duration: 0.5,
+        delay: 0.3 + index * 0.04,
         ease: [0.2, 0.7, 0.2, 1],
       }}
-      whileHover={reduced || disabled ? undefined : { y: -4 }}
-      whileTap={disabled ? undefined : { scale: 0.992 }}
-      className="relative text-left rounded-[28px] overflow-hidden flex flex-col group cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
+      whileHover={reduced || disabled ? undefined : { y: -3 }}
+      whileTap={disabled ? undefined : { scale: 0.99 }}
+      className="relative text-left rounded-2xl overflow-hidden flex flex-col group cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
       style={{
-        background:
-          "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.014) 100%)",
         border: selected
-          ? `1px solid ${accent}80`
-          : "1px solid rgba(255,255,255,0.085)",
-        backdropFilter: "blur(28px) saturate(160%)",
-        WebkitBackdropFilter: "blur(28px) saturate(160%)",
+          ? `2px solid ${brandAccent}`
+          : "1px solid rgba(255,255,255,0.1)",
         boxShadow: selected
-          ? `inset 0 1px 0 rgba(255,255,255,0.1), 0 0 0 6px ${accent}1a, 0 24px 60px -20px ${accent}66, 0 32px 80px -24px rgba(0,0,0,0.7)`
-          : "inset 0 1px 0 rgba(255,255,255,0.07), 0 32px 80px -24px rgba(0,0,0,0.7)",
-        transition: "border-color 0.4s ease, box-shadow 0.4s ease",
+          ? `0 0 0 5px ${brandAccent}22, 0 22px 50px -18px ${brandAccent}55, 0 18px 40px -16px rgba(0,0,0,0.6)`
+          : "0 18px 36px -20px rgba(0,0,0,0.55)",
+        transition: "border-color 0.3s ease, box-shadow 0.3s ease",
       }}
     >
-      {/* Specular highlight at the top edge */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute"
-        style={{
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 80,
-          background:
-            "radial-gradient(ellipse 80% 100% at 50% 0%, rgba(255,255,255,0.07), transparent 70%)",
-        }}
-      />
-
-      {/* Preview pane — hand-designed per style */}
-      <div className="relative aspect-[5/3] overflow-hidden rounded-t-[28px]">
-        <Preview />
-        {/* Bottom-fade so the preview blends into the card body */}
-        <div
-          aria-hidden
-          className="absolute inset-x-0 bottom-0 h-16 pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(180deg, transparent 0%, rgba(10,10,12,0.55) 100%)",
-          }}
-        />
-        {/* Selection chip — glass pill in the top-right */}
-        <div className="absolute top-4 right-4 z-10">
+      {/* Brand tile — the card's whole visual identity. Square. */}
+      <div className="relative aspect-square overflow-hidden">
+        <Tile />
+        {/* Selection chip — glass pill top-right */}
+        <div className="absolute top-3 right-3 z-10">
           <motion.div
-            animate={{
-              scale: selected ? 1 : 0.95,
-            }}
-            transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
-            className="size-9 rounded-full grid place-items-center"
+            animate={{ scale: selected ? 1 : 0.92 }}
+            transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }}
+            className="size-8 rounded-full grid place-items-center"
             style={{
               background: selected
-                ? `linear-gradient(180deg, ${accent} 0%, ${accent}dd 100%)`
-                : "rgba(13,13,14,0.55)",
+                ? `linear-gradient(180deg, ${brandAccent} 0%, ${brandAccent}dd 100%)`
+                : styleRef.scheme === "dark"
+                  ? "rgba(255,255,255,0.15)"
+                  : "rgba(13,13,14,0.55)",
               border: selected
-                ? "1px solid rgba(255,255,255,0.55)"
-                : "1px solid rgba(255,255,255,0.18)",
+                ? "1px solid rgba(255,255,255,0.6)"
+                : styleRef.scheme === "dark"
+                  ? "1px solid rgba(255,255,255,0.3)"
+                  : "1px solid rgba(255,255,255,0.2)",
               backdropFilter: "blur(14px)",
               WebkitBackdropFilter: "blur(14px)",
               boxShadow: selected
-                ? `0 8px 22px -6px ${accent}aa, inset 0 1px 0 rgba(255,255,255,0.25)`
+                ? `0 6px 16px -4px ${brandAccent}aa, inset 0 1px 0 rgba(255,255,255,0.25)`
                 : "inset 0 1px 0 rgba(255,255,255,0.06)",
               transition: "background 0.3s ease, border-color 0.3s ease",
             }}
@@ -401,8 +377,13 @@ function StyleGlassCard({
               <CheckIcon />
             ) : (
               <span
-                className="text-[16px] leading-none font-sans"
-                style={{ color: "rgba(255,255,255,0.78)" }}
+                className="text-[14px] leading-none font-sans"
+                style={{
+                  color:
+                    styleRef.scheme === "dark"
+                      ? "rgba(255,255,255,0.9)"
+                      : "rgba(255,255,255,0.85)",
+                }}
               >
                 +
               </span>
@@ -411,26 +392,33 @@ function StyleGlassCard({
         </div>
       </div>
 
-      {/* Meta */}
-      <div className="px-7 pt-5 pb-6 flex flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-3">
+      {/* Meta — name + tagline + influence chips. Sits on dark canvas
+          for consistency across the 12 cards regardless of tile scheme. */}
+      <div
+        className="px-5 pt-4 pb-5 flex flex-col gap-2.5"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.008) 100%)",
+        }}
+      >
+        <div className="flex items-baseline justify-between gap-2">
           <h3
             className="font-serif"
             style={{
-              fontSize: 26,
+              fontSize: 19,
               fontWeight: 500,
-              letterSpacing: "-0.02em",
+              letterSpacing: "-0.015em",
               lineHeight: 1.05,
-              color: "rgba(245,240,230,0.96)",
+              color: "rgba(245,240,230,0.97)",
               margin: 0,
             }}
           >
             {styleRef.name}
           </h3>
           <span
-            className="text-[10px] tracking-[0.28em] uppercase tabular-nums shrink-0"
+            className="text-[9.5px] tracking-[0.28em] uppercase tabular-nums shrink-0"
             style={{
-              color: "rgba(245,240,230,0.4)",
+              color: "rgba(245,240,230,0.36)",
               fontFamily: "var(--font-mono)",
             }}
           >
@@ -440,24 +428,24 @@ function StyleGlassCard({
         <p
           className="font-serif italic"
           style={{
-            fontSize: 14.5,
-            lineHeight: 1.55,
+            fontSize: 12.5,
+            lineHeight: 1.45,
             letterSpacing: "0.005em",
-            color: "rgba(245,240,230,0.62)",
+            color: "rgba(245,240,230,0.58)",
             margin: 0,
           }}
         >
           {styleRef.tagline}
         </p>
-        <div className="flex flex-wrap gap-1.5 mt-1">
+        <div className="flex flex-wrap gap-1 mt-0.5">
           {styleRef.influences.slice(0, 3).map((inf) => (
             <span
               key={inf}
-              className="px-2.5 py-1 rounded-md text-[10.5px] tracking-[0.04em]"
+              className="px-2 py-0.5 rounded text-[9.5px] tracking-[0.04em]"
               style={{
-                background: "rgba(255,255,255,0.035)",
-                color: "rgba(245,240,230,0.58)",
-                border: "1px solid rgba(255,255,255,0.06)",
+                background: "rgba(255,255,255,0.03)",
+                color: "rgba(245,240,230,0.5)",
+                border: "1px solid rgba(255,255,255,0.05)",
                 fontFamily: "var(--font-mono)",
               }}
             >

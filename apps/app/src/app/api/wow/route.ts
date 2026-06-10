@@ -76,8 +76,13 @@ export async function POST(req: Request) {
   const styleBrief = composeStyleBrief(body.styleRefs ?? []);
 
   try {
+    // Highest-performance model for the wow generation. Latency
+    // isn't user-facing here (the user is on the wow page waiting for
+    // generation), so quality wins. Opus 4.7's deeper reasoning is
+    // what makes the brand-style brief actually land — Sonnet was
+    // averaging brands toward "generic professional" copy.
     const response = await client.messages.parse({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-7",
       max_tokens: 2048,
       system: [
         {
