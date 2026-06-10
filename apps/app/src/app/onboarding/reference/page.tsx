@@ -589,13 +589,18 @@ function ThemeCard({
 }
 
 /* ============================================================
- * PaletteStage — boundary-less atmospheric composition. The orb
- * is the hero; satellites drift at varied depths and speeds; the
- * name floats below in italic serif; navigation is editorial
- * typography at the bottom.
+ * PaletteStage — orbital area is now strictly constrained: a
+ * fixed-height region with overflow-hidden + a soft mask fade at
+ * the bottom. Satellites can never invade the text region. Text
+ * lives in its own clearly-separated section below.
  *
- * No card border. No dashed orbit ring. No glass arrow buttons.
- * Just composition + typography.
+ * Composition reads top-to-bottom:
+ *   [ ─── orbital region (fixed 380px) ─── ]
+ *           with mask fade at bottom edge
+ *   [ ─── generous gap ─── ]
+ *   [ palette name + tagline (italic serif)]
+ *   [ editorial nav: prev / 02-08 / next ]
+ *   [ 8 quiet dots ]
  * ============================================================ */
 function PaletteStage({
   palettes,
@@ -621,153 +626,185 @@ function PaletteStage({
       animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
       transition={{ duration: 0.65, delay: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
       className="relative flex-1"
-      style={{ minHeight: 460 }}
+      style={{ minHeight: 620 }}
     >
-      {/* The stage — atmospheric backdrop, no hard boundary. A
-          radial vignette that traces the orb gives it spatial
-          weight without being a box. */}
+      {/* Atmospheric backdrop — radial vignette traces the orb */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none rounded-3xl"
         style={{
-          background: `radial-gradient(ellipse 65% 55% at 50% 42%, ${palette.accent}1f, transparent 75%)`,
+          background: `radial-gradient(ellipse 60% 40% at 50% 30%, ${palette.accent}1c, transparent 75%)`,
         }}
       />
-      {/* Hairline ghost edge — barely visible, gives the section a
-          subtle frame without reading as a "card". */}
+      {/* Hairline ghost edge */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none rounded-3xl"
-        style={{
-          border: "1px solid rgba(255,255,255,0.04)",
-        }}
+        style={{ border: "1px solid rgba(255,255,255,0.04)" }}
       />
 
-      {/* Composition layer */}
+      {/* Content */}
       <div
         className="relative h-full flex flex-col"
-        style={{ padding: "32px 32px 28px" }}
+        style={{ padding: "40px 32px 28px" }}
       >
-        {/* Orb stage */}
-        <div className="relative flex-1 flex items-center justify-center">
-          {/* Independent satellites — each drifts on its own orbit,
-              radius, and phase. Not on a shared ring. */}
-          {palette.supporting.map((c, i) => (
-            <DriftingSatellite
-              key={`${palette.id}-${i}`}
-              color={c}
-              index={i}
-              reduced={reduced}
-            />
-          ))}
-
-          {/* Central primary orb */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={palette.id}
-              initial={
-                reduced
-                  ? false
-                  : { opacity: 0, scale: 0.7, filter: "blur(10px)" }
-              }
-              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              exit={
-                reduced
-                  ? undefined
-                  : { opacity: 0, scale: 1.2, filter: "blur(12px)" }
-              }
-              transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
-              className="relative"
-            >
-              <CentralOrb color={palette.accent} reduced={reduced} />
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* Palette name — italic serif, editorial */}
-        <div className="relative text-center min-h-[88px]">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={palette.id}
-              initial={
-                reduced
-                  ? false
-                  : { opacity: 0, y: 12, filter: "blur(6px)" }
-              }
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={reduced ? undefined : { opacity: 0, y: -8 }}
-              transition={{ duration: 0.42, ease: [0.2, 0.7, 0.2, 1] }}
-            >
-              <h3
-                className="font-serif italic"
-                style={{
-                  fontSize: 40,
-                  fontWeight: 500,
-                  letterSpacing: "-0.025em",
-                  lineHeight: 1.02,
-                  color: "rgba(245,240,230,0.97)",
-                  margin: 0,
-                }}
-              >
-                {palette.name}
-              </h3>
-              <p
-                className="mt-2 font-serif italic"
-                style={{
-                  fontSize: 14,
-                  lineHeight: 1.45,
-                  color: "rgba(245,240,230,0.5)",
-                  margin: 0,
-                }}
-              >
-                {palette.tagline}
-              </p>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* Editorial navigation row — ghost typography arrows + position */}
-        <div className="relative mt-6 grid grid-cols-3 items-center">
-          <EditorialNavLink direction="prev" onClick={onPrev}>
-            Previous
-          </EditorialNavLink>
-
-          <PositionCounter
-            current={displayIndex + 1}
-            total={palettes.length}
-            accent={palette.accent}
-          />
-
-          <EditorialNavLink direction="next" onClick={onNext}>
-            Next
-          </EditorialNavLink>
-        </div>
-
-        {/* Position dots — very small, very quiet */}
-        <div className="relative mt-4 flex items-center justify-center gap-1.5">
-          {palettes.map((p, i) => {
-            const isCurrent = i === displayIndex;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setIndex(i)}
-                className="block transition-all duration-300"
-                style={{
-                  width: isCurrent ? 18 : 4,
-                  height: 4,
-                  borderRadius: 2,
-                  background: isCurrent
-                    ? palette.accent
-                    : "rgba(255,255,255,0.16)",
-                  boxShadow: isCurrent
-                    ? `0 0 10px ${palette.accent}aa`
-                    : undefined,
-                }}
-                aria-label={`Palette ${i + 1} of ${palettes.length}: ${p.name}`}
+        {/* ─── ORBITAL REGION ───────────────────────────────────
+            Fixed height. Satellites positioned absolute relative
+            to its center. overflow-hidden + mask fade at bottom
+            so satellites cleanly disappear when they pass below
+            the orb's level. */}
+        <div
+          className="relative shrink-0"
+          style={{
+            height: 380,
+            // Mask fades the bottom so the satellites blend out
+            // smoothly instead of being hard-clipped.
+            maskImage:
+              "linear-gradient(180deg, black 0%, black 78%, transparent 100%)",
+            WebkitMaskImage:
+              "linear-gradient(180deg, black 0%, black 78%, transparent 100%)",
+          }}
+        >
+          {/* Single rotating satellite group at the center of the
+              orbital region. All satellites share this rotation. */}
+          <motion.div
+            aria-hidden
+            className="absolute"
+            style={{
+              top: "50%",
+              left: "50%",
+              width: 0,
+              height: 0,
+            }}
+            animate={reduced ? undefined : { rotate: 360 }}
+            transition={{
+              duration: 30,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          >
+            {palette.supporting.map((c, i) => (
+              <DriftingSatellite
+                key={`${palette.id}-${i}`}
+                color={c}
+                index={i}
+                reduced={reduced}
               />
-            );
-          })}
+            ))}
+          </motion.div>
+
+          {/* Central orb — pinned to center */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={palette.id}
+                initial={
+                  reduced
+                    ? false
+                    : { opacity: 0, scale: 0.7, filter: "blur(10px)" }
+                }
+                animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                exit={
+                  reduced
+                    ? undefined
+                    : { opacity: 0, scale: 1.2, filter: "blur(12px)" }
+                }
+                transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+              >
+                <CentralOrb color={palette.accent} reduced={reduced} />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* ─── TEXT REGION ───────────────────────────────────
+            Clearly separated from orbital. Generous top margin
+            pushes it well below the orb. mt-auto pulls everything
+            below to the bottom of the stage. */}
+        <div className="relative mt-auto text-center">
+          {/* Palette name + tagline */}
+          <div className="relative min-h-[80px]">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={palette.id}
+                initial={
+                  reduced
+                    ? false
+                    : { opacity: 0, y: 10, filter: "blur(5px)" }
+                }
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={reduced ? undefined : { opacity: 0, y: -6 }}
+                transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
+              >
+                <h3
+                  className="font-serif italic"
+                  style={{
+                    fontSize: 34,
+                    fontWeight: 500,
+                    letterSpacing: "-0.022em",
+                    lineHeight: 1.05,
+                    color: "rgba(245,240,230,0.97)",
+                    margin: 0,
+                  }}
+                >
+                  {palette.name}
+                </h3>
+                <p
+                  className="mt-2 font-serif italic"
+                  style={{
+                    fontSize: 13.5,
+                    lineHeight: 1.45,
+                    color: "rgba(245,240,230,0.5)",
+                    margin: 0,
+                  }}
+                >
+                  {palette.tagline}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Editorial nav — prev / counter / next */}
+          <div className="mt-7 grid grid-cols-3 items-center">
+            <EditorialNavLink direction="prev" onClick={onPrev}>
+              Previous
+            </EditorialNavLink>
+            <PositionCounter
+              current={displayIndex + 1}
+              total={palettes.length}
+              accent={palette.accent}
+            />
+            <EditorialNavLink direction="next" onClick={onNext}>
+              Next
+            </EditorialNavLink>
+          </div>
+
+          {/* 8 quiet dots */}
+          <div className="mt-5 flex items-center justify-center gap-1.5">
+            {palettes.map((p, i) => {
+              const isCurrent = i === displayIndex;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setIndex(i)}
+                  className="block transition-all duration-300"
+                  style={{
+                    width: isCurrent ? 16 : 3,
+                    height: 3,
+                    borderRadius: 1.5,
+                    background: isCurrent
+                      ? palette.accent
+                      : "rgba(255,255,255,0.14)",
+                    boxShadow: isCurrent
+                      ? `0 0 8px ${palette.accent}88`
+                      : undefined,
+                  }}
+                  aria-label={`Palette ${i + 1} of ${palettes.length}: ${p.name}`}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
     </motion.div>
@@ -775,15 +812,18 @@ function PaletteStage({
 }
 
 /* ============================================================
- * DriftingSatellite — small swatch floating at its own orbital
- * radius, angle, and speed. NOT on a shared ring. Each is
- * configured slightly differently so the composition feels alive.
+ * DriftingSatellite — small swatch positioned at a fixed angle/
+ * radius on the rotating group. Smaller sizes + larger radii than
+ * before so they read as distant stars, not crowding moons.
+ * Each also has its own subtle scale + y breath, phase-offset
+ * per index for organic asynchronous motion.
  * ============================================================ */
 const SATELLITE_CONFIGS = [
-  // [base angle deg, radius px, size px, duration s]
-  { angle: -42, radius: 165, size: 22, duration: 18 },
-  { angle: 38, radius: 195, size: 16, duration: 24 },
-  { angle: 175, radius: 175, size: 18, duration: 21 },
+  // angle (deg, from group rotation 0), radius (px from center),
+  // size (px), duration (s — local breath, NOT the orbit period)
+  { angle: -36, radius: 245, size: 13, duration: 4.2 },
+  { angle: 95, radius: 285, size: 10, duration: 5.1 },
+  { angle: 210, radius: 220, size: 14, duration: 3.6 },
 ];
 
 function DriftingSatellite({
@@ -797,72 +837,55 @@ function DriftingSatellite({
 }) {
   const cfg = SATELLITE_CONFIGS[index] ?? SATELLITE_CONFIGS[0];
 
-  // Each satellite slowly rotates around the center on its own loop.
-  // We use a wrapper that rotates, with the satellite positioned at
-  // the configured radius. Then a small inner drift adds organic motion.
+  // Positioned relative to the rotating group's 0×0 origin. The
+  // PARENT rotates; this child stays at its assigned angle/radius.
   return (
-    <motion.div
+    <div
       aria-hidden
       className="absolute"
       style={{
-        top: "50%",
-        left: "50%",
-        width: 0,
-        height: 0,
-      }}
-      animate={
-        reduced
-          ? undefined
-          : { rotate: [cfg.angle, cfg.angle + 360] }
-      }
-      transition={{
-        duration: cfg.duration,
-        repeat: Infinity,
-        ease: "linear",
+        top: 0,
+        left: 0,
+        // Place at the configured angle on the orbit ring of `radius`.
+        // The PARENT group rotates the whole set; this child holds its
+        // angular position.
+        transform: `rotate(${cfg.angle}deg) translateX(${cfg.radius}px) rotate(${-cfg.angle}deg)`,
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          left: cfg.radius,
-          top: 0,
-          transform: "translate(-50%, -50%)",
+      <motion.div
+        animate={
+          reduced
+            ? undefined
+            : {
+                scale: [1, 1.16, 1],
+                y: [0, -2, 0],
+              }
+        }
+        transition={{
+          duration: cfg.duration,
+          repeat: Infinity,
+          delay: index * 0.9,
+          ease: "easeInOut",
         }}
-      >
-        <motion.div
-          animate={
-            reduced
-              ? undefined
-              : {
-                  scale: [1, 1.18, 1],
-                  y: [0, -3, 0],
-                }
-          }
-          transition={{
-            duration: 3.4 + index * 0.6,
-            repeat: Infinity,
-            delay: index * 0.9,
-            ease: "easeInOut",
-          }}
-          className="rounded-full"
-          style={{
-            width: cfg.size,
-            height: cfg.size,
-            background: `
-              radial-gradient(circle at 30% 28%, rgba(255,255,255,0.6), transparent 32%),
-              radial-gradient(circle at 70% 75%, rgba(0,0,0,0.35), transparent 40%),
-              ${color}
-            `,
-            boxShadow: `0 8px 20px -4px ${color}aa, 0 0 0 1px rgba(255,255,255,0.08), inset 0 -2px 4px rgba(0,0,0,0.25)`,
-          }}
-        />
-      </div>
-    </motion.div>
+        className="rounded-full"
+        style={{
+          width: cfg.size,
+          height: cfg.size,
+          background: `
+            radial-gradient(circle at 30% 28%, rgba(255,255,255,0.6), transparent 32%),
+            radial-gradient(circle at 70% 75%, rgba(0,0,0,0.32), transparent 40%),
+            ${color}
+          `,
+          boxShadow: `0 6px 16px -4px ${color}88, 0 0 0 1px rgba(255,255,255,0.06), inset 0 -1px 3px rgba(0,0,0,0.22)`,
+        }}
+      />
+    </div>
   );
 }
 
 /* ============================================================
- * CentralOrb — bigger now (200px) with stronger atmospheric halo.
+ * CentralOrb — 170px, dialed back from 200 for breathing room.
+ * Stronger atmospheric halo carries the depth.
  * ============================================================ */
 function CentralOrb({
   color,
@@ -906,15 +929,15 @@ function CentralOrb({
         transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
         className="relative rounded-full"
         style={{
-          width: 200,
-          height: 200,
+          width: 170,
+          height: 170,
           background: `
             radial-gradient(circle at 30% 26%, rgba(255,255,255,0.55), transparent 32%),
             radial-gradient(circle at 70% 76%, rgba(0,0,0,0.42), transparent 38%),
             ${color}
           `,
           boxShadow: `
-            0 30px 70px -16px ${color}cc,
+            0 26px 60px -14px ${color}c8,
             0 0 0 1px rgba(255,255,255,0.1),
             inset 0 -8px 18px rgba(0,0,0,0.3),
             inset 0 6px 12px rgba(255,255,255,0.2)
