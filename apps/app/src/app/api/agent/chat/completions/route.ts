@@ -187,9 +187,27 @@ export async function POST(req: NextRequest) {
       const enqueue = (line: string) => controller.enqueue(encoder.encode(line));
       try {
         const messageStream = client.messages.stream({
-          model: "claude-sonnet-4-5",
-          max_tokens: 1024,
-          system: systemPrompt,
+          // Haiku 4.5 — ~250ms first-token, ~3x faster than Sonnet.
+          // Voice replies are short (under 35 words) so Sonnet's deeper
+          // reasoning isn't worth the latency. Studio orchestrator
+          // (post-Phase 9) may switch to Sonnet for multi-deliverable
+          // fan-outs where reasoning quality matters more than latency.
+          model: "claude-haiku-4-5",
+          // Voice turns are bounded to a few sentences. 256 tokens is
+          // ample (~190 words) and reduces streaming overhead.
+          max_tokens: 256,
+          // Prompt caching on the system block — it's static turn-to-
+          // turn for a given user (memory only changes between sessions
+          // or on approval write-back). Skips re-tokenization on every
+          // subsequent turn within the 5-min cache window. Saves
+          // ~300-500ms latency + 90% prompt cost.
+          system: [
+            {
+              type: "text",
+              text: systemPrompt,
+              cache_control: { type: "ephemeral" },
+            },
+          ],
           tools,
           messages: anthropicMessages,
         });
