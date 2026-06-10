@@ -6,7 +6,7 @@ import {
   useReducedMotion,
 } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import { ContinueButton } from "@/components/continue-button";
 import { OnboardingFrame } from "@/components/onboarding-frame";
@@ -21,17 +21,23 @@ import { VOICES, type VoiceId } from "@/lib/voices";
 
 // Act Four — The Look.
 //
-// Single editorial column. No card wrapper. Three tiers:
-//   1. APPEARANCE — two literal mini-window tiles (Light / Dark).
-//      Each tile is a real mockup rendered in the active palette,
-//      not an abstract toggle. Apple System Settings pattern.
-//   2. PALETTE — a vertical LIST of 8 named rows. Each row:
-//      glass-sphere dot + Fraunces name + one-line voice fingerprint.
-//      Linear / Raycast / linear.style pattern. Never a swatch grid.
-//   3. PREVIEW — full-width artifact reskinning live in the chosen
-//      palette + mode. Shows the consequence of the choice.
+// Left-right editorial spread. No scroll.
 //
-// Hairline dividers between tiers. Generous negative space.
+//   LEFT  — eyebrow, big headline (accent period live-updates in
+//           the picked color), short intro, a "Voice: X" panel
+//           that reflects the nearest curated palette + its short
+//           voice fingerprint, Continue + skip.
+//
+//   RIGHT — the picker card. Real HSV color picker:
+//             * Mode toggle (Light/Dark) at the top
+//             * Hue slider with a reset icon
+//             * Big SV square (drag to pick)
+//             * Current swatch + 8 preset palette dots
+//             * Live hex display + nearest-palette pill
+//
+// On Continue we submit the NEAREST curated palette id (by RGB
+// distance) so the voice brief is preserved. The picked hex is
+// stored locally too, in case we wire a custom-accent path later.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
 const NAME_KEY = "wrks-onboarding-name";
@@ -39,11 +45,8 @@ const VOICE_KEY = "wrks-onboarding-voice";
 const INTAKE_KEY = "wrks-onboarding-intake";
 const THEME_KEY = "wrks-onboarding-theme";
 const PALETTE_KEY = "wrks-onboarding-palette";
+const ACCENT_KEY = "wrks-onboarding-accent";
 
-const DEFAULT_PALETTE_INDEX = 1; // Royal violet — brand default
-
-// Short voice fingerprints — one line per palette. Reference real
-// brands the user can mentally hear.
 const VOICE_FINGERPRINT: Record<string, string> = {
   "quiet-cream": "Aesop restraint. Long sentences, never run-on.",
   "royal-violet": "Linear tight. Declarative. Built for speed.",
@@ -55,6 +58,99 @@ const VOICE_FINGERPRINT: Record<string, string> = {
   "workwear-brown": "Carhartt direct. Spec-led. No purple prose.",
 };
 
+const DEFAULT_HEX = "#7a55ff"; // royal violet — brand default
+
+/* ============================================================
+ * Color math
+ * ============================================================ */
+type HSV = { h: number; s: number; v: number };
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const clean = hex.replace("#", "");
+  return {
+    r: parseInt(clean.slice(0, 2), 16),
+    g: parseInt(clean.slice(2, 4), 16),
+    b: parseInt(clean.slice(4, 6), 16),
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const toHex = (n: number) =>
+    Math.round(Math.max(0, Math.min(255, n)))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function hsvToHex(h: number, s: number, v: number): string {
+  const c = v * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = v - c;
+  let r = 0,
+    g = 0,
+    b = 0;
+  if (h < 60) {
+    r = c;
+    g = x;
+  } else if (h < 120) {
+    r = x;
+    g = c;
+  } else if (h < 180) {
+    g = c;
+    b = x;
+  } else if (h < 240) {
+    g = x;
+    b = c;
+  } else if (h < 300) {
+    r = x;
+    b = c;
+  } else {
+    r = c;
+    b = x;
+  }
+  return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
+}
+
+function hexToHsv(hex: string): HSV {
+  const { r, g, b } = hexToRgb(hex);
+  const rN = r / 255,
+    gN = g / 255,
+    bN = b / 255;
+  const max = Math.max(rN, gN, bN);
+  const min = Math.min(rN, gN, bN);
+  const d = max - min;
+  let h = 0;
+  if (d !== 0) {
+    if (max === rN) h = ((gN - bN) / d) % 6;
+    else if (max === gN) h = (bN - rN) / d + 2;
+    else h = (rN - gN) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  const s = max === 0 ? 0 : d / max;
+  const v = max;
+  return { h, s, v };
+}
+
+function findNearestPalette(hex: string): Palette {
+  const target = hexToRgb(hex);
+  let nearest = PALETTES[0];
+  let minDist = Infinity;
+  for (const p of PALETTES) {
+    const c = hexToRgb(p.accent);
+    const d =
+      (target.r - c.r) ** 2 + (target.g - c.g) ** 2 + (target.b - c.b) ** 2;
+    if (d < minDist) {
+      minDist = d;
+      nearest = p;
+    }
+  }
+  return nearest;
+}
+
+/* ============================================================
+ * Page
+ * ============================================================ */
 export default function ReferencePage() {
   const router = useRouter();
   const reduced = useReducedMotion();
@@ -62,10 +158,15 @@ export default function ReferencePage() {
 
   const [personality, setPersonality] = useState<Personality | null>(null);
   const [theme, setTheme] = useState<Theme>("dark");
-  const [paletteIndex, setPaletteIndex] = useState<number>(
-    DEFAULT_PALETTE_INDEX,
-  );
+  const [hsv, setHsv] = useState<HSV>(() => hexToHsv(DEFAULT_HEX));
   const [submitting, setSubmitting] = useState(false);
+
+  const hex = useMemo(
+    () => hsvToHex(hsv.h, hsv.s, hsv.v),
+    [hsv.h, hsv.s, hsv.v],
+  );
+  const nearestPalette = useMemo(() => findNearestPalette(hex), [hex]);
+  const fingerprint = VOICE_FINGERPRINT[nearestPalette.id] ?? nearestPalette.tagline;
 
   useEffect(() => {
     const p = localStorage.getItem(PERSONALITY_KEY) as PersonalityId | null;
@@ -90,29 +191,20 @@ export default function ReferencePage() {
 
     const storedTheme = localStorage.getItem(THEME_KEY) as Theme | null;
     if (storedTheme === "light" || storedTheme === "dark") setTheme(storedTheme);
-    const storedPalette = localStorage.getItem(PALETTE_KEY);
-    if (storedPalette) {
-      const i = PALETTES.findIndex((x) => x.id === storedPalette);
-      if (i >= 0) setPaletteIndex(i);
+
+    const storedAccent = localStorage.getItem(ACCENT_KEY);
+    if (storedAccent && /^#[0-9a-fA-F]{6}$/.test(storedAccent)) {
+      setHsv(hexToHsv(storedAccent));
+    } else {
+      const storedPalette = localStorage.getItem(PALETTE_KEY);
+      if (storedPalette) {
+        const p = PALETTES.find((x) => x.id === storedPalette);
+        if (p) setHsv(hexToHsv(p.accent));
+      }
     }
   }, [router]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-        setPaletteIndex((i) => (i + 1) % PALETTES.length);
-      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-        setPaletteIndex((i) => (i - 1 + PALETTES.length) % PALETTES.length);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
   if (!personality) return null;
-
-  const palette = PALETTES[paletteIndex];
-  const paletteId = palette.id;
 
   const onContinue = async (skipped: boolean) => {
     if (submitting) return;
@@ -121,9 +213,11 @@ export default function ReferencePage() {
     if (skipped) {
       localStorage.removeItem(THEME_KEY);
       localStorage.removeItem(PALETTE_KEY);
+      localStorage.removeItem(ACCENT_KEY);
     } else {
       localStorage.setItem(THEME_KEY, theme);
-      localStorage.setItem(PALETTE_KEY, paletteId);
+      localStorage.setItem(PALETTE_KEY, nearestPalette.id);
+      localStorage.setItem(ACCENT_KEY, hex);
     }
 
     try {
@@ -131,7 +225,9 @@ export default function ReferencePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          skipped ? { theme: null, paletteId: null } : { theme, paletteId },
+          skipped
+            ? { theme: null, paletteId: null }
+            : { theme, paletteId: nearestPalette.id },
         ),
       });
       if (!res.ok) {
@@ -153,752 +249,764 @@ export default function ReferencePage() {
     <OnboardingFrame
       step={4}
       totalSteps={5}
-      bloomTint={palette.accent ?? agentAccent}
+      bloomTint={hex ?? agentAccent}
     >
-      {/* Single editorial column, max 720px, generous top space */}
       <div
-        className="relative mx-auto flex flex-col px-8 sm:px-10 py-12"
-        style={{
-          maxWidth: 720,
-          minHeight: "calc(100vh - 120px)",
-        }}
+        className="relative mx-auto px-10 sm:px-14 py-10"
+        style={{ maxWidth: 1200 }}
       >
-        {/* === Eyebrow === */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-          className="flex items-center gap-4"
+        <div
+          className="grid items-center gap-12 lg:gap-16"
+          style={{
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.05fr)",
+            minHeight: "calc(100vh - 160px)",
+          }}
         >
-          <span
-            className="inline-block h-px w-10"
-            style={{ background: "rgba(245,240,230,0.22)" }}
-          />
-          <span
-            className="text-[11px] tracking-[0.32em] uppercase"
-            style={{
-              color: "rgba(245,240,230,0.42)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            Act Four — The Look
-          </span>
-        </motion.div>
-
-        {/* === Hero — left-aligned headline + intro === */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.2, ease: [0.2, 0.7, 0.2, 1] }}
-          className="mt-10"
-        >
-          <h1
-            className="font-serif"
-            style={{
-              fontSize: "clamp(2.75rem, 5.5vw, 4.5rem)",
-              fontWeight: 500,
-              lineHeight: 1,
-              letterSpacing: "-0.038em",
-              color: "rgba(245,240,230,0.97)",
-              margin: 0,
-            }}
-          >
-            Set the look<span style={{ color: palette.accent }}>.</span>
-          </h1>
-          <p
-            className="font-sans"
-            style={{
-              fontSize: 15.5,
-              lineHeight: 1.6,
-              color: "rgba(245,240,230,0.6)",
-              maxWidth: "56ch",
-              margin: "28px 0 0",
-            }}
-          >
-            Each palette is a complete identity — color, tone, sentence
-            rhythm, and writing voice — that your agent uses for
-            everything it makes next.
-          </p>
-        </motion.div>
-
-        {/* === Tier 1: APPEARANCE === */}
-        <TierDivider delay={0.42} />
-        <motion.section
-          initial={reduced ? false : { opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
-        >
-          <TierLabel>Appearance</TierLabel>
-          <div
-            className="mt-8 grid gap-5"
-            style={{ gridTemplateColumns: "1fr 1fr" }}
-          >
-            <ModeTile
-              mode="light"
-              palette={palette}
-              selected={theme === "light"}
-              onSelect={() => setTheme("light")}
-              reduced={!!reduced}
-            />
-            <ModeTile
-              mode="dark"
-              palette={palette}
-              selected={theme === "dark"}
-              onSelect={() => setTheme("dark")}
-              reduced={!!reduced}
-            />
-          </div>
-        </motion.section>
-
-        {/* === Tier 2: PALETTE === */}
-        <TierDivider delay={0.6} />
-        <motion.section
-          initial={reduced ? false : { opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.65, ease: [0.2, 0.7, 0.2, 1] }}
-        >
-          <TierLabel>Palette</TierLabel>
-          <div className="mt-8 flex flex-col">
-            {PALETTES.map((p, i) => (
-              <PaletteRow
-                key={p.id}
-                palette={p}
-                fingerprint={VOICE_FINGERPRINT[p.id] ?? p.tagline}
-                selected={i === paletteIndex}
-                onSelect={() => setPaletteIndex(i)}
-                reduced={!!reduced}
-                index={i}
-              />
-            ))}
-          </div>
-        </motion.section>
-
-        {/* === Tier 3: LIVE PREVIEW === */}
-        <TierDivider delay={0.78} />
-        <motion.section
-          initial={reduced ? false : { opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.85, ease: [0.2, 0.7, 0.2, 1] }}
-        >
-          <TierLabel>Preview</TierLabel>
-          <div className="mt-8">
-            <LivePreview palette={palette} theme={theme} reduced={!!reduced} />
-          </div>
-        </motion.section>
-
-        {/* === Actions === */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 1.0 }}
-          className="mt-16 flex items-center justify-between gap-6"
-        >
-          <button
-            type="button"
-            onClick={() => router.push("/onboarding/intake")}
-            className="text-[10.5px] tracking-[0.32em] uppercase transition-opacity hover:opacity-80"
-            style={{
-              color: "rgba(245,240,230,0.42)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            ← Back
-          </button>
-
-          <div className="flex flex-col items-end gap-3">
-            <ContinueButton
-              onClick={() => onContinue(false)}
-              disabled={submitting}
+          {/* === LEFT — editorial column === */}
+          <div className="flex flex-col">
+            <motion.div
+              initial={reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+              className="flex items-center gap-4"
             >
-              Continue
-              <span aria-hidden style={{ marginLeft: "0.7em" }}>
-                →
+              <span
+                className="inline-block h-px w-10"
+                style={{ background: "rgba(245,240,230,0.22)" }}
+              />
+              <span
+                className="text-[11px] tracking-[0.32em] uppercase"
+                style={{
+                  color: "rgba(245,240,230,0.42)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                Act Four — The Look
               </span>
-            </ContinueButton>
-            <button
-              type="button"
-              onClick={() => onContinue(true)}
-              disabled={submitting}
-              className="text-[10.5px] tracking-[0.28em] uppercase transition-opacity hover:opacity-80 disabled:opacity-30"
+            </motion.div>
+
+            <motion.h1
+              initial={reduced ? false : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.55,
+                delay: 0.15,
+                ease: [0.2, 0.7, 0.2, 1],
+              }}
+              className="font-serif mt-10"
               style={{
-                color: "rgba(245,240,230,0.42)",
+                fontSize: "clamp(2.75rem, 5.4vw, 4.75rem)",
+                fontWeight: 500,
+                lineHeight: 1,
+                letterSpacing: "-0.038em",
+                color: "rgba(245,240,230,0.97)",
+                margin: 0,
+              }}
+            >
+              Set the look
+              <motion.span
+                animate={{ color: hex }}
+                transition={{ duration: 0.18 }}
+                style={{ display: "inline-block" }}
+              >
+                .
+              </motion.span>
+            </motion.h1>
+
+            <motion.p
+              initial={reduced ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.3 }}
+              className="font-sans"
+              style={{
+                fontSize: 15,
+                lineHeight: 1.6,
+                color: "rgba(245,240,230,0.6)",
+                maxWidth: "44ch",
+                margin: "26px 0 0",
+              }}
+            >
+              Pick any color from the panel. We&rsquo;ll snap it to the
+              nearest curated palette under the hood so your agent
+              knows the matching writing voice.
+            </motion.p>
+
+            {/* Voice panel — live nearest-palette indicator */}
+            <motion.div
+              initial={reduced ? false : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.45 }}
+              className="mt-12 max-w-[28rem]"
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className="inline-block h-px w-6"
+                  style={{ background: "rgba(245,240,230,0.18)" }}
+                />
+                <span
+                  className="text-[10.5px] tracking-[0.36em] uppercase"
+                  style={{
+                    color: "rgba(245,240,230,0.46)",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  Voice
+                </span>
+              </div>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={nearestPalette.id}
+                  initial={reduced ? false : { opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduced ? undefined : { opacity: 0, y: -4 }}
+                  transition={{ duration: 0.3 }}
+                  className="mt-5"
+                >
+                  <div className="flex items-center gap-3">
+                    <motion.span
+                      aria-hidden
+                      animate={{ background: nearestPalette.accent }}
+                      transition={{ duration: 0.25 }}
+                      className="block rounded-full"
+                      style={{
+                        width: 14,
+                        height: 14,
+                        boxShadow: `0 0 14px ${nearestPalette.accent}aa, inset 0 1px 0 rgba(255,255,255,0.35)`,
+                      }}
+                    />
+                    <h3
+                      className="font-serif italic"
+                      style={{
+                        fontSize: 30,
+                        fontWeight: 500,
+                        letterSpacing: "-0.022em",
+                        lineHeight: 1.05,
+                        color: "rgba(245,240,230,0.96)",
+                        margin: 0,
+                      }}
+                    >
+                      {nearestPalette.name}
+                    </h3>
+                  </div>
+                  <p
+                    className="font-sans"
+                    style={{
+                      fontSize: 13.5,
+                      lineHeight: 1.5,
+                      color: "rgba(245,240,230,0.5)",
+                      margin: "16px 0 0",
+                      maxWidth: "40ch",
+                    }}
+                  >
+                    {fingerprint}
+                  </p>
+                </motion.div>
+              </AnimatePresence>
+            </motion.div>
+
+            {/* Actions */}
+            <motion.div
+              initial={reduced ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.7 }}
+              className="mt-14 flex items-center gap-6"
+            >
+              <ContinueButton
+                onClick={() => onContinue(false)}
+                disabled={submitting}
+              >
+                Continue
+                <span aria-hidden style={{ marginLeft: "0.7em" }}>
+                  →
+                </span>
+              </ContinueButton>
+              <button
+                type="button"
+                onClick={() => onContinue(true)}
+                disabled={submitting}
+                className="text-[10.5px] tracking-[0.28em] uppercase transition-opacity hover:opacity-80 disabled:opacity-30"
+                style={{
+                  color: "rgba(245,240,230,0.42)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                Skip — use default
+              </button>
+            </motion.div>
+
+            <motion.button
+              type="button"
+              onClick={() => router.push("/onboarding/intake")}
+              initial={reduced ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.85 }}
+              className="self-start mt-16 text-[10.5px] tracking-[0.32em] uppercase transition-opacity hover:opacity-80"
+              style={{
+                color: "rgba(245,240,230,0.34)",
                 fontFamily: "var(--font-mono)",
               }}
             >
-              Skip — use default
-            </button>
+              ← Back
+            </motion.button>
           </div>
-        </motion.div>
+
+          {/* === RIGHT — picker card === */}
+          <motion.div
+            initial={reduced ? false : { opacity: 0, x: 24, filter: "blur(8px)" }}
+            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.7, delay: 0.45, ease: [0.2, 0.7, 0.2, 1] }}
+            className="justify-self-end w-full"
+            style={{ maxWidth: 520 }}
+          >
+            <PickerCard
+              theme={theme}
+              setTheme={setTheme}
+              hsv={hsv}
+              setHsv={setHsv}
+              hex={hex}
+              nearestPalette={nearestPalette}
+              reduced={!!reduced}
+            />
+          </motion.div>
+        </div>
       </div>
     </OnboardingFrame>
   );
 }
 
 /* ============================================================
- * Small parts
+ * PickerCard — the real HSV color picker
  * ============================================================ */
-
-function TierLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span
-        className="inline-block h-px w-6"
-        style={{ background: "rgba(245,240,230,0.18)" }}
-      />
-      <span
-        className="text-[10.5px] tracking-[0.36em] uppercase"
-        style={{
-          color: "rgba(245,240,230,0.46)",
-          fontFamily: "var(--font-mono)",
-        }}
-      >
-        {children}
-      </span>
-    </div>
-  );
-}
-
-function TierDivider({ delay = 0 }: { delay?: number }) {
-  return (
-    <motion.div
-      aria-hidden
-      initial={{ opacity: 0, scaleX: 0 }}
-      animate={{ opacity: 1, scaleX: 1 }}
-      transition={{ duration: 0.7, delay, ease: [0.2, 0.7, 0.2, 1] }}
-      style={{
-        height: 1,
-        background:
-          "linear-gradient(90deg, rgba(255,255,255,0.0) 0%, rgba(255,255,255,0.08) 10%, rgba(255,255,255,0.08) 90%, rgba(255,255,255,0.0) 100%)",
-        margin: "56px 0",
-        transformOrigin: "left center",
-      }}
-    />
-  );
-}
-
-/* ============================================================
- * ModeTile — literal mini-window mockup in the chosen palette.
- *
- * The whole tile renders in the active palette's actual colors so
- * the user sees the literal outcome of the mode choice. Active tile
- * gets a hairline ring + soft accent shadow.
- * ============================================================ */
-function ModeTile({
-  mode,
-  palette,
-  selected,
-  onSelect,
+function PickerCard({
+  theme,
+  setTheme,
+  hsv,
+  setHsv,
+  hex,
+  nearestPalette,
   reduced,
 }: {
-  mode: Theme;
-  palette: Palette;
-  selected: boolean;
-  onSelect: () => void;
+  theme: Theme;
+  setTheme: (t: Theme) => void;
+  hsv: HSV;
+  setHsv: (next: HSV) => void;
+  hex: string;
+  nearestPalette: Palette;
   reduced: boolean;
 }) {
-  const render = mode === "light" ? palette.light : palette.dark;
-
   return (
-    <motion.button
-      type="button"
-      onClick={onSelect}
-      whileHover={reduced ? undefined : { y: -2 }}
-      whileTap={{ scale: 0.99 }}
-      className="relative rounded-2xl overflow-hidden text-left"
+    <div
+      className="relative rounded-[28px] overflow-hidden"
       style={{
-        height: 168,
-        background: render.bg,
-        border: `1px solid ${
-          selected ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)"
-        }`,
-        boxShadow: selected
-          ? `0 0 0 1px rgba(255,255,255,0.06), 0 18px 40px -14px ${palette.accent}55, 0 8px 20px -8px rgba(0,0,0,0.5)`
-          : "0 12px 28px -16px rgba(0,0,0,0.45)",
-        transition: "border-color 0.3s ease, box-shadow 0.4s ease",
+        boxShadow: `0 60px 120px -40px rgba(0,0,0,0.7), 0 0 80px -20px ${hex}33`,
+        transition: "box-shadow 0.6s ease",
       }}
     >
-      {/* Soft accent wash from bottom-right inside the tile */}
+      {/* Glass body */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.012) 100%), #0a0a0e",
+          backdropFilter: "blur(40px) saturate(180%)",
+          WebkitBackdropFilter: "blur(40px) saturate(180%)",
+        }}
+      />
+      {/* Accent wash */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse 55% 50% at 100% 100%, ${palette.accent}1f, transparent 70%)`,
+          background: `radial-gradient(ellipse 70% 60% at 100% 100%, ${hex}1c, transparent 70%)`,
+          transition: "background 0.2s ease",
         }}
       />
-
-      {/* Tile chrome — mini browser bar */}
+      {/* Top specular */}
       <div
-        className="relative flex items-center gap-1.5"
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-16 pointer-events-none"
         style={{
-          padding: "12px 14px",
-          borderBottom: `1px solid ${render.rim}`,
+          background:
+            "radial-gradient(ellipse 70% 100% at 50% 0%, rgba(255,255,255,0.08), transparent 70%)",
         }}
-      >
-        <span
-          aria-hidden
-          className="inline-block rounded-full"
-          style={{
-            width: 7,
-            height: 7,
-            background:
-              mode === "light"
-                ? "rgba(0,0,0,0.16)"
-                : "rgba(255,255,255,0.18)",
-          }}
-        />
-        <span
-          aria-hidden
-          className="inline-block rounded-full"
-          style={{
-            width: 7,
-            height: 7,
-            background:
-              mode === "light"
-                ? "rgba(0,0,0,0.16)"
-                : "rgba(255,255,255,0.18)",
-          }}
-        />
-        <span
-          aria-hidden
-          className="inline-block rounded-full"
-          style={{
-            width: 7,
-            height: 7,
-            background:
-              mode === "light"
-                ? "rgba(0,0,0,0.16)"
-                : "rgba(255,255,255,0.18)",
-          }}
-        />
-        <span
-          className="ml-auto"
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 9.5,
-            letterSpacing: "0.24em",
-            textTransform: "uppercase",
-            color: render.inkMuted,
-          }}
-        >
-          {mode}
-        </span>
-      </div>
-
-      {/* Tile body — sample content rendered in palette colors */}
-      <div className="relative" style={{ padding: "18px 16px" }}>
-        {/* Hero word */}
-        <div
-          className="font-serif"
-          style={{
-            fontSize: 22,
-            fontWeight: 500,
-            letterSpacing: "-0.025em",
-            lineHeight: 1,
-            color: render.ink,
-          }}
-        >
-          Maven<span style={{ color: palette.accent }}>.</span>
-        </div>
-        {/* Body lines — drawn as sample bars so the text doesn't
-            compete with the section's real content */}
-        <div className="mt-3 flex flex-col gap-1.5">
-          <span
-            aria-hidden
-            className="block rounded-full"
-            style={{
-              height: 4,
-              width: "82%",
-              background: render.inkMuted,
-              opacity: 0.32,
-            }}
-          />
-          <span
-            aria-hidden
-            className="block rounded-full"
-            style={{
-              height: 4,
-              width: "62%",
-              background: render.inkMuted,
-              opacity: 0.32,
-            }}
-          />
-        </div>
-        {/* Accent rule */}
-        <span
-          aria-hidden
-          className="block rounded-full mt-4"
-          style={{
-            height: 2,
-            width: 26,
-            background: palette.accent,
-          }}
-        />
-      </div>
-
-      {/* Floating tag — name + selected ring */}
+      />
+      {/* Hairline rim */}
       <div
-        className="absolute left-0 right-0 bottom-0 flex items-center justify-between"
-        style={{ padding: "0 14px 12px" }}
-      >
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            letterSpacing: "0.28em",
-            textTransform: "uppercase",
-            color: render.inkMuted,
-          }}
-        >
-          {mode === "light" ? "Daylight" : "After dark"}
-        </span>
-        {/* Selection ring */}
-        <motion.span
-          animate={{
-            opacity: selected ? 1 : 0,
-            scale: selected ? 1 : 0.7,
-          }}
-          transition={{ duration: 0.25 }}
-          className="grid place-items-center rounded-full"
-          style={{
-            width: 16,
-            height: 16,
-            border: `1.5px solid ${palette.accent}`,
-            boxShadow: `0 0 10px ${palette.accent}66`,
-          }}
-        >
-          <span
-            aria-hidden
-            className="rounded-full"
-            style={{
-              width: 7,
-              height: 7,
-              background: palette.accent,
-            }}
+        aria-hidden
+        className="absolute inset-0 pointer-events-none rounded-[28px]"
+        style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+      />
+
+      {/* Content */}
+      <div className="relative" style={{ padding: 28 }}>
+        {/* Mode toggle */}
+        <ModeToggle theme={theme} setTheme={setTheme} accent={hex} />
+
+        {/* Hue slider */}
+        <div className="mt-6">
+          <HueSlider
+            h={hsv.h}
+            onChange={(h) => setHsv({ ...hsv, h })}
+            onReset={() => setHsv(hexToHsv(nearestPalette.accent))}
+            accent={hex}
           />
-        </motion.span>
-      </div>
-    </motion.button>
-  );
-}
-
-/* ============================================================
- * PaletteRow — single row in the vertical palette list.
- *
- * Layout: [glass-sphere dot] [name + voice fingerprint stacked]
- * No fill / no checkmark when selected — instead a hairline ring
- * around the row + a subtle accent halo. Linear/Raycast pattern.
- * ============================================================ */
-function PaletteRow({
-  palette,
-  fingerprint,
-  selected,
-  onSelect,
-  reduced,
-  index,
-}: {
-  palette: Palette;
-  fingerprint: string;
-  selected: boolean;
-  onSelect: () => void;
-  reduced: boolean;
-  index: number;
-}) {
-  return (
-    <motion.button
-      type="button"
-      onClick={onSelect}
-      initial={reduced ? false : { opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{
-        duration: 0.4,
-        delay: 0.7 + index * 0.04,
-        ease: [0.2, 0.7, 0.2, 1],
-      }}
-      className="relative w-full text-left rounded-2xl group"
-      style={{
-        padding: "18px 20px",
-        background: selected
-          ? "rgba(255,255,255,0.025)"
-          : "rgba(255,255,255,0)",
-        border: `1px solid ${
-          selected ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0)"
-        }`,
-        boxShadow: selected
-          ? `0 12px 28px -16px ${palette.accent}88`
-          : "none",
-        transition:
-          "background 0.3s ease, border-color 0.3s ease, box-shadow 0.4s ease",
-      }}
-    >
-      <div className="flex items-center gap-5">
-        {/* Glass sphere dot */}
-        <motion.span
-          aria-hidden
-          animate={{ scale: selected ? 1.05 : 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 22 }}
-          className="block rounded-full shrink-0"
-          style={{
-            width: 32,
-            height: 32,
-            background: `
-              radial-gradient(circle at 30% 28%, rgba(255,255,255,0.55), transparent 32%),
-              radial-gradient(circle at 70% 78%, rgba(0,0,0,0.42), transparent 38%),
-              ${palette.accent}
-            `,
-            boxShadow: selected
-              ? `0 0 22px ${palette.accent}aa, 0 6px 14px -4px ${palette.accent}cc, inset 0 -2px 4px rgba(0,0,0,0.3)`
-              : `0 4px 12px -4px ${palette.accent}77, inset 0 -2px 4px rgba(0,0,0,0.25)`,
-          }}
-        />
-
-        {/* Name + fingerprint */}
-        <div className="min-w-0 flex-1">
-          <div
-            className="font-serif"
-            style={{
-              fontSize: 22,
-              fontWeight: 500,
-              letterSpacing: "-0.022em",
-              lineHeight: 1.05,
-              color: selected
-                ? "rgba(245,240,230,0.97)"
-                : "rgba(245,240,230,0.78)",
-              transition: "color 0.25s ease",
-            }}
-          >
-            {palette.name}
-          </div>
-          <p
-            className="font-sans"
-            style={{
-              fontSize: 13.5,
-              lineHeight: 1.45,
-              color: selected
-                ? "rgba(245,240,230,0.6)"
-                : "rgba(245,240,230,0.42)",
-              margin: "8px 0 0",
-              transition: "color 0.25s ease",
-            }}
-          >
-            {fingerprint}
-          </p>
         </div>
 
-        {/* Trailing — accent rule, only visible when selected */}
-        <motion.span
-          aria-hidden
-          animate={{
-            opacity: selected ? 1 : 0,
-            width: selected ? 22 : 0,
-          }}
-          transition={{ duration: 0.3 }}
-          className="block rounded-full shrink-0"
-          style={{
-            height: 2,
-            background: palette.accent,
-            boxShadow: `0 0 8px ${palette.accent}99`,
-          }}
-        />
-      </div>
-    </motion.button>
-  );
-}
+        {/* SV square */}
+        <div className="mt-5">
+          <SVSquare
+            hsv={hsv}
+            onChange={(s, v) => setHsv({ ...hsv, s, v })}
+          />
+        </div>
 
-/* ============================================================
- * LivePreview — full-width editorial artifact reskinning live in
- * the chosen palette + mode. Shows the consequence of the choice:
- * a hero word, two lines of voice-brief-flavored sample copy, an
- * accent rule, and an accent CTA. Crossfades on every change.
- * ============================================================ */
-function LivePreview({
-  palette,
-  theme,
-  reduced,
-}: {
-  palette: Palette;
-  theme: Theme;
-  reduced: boolean;
-}) {
-  const render = theme === "light" ? palette.light : palette.dark;
-  const tileKey = `${palette.id}-${theme}`;
-  const sample = SAMPLES[palette.id];
-
-  return (
-    <div
-      className="relative rounded-3xl overflow-hidden"
-      style={{
-        height: 280,
-        border: "1px solid rgba(255,255,255,0.06)",
-        boxShadow: "0 24px 60px -24px rgba(0,0,0,0.6)",
-      }}
-    >
-      <AnimatePresence>
-        <motion.div
-          key={tileKey}
-          initial={reduced ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={reduced ? undefined : { opacity: 0 }}
-          transition={{ duration: 0.42 }}
-          className="absolute inset-0"
-          style={{ background: render.bg }}
-        >
-          {/* Accent wash from bottom-right */}
-          <div
+        {/* Preset strip — current swatch + 8 palette presets */}
+        <div className="mt-5 flex items-center gap-3">
+          {/* Current swatch */}
+          <motion.span
             aria-hidden
-            className="absolute inset-0 pointer-events-none"
+            animate={{ background: hex }}
+            transition={{ duration: 0.15 }}
+            className="block rounded-[10px] shrink-0"
             style={{
-              background: `radial-gradient(ellipse 55% 55% at 100% 100%, ${palette.accent}28, transparent 75%)`,
+              width: 44,
+              height: 44,
+              boxShadow:
+                "inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(0,0,0,0.3), 0 4px 12px -3px rgba(0,0,0,0.5)",
+              border: "1px solid rgba(255,255,255,0.1)",
             }}
           />
-
-          {/* Editorial content */}
+          {/* Preset palette dots */}
           <div
-            className="relative h-full flex flex-col justify-between"
-            style={{ padding: "32px 36px" }}
+            className="flex-1 grid gap-2"
+            style={{ gridTemplateColumns: "repeat(8, 1fr)" }}
           >
-            {/* Top — eyebrow */}
-            <div className="flex items-center gap-2.5">
-              <span
-                aria-hidden
-                className="inline-block rounded-full"
-                style={{
-                  width: 7,
-                  height: 7,
-                  background: palette.accent,
-                  boxShadow: `0 0 8px ${palette.accent}99`,
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 10,
-                  letterSpacing: "0.3em",
-                  textTransform: "uppercase",
-                  color: render.inkMuted,
-                }}
-              >
-                {sample.eyebrow}
-              </span>
-            </div>
-
-            {/* Middle — headline + body */}
-            <div>
-              <h4
-                className="font-serif"
-                style={{
-                  fontSize: 36,
-                  fontWeight: 500,
-                  letterSpacing: "-0.028em",
-                  lineHeight: 1.05,
-                  color: render.ink,
-                  margin: 0,
-                }}
-              >
-                {sample.headline}
-                <span style={{ color: palette.accent }}>.</span>
-              </h4>
-              <p
-                className="font-sans"
-                style={{
-                  fontSize: 13.5,
-                  lineHeight: 1.6,
-                  color: render.inkMuted,
-                  margin: "16px 0 0",
-                  maxWidth: "52ch",
-                }}
-              >
-                {sample.body}
-              </p>
-            </div>
-
-            {/* Bottom — accent rule + CTA */}
-            <div className="flex items-end justify-between gap-4">
-              <span
-                aria-hidden
-                className="inline-block"
-                style={{
-                  width: 32,
-                  height: 2,
-                  background: palette.accent,
-                  borderRadius: 1,
-                  marginBottom: 8,
-                }}
-              />
-              <span
-                className="inline-flex items-center gap-2 rounded-full"
-                style={{
-                  padding: "10px 20px",
-                  background: palette.accent,
-                  color: render.bg,
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 10.5,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  boxShadow: `0 6px 16px -4px ${palette.accent}88`,
-                }}
-              >
-                {sample.cta} →
-              </span>
-            </div>
+            {PALETTES.map((p) => {
+              const isMatch = p.id === nearestPalette.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setHsv(hexToHsv(p.accent))}
+                  aria-label={p.name}
+                  className="relative grid place-items-center"
+                  style={{ height: 44 }}
+                >
+                  <motion.span
+                    aria-hidden
+                    animate={{ scale: isMatch ? 1.1 : 1 }}
+                    transition={{ type: "spring", stiffness: 320, damping: 22 }}
+                    className="block rounded-full"
+                    style={{
+                      width: 22,
+                      height: 22,
+                      background: `
+                        radial-gradient(circle at 30% 28%, rgba(255,255,255,0.55), transparent 32%),
+                        ${p.accent}
+                      `,
+                      boxShadow: isMatch
+                        ? `0 0 18px ${p.accent}cc, inset 0 -2px 4px rgba(0,0,0,0.3), 0 0 0 1.5px rgba(255,255,255,0.4)`
+                        : `0 3px 8px -2px ${p.accent}66, inset 0 -2px 4px rgba(0,0,0,0.25)`,
+                    }}
+                  />
+                </button>
+              );
+            })}
           </div>
-        </motion.div>
-      </AnimatePresence>
+        </div>
+
+        {/* Hex + match row */}
+        <div className="mt-4 grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
+          {/* Hex chip */}
+          <HexChip hex={hex} onChange={(h) => setHsv(hexToHsv(h))} />
+          {/* Match chip */}
+          <div
+            className="flex items-center justify-center rounded-[12px]"
+            style={{
+              height: 44,
+              background: "rgba(255,255,255,0.035)",
+              border: "1px solid rgba(255,255,255,0.07)",
+            }}
+          >
+            <span
+              className="uppercase"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 10.5,
+                letterSpacing: "0.24em",
+                color: "rgba(245,240,230,0.5)",
+              }}
+            >
+              Matches
+            </span>
+            <span
+              className="ml-2"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 11.5,
+                letterSpacing: "0.04em",
+                color: "rgba(245,240,230,0.85)",
+              }}
+            >
+              {nearestPalette.name}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-// Live preview copy samples — one per palette, written in that
-// palette's voice. Demonstrates the consequence of the pick.
-const SAMPLES: Record<
-  string,
-  { eyebrow: string; headline: string; body: string; cta: string }
-> = {
-  "quiet-cream": {
-    eyebrow: "Skincare · Est. 1987",
-    headline: "Considered, since the start",
-    body: "Plants gathered at low tide on the coast of Tasmania, distilled the same week, bottled in dark glass. Each batch named for the month it was made.",
-    cta: "Visit a store",
-  },
-  "royal-violet": {
-    eyebrow: "v2.4 — out now",
-    headline: "Ship work, not status",
-    body: "Threads, drafts, and review in one place. Built by engineers who got tired of the meeting after the meeting. No new tabs.",
-    cta: "Start free",
-  },
-  "sharp-mono": {
-    eyebrow: "Studio",
-    headline: "Made with care",
-    body: "Aluminum unibody. Forty-eight grams. Two ports. Built once. Used every day.",
-    cta: "Learn more",
-  },
-  forest: {
-    eyebrow: "Outdoor apparel · Since 1973",
-    headline: "Built to last, made to be repaired",
-    body: "We've been patching, mending, and refurbishing gear since 1973. Bring your jacket to a repair center this season — most jobs run under thirty dollars.",
-    cta: "Find a repair center",
-  },
-  sunshine: {
-    eyebrow: "Collection 04 · Spring",
-    headline: 'THIS IS "WORK"',
-    body: 'Drop 04. Silkscreen on heavyweight cotton. Designed in Milan, made in Portugal. Quotation marks intentional.',
-    cta: "Shop the drop",
-  },
-  "soft-blush": {
-    eyebrow: "skincare",
-    headline: "the everyday glow you'll want",
-    body: "weightless, slightly dewy, and made for the in-between days. one pump, three minutes, you're out the door.",
-    cta: "shop now",
-  },
-  "steel-blue": {
-    eyebrow: "Payments",
-    headline: "Payments infrastructure, built for scale",
-    body: "Used by Shopify, Slack, and over a million businesses. One API for cards, wallets, and bank transfers across 47 countries.",
-    cta: "Read the docs",
-  },
-  "workwear-brown": {
-    eyebrow: "Detroit, MI",
-    headline: "Double-knee duck",
-    body: "12-oz cotton duck. Triple-stitched seams. Brass rivets at stress points. Made for jobsites and the people who run them.",
-    cta: "Shop the line",
-  },
-};
+/* ============================================================
+ * ModeToggle — segmented Light / Dark with sliding pill
+ * ============================================================ */
+function ModeToggle({
+  theme,
+  setTheme,
+  accent,
+}: {
+  theme: Theme;
+  setTheme: (t: Theme) => void;
+  accent: string;
+}) {
+  return (
+    <div
+      className="relative grid gap-1.5 rounded-[14px]"
+      style={{
+        gridTemplateColumns: "1fr 1fr",
+        padding: 6,
+        background: "rgba(255,255,255,0.035)",
+        border: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      {(["light", "dark"] as Theme[]).map((mode) => {
+        const active = theme === mode;
+        return (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => setTheme(mode)}
+            className="relative grid place-items-center rounded-[10px] z-10"
+            style={{ height: 42 }}
+          >
+            {active && (
+              <motion.span
+                layoutId="picker-mode-pill"
+                aria-hidden
+                className="absolute inset-0 rounded-[10px]"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  boxShadow: `0 6px 18px -4px ${accent}66, inset 0 1px 0 rgba(255,255,255,0.1)`,
+                }}
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+              />
+            )}
+            <span
+              className="relative flex items-center gap-2.5"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 12,
+                letterSpacing: "0.04em",
+                color: active
+                  ? "rgba(245,240,230,0.95)"
+                  : "rgba(245,240,230,0.5)",
+                transition: "color 0.25s ease",
+              }}
+            >
+              {mode === "light" ? (
+                <SunIcon color={active ? accent : "rgba(245,240,230,0.5)"} />
+              ) : (
+                <MoonIcon color={active ? accent : "rgba(245,240,230,0.5)"} />
+              )}
+              {mode === "light" ? "Light" : "Dark"}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ============================================================
+ * HueSlider — drag to set hue + reset icon
+ * ============================================================ */
+function HueSlider({
+  h,
+  onChange,
+  onReset,
+  accent,
+}: {
+  h: number;
+  onChange: (h: number) => void;
+  onReset: () => void;
+  accent: string;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const handleMove = (clientX: number) => {
+    if (!trackRef.current) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    onChange(x * 360);
+  };
+
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        ref={trackRef}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          handleMove(e.clientX);
+        }}
+        onPointerMove={(e) => {
+          if (e.buttons === 1) handleMove(e.clientX);
+        }}
+        className="relative flex-1 rounded-full cursor-pointer"
+        style={{
+          height: 10,
+          background:
+            "linear-gradient(to right, hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%), hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%))",
+          boxShadow: "inset 0 1px 2px rgba(0,0,0,0.3)",
+          touchAction: "none",
+        }}
+      >
+        <span
+          aria-hidden
+          className="absolute rounded-full"
+          style={{
+            left: `${(h / 360) * 100}%`,
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 18,
+            height: 18,
+            background: `hsl(${h}, 100%, 50%)`,
+            border: "2px solid rgba(255,255,255,0.95)",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+            pointerEvents: "none",
+          }}
+        />
+      </div>
+      <button
+        type="button"
+        onClick={onReset}
+        className="grid place-items-center rounded-full"
+        aria-label="Reset to nearest preset"
+        style={{
+          width: 32,
+          height: 32,
+          background: "rgba(255,255,255,0.035)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          color: accent,
+          transition: "color 0.2s ease",
+        }}
+      >
+        <ResetIcon />
+      </button>
+    </div>
+  );
+}
+
+/* ============================================================
+ * SVSquare — drag to set saturation × value
+ * ============================================================ */
+function SVSquare({
+  hsv,
+  onChange,
+}: {
+  hsv: HSV;
+  onChange: (s: number, v: number) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleMove = (clientX: number, clientY: number) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+    onChange(x, 1 - y);
+  };
+
+  return (
+    <div
+      ref={ref}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        handleMove(e.clientX, e.clientY);
+      }}
+      onPointerMove={(e) => {
+        if (e.buttons === 1) handleMove(e.clientX, e.clientY);
+      }}
+      className="relative w-full rounded-2xl overflow-hidden cursor-crosshair"
+      style={{
+        height: 240,
+        background: `
+          linear-gradient(to top, #000 0%, transparent 100%),
+          linear-gradient(to right, #fff 0%, hsl(${hsv.h}, 100%, 50%) 100%)
+        `,
+        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)",
+        touchAction: "none",
+      }}
+    >
+      <span
+        aria-hidden
+        className="absolute rounded-full"
+        style={{
+          left: `${hsv.s * 100}%`,
+          top: `${(1 - hsv.v) * 100}%`,
+          transform: "translate(-50%, -50%)",
+          width: 18,
+          height: 18,
+          background: hsvToHex(hsv.h, hsv.s, hsv.v),
+          border: "2.5px solid rgba(255,255,255,0.95)",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+          pointerEvents: "none",
+        }}
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+ * HexChip — editable hex display
+ * ============================================================ */
+function HexChip({
+  hex,
+  onChange,
+}: {
+  hex: string;
+  onChange: (h: string) => void;
+}) {
+  const [draft, setDraft] = useState(hex);
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setDraft(hex);
+  }, [hex, focused]);
+
+  return (
+    <label
+      className="relative flex items-center gap-2 rounded-[12px] cursor-text"
+      style={{
+        height: 44,
+        padding: "0 14px",
+        background: "rgba(255,255,255,0.035)",
+        border: "1px solid rgba(255,255,255,0.07)",
+      }}
+    >
+      <span
+        className="uppercase"
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          letterSpacing: "0.28em",
+          color: "rgba(245,240,230,0.4)",
+        }}
+      >
+        Hex
+      </span>
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={(e) => {
+          setFocused(false);
+          const next = e.target.value.trim();
+          if (/^#?[0-9a-fA-F]{6}$/.test(next)) {
+            const clean = next.startsWith("#") ? next : `#${next}`;
+            onChange(clean);
+          } else {
+            setDraft(hex);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        spellCheck={false}
+        className="flex-1 bg-transparent outline-none uppercase"
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 12,
+          letterSpacing: "0.04em",
+          color: "rgba(245,240,230,0.92)",
+          minWidth: 0,
+        }}
+      />
+    </label>
+  );
+}
+
+/* ============================================================
+ * Icons
+ * ============================================================ */
+function SunIcon({ color }: { color: string }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+      style={{ color }}
+    >
+      <circle cx="12" cy="12" r="4" fill="currentColor" />
+      <g stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+        <path d="M12 2v2" />
+        <path d="M12 20v2" />
+        <path d="M2 12h2" />
+        <path d="M20 12h2" />
+        <path d="M4.93 4.93l1.41 1.41" />
+        <path d="M17.66 17.66l1.41 1.41" />
+        <path d="M4.93 19.07l1.41-1.41" />
+        <path d="M17.66 6.34l1.41-1.41" />
+      </g>
+    </svg>
+  );
+}
+
+function MoonIcon({ color }: { color: string }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+      style={{ color }}
+    >
+      <path
+        d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function ResetIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <path
+        d="M3 12a9 9 0 1 0 3-6.7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M3 4v5h5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
