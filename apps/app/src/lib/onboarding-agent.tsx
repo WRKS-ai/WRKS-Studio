@@ -50,6 +50,7 @@ import { VOICES } from "@/lib/voices";
 // set_field with their own field aliases.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
+const NAME_KEY = "wrks-onboarding-name";
 
 export type OnboardingVoiceState =
   | "idle"
@@ -112,9 +113,18 @@ function AgentHost({ children }: { children: ReactNode }) {
   const [personalityId, setPersonalityId] = useState<PersonalityId | null>(
     null,
   );
+  // The user-chosen agent name (e.g. "Bub"). Lives in localStorage
+  // under NAME_KEY and is what gets shown in the transcript header
+  // and used by the agent in its replies. Falls back to the voice's
+  // own name if the user hasn't picked one yet.
+  const [agentName, setAgentName] = useState<string | null>(null);
   const [messages, setMessages] = useState<OnboardingMessage[]>([]);
   const [voiceState, setVoiceState] = useState<OnboardingVoiceState>("idle");
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  // User can close the transcript panel to free the screen without
+  // ending the voice session. A small restore button appears in
+  // its place so they can bring it back when they want.
+  const [panelDismissed, setPanelDismissed] = useState(false);
   const messageIdRef = useRef(0);
   const startAttempted = useRef(false);
   // Stable conversation id for the lifetime of this provider mount —
@@ -125,14 +135,17 @@ function AgentHost({ children }: { children: ReactNode }) {
     `wrks_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
   );
 
-  // Pick up the personality the user chose on /onboarding/personality.
-  // Re-run if storage changes (e.g. user navigates back and re-picks).
+  // Pick up the personality + agent name the user chose. Re-runs on
+  // storage events AND on pathname changes so renaming on /name
+  // immediately refreshes the panel header when they navigate on.
   useEffect(() => {
     const load = () => {
       const p = localStorage.getItem(PERSONALITY_KEY) as PersonalityId | null;
       if (p && PERSONALITIES.some((x) => x.id === p)) {
         setPersonalityId(p);
       }
+      const name = localStorage.getItem(NAME_KEY);
+      setAgentName(name?.trim() || null);
     };
     load();
     window.addEventListener("storage", load);
@@ -147,6 +160,17 @@ function AgentHost({ children }: { children: ReactNode }) {
     : null;
   const accent = personality?.accent ?? "#a78bfa";
   const accentDeep = personality?.accentDeep ?? "#6d28d9";
+  // Display name preference: user's chosen agent name → voice name → "Agent".
+  // The transcript header should say "Bub", not "Brad", once the user
+  // has named the agent on /onboarding/name.
+  const displayName = agentName ?? voice?.name ?? "Agent";
+
+  // Re-read the agent name when pathname changes — covers the
+  // /name → /intake transition where the user just typed the name.
+  useEffect(() => {
+    const stored = localStorage.getItem(NAME_KEY);
+    setAgentName(stored?.trim() || null);
+  }, [pathname]);
 
   const conversation = useConversation({
     onConnect: () => {
@@ -320,10 +344,18 @@ function AgentHost({ children }: { children: ReactNode }) {
         <>
           <ConversationPanel
             messages={messages}
-            agentName={voice?.name ?? "Agent"}
-            visible={messages.length > 0}
+            agentName={displayName}
+            visible={messages.length > 0 && !panelDismissed}
             accent={accent}
+            onClose={() => setPanelDismissed(true)}
           />
+          {messages.length > 0 && panelDismissed && (
+            <RestoreTranscriptButton
+              count={messages.length}
+              accent={accent}
+              onClick={() => setPanelDismissed(false)}
+            />
+          )}
           <FloatingAgent
             voiceState={voiceState}
             accent={accent}
@@ -494,11 +526,13 @@ function ConversationPanel({
   agentName,
   visible,
   accent,
+  onClose,
 }: {
   messages: OnboardingMessage[];
   agentName: string;
   visible: boolean;
   accent: string;
+  onClose: () => void;
 }) {
   const reduced = useReducedMotion();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -610,15 +644,47 @@ function ConversationPanel({
                 Live
               </span>
             </div>
-            <span
-              className="text-[10.5px] tracking-[0.28em] uppercase"
-              style={{
-                color: "rgba(245,240,230,0.7)",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              {agentName}
-            </span>
+            <div className="flex items-center gap-3">
+              <span
+                className="text-[10.5px] tracking-[0.28em] uppercase"
+                style={{
+                  color: "rgba(245,240,230,0.7)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {agentName}
+              </span>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close transcript"
+                className="grid place-items-center transition-opacity hover:opacity-100"
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  opacity: 0.7,
+                }}
+              >
+                <svg
+                  width="9"
+                  height="9"
+                  viewBox="0 0 9 9"
+                  fill="none"
+                  aria-hidden
+                  style={{ color: "rgba(245,240,230,0.85)" }}
+                >
+                  <path
+                    d="M1 1l7 7M8 1l-7 7"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
           <div
             ref={scrollRef}
@@ -679,5 +745,83 @@ function ConversationPanel({
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/* ============================================================
+ * RestoreTranscriptButton — small pill that sits above the orb
+ * when the user has dismissed the conversation panel. Click to
+ * bring the panel back. Shows the unread-message count subtly.
+ * ============================================================ */
+function RestoreTranscriptButton({
+  count,
+  accent,
+  onClick,
+}: {
+  count: number;
+  accent: string;
+  onClick: () => void;
+}) {
+  const reduced = useReducedMotion();
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      initial={reduced ? false : { opacity: 0, y: 8, scale: 0.94 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={reduced ? undefined : { opacity: 0, y: 6, scale: 0.94 }}
+      transition={{ duration: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
+      whileHover={reduced ? undefined : { y: -1 }}
+      whileTap={{ scale: 0.97 }}
+      className="fixed z-30 inline-flex items-center gap-2 px-3 py-1.5"
+      style={{
+        bottom: 116,
+        right: 32,
+        borderRadius: 999,
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.018) 100%)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        backdropFilter: "blur(20px) saturate(160%)",
+        WebkitBackdropFilter: "blur(20px) saturate(160%)",
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 28px -10px rgba(0,0,0,0.6)",
+      }}
+      aria-label={`Open transcript (${count} messages)`}
+    >
+      <svg
+        width="11"
+        height="11"
+        viewBox="0 0 12 12"
+        fill="none"
+        aria-hidden
+        style={{ color: "rgba(245,240,230,0.85)" }}
+      >
+        <path
+          d="M3 7l3-3 3 3"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <span
+        className="text-[10px] tracking-[0.28em] uppercase"
+        style={{
+          color: "rgba(245,240,230,0.78)",
+          fontFamily: "var(--font-mono)",
+        }}
+      >
+        Transcript
+      </span>
+      <span
+        className="text-[10px] tabular-nums"
+        style={{
+          color: `${accent}cc`,
+          fontFamily: "var(--font-mono)",
+        }}
+      >
+        {count}
+      </span>
+    </motion.button>
   );
 }
