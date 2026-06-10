@@ -44,10 +44,17 @@ export type OpenAIChatCompletionRequest = {
   temperature?: number | null;
   max_tokens?: number;
   tools?: unknown[];
-  // ElevenLabs-injected fields (via extra_body on the agent)
-  user_id?: string;
-  // Optional: screen context payload for studio
-  wrks_screen_context?: unknown;
+  // ElevenLabs forwards anything the client passes via
+  // `extra_body_for_convai` on startSession under this top-level key.
+  // We read user_id / wrks_surface / conversation_id from here.
+  // See: https://elevenlabs.io/docs/eleven-agents/customization/llm/custom-llm
+  elevenlabs_extra_body?: {
+    user_id?: string;
+    wrks_surface?: string;
+    conversation_id?: string;
+    wrks_screen_context?: unknown;
+    [key: string]: unknown;
+  };
 };
 
 /**

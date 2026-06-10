@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import {
   ConversationProvider,
   useConversation,
@@ -100,6 +101,7 @@ export function OnboardingAgentProvider({ children }: { children: ReactNode }) {
 }
 
 function AgentHost({ children }: { children: ReactNode }) {
+  const { user } = useUser();
   const [personalityId, setPersonalityId] = useState<PersonalityId | null>(
     null,
   );
@@ -108,6 +110,13 @@ function AgentHost({ children }: { children: ReactNode }) {
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const messageIdRef = useRef(0);
   const startAttempted = useRef(false);
+  // Stable conversation id for the lifetime of this provider mount —
+  // each voice session within the onboarding flow shares one so all
+  // turns roll up into a single voice_sessions row for Phase 8 signal
+  // extraction.
+  const conversationIdRef = useRef<string>(
+    `wrks_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+  );
 
   // Pick up the personality the user chose on /onboarding/personality.
   // Re-run if storage changes (e.g. user navigates back and re-picks).
@@ -201,6 +210,18 @@ function AgentHost({ children }: { children: ReactNode }) {
         suggestedNames: personality.suggestedNames,
       });
 
+      // The custom-LLM-routed agent receives this as
+      // `elevenlabs_extra_body` in every LLM request and uses it to
+      // look up the user's profile + memory before calling Claude.
+      // Without these, /api/agent/converse returns 400.
+      const customLlmExtraBody = user
+        ? {
+            user_id: user.id,
+            wrks_surface: "onboarding" as const,
+            conversation_id: conversationIdRef.current,
+          }
+        : undefined;
+
       await conversation.startSession({
         signedUrl,
         connectionType: "websocket",
@@ -211,15 +232,21 @@ function AgentHost({ children }: { children: ReactNode }) {
             language: "en",
           },
         },
+        // @elevenlabs/client BaseConnection.customLlmExtraBody — gets
+        // forwarded to our /api/agent/converse on every turn.
+        customLlmExtraBody,
       });
-      console.log("[onboarding/agent] session started");
+      console.log("[onboarding/agent] session started", {
+        conversationId: conversationIdRef.current,
+        userId: user?.id,
+      });
     } catch (err) {
       console.error("[onboarding/agent] startVoice failed:", err);
       const msg = err instanceof Error ? err.message : "voice failed";
       setVoiceError(msg);
       setVoiceState("error");
     }
-  }, [personality, voice, conversation]);
+  }, [personality, voice, conversation, user]);
 
   const stopVoice = useCallback(async () => {
     try {
@@ -230,16 +257,18 @@ function AgentHost({ children }: { children: ReactNode }) {
     setVoiceState("idle");
   }, [conversation]);
 
-  // Auto-start once personality + voice are loaded. Only once per
-  // mount of the entire onboarding layout — survives child page
-  // navigations because this component sits in the layout.
+  // Auto-start once personality + voice + Clerk user are all loaded.
+  // Only once per mount of the entire onboarding layout — survives
+  // child page navigations because this component sits in the layout.
+  // We wait for `user` so the custom-LLM endpoint can resolve the
+  // profile by user_id on the first turn.
   useEffect(() => {
-    if (!personality || !voice) return;
+    if (!personality || !voice || !user) return;
     if (startAttempted.current) return;
     startAttempted.current = true;
     console.log("[onboarding/agent] auto-start firing");
     startVoice();
-  }, [personality, voice, startVoice]);
+  }, [personality, voice, user, startVoice]);
 
   // End the session when the user leaves /onboarding/* entirely.
   // (Within onboarding the session persists.)

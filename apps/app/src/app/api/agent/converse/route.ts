@@ -65,34 +65,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const userId = typeof body.user_id === "string" ? body.user_id : undefined;
+  // ElevenLabs wraps anything the client sends via
+  // `extra_body_for_convai` (on startSession) under `elevenlabs_extra_body`
+  // in the request body. That's our channel for per-turn identity +
+  // surface + screen context.
+  const extra = body.elevenlabs_extra_body ?? {};
+
+  const userId = typeof extra.user_id === "string" ? extra.user_id : undefined;
   if (!userId) {
     return NextResponse.json(
       {
         error:
-          "Missing user_id. Configure the ElevenLabs agent to forward wrks_user_id via extra_body.",
+          "Missing user_id. The client must pass it via extra_body_for_convai on startSession.",
       },
       { status: 400 },
     );
   }
 
-  // Surface lives in a custom field we pass via extra_body too —
-  // defaults to "onboarding" since that's the only surface live today.
+  // Surface — onboarding vs studio. Defaults to onboarding since that's
+  // the only surface live today.
   const surfaceRaw =
-    typeof (body as { wrks_surface?: unknown }).wrks_surface === "string"
-      ? ((body as { wrks_surface?: string }).wrks_surface as string)
-      : "onboarding";
+    typeof extra.wrks_surface === "string" ? extra.wrks_surface : "onboarding";
   const surface: AgentSurface = SURFACE_SET.has(surfaceRaw as AgentSurface)
     ? (surfaceRaw as AgentSurface)
     : "onboarding";
 
-  // ElevenLabs conversation id — also forwarded via extra_body.
-  // Lets us tie multiple turns into a single voice_sessions row for
-  // Phase 8 signal extraction. Optional: turn persistence skips if
-  // missing (safe for local testing without the ElevenLabs hop).
+  // ElevenLabs conversation id — lets us tie multiple turns into a
+  // single voice_sessions row for Phase 8 signal extraction. Optional:
+  // turn persistence skips if missing (safe for local testing without
+  // the ElevenLabs hop).
   const conversationId =
-    typeof (body as { conversation_id?: unknown }).conversation_id === "string"
-      ? ((body as { conversation_id?: string }).conversation_id as string)
+    typeof extra.conversation_id === "string"
+      ? extra.conversation_id
       : undefined;
 
   // ── 3. Resolve the user's active profile + memory ───────────────
@@ -150,9 +154,9 @@ export async function POST(req: NextRequest) {
     memory,
     suggestedNames: personality.suggestedNames,
     screenContext:
-      typeof body.wrks_screen_context === "object" &&
-      body.wrks_screen_context !== null
-        ? (body.wrks_screen_context as {
+      typeof extra.wrks_screen_context === "object" &&
+      extra.wrks_screen_context !== null
+        ? (extra.wrks_screen_context as {
             pageLabel?: string;
             activeDeliverableId?: string;
             activeDeliverableKind?: string;
