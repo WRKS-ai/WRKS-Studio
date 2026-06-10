@@ -5,6 +5,7 @@ import {
   ConversationProvider,
   useConversation,
 } from "@elevenlabs/react";
+import { usePathname } from "next/navigation";
 import {
   AnimatePresence,
   motion,
@@ -300,21 +301,34 @@ function AgentHost({ children }: { children: ReactNode }) {
     else startVoice();
   };
 
+  // The floating orb + conversation panel only show on pages where
+  // the agent is actually "live". /onboarding/personality is the
+  // voice-picker — the user is still choosing the voice, showing the
+  // active agent there is premature and confusing. From /name onward
+  // the agent is theirs.
+  const pathname = usePathname();
+  const showFloatingAgent =
+    !!pathname && !pathname.startsWith("/onboarding/personality");
+
   return (
     <Ctx.Provider value={value}>
       <LiquidAurora accent={accent} accentDeep={accentDeep} />
       {children}
-      <ConversationPanel
-        messages={messages}
-        agentName={voice?.name ?? "Agent"}
-        visible={messages.length > 0}
-        accent={accent}
-      />
-      <FloatingAgent
-        voiceState={voiceState}
-        accent={accent}
-        onClick={onWidgetClick}
-      />
+      {showFloatingAgent && (
+        <>
+          <ConversationPanel
+            messages={messages}
+            agentName={voice?.name ?? "Agent"}
+            visible={messages.length > 0}
+            accent={accent}
+          />
+          <FloatingAgent
+            voiceState={voiceState}
+            accent={accent}
+            onClick={onWidgetClick}
+          />
+        </>
+      )}
     </Ctx.Provider>
   );
 }
