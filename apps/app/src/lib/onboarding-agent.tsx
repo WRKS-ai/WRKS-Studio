@@ -103,6 +103,12 @@ export function OnboardingAgentProvider({ children }: { children: ReactNode }) {
 
 function AgentHost({ children }: { children: ReactNode }) {
   const { user } = useUser();
+  // Pathname gates both auto-start (don't start on the voice-picker
+  // page) and floating-orb visibility. Provider stays mounted across
+  // navigations so session state survives the page swap.
+  const pathname = usePathname();
+  const isOnboardingEntryPage =
+    !!pathname && pathname.startsWith("/onboarding/personality");
   const [personalityId, setPersonalityId] = useState<PersonalityId | null>(
     null,
   );
@@ -258,18 +264,21 @@ function AgentHost({ children }: { children: ReactNode }) {
     setVoiceState("idle");
   }, [conversation]);
 
-  // Auto-start once personality + voice + Clerk user are all loaded.
-  // Only once per mount of the entire onboarding layout — survives
-  // child page navigations because this component sits in the layout.
-  // We wait for `user` so the custom-LLM endpoint can resolve the
-  // profile by user_id on the first turn.
+  // Auto-start once personality + voice + Clerk user are all loaded
+  // AND the user has left the voice-picker. We hold off on
+  // /onboarding/personality so the user isn't surprised by audio while
+  // they're still choosing which voice they want.
+  //
+  // Only fires once per provider mount — startAttempted guards against
+  // re-firing when the user navigates between later pages.
   useEffect(() => {
+    if (isOnboardingEntryPage) return;
     if (!personality || !voice || !user) return;
     if (startAttempted.current) return;
     startAttempted.current = true;
     console.log("[onboarding/agent] auto-start firing");
     startVoice();
-  }, [personality, voice, user, startVoice]);
+  }, [personality, voice, user, isOnboardingEntryPage, startVoice]);
 
   // End the session when the user leaves /onboarding/* entirely.
   // (Within onboarding the session persists.)
@@ -301,14 +310,7 @@ function AgentHost({ children }: { children: ReactNode }) {
     else startVoice();
   };
 
-  // The floating orb + conversation panel only show on pages where
-  // the agent is actually "live". /onboarding/personality is the
-  // voice-picker — the user is still choosing the voice, showing the
-  // active agent there is premature and confusing. From /name onward
-  // the agent is theirs.
-  const pathname = usePathname();
-  const showFloatingAgent =
-    !!pathname && !pathname.startsWith("/onboarding/personality");
+  const showFloatingAgent = !!pathname && !isOnboardingEntryPage;
 
   return (
     <Ctx.Provider value={value}>
