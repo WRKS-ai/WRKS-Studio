@@ -125,3 +125,85 @@ body {
 [data-scrollbar="light"]::-webkit-scrollbar-thumb:hover {
   background-color: rgba(14, 12, 8, 0.32);
 }
+
+/* ============================================================
+   Revolving crystal-light border for premium glass cards.
+
+   A near-transparent ring with a single bright "comet" head
+   slowly traveling around the card's perimeter. Used on the
+   onboarding name card. CSS @property animates the conic
+   gradient's `from` angle directly so the ring itself doesn't
+   rotate — only the bright bit travels.
+
+   Usage: <div class="wrks-crystal-border" style={{ borderRadius: 32 }}>
+   The pseudo-element copies the host's border-radius via `inherit`.
+   ============================================================ */
+@property --wrks-crystal-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes wrks-crystal-spin {
+  to {
+    --wrks-crystal-angle: 360deg;
+  }
+}
+
+.wrks-crystal-border {
+  position: relative;
+  isolation: isolate;
+}
+
+.wrks-crystal-border::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--wrks-crystal-angle, 0deg),
+    transparent 0deg,
+    rgba(255, 255, 255, 0.04) 200deg,
+    rgba(255, 255, 255, 0.2) 295deg,
+    rgba(255, 255, 255, 1) 332deg,
+    rgba(255, 255, 255, 0.2) 350deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: wrks-crystal-spin 7s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Soft outer halo that follows the comet head — gives the
+   bright bit a faint atmospheric bloom outside the rim. */
+.wrks-crystal-border::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--wrks-crystal-angle, 0deg),
+    transparent 0deg,
+    transparent 300deg,
+    rgba(255, 255, 255, 0.22) 332deg,
+    transparent 358deg
+  );
+  filter: blur(10px);
+  animation: wrks-crystal-spin 7s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrks-crystal-border::before,
+  .wrks-crystal-border::after {
+    animation: none;
+  }
+}

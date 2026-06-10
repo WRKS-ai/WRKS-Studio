@@ -179,18 +179,17 @@ export default function NamePage() {
               delay: 0.2,
               ease: [0.2, 0.7, 0.2, 1],
             }}
-            className="relative w-full max-w-[720px] mx-auto"
+            className="wrks-crystal-border w-full max-w-[720px] mx-auto"
             style={{
               borderRadius: 32,
               background:
                 "linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)",
-              border: "1px solid rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.06)",
               backdropFilter: "blur(28px)",
               WebkitBackdropFilter: "blur(28px)",
               boxShadow:
                 "inset 0 1px 0 rgba(255,255,255,0.07), 0 32px 80px -24px rgba(0,0,0,0.7)",
               padding: "56px 64px 52px",
-              zIndex: 1,
             }}
           >
             <p
