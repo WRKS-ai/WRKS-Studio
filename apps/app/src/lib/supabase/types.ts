@@ -166,6 +166,60 @@ export type Database = {
           },
         ]
       }
+      delta_playbook: {
+        Row: {
+          business_profile_id: string
+          confidence: number
+          created_at: string
+          harmful_count: number
+          helpful_count: number
+          id: string
+          kind: string
+          last_used_at: string
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          business_profile_id: string
+          confidence?: number
+          created_at?: string
+          harmful_count?: number
+          helpful_count?: number
+          id?: string
+          kind: string
+          last_used_at?: string
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          business_profile_id?: string
+          confidence?: number
+          created_at?: string
+          harmful_count?: number
+          helpful_count?: number
+          id?: string
+          kind?: string
+          last_used_at?: string
+          text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delta_playbook_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delta_playbook_business_profile_id_fkey"
+            columns: ["business_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profile_activity"
+            referencedColumns: ["business_profile_id"]
+          },
+        ]
+      }
       memory_entries: {
         Row: {
           business_profile_id: string

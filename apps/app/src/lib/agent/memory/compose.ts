@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { MEMORY_KIND } from "@/lib/supabase/memory";
+import { fetchTopDeltas } from "@/lib/supabase/playbook";
 import type { BusinessProfile } from "@/lib/supabase/profile";
 import type { Database, Json } from "@/lib/supabase/types";
 
@@ -47,12 +48,25 @@ export type ComposedMemory = {
       rejectedAt: string;
     }>;
   };
+  /** Procedural memory — the agent's evolving cheat sheet of rules
+   *  it's learned about this user. Populated by the session-end
+   *  reflection pass (P6a). Top-N by confidence × recency. */
+  playbook: Array<{
+    text: string;
+    kind: string;
+    helpful: number;
+    harmful: number;
+    confidence: number;
+  }>;
 };
 
 // Sane defaults — capped so the prompt stays under ~6k tokens.
 const DEFAULTS = {
   recentApprovalsLimit: 5,
   recentRejectionsLimit: 5,
+  /** Top-N deltas to inject. Each delta ~12-25 tokens; 30 stays
+   *  comfortably under the budget alongside semantic + episodic. */
+  playbookLimit: 30,
 };
 
 // ============================================================
@@ -109,36 +123,41 @@ export async function composeMemoryContext(
 ): Promise<ComposedMemory> {
   const cached = getCached(profile.id);
   if (cached) return cached;
-  // Parallel fetches: semantic memory + episodic (approvals + rejections).
-  const [semanticRows, approvedRows, rejectionRows] = await Promise.all([
-    // current_memory view returns latest entry per (profile, kind)
-    supabase
-      .from("current_memory")
-      .select("kind, content, weight")
-      .eq("business_profile_id", profile.id),
+  // Parallel fetches: semantic memory + episodic (approvals +
+  // rejections) + procedural (delta playbook).
+  const [semanticRows, approvedRows, rejectionRows, playbookRows] =
+    await Promise.all([
+      // current_memory view returns latest entry per (profile, kind)
+      supabase
+        .from("current_memory")
+        .select("kind, content, weight")
+        .eq("business_profile_id", profile.id),
 
-    // Recently approved deliverables — episodic anchors
-    supabase
-      .from("approvals")
-      .select(
-        "action, created_at, deliverable:deliverable_id(id, kind, content)",
-      )
-      .eq("business_profile_id", profile.id)
-      .eq("action", "approved")
-      .order("created_at", { ascending: false })
-      .limit(DEFAULTS.recentApprovalsLimit),
+      // Recently approved deliverables — episodic anchors
+      supabase
+        .from("approvals")
+        .select(
+          "action, created_at, deliverable:deliverable_id(id, kind, content)",
+        )
+        .eq("business_profile_id", profile.id)
+        .eq("action", "approved")
+        .order("created_at", { ascending: false })
+        .limit(DEFAULTS.recentApprovalsLimit),
 
-    // Recent rejections — signals to avoid
-    supabase
-      .from("approvals")
-      .select(
-        "action, reason, created_at, deliverable:deliverable_id(id, kind, content)",
-      )
-      .eq("business_profile_id", profile.id)
-      .in("action", ["rejected", "revised"])
-      .order("created_at", { ascending: false })
-      .limit(DEFAULTS.recentRejectionsLimit),
-  ]);
+      // Recent rejections — signals to avoid
+      supabase
+        .from("approvals")
+        .select(
+          "action, reason, created_at, deliverable:deliverable_id(id, kind, content)",
+        )
+        .eq("business_profile_id", profile.id)
+        .in("action", ["rejected", "revised"])
+        .order("created_at", { ascending: false })
+        .limit(DEFAULTS.recentRejectionsLimit),
+
+      // Top-N evolved rules from the procedural playbook
+      fetchTopDeltas(supabase, profile.id, DEFAULTS.playbookLimit),
+    ]);
 
   if (semanticRows.error) {
     console.error("[agent/memory/compose] semantic fetch failed:", semanticRows.error);
@@ -208,6 +227,13 @@ export async function composeMemoryContext(
         ];
       }),
     },
+    playbook: playbookRows.map((row) => ({
+      text: row.text,
+      kind: row.kind,
+      helpful: row.helpful_count,
+      harmful: row.harmful_count,
+      confidence: row.confidence,
+    })),
   };
 
   setCached(profile.id, composed);
@@ -275,6 +301,48 @@ export function renderMemoryForPrompt(memory: ComposedMemory): string {
     lines.push("");
   }
 
+  // Procedural — the evolving cheat sheet. Listed near the top
+  // of the prompt because these rules should bias every reply.
+  // Group by kind so the agent sees preferences / patterns /
+  // avoid-list separately rather than as an undifferentiated blob.
+  if (memory.playbook.length > 0) {
+    const byKind: Record<string, string[]> = {
+      preference: [],
+      pattern: [],
+      avoid: [],
+      fact: [],
+    };
+    for (const d of memory.playbook) {
+      const bucket = byKind[d.kind] ?? byKind.preference;
+      bucket.push(d.text);
+    }
+    lines.push("## What you've learned about this user");
+    lines.push(
+      "(Each rule below is something you figured out across past sessions. Apply them by default; only deviate if the user clearly signals otherwise.)",
+    );
+    if (byKind.preference.length > 0) {
+      lines.push("");
+      lines.push("Preferences:");
+      for (const t of byKind.preference) lines.push(`• ${t}`);
+    }
+    if (byKind.pattern.length > 0) {
+      lines.push("");
+      lines.push("Patterns you've noticed:");
+      for (const t of byKind.pattern) lines.push(`• ${t}`);
+    }
+    if (byKind.avoid.length > 0) {
+      lines.push("");
+      lines.push("Avoid:");
+      for (const t of byKind.avoid) lines.push(`• ${t}`);
+    }
+    if (byKind.fact.length > 0) {
+      lines.push("");
+      lines.push("Facts about them:");
+      for (const t of byKind.fact) lines.push(`• ${t}`);
+    }
+    lines.push("");
+  }
+
   // Episodic — what's been built
   if (memory.episodic.recentApprovals.length > 0) {
     lines.push("## Recently approved (what the brand sounds like in practice)");
@@ -297,7 +365,8 @@ export function renderMemoryForPrompt(memory: ComposedMemory): string {
     !sem.businessFundamentals &&
     !sem.audience &&
     !sem.differentiator &&
-    memory.episodic.recentApprovals.length === 0
+    memory.episodic.recentApprovals.length === 0 &&
+    memory.playbook.length === 0
   ) {
     if (memory.profile.intakeSummary) {
       lines.push("## Intake summary");

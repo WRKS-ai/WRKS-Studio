@@ -73,10 +73,14 @@ async function handle(req: Request) {
     }
   }
 
-  // ── 2. Trigger extraction for ended-but-unextracted sessions ──
-  // We don't await every Claude call — fire them in parallel and let
-  // the cron move on. Each invocation marks its session as extracted
-  // so re-firing is a no-op.
+  // ── 2. Trigger extraction + reflection for ended sessions ──
+  // Two independent Claude passes per session:
+  //   - extract-signals: pulls semantic/preference signals into
+  //     memory_entries (Phase 8).
+  //   - reflect: updates delta_playbook with ADD/UPDATE/DELETE ops
+  //     against the agent's evolving rule set (Phase 6a).
+  // Each is gated by its own flag (meta.extracted, meta.reflected)
+  // so re-firing one without the other is safe.
   const { data: pending, error: pendingErr } = await supabase
     .from("voice_sessions")
     .select("id, meta")
@@ -90,6 +94,10 @@ async function handle(req: Request) {
     const meta = (s.meta ?? {}) as Record<string, unknown>;
     return meta.extracted !== true;
   });
+  const unreflected = (pending ?? []).filter((s) => {
+    const meta = (s.meta ?? {}) as Record<string, unknown>;
+    return meta.reflected !== true;
+  });
 
   const sharedSecret = process.env.WRKS_AGENT_LLM_SECRET;
   const baseUrl =
@@ -99,38 +107,54 @@ async function handle(req: Request) {
         ? `https://${process.env.VERCEL_URL}`
         : process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3001";
 
-  let queued = 0;
+  let queuedExtract = 0;
+  let queuedReflect = 0;
   if (sharedSecret) {
-    await Promise.allSettled(
-      unextracted.map(async (s) => {
-        const res = await fetch(
-          `${baseUrl}/api/agent/extract-signals/${s.id}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${sharedSecret}`,
-            },
+    const extractCalls = unextracted.map(async (s) => {
+      const res = await fetch(
+        `${baseUrl}/api/agent/extract-signals/${s.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sharedSecret}`,
           },
-        );
-        if (!res.ok) {
-          console.error(
-            `[sweep] extract for ${s.id} returned ${res.status}`,
-          );
-          return;
-        }
-        queued += 1;
-      }),
-    );
+        },
+      );
+      if (!res.ok) {
+        console.error(`[sweep] extract for ${s.id} returned ${res.status}`);
+        return;
+      }
+      queuedExtract += 1;
+    });
+    const reflectCalls = unreflected.map(async (s) => {
+      const res = await fetch(`${baseUrl}/api/agent/reflect/${s.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sharedSecret}`,
+        },
+      });
+      if (!res.ok) {
+        console.error(`[sweep] reflect for ${s.id} returned ${res.status}`);
+        return;
+      }
+      queuedReflect += 1;
+    });
+    await Promise.allSettled([...extractCalls, ...reflectCalls]);
   } else {
-    console.warn("[sweep] WRKS_AGENT_LLM_SECRET missing — extraction skipped");
+    console.warn(
+      "[sweep] WRKS_AGENT_LLM_SECRET missing — extraction + reflection skipped",
+    );
   }
 
   return NextResponse.json({
     ok: true,
     ended,
-    queued,
-    pending_total: unextracted.length,
+    queued_extract: queuedExtract,
+    queued_reflect: queuedReflect,
+    pending_extract_total: unextracted.length,
+    pending_reflect_total: unreflected.length,
   });
 }
 

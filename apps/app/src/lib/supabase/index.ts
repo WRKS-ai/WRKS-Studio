@@ -11,6 +11,16 @@ export {
   type MemorySource,
 } from "./memory";
 export {
+  DELTA_KIND,
+  addDelta,
+  deleteDelta,
+  deltaConfidence,
+  fetchTopDeltas,
+  updateDelta,
+  type DeltaKind,
+  type DeltaRow,
+} from "./playbook";
+export {
   getActiveBusinessProfile,
   getActiveBusinessProfileId,
   type BusinessProfile,
