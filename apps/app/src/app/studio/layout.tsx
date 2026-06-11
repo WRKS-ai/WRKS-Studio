@@ -123,56 +123,67 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
       }}
     >
       {/* ============================================================
-          SIDEBAR (248px) — workspace + nav
+          SIDEBAR (240px) — workspace + nav
+          Surface tone: #101012 (slightly lifted from body #0a0a0c).
+          Depth comes from tone delta + shadow on the canvas panel,
+          not from a visible border. Hairline only at the boundary.
           ============================================================ */}
       <aside
         className="shrink-0 h-full flex flex-col"
         style={{
           width: 240,
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.018) 0%, rgba(0,0,0,0) 60%)",
-          borderRight: "1px solid rgba(255,255,255,0.05)",
+          background: "#101012",
+          borderRight: "1px solid rgba(255,255,255,0.06)",
         }}
       >
-        {/* Workspace switcher */}
-        <div className="px-4 pt-5 pb-3">
+        {/* Workspace switcher — Linear pattern. Single-line, small
+            16px brand mark + 13px name + chevron. No border, no card.
+            Click opens a workspace picker (wired in a later phase). */}
+        <div className="px-4 pt-5 pb-5">
           <button
             type="button"
-            className="w-full h-[60px] rounded-xl px-4 inline-flex items-center gap-3.5 transition-colors hover:bg-white/[0.04]"
-            style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+            className="group w-full inline-flex items-center gap-2.5 transition-opacity"
+            style={{ minHeight: 28 }}
           >
             <span
-              className="size-9 rounded-lg grid place-items-center text-[15.5px] font-semibold"
+              className="shrink-0 size-4 rounded grid place-items-center"
               style={{
-                background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
+                background: accent,
                 color: "white",
-                boxShadow: `0 4px 12px -2px ${glow}`,
+                fontSize: 10,
+                fontWeight: 600,
+                lineHeight: 1,
               }}
             >
               {brandName.charAt(0).toUpperCase()}
             </span>
-            <div className="flex-1 text-left leading-tight min-w-0">
-              <div
-                className="text-[16.5px] font-medium truncate"
-                style={{ color: "rgba(245,245,247,0.95)" }}
-              >
-                {brandName}
-              </div>
-              <div
-                className="text-[13px] tracking-[0.02em] mt-1"
-                style={{ color: "rgba(245,245,247,0.55)" }}
-              >
-                WRKS Workspace
-              </div>
-            </div>
-            <ChevronUpDown />
+            <span
+              className="flex-1 text-left truncate"
+              style={{
+                color: "rgba(245,245,247,0.92)",
+                fontSize: 13.5,
+                fontWeight: 500,
+                letterSpacing: "-0.005em",
+              }}
+            >
+              {brandName}
+            </span>
+            <span
+              aria-hidden
+              className="opacity-50 group-hover:opacity-90 transition-opacity"
+              style={{ color: "rgba(245,245,247,0.6)" }}
+            >
+              <ChevronUpDown />
+            </span>
           </button>
         </div>
 
-        {/* Primary nav */}
-        <div className="px-3 pt-2 flex-1 overflow-y-auto">
+        {/* Primary nav. No horizontal padding on the container —
+            rows extend edge-to-edge so the active hairline rule
+            sits flush against the sidebar's left edge. */}
+        <div className="flex-1 overflow-y-auto">
           <SidebarSection label="Workspace" />
-          <nav className="flex flex-col gap-0.5">
+          <nav className="flex flex-col">
             {PRIMARY_NAV.map((item) => (
               <SidebarLink
                 key={item.href}
@@ -187,9 +198,9 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
             ))}
           </nav>
 
-          <div className="mt-6">
+          <div style={{ marginTop: 16 }}>
             <SidebarSection label="Account" />
-            <nav className="flex flex-col gap-0.5">
+            <nav className="flex flex-col">
               {SECONDARY_NAV.map((item) => (
                 <SidebarLink
                   key={item.href}
@@ -205,156 +216,144 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
           </div>
         </div>
 
-        {/* Bottom: agent identity card */}
-        <div className="px-3 pb-4">
-          <div
-            className="rounded-xl px-4 py-3.5 flex items-center gap-3.5"
-            style={{
-              background: "rgba(255,255,255,0.025)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <div
-              className="shrink-0 size-10 rounded-full grid place-items-center"
-              style={{
-                background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
-                color: "white",
-                fontSize: 15,
-                fontWeight: 600,
-                boxShadow: `0 4px 12px -2px ${glow}`,
-              }}
-            >
-              {(agentName?.[0] ?? "A").toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div
-                className="text-[16px] font-medium truncate"
-                style={{ color: "rgba(245,245,247,0.95)" }}
-              >
-                {agentName || "Agent"}
-              </div>
-              <div
-                className="text-[13px] tracking-[0.02em] flex items-center gap-1.5 mt-1"
-                style={{ color: "rgba(245,245,247,0.6)" }}
-              >
-                <span
-                  className="size-1.5 rounded-full"
-                  style={{ background: accent, boxShadow: `0 0 6px ${accent}` }}
-                />
-                {personality.name} · Ready
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Agent identity moved to the right inspector — that's where
+            the agent lives. Sidebar gets quiet bottom padding so the
+            nav doesn't feel anchored to the floor. */}
+        <div className="h-4 shrink-0" aria-hidden />
       </aside>
 
       {/* ============================================================
           MAIN COLUMN — top bar + content
           ============================================================ */}
       <div className="flex-1 h-full flex flex-col min-w-0">
-        {/* TOP BAR */}
+        {/* TOP BAR — minimal chrome. Breadcrumb + version as
+            typography on the left; Cmd-K icon, upgrade as a hairline
+            link, notifications, avatar on the right. No visible
+            search input, no chip-style pill for version. */}
         <header
-          className="shrink-0 h-[72px] px-8 flex items-center justify-between gap-6"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+          className="shrink-0 flex items-center justify-between gap-6"
+          style={{
+            height: 60,
+            padding: "0 28px",
+            borderBottom: "1px solid rgba(255,255,255,0.05)",
+          }}
         >
           {/* Breadcrumb */}
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-baseline gap-3 min-w-0">
             <span
-              className="text-[15px]"
-              style={{ color: "rgba(245,245,247,0.55)" }}
+              style={{
+                fontSize: 13.5,
+                color: "rgba(245,245,247,0.48)",
+                letterSpacing: "-0.005em",
+              }}
             >
               {brandName}
             </span>
-            <span style={{ color: "rgba(245,245,247,0.25)", fontSize: 16 }}>
+            <span style={{ color: "rgba(245,245,247,0.22)", fontSize: 13 }}>
               /
             </span>
             <span
-              className="text-[18px] font-medium truncate"
-              style={{ color: "rgba(245,245,247,0.98)" }}
+              className="truncate"
+              style={{
+                fontSize: 14.5,
+                fontWeight: 500,
+                color: "rgba(245,245,247,0.96)",
+                letterSpacing: "-0.005em",
+              }}
             >
               {labelForPath(pathname)}
             </span>
+            {/* Version — typography element. Hairline before it acts
+                as the visual separator instead of a chip border. */}
             <span
-              className="ml-2 px-2.5 py-1 rounded-md text-[12px] tracking-[0.14em] uppercase"
+              aria-hidden
+              className="block"
               style={{
-                background: `${accent}1f`,
-                color: accent,
+                width: 18,
+                height: 1,
+                marginLeft: 6,
+                marginRight: 2,
+                background: "rgba(245,245,247,0.18)",
+              }}
+            />
+            <span
+              style={{
                 fontFamily: "var(--font-mono)",
-                border: `1px solid ${accent}33`,
+                fontSize: 11.5,
+                letterSpacing: "0.08em",
+                color: "rgba(245,245,247,0.42)",
               }}
             >
-              v.1.04
+              v3.2
             </span>
           </div>
 
-          {/* Right cluster */}
-          <div className="flex items-center gap-2.5">
+          {/* Right cluster — tight, minimal */}
+          <div className="flex items-center gap-1">
+            {/* Cmd-K — icon-only button with shortcut hint that
+                appears on hover. No visible "Search" label. */}
             <button
               type="button"
-              className="h-11 px-4 rounded-lg inline-flex items-center gap-3 transition-colors hover:bg-white/[0.05]"
-              style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+              aria-label="Search (⌘K)"
+              title="Search · ⌘K"
+              className="group relative inline-flex items-center justify-center transition-colors hover:bg-white/[0.04] rounded-md"
+              style={{ width: 36, height: 36 }}
             >
-              <SearchIcon />
-              <span
-                className="text-[15px]"
-                style={{ color: "rgba(245,245,247,0.7)" }}
-              >
-                Search
-              </span>
-              <span
-                className="px-2 py-0.5 rounded text-[12.5px]"
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  color: "rgba(245,245,247,0.65)",
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
-                ⌘K
+              <span style={{ color: "rgba(245,245,247,0.6)" }}>
+                <SearchIcon />
               </span>
             </button>
 
+            {/* Plan — hairline link, not a button. */}
             <Link
               href="/studio/plans"
-              className="h-11 px-4 rounded-lg inline-flex items-center gap-3 transition-colors hover:bg-white/[0.05]"
-              style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+              className="inline-flex items-center gap-2 transition-opacity hover:opacity-100"
+              style={{
+                padding: "0 12px",
+                height: 36,
+                fontSize: 12,
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "rgba(245,245,247,0.55)",
+                opacity: 0.9,
+              }}
             >
-              <span
-                className="text-[15px] font-medium"
-                style={{ color: "rgba(245,245,247,0.92)" }}
-              >
-                Starter
-              </span>
-              <span
-                className="text-[14.5px] font-medium"
-                style={{ color: accent }}
-              >
-                Upgrade
-              </span>
+              <span style={{ color: "rgba(245,245,247,0.45)" }}>Starter</span>
+              <span style={{ color: accent, fontWeight: 600 }}>· Upgrade</span>
             </Link>
 
             <UtilButton title="Notifications">
               <BellIcon />
               <span
-                className="absolute top-2 right-2 size-1.5 rounded-full"
-                style={{ background: accent, boxShadow: `0 0 6px ${accent}` }}
+                className="absolute top-1.5 right-1.5 rounded-full"
+                style={{
+                  width: 5,
+                  height: 5,
+                  background: accent,
+                  boxShadow: `0 0 6px ${accent}`,
+                }}
               />
             </UtilButton>
 
-            {/* Avatar / profile menu */}
-            <div data-profile-menu className="relative">
+            {/* Avatar / profile menu — tighter scale to match the
+                rest of the top-bar cluster. Flat accent, no gradient
+                + glow chrome (consistent with surgical accent use). */}
+            <div data-profile-menu className="relative" style={{ marginLeft: 4 }}>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setProfileOpen((v) => !v);
                 }}
-                className="size-11 rounded-full grid place-items-center transition-transform hover:scale-105"
+                className="rounded-full grid place-items-center transition-transform hover:scale-105"
                 style={{
-                  background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
+                  width: 32,
+                  height: 32,
+                  background: accent,
                   color: "white",
-                  fontSize: 16,
+                  fontSize: 13.5,
                   fontWeight: 600,
-                  boxShadow: `0 4px 12px -2px ${glow}`,
                 }}
                 aria-label="Profile"
               >
@@ -465,10 +464,13 @@ function labelForPath(pathname: string) {
 function SidebarSection({ label }: { label: string }) {
   return (
     <div
-      className="px-3 pt-4 pb-2.5 text-[12.5px] tracking-[0.2em] uppercase"
+      className="px-4 pt-5 pb-2 uppercase"
       style={{
-        color: "rgba(245,245,247,0.45)",
+        fontSize: 10.5,
+        letterSpacing: "0.28em",
+        color: "rgba(245,245,247,0.38)",
         fontFamily: "var(--font-mono)",
+        fontWeight: 500,
       }}
     >
       {label}
@@ -493,41 +495,64 @@ function SidebarLink({
   accent: string;
   glow: string;
 }) {
+  void glow;
   return (
     <Link
       href={href}
-      className="relative h-12 px-3 rounded-lg flex items-center gap-3.5 transition-colors group"
+      className="relative flex items-center gap-3 transition-colors group"
       style={{
-        background: isActive ? "rgba(255,255,255,0.045)" : "transparent",
+        padding: "9px 16px 9px 16px",
         color: isActive
           ? "rgba(245,245,247,1)"
-          : "rgba(245,245,247,0.72)",
+          : "rgba(245,245,247,0.66)",
       }}
     >
+      {/* Hairline left rule on active — single-pixel accent stripe,
+          no glow, no rounded background. Linear's pattern.
+          Hover state: slightly lifted text color, NO background. */}
       {isActive && (
         <span
           aria-hidden
-          className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r-sm"
+          className="absolute left-0 top-0 bottom-0"
           style={{
+            width: 1.5,
             background: accent,
-            boxShadow: `0 0 10px ${glow}`,
           }}
         />
       )}
-      <span style={{ color: isActive ? accent : "rgba(245,245,247,0.58)" }}>
-        <Icon size={20} />
+      <span
+        className="shrink-0"
+        style={{
+          color: isActive
+            ? "rgba(245,245,247,0.94)"
+            : "rgba(245,245,247,0.5)",
+          transition: "color 180ms ease-out",
+        }}
+      >
+        <Icon size={17} />
       </span>
-      <span className="text-[16px] font-medium flex-1">{label}</span>
+      <span
+        className="flex-1"
+        style={{
+          fontSize: 13.5,
+          fontWeight: isActive ? 500 : 400,
+          letterSpacing: "-0.005em",
+          transition: "color 180ms ease-out",
+        }}
+      >
+        {label}
+      </span>
       {shortcut && !isActive && (
         <span
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-[12px] px-1.5 py-0.5 rounded"
+          className="opacity-0 group-hover:opacity-100 transition-opacity"
           style={{
-            color: "rgba(245,245,247,0.55)",
-            background: "rgba(255,255,255,0.05)",
+            fontSize: 10.5,
+            color: "rgba(245,245,247,0.4)",
             fontFamily: "var(--font-mono)",
+            letterSpacing: "0.04em",
           }}
         >
-          {shortcut}
+          ⌘{shortcut}
         </span>
       )}
     </Link>
@@ -567,10 +592,11 @@ function UtilButton({
       type="button"
       title={title}
       aria-label={title}
-      className="relative size-11 rounded-lg grid place-items-center transition-colors hover:bg-white/[0.05]"
+      className="relative rounded-md grid place-items-center transition-colors hover:bg-white/[0.04]"
       style={{
-        color: "rgba(245,245,247,0.75)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        width: 36,
+        height: 36,
+        color: "rgba(245,245,247,0.6)",
       }}
     >
       {children}
