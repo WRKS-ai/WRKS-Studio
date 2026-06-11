@@ -185,3 +185,129 @@ body {
     animation: none;
   }
 }
+
+/* ============================================================
+   Wow page pre-render loader (Vosoone-style skeleton browser).
+
+   A fake browser frame with pulsing skeleton rectangles standing in
+   for the landing-page content, plus animated stroke gradients
+   "tracing" the perimeter. Replaces the orbiting personality orb
+   on /onboarding/wow during /api/wow generation.
+
+   Class prefix `wrks-loader-` so styles don't bleed into other
+   skeleton/loading widgets later.
+   ============================================================ */
+.wrks-loader-svg {
+  width: 100%;
+  max-width: 540px;
+  height: auto;
+  display: block;
+}
+
+.wrks-loader-svg .browser-frame {
+  fill: #0d0d12;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1;
+  filter: drop-shadow(0 16px 32px rgba(0, 0, 0, 0.7));
+}
+
+.wrks-loader-svg .browser-top {
+  fill: #15151b;
+}
+
+.wrks-loader-svg .browser-divider {
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 1;
+}
+
+.wrks-loader-svg .browser-url {
+  fill: #1c1c24;
+}
+
+.wrks-loader-svg .url-text {
+  fill: rgba(245, 240, 230, 0.4);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+.wrks-loader-svg .skeleton {
+  fill: rgba(255, 255, 255, 0.05);
+  animation: wrks-loader-skeleton-pulse 1.8s ease-in-out infinite;
+}
+
+.wrks-loader-svg .skeleton.accent {
+  animation: wrks-loader-skeleton-pulse-accent 1.8s ease-in-out infinite;
+}
+
+@keyframes wrks-loader-skeleton-pulse {
+  0% {
+    fill: rgba(255, 255, 255, 0.05);
+  }
+  50% {
+    fill: rgba(255, 255, 255, 0.14);
+  }
+  100% {
+    fill: rgba(255, 255, 255, 0.05);
+  }
+}
+
+@keyframes wrks-loader-skeleton-pulse-accent {
+  0% {
+    fill: rgba(167, 139, 250, 0.18);
+  }
+  50% {
+    fill: rgba(167, 139, 250, 0.5);
+  }
+  100% {
+    fill: rgba(167, 139, 250, 0.18);
+  }
+}
+
+.wrks-loader-svg .trace-flow {
+  stroke-width: 1.5;
+  fill: none;
+  stroke-dasharray: 140 900;
+  stroke-dashoffset: 1040;
+  animation: wrks-loader-flow 5s linear infinite;
+  filter: drop-shadow(0 0 8px currentColor);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wrks-loader-svg .trace-flow:nth-of-type(2) {
+  animation-delay: 1.6s;
+}
+
+.wrks-loader-svg .trace-flow:nth-of-type(3) {
+  animation-delay: 3.2s;
+}
+
+.wrks-loader-svg .trace-1 {
+  color: #a78bfa;
+}
+
+.wrks-loader-svg .trace-2 {
+  color: #7dd3fc;
+}
+
+.wrks-loader-svg .trace-3 {
+  color: #5ad1cd;
+}
+
+@keyframes wrks-loader-flow {
+  from {
+    stroke-dashoffset: 1040;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrks-loader-svg .skeleton,
+  .wrks-loader-svg .skeleton.accent,
+  .wrks-loader-svg .trace-flow {
+    animation: none;
+  }
+}

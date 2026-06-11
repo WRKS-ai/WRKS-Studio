@@ -302,65 +302,199 @@ function LoadingState({
   line: string;
   reduced: boolean;
 }) {
+  void personality;
   return (
     <motion.div
       initial={reduced ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
-      className="flex flex-col items-center pt-16 sm:pt-24"
+      className="flex flex-col items-center pt-8 sm:pt-12 w-full"
+      aria-live="polite"
+      aria-label={`${agentName} is drafting`}
     >
-      <PersonalityIcon personality={personality} size="lg" />
-      <div className="mt-6 font-serif italic text-[14px] text-ink-muted">
-        {agentName} <span className="text-ink-dim">·</span> {personality.name}
-      </div>
+      {/* Pre-render skeleton browser — Vosoone-inspired. Shows a fake
+          landing-page being built with pulsing skeleton blocks and
+          animated trace gradients tracing the perimeter + content
+          boundary. Visual metaphor: "your website is being drafted." */}
+      <WowSkeletonLoader />
 
+      {/* Drafting line — small italic serif under the loader */}
       <motion.p
         initial={reduced ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
-        className="mt-12 font-serif italic text-[clamp(1.25rem,2vw,1.5rem)] text-ink leading-snug max-w-xl"
+        transition={{ delay: 0.4, duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
+        className="mt-12 font-serif italic"
+        style={{
+          fontSize: "clamp(1.125rem, 1.8vw, 1.375rem)",
+          color: "rgba(245,240,230,0.78)",
+          letterSpacing: "-0.005em",
+        }}
       >
         {line}
       </motion.p>
 
-      <motion.div
-        initial={reduced ? false : { opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5, duration: 0.4 }}
-        className="mt-6 flex items-center justify-center gap-2"
-        aria-live="polite"
-        aria-label={`${agentName} is drafting`}
-      >
-        {[0, 1, 2].map((i) => (
-          <motion.span
-            key={i}
-            className="size-2 rounded-full"
-            style={{ background: personality.accent }}
-            animate={
-              reduced
-                ? { opacity: 0.6 }
-                : { opacity: [0.3, 1, 0.3], y: [0, -4, 0] }
-            }
-            transition={{
-              duration: 1,
-              repeat: Infinity,
-              delay: i * 0.18,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
-      </motion.div>
-
+      {/* Caption — mono caps below */}
       <motion.p
         initial={reduced ? false : { opacity: 0 }}
-        animate={{ opacity: 0.45 }}
-        transition={{ delay: 1.5, duration: 0.8 }}
-        className="mt-12 text-[10px] tracking-[0.22em] uppercase text-ink-dim font-mono max-w-sm leading-relaxed"
+        animate={{ opacity: 0.5 }}
+        transition={{ delay: 1.2, duration: 0.8 }}
+        className="mt-8 font-mono uppercase text-center leading-relaxed"
+        style={{
+          fontSize: 10.5,
+          letterSpacing: "0.28em",
+          color: "rgba(245,240,230,0.42)",
+          maxWidth: "44ch",
+        }}
       >
-        Building from what you told me. A landing page, three social posts, and one paid ad — drafted in your business&rsquo;s voice.
+        Building from what you told me — a landing page, three social
+        posts, and one paid ad in your brand&rsquo;s voice.
       </motion.p>
     </motion.div>
+  );
+}
+
+/* ============================================================
+ * WowSkeletonLoader — fake-browser SVG skeleton.
+ *
+ * The visual hook for the wow page's pre-render moment. A boxed
+ * browser frame contains pulsing skeleton rectangles representing
+ * the landing-page hero that's about to land, plus animated
+ * gradient strokes "tracing" the boundary. Three traces stagger
+ * by 1.6s each so there's always one mid-sweep at any given moment.
+ * All styling lives in globals.css under `.wrks-loader-svg`.
+ * ============================================================ */
+function WowSkeletonLoader() {
+  return (
+    <svg
+      className="wrks-loader-svg"
+      viewBox="0 0 600 400"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-hidden="true"
+    >
+      <defs>
+        {/* Trace gradients — three layered colors. Each goes from
+            transparent to color and back so the "head" of the
+            comet visually fades in/out as it travels. */}
+        <linearGradient id="wrks-loader-grad-1" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#a78bfa" stopOpacity="0" />
+          <stop offset="50%" stopColor="#a78bfa" stopOpacity="1" />
+          <stop offset="100%" stopColor="#a78bfa" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="wrks-loader-grad-2" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0" />
+          <stop offset="50%" stopColor="#7dd3fc" stopOpacity="1" />
+          <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="wrks-loader-grad-3" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#5ad1cd" stopOpacity="0" />
+          <stop offset="50%" stopColor="#5ad1cd" stopOpacity="1" />
+          <stop offset="100%" stopColor="#5ad1cd" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
+      {/* Browser frame */}
+      <rect
+        className="browser-frame"
+        x="20"
+        y="20"
+        width="560"
+        height="360"
+        rx="14"
+      />
+
+      {/* Top bar */}
+      <rect
+        className="browser-top"
+        x="20"
+        y="20"
+        width="560"
+        height="44"
+        rx="14"
+      />
+      {/* Cover the rounded bottom of the top bar so it's flush */}
+      <rect
+        className="browser-top"
+        x="20"
+        y="48"
+        width="560"
+        height="16"
+      />
+      <line
+        className="browser-divider"
+        x1="20"
+        y1="64"
+        x2="580"
+        y2="64"
+      />
+
+      {/* Traffic-light dots */}
+      <circle cx="44" cy="42" r="5" fill="#ff5f57" />
+      <circle cx="62" cy="42" r="5" fill="#febc2e" />
+      <circle cx="80" cy="42" r="5" fill="#28c840" />
+
+      {/* URL bar */}
+      <rect
+        className="browser-url"
+        x="180"
+        y="32"
+        width="240"
+        height="20"
+        rx="5"
+      />
+      <text className="url-text" x="200" y="46">
+        ⬡ yourbrand.studio
+      </text>
+
+      {/* === SKELETON CONTENT (mirrors the hero artifact layout) === */}
+
+      {/* Brand eyebrow */}
+      <circle className="skeleton accent" cx="70" cy="100" r="4" />
+      <rect className="skeleton" x="85" y="95" width="100" height="10" />
+
+      {/* Headline lines (3 staggered rows) */}
+      <rect className="skeleton" x="60" y="130" width="420" height="22" />
+      <rect className="skeleton" x="60" y="160" width="380" height="22" />
+      <rect className="skeleton" x="60" y="190" width="280" height="22" />
+
+      {/* Subhead */}
+      <rect className="skeleton" x="60" y="232" width="320" height="9" />
+      <rect className="skeleton" x="60" y="248" width="290" height="9" />
+
+      {/* Accent rule */}
+      <rect className="skeleton accent" x="60" y="278" width="60" height="3" rx="1.5" />
+
+      {/* Bullet rows */}
+      <circle className="skeleton accent" cx="64" cy="305" r="3" />
+      <rect className="skeleton" x="78" y="301" width="280" height="8" />
+      <circle className="skeleton accent" cx="64" cy="324" r="3" />
+      <rect className="skeleton" x="78" y="320" width="300" height="8" />
+      <circle className="skeleton accent" cx="64" cy="343" r="3" />
+      <rect className="skeleton" x="78" y="339" width="260" height="8" />
+
+      {/* CTA button placeholder (bottom-left) */}
+      <rect className="skeleton accent" x="60" y="360" width="110" height="16" rx="8" />
+
+      {/* === TRACE FLOWS — three colored gradient strokes tracing
+              the outer frame perimeter, staggered by animation-delay
+              so there's continuous motion. === */}
+      <path
+        className="trace-flow trace-1"
+        d="M 27 20 L 573 20 A 14 14 0 0 1 580 27 L 580 373 A 14 14 0 0 1 573 380 L 27 380 A 14 14 0 0 1 20 373 L 20 27 A 14 14 0 0 1 27 20 Z"
+        stroke="url(#wrks-loader-grad-1)"
+      />
+      <path
+        className="trace-flow trace-2"
+        d="M 27 20 L 573 20 A 14 14 0 0 1 580 27 L 580 373 A 14 14 0 0 1 573 380 L 27 380 A 14 14 0 0 1 20 373 L 20 27 A 14 14 0 0 1 27 20 Z"
+        stroke="url(#wrks-loader-grad-2)"
+      />
+      <path
+        className="trace-flow trace-3"
+        d="M 27 20 L 573 20 A 14 14 0 0 1 580 27 L 580 373 A 14 14 0 0 1 573 380 L 27 380 A 14 14 0 0 1 20 373 L 20 27 A 14 14 0 0 1 27 20 Z"
+        stroke="url(#wrks-loader-grad-3)"
+      />
+    </svg>
   );
 }
 
