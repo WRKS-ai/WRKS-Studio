@@ -169,6 +169,21 @@ export async function POST(req: NextRequest) {
   // ── 5. Convert messages to Anthropic format and stream ──────────
   const anthropicMessages = openaiMessagesToAnthropic(body.messages);
 
+  // ── 5a. Silence guard ──────────────────────────────────────────
+  // If the last user turn is empty, whitespace, or sub-utterance
+  // ("um", "uh", "...", a stray punctuation), return a no-op
+  // response instead of asking Claude to fill the silence. Without
+  // this the agent loops on increasingly desperate re-prompts
+  // ("Visual reference?" / "Whenever." / "Pick one.") because each
+  // empty turn from ElevenLabs gets translated into a real LLM call.
+  const lastUserText = extractLastUserText(anthropicMessages);
+  if (isSilenceTurn(lastUserText)) {
+    console.log("[api/agent/chat/completions] silence turn — no-op", {
+      lastUserText,
+    });
+    return emptyStreamResponse();
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -385,4 +400,107 @@ export async function POST(req: NextRequest) {
 
 function cryptoRandomId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+/* ============================================================
+ * Silence-turn detection
+ * ============================================================
+ * ElevenLabs sometimes emits an empty or sub-utterance user turn
+ * when there's background noise, a quick breath, or the user
+ * pauses to think mid-conversation. Letting Claude respond to
+ * those produces the desperate-re-prompt loop ("Pick one." /
+ * "Waiting." / "Go."). We bail before the LLM call instead.
+ */
+type AnthropicMessage = ReturnType<typeof openaiMessagesToAnthropic>[number];
+
+function extractLastUserText(messages: AnthropicMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== "user") continue;
+    const content = m.content;
+    if (typeof content === "string") return content;
+    if (Array.isArray(content)) {
+      const text = content
+        .map((block) => {
+          if (typeof block === "string") return block;
+          if (block && typeof block === "object" && "text" in block) {
+            return typeof block.text === "string" ? block.text : "";
+          }
+          return "";
+        })
+        .join(" ");
+      return text;
+    }
+    return "";
+  }
+  return "";
+}
+
+// Anything that's clearly a non-utterance — empty, whitespace only,
+// stray punctuation, or a single filler token like "um" / "uh" /
+// "hmm" / "okay" by itself. These all show up as legitimate turns
+// from ElevenLabs' transcriber but they aren't really user intent;
+// they're side-effects of mid-thought breaths / mic noise.
+const SILENCE_FILLERS = new Set([
+  "um",
+  "uh",
+  "umm",
+  "uhh",
+  "hmm",
+  "mm",
+  "mmm",
+  "huh",
+  "eh",
+  "er",
+  "ah",
+  "oh",
+]);
+
+function isSilenceTurn(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return true;
+  // Strip punctuation + lower-case, then check against filler set.
+  const stripped = trimmed.replace(/[^a-zA-Z]/g, "").toLowerCase();
+  if (stripped.length === 0) return true;
+  if (stripped.length <= 3 && SILENCE_FILLERS.has(stripped)) return true;
+  return false;
+}
+
+function emptyStreamResponse(): Response {
+  const requestId = `chatcmpl_${cryptoRandomId()}`;
+  const created = Math.floor(Date.now() / 1000);
+  const encoder = new TextEncoder();
+  // Minimal valid OpenAI SSE stream — an empty text delta then a
+  // stop chunk. ElevenLabs needs a well-formed response or it'll
+  // think the LLM died and retry.
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const enqueue = (line: string) =>
+        controller.enqueue(encoder.encode(line));
+      enqueue(
+        encodeOpenAIChunk({
+          id: requestId,
+          created,
+          chunk: { type: "text", text: "" },
+        }),
+      );
+      enqueue(
+        encodeOpenAIChunk({
+          id: requestId,
+          created,
+          chunk: { type: "stop", reason: "stop" },
+        }),
+      );
+      enqueue(SSE_DONE);
+      controller.close();
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }
