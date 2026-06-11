@@ -12,6 +12,7 @@ import {
 } from "@/lib/personalities";
 import { type WowCategory } from "@/lib/wow-photos";
 import { VOICES, type VoiceId } from "@/lib/voices";
+import { getPalette, getRender, type Palette, type Theme } from "@/lib/palettes";
 import {
   FacebookAdInFeed,
   InstagramMini,
@@ -97,6 +98,12 @@ export default function WowPage() {
     audience: string;
     differentiator: string;
   } | null>(null);
+  // Palette + theme picked on /reference. Lifted to component state so
+  // the render layer (LandingPreview, MacBook chrome, etc.) can recolor
+  // itself to match — the previous build hardcoded a cream/violet
+  // aesthetic regardless of pick.
+  const [palette, setPalette] = useState<Palette | null>(null);
+  const [theme, setTheme] = useState<Theme>("light");
   const [state, setState] = useState<State>({ kind: "loading" });
   const [attempt, setAttempt] = useState(0);
 
@@ -142,6 +149,16 @@ export default function WowPage() {
         audience: parsed.audience,
         differentiator: parsed.differentiator,
       });
+      // Hydrate picked palette + theme. Both default-friendly if user
+      // skipped /reference: palette stays null → fall back to legacy
+      // cream constants; theme defaults to "light".
+      const paletteIdRaw = localStorage.getItem("wrks-onboarding-palette");
+      if (paletteIdRaw) {
+        const pal = getPalette(paletteIdRaw);
+        if (pal) setPalette(pal);
+      }
+      const themeRaw = localStorage.getItem("wrks-onboarding-theme");
+      if (themeRaw === "light" || themeRaw === "dark") setTheme(themeRaw);
     } catch {
       router.replace("/onboarding/intake");
     }
@@ -251,6 +268,8 @@ export default function WowPage() {
               key="ready"
               personality={personality}
               agentName={agentName}
+              palette={palette}
+              theme={theme}
               deliverables={state.deliverables}
               images={state.images}
               onContinue={() => {
@@ -422,10 +441,14 @@ function ReadyState({
   images,
   onContinue,
   onRegenerate,
+  palette,
+  theme,
   reduced,
 }: {
   personality: Personality;
   agentName: string;
+  palette: Palette | null;
+  theme: Theme;
   deliverables: WowDeliverables;
   images: WowImages;
   onContinue: () => void;
@@ -519,6 +542,8 @@ function ReadyState({
         <MacBookFrame>
           <LandingPreview
             personality={personality}
+            palette={palette}
+            theme={theme}
             brandName={brandName}
             data={deliverables.landing}
             heroImage={pix.heroLandscape}
@@ -751,13 +776,33 @@ function PhoneInLineup({
 // Light-mode tokens — real platforms (Instagram, X, LinkedIn, Meta ads,
 // most landing pages) are predominantly white/light. Dark previews
 // read as gloomy mockups, not real product output.
-const LIGHT_BG = "#f7f2e8";          // warm cream (editorial paper tone)
-const LIGHT_BG_WHITE = "#ffffff";    // pure white for the social platforms
-const LIGHT_BG_DEEP = "#efe9dc";     // slightly darker room tone for chapter shifts
-const LIGHT_BG_HIGH = "#fbf7ee";     // slightly lighter room tone
-const LIGHT_INK = "#0e0c08";         // near-black, warm
-const LIGHT_INK_MUTED = "#4a443c";   // body / secondary text
-const LIGHT_INK_DIM = "#827a6e";     // meta text
+// Module-level fallbacks — used inside LandingPreview when no palette
+// has been picked (user skipped /reference). The function shadows
+// these with palette-derived locals named LIGHT_BG / LIGHT_INK / etc.
+const LIGHT_BG_FALLBACK = "#f7f2e8";          // warm cream (editorial paper tone)
+const LIGHT_BG_WHITE_FALLBACK = "#ffffff";    // pure white for the social platforms
+const LIGHT_BG_DEEP_FALLBACK = "#efe9dc";     // slightly darker room tone for chapter shifts
+const LIGHT_BG_HIGH_FALLBACK = "#fbf7ee";     // slightly lighter room tone
+const LIGHT_INK_FALLBACK = "#0e0c08";         // near-black, warm
+const LIGHT_INK_MUTED_FALLBACK = "#4a443c";   // body / secondary text
+const LIGHT_INK_DIM_FALLBACK = "#827a6e";     // meta text
+
+/**
+ * Cheap hex shader for deriving HIGH / DEEP / DIM variants from the
+ * palette's base bg + ink. Positive percent lightens, negative darkens.
+ * Used inside LandingPreview to skin chapter dividers + meta text in
+ * a tone consistent with the picked palette.
+ */
+function shadeHex(hex: string, percent: number): string {
+  if (!hex || hex[0] !== "#" || hex.length !== 7) return hex;
+  const n = parseInt(hex.slice(1), 16);
+  const clamp = (x: number) => Math.max(0, Math.min(255, x));
+  const delta = Math.round(255 * percent);
+  const r = clamp((n >> 16) + delta);
+  const g = clamp(((n >> 8) & 0xff) + delta);
+  const b = clamp((n & 0xff) + delta);
+  return `#${[r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("")}`;
+}
 const LIGHT_BORDER = "rgba(14,12,8,0.10)";
 const LIGHT_BORDER_SOFT = "rgba(14,12,8,0.06)";
 
@@ -768,12 +813,16 @@ const NOISE_SVG =
 
 function LandingPreview({
   personality,
+  palette,
+  theme,
   brandName,
   data,
   heroImage,
   featuredImages,
 }: {
   personality: Personality;
+  palette: Palette | null;
+  theme: Theme;
   brandName: string;
   data: WowDeliverables["landing"];
   heroImage: string;
@@ -787,6 +836,37 @@ function LandingPreview({
 
   const slug =
     brandName.toLowerCase().replace(/[^a-z0-9]/g, "") || "yourbusiness";
+
+  // Themed colors — derived from the user's picked palette + theme.
+  // We shadow the module-scope LIGHT_* constants with same-named
+  // locals so every reference inside this function automatically
+  // picks up the themed value. When no palette was picked, the
+  // locals copy the module fallbacks and the rendering is unchanged.
+  /* eslint-disable @typescript-eslint/no-shadow */
+  const render = palette ? getRender(palette, theme) : null;
+  const LIGHT_BG = render?.bg ?? LIGHT_BG_FALLBACK;
+  const LIGHT_INK = render?.ink ?? LIGHT_INK_FALLBACK;
+  const LIGHT_INK_MUTED = render?.inkMuted ?? LIGHT_INK_MUTED_FALLBACK;
+  const LIGHT_INK_DIM = render
+    ? shadeHex(LIGHT_INK_MUTED, theme === "dark" ? -0.12 : 0.18)
+    : LIGHT_INK_DIM_FALLBACK;
+  const LIGHT_BG_HIGH = render
+    ? shadeHex(LIGHT_BG, theme === "dark" ? 0.04 : 0.02)
+    : LIGHT_BG_HIGH_FALLBACK;
+  const LIGHT_BG_DEEP = render
+    ? shadeHex(LIGHT_BG, theme === "dark" ? 0.06 : -0.04)
+    : LIGHT_BG_DEEP_FALLBACK;
+  // bgWhite kept for the social-platform white surface; locks to
+  // pure white in light mode, lightened palette bg in dark mode.
+  const LIGHT_BG_WHITE = render
+    ? theme === "dark"
+      ? shadeHex(LIGHT_BG, 0.08)
+      : "#ffffff"
+    : LIGHT_BG_WHITE_FALLBACK;
+  const PAL_ACCENT = palette?.accent ?? personality.accent;
+  void LIGHT_BG_WHITE;
+  void PAL_ACCENT;
+  /* eslint-enable @typescript-eslint/no-shadow */
 
   return (
     <div
@@ -1272,7 +1352,7 @@ function DuotonePhoto({
       className="relative w-full overflow-hidden rounded-sm"
       style={{
         aspectRatio,
-        background: LIGHT_BG_DEEP,
+        background: LIGHT_BG_DEEP_FALLBACK,
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
