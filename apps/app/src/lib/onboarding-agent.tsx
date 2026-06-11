@@ -331,9 +331,26 @@ function AgentHost({ children }: { children: ReactNode }) {
     stopVoice,
   };
 
+  // Orb tap behavior is decoupled from session lifecycle so the
+  // conversation persists across closes/reopens.
+  //
+  //   * Idle / error → start (or restart) the session.
+  //   * Otherwise   → just toggle the transcript panel. The session
+  //                   keeps running so reopening doesn't re-fire the
+  //                   greeting or lose context. Session only ends
+  //                   when the provider unmounts (i.e. user leaves
+  //                   the onboarding flow).
   const onWidgetClick = () => {
-    if (voiceState === "listening" || voiceState === "speaking") stopVoice();
-    else startVoice();
+    const sessionActive =
+      voiceState === "listening" ||
+      voiceState === "speaking" ||
+      voiceState === "connecting";
+    if (sessionActive) {
+      setPanelDismissed((d) => !d);
+      return;
+    }
+    setPanelDismissed(false);
+    startVoice();
   };
 
   const showFloatingAgent = !!pathname && !isOnboardingEntryPage;
