@@ -228,11 +228,32 @@ You are a buddy walking them through setup. Casual, warm, real. Never corporate,
 export function buildOnboardingFirstMessage({
   personality,
   suggestedNames,
+  pathname,
+  agentName,
 }: {
   personality: Personality;
   suggestedNames: string[];
+  /** Current pathname so the greeting matches where the user is. */
+  pathname?: string;
+  /** The user-given agent name, if any — affects the /name re-entry copy. */
+  agentName?: string | null;
 }): string {
   const suggestion = suggestedNames[0] ?? "Atlas";
+  const path = pathname ?? "";
+
+  if (path.startsWith("/onboarding/intake")) {
+    return `Hey — I'm back. Tell me about the business — what do you do?`;
+  }
+  if (path.startsWith("/onboarding/reference")) {
+    return `Alright — the look. Want me to suggest a vibe based on what you do, or you got something in mind?`;
+  }
+  if (path.startsWith("/onboarding/wow")) {
+    return `Back. What do you wanna tweak?`;
+  }
+  // /onboarding/name or anything else
+  if (agentName) {
+    return `Hey — back. I'm ${agentName} for now, want to keep it or pick something else?`;
+  }
   return ONBOARDING_GREETING[personality.id](suggestion);
 }
 

@@ -239,6 +239,8 @@ function AgentHost({ children }: { children: ReactNode }) {
       const firstMessage = buildOnboardingFirstMessage({
         personality,
         suggestedNames: personality.suggestedNames,
+        pathname,
+        agentName,
       });
 
       // The custom-LLM-routed agent receives this as
@@ -277,7 +279,7 @@ function AgentHost({ children }: { children: ReactNode }) {
       setVoiceError(msg);
       setVoiceState("error");
     }
-  }, [personality, voice, conversation, user]);
+  }, [personality, voice, conversation, user, pathname, agentName]);
 
   const stopVoice = useCallback(async () => {
     try {
