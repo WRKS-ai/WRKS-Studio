@@ -176,8 +176,13 @@ export async function POST(req: NextRequest) {
   // this the agent loops on increasingly desperate re-prompts
   // ("Visual reference?" / "Whenever." / "Pick one.") because each
   // empty turn from ElevenLabs gets translated into a real LLM call.
+  //
+  // extractLastUserText returns null when the last user turn was a
+  // tool_result — those aren't user speech, so we DON'T silence-gate
+  // them. Letting them through is essential to keep the agent talking
+  // after a tool fires.
   const lastUserText = extractLastUserText(anthropicMessages);
-  if (isSilenceTurn(lastUserText)) {
+  if (lastUserText !== null && isSilenceTurn(lastUserText)) {
     console.log("[api/agent/chat/completions] silence turn — no-op", {
       lastUserText,
     });
@@ -413,13 +418,31 @@ function cryptoRandomId(): string {
  */
 type AnthropicMessage = ReturnType<typeof openaiMessagesToAnthropic>[number];
 
-function extractLastUserText(messages: AnthropicMessage[]): string {
+/**
+ * Find the most recent ACTUAL user speech turn — skipping tool_result
+ * messages, which technically have role="user" in Anthropic's format
+ * but are never user speech. Returns null when the last interaction
+ * was a tool result (we let those through to Claude untouched).
+ */
+function extractLastUserText(messages: AnthropicMessage[]): string | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
     if (m.role !== "user") continue;
     const content = m.content;
     if (typeof content === "string") return content;
     if (Array.isArray(content)) {
+      // Tool result follow-up turns aren't user speech — skip the
+      // silence check for them entirely so Claude gets to respond to
+      // its own tool call's result. Symptom of the bug this guards
+      // against: the agent freezing after set_field fires.
+      const hasToolResult = content.some(
+        (block) =>
+          block &&
+          typeof block === "object" &&
+          "type" in block &&
+          block.type === "tool_result",
+      );
+      if (hasToolResult) return null;
       const text = content
         .map((block) => {
           if (typeof block === "string") return block;
