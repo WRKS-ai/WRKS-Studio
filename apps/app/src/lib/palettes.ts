@@ -419,12 +419,23 @@ export function composeStyleBrief(
         ? `The brand is rendering in LIGHT MODE — copy should feel clean, considered, and confident in plain daylight.`
         : "";
 
-  return `\n═══════════════════════════════════════════════════
-STYLE — THE USER PICKED THIS PALETTE
+  return `═══════════════════════════════════════════════════
+PALETTE VOICE — OVERRIDES EVERYTHING BELOW
 ═══════════════════════════════════════════════════
 
+THIS BLOCK SETS THE VOICE. The next system block (the wow creative
+director prompt) has concrete examples in a default Linear-SaaS tight
+register ("Drop One.", "Mile 27") — those examples are about QUALITY
+BAR and STRUCTURE, not voice. The actual voice for THIS user's output
+comes from the brief below.
+
+If the wow prompt's "Mile 27" example uses tight 4-word headlines but
+the brief below asks for Aesop-style long restrained sentences, FOLLOW
+THE BRIEF. If the wow prompt examples never use CAPS but the brief
+calls for Off-White CAPS, USE CAPS. The brief wins, every time.
+
 The user chose "${palette.name}" (${palette.tagline.toLowerCase()})
-as the brand's identity. Every piece of copy you write — Hero, Features,
+as the brand's identity. Every piece of copy you write — Hero, Subhead,
 Social, Ad — must read like the brief below. Voice, sentence length,
 cadence, structure, vocabulary, what to avoid.
 
@@ -432,7 +443,18 @@ ${modeNote}
 
 ${palette.claudeBrief}
 
-If your output doesn't sound like the brief above, rewrite it.
-Don't write generic "professional" copy — be specific to this palette's voice.
+═══════════════════════════════════════════════════
+SELF-CHECK BEFORE YOU RESPOND
+═══════════════════════════════════════════════════
+
+After drafting, ask yourself:
+1. Does my hero headline match the structure described in the brief?
+   (Length, punctuation, ending, ALL-CAPS/lowercase rule.)
+2. Do I use any words on the brief's NEVER list?
+3. Does my voice feel like the brand the brief references (Aesop,
+   Linear, Apple, Patagonia, Off-White, Glossier, Stripe, Carhartt)?
+
+If any answer is no, REWRITE. Don't ship generic "premium AI brand"
+output — that's the failure mode this brief exists to prevent.
 `;
 }

@@ -76,6 +76,12 @@ export default function NamePage() {
       setName(next);
       try {
         localStorage.setItem(NAME_KEY, next);
+        // Same-tab localStorage writes don't fire `storage` events,
+        // so the AgentHost wouldn't otherwise know to refresh the
+        // transcript header. Dispatch a custom event it listens for.
+        window.dispatchEvent(
+          new CustomEvent("wrks:agent-name-changed", { detail: next }),
+        );
       } catch {
         /* ignore */
       }

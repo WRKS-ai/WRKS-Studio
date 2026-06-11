@@ -84,18 +84,28 @@ export async function POST(req: Request) {
     // generation), so quality wins. Opus 4.7's deeper reasoning is
     // what makes the brand-style brief actually land — Sonnet was
     // averaging brands toward "generic professional" copy.
+    // Block order matters: palette brief FIRST so it sets the voice
+    // register before Claude reads the wow prompt's concrete examples.
+    // Otherwise the Mile 27 / Drop One samples in the wow prompt
+    // dominate Claude's averaging and the palette voice gets ignored
+    // (symptom: every brand reads as Aesop-quiet regardless of pick).
+    //
+    // The wow prompt still gets cache_control — it's stable across
+    // every user. The palette brief is per-palette, so we cache the
+    // wow prompt prefix and accept that the brief recomputes. With
+    // 8 palettes this is a small price for actually-respected voice.
     const response = await client.messages.parse({
       model: "claude-opus-4-7",
       max_tokens: 2048,
       system: [
+        ...(styleBrief
+          ? [{ type: "text" as const, text: styleBrief }]
+          : []),
         {
           type: "text",
           text: WOW_SYSTEM_PROMPT,
           cache_control: { type: "ephemeral" },
         },
-        ...(styleBrief
-          ? [{ type: "text" as const, text: styleBrief }]
-          : []),
       ],
       messages: [{ role: "user", content: userPrompt }],
       output_config: {
