@@ -1,5 +1,6 @@
 "use client";
 
+import { useConversationClientTool } from "@elevenlabs/react";
 import {
   AnimatePresence,
   motion,
@@ -18,6 +19,37 @@ import {
   type PersonalityId,
 } from "@/lib/personalities";
 import { VOICES, type VoiceId } from "@/lib/voices";
+
+// Voice-tool dispatch — fuzzy matches the agent's free-form
+// description ("violet", "the green one", "pink") to a curated
+// palette id. Ordering matters: earlier entries win, so list
+// brand-name aliases first (Aesop, Linear, Apple) before falling
+// through to color words.
+const PALETTE_ALIASES: { match: RegExp; id: string }[] = [
+  { match: /quiet|cream|aesop|editorial/i, id: "quiet-cream" },
+  { match: /royal|violet|purple|linear/i, id: "royal-violet" },
+  { match: /sharp|mono|black|white|apple|grey|gray|monochrome/i, id: "sharp-mono" },
+  { match: /forest|green|patagonia|olive/i, id: "forest" },
+  { match: /sunshine|yellow|gold|off.?white|streetwear/i, id: "sunshine" },
+  { match: /blush|pink|glossier|rose|magenta/i, id: "soft-blush" },
+  { match: /steel|blue|stripe|navy|indigo/i, id: "steel-blue" },
+  { match: /workwear|brown|carhartt|tan|beige|khaki/i, id: "workwear-brown" },
+];
+
+const NEXT_WORDS = ["next", "continue", "ready", "go", "forward", "wow"];
+const BACK_WORDS = ["back", "previous", "intake"];
+
+function resolvePaletteFromText(text: string): Palette | null {
+  const t = text.trim().toLowerCase();
+  if (!t) return null;
+  // Try id match first
+  const direct = PALETTES.find((p) => p.id === t || p.name.toLowerCase() === t);
+  if (direct) return direct;
+  for (const alias of PALETTE_ALIASES) {
+    if (alias.match.test(t)) return PALETTES.find((p) => p.id === alias.id) ?? null;
+  }
+  return null;
+}
 
 // Act Four — The Look.
 //
@@ -203,6 +235,107 @@ export default function ReferencePage() {
       }
     }
   }, [router]);
+
+  // Voice tool handlers — registered unconditionally before any
+  // early return so React's rules-of-hooks isn't violated. The
+  // submitting ref lets the navigate handler bail if a submission
+  // is already in flight without coupling to React state timing.
+  const submittingRef = useRef(false);
+  useEffect(() => {
+    submittingRef.current = submitting;
+  }, [submitting]);
+
+  useConversationClientTool("set_field", (params) => {
+    console.log("[onboarding/reference] set_field called with:", params);
+    const fieldName = String(params?.field ?? "").trim().toLowerCase();
+    const value = String(
+      params?.value ??
+        (params as { text?: unknown })?.text ??
+        (params as { new_value?: unknown })?.new_value ??
+        "",
+    ).trim();
+    if (!value) return "Tell me what to set it to.";
+
+    // Theme / mode toggle
+    if (
+      fieldName === "theme" ||
+      fieldName === "mode" ||
+      fieldName === "appearance"
+    ) {
+      const v = value.toLowerCase();
+      if (v.includes("light") || v.includes("day")) {
+        setTheme("light");
+        return "Light mode it is.";
+      }
+      if (v.includes("dark") || v.includes("night")) {
+        setTheme("dark");
+        return "Dark mode it is.";
+      }
+      return `Light or dark? Got "${value}" — not sure which.`;
+    }
+
+    // Palette / color — handles named palettes ("violet", "the pink one",
+    // "Linear style"), brand references ("Aesop", "Stripe"), or a hex
+    // string. Hex wins if present; otherwise fuzzy alias match.
+    if (
+      fieldName === "palette" ||
+      fieldName === "color" ||
+      fieldName === "accent" ||
+      fieldName === "look"
+    ) {
+      const hexMatch = value.match(/#?([0-9a-fA-F]{6})/);
+      if (hexMatch) {
+        const cleanHex = `#${hexMatch[1].toLowerCase()}`;
+        setHsv(hexToHsv(cleanHex));
+        return `Color set to ${cleanHex}.`;
+      }
+      const match = resolvePaletteFromText(value);
+      if (match) {
+        setHsv(hexToHsv(match.accent));
+        return `${match.name} it is.`;
+      }
+      return `I don't recognize "${value}". Try violet, green, pink, blue, brown, yellow, cream, or mono.`;
+    }
+
+    return `I can set theme or palette here. Got field "${fieldName}".`;
+  });
+
+  useConversationClientTool("navigate", (params) => {
+    console.log("[onboarding/reference] navigate called with:", params);
+    const destination = String(params?.destination ?? "")
+      .trim()
+      .toLowerCase();
+    if (!destination) return "Where to?";
+
+    if (NEXT_WORDS.some((w) => destination === w || destination.includes(w))) {
+      if (submittingRef.current) return "Already going.";
+      submittingRef.current = true;
+      void (async () => {
+        setSubmitting(true);
+        localStorage.setItem(THEME_KEY, theme);
+        localStorage.setItem(PALETTE_KEY, nearestPalette.id);
+        localStorage.setItem(ACCENT_KEY, hex);
+        try {
+          await fetch("/api/onboarding/references", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ theme, paletteId: nearestPalette.id }),
+          });
+        } catch (err) {
+          console.error("[onboarding/reference] voice submit failed:", err);
+        }
+        router.push("/onboarding/wow");
+      })();
+      return "Continuing.";
+    }
+
+    if (BACK_WORDS.some((w) => destination === w || destination.includes(w))) {
+      setTimeout(() => router.push("/onboarding/intake"), 150);
+      return "Heading back to intake.";
+    }
+
+    return `From this page I can go "next" or "back".`;
+  });
 
   if (!personality) return null;
 
