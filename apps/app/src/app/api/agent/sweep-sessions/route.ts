@@ -159,7 +159,19 @@ async function handle(req: Request) {
 }
 
 function isAuthorized(req: Request): boolean {
-  // Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` if set
+  // Accept three auth paths:
+  //   1. Vercel Cron — the platform injects `x-vercel-cron: 1` on
+  //      every scheduled invocation. This is an internal header and
+  //      can't be set by external clients, so it's the most reliable
+  //      proof of cron authenticity. No env config required.
+  //   2. CRON_SECRET — if the user configures a CRON_SECRET env var
+  //      on Vercel, the platform also sends `Authorization: Bearer <secret>`
+  //      on cron calls. Backward-compatible with the original setup.
+  //   3. WRKS_AGENT_LLM_SECRET — shared secret for manual / scripted
+  //      sweeps (curl, postman, etc.) so we don't need cron config to
+  //      kick a sweep off-cycle.
+  if (req.headers.get("x-vercel-cron") === "1") return true;
+
   const cronSecret = process.env.CRON_SECRET;
   const agentSecret = process.env.WRKS_AGENT_LLM_SECRET;
   const header = req.headers.get("authorization") ?? "";
