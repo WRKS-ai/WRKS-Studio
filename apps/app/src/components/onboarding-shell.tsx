@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ShinyText } from "./shiny-text";
 import { StageBackdrop } from "./stage-backdrop";
 
 // Onboarding is a four-act stage, not a wizard. The shell provides:
@@ -35,19 +36,18 @@ export function OnboardingShell({
       >
         <Link
           href="/"
-          className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md -m-1 p-1"
+          className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md -m-1 p-1"
           aria-label="WRKS Studio"
         >
-          <span
-            className="relative size-2.5 rounded-full"
-            style={{
-              background:
-                "linear-gradient(135deg, #ffffff 0%, #a5b4fc 60%, #6366f1 100%)",
-              boxShadow: "0 0 10px rgba(165,180,252,0.5)",
-            }}
-          />
-          <span className="font-serif text-[15px] tracking-tight text-ink">
-            WRKS<span className="text-ink-muted"> Studio</span>
+          <span className="font-serif text-[15px] tracking-tight">
+            <ShinyText
+              text="WRKS Studio"
+              color="#857c92"
+              shineColor="#f5f0e6"
+              speed={3.5}
+              spread={120}
+              delay={1.2}
+            />
           </span>
         </Link>
       </motion.header>

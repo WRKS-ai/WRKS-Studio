@@ -303,6 +303,7 @@ function LoadingState({
   reduced: boolean;
 }) {
   void personality;
+  void line;
   return (
     <motion.div
       initial={reduced ? false : { opacity: 0 }}
@@ -313,42 +314,27 @@ function LoadingState({
       aria-live="polite"
       aria-label={`${agentName} is drafting`}
     >
-      {/* Pre-render skeleton browser — Vosoone-inspired. Shows a fake
-          landing-page being built with pulsing skeleton blocks and
-          animated trace gradients tracing the perimeter + content
-          boundary. Visual metaphor: "your website is being drafted." */}
+      {/* Pre-render skeleton browser. Shows a fake landing-page
+          being built with pulsing skeleton blocks and animated
+          trace gradients tracing the perimeter. Visual metaphor:
+          "your studio is being drafted." */}
       <WowSkeletonLoader />
 
-      {/* Drafting line — small italic serif under the loader */}
+      {/* Single premium one-liner. Replaces the per-personality
+          "Drafting." string + verbose mono caption — the loader IS
+          the message; the line below just adds a touch of voice. */}
       <motion.p
         initial={reduced ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
-        className="mt-12 font-serif italic"
+        transition={{ delay: 0.5, duration: 0.8, ease: [0.2, 0.7, 0.2, 1] }}
+        className="mt-12 font-serif italic text-center"
         style={{
-          fontSize: "clamp(1.125rem, 1.8vw, 1.375rem)",
-          color: "rgba(245,240,230,0.78)",
-          letterSpacing: "-0.005em",
+          fontSize: "clamp(1.25rem, 1.9vw, 1.625rem)",
+          color: "rgba(245,240,230,0.86)",
+          letterSpacing: "-0.012em",
         }}
       >
-        {line}
-      </motion.p>
-
-      {/* Caption — mono caps below */}
-      <motion.p
-        initial={reduced ? false : { opacity: 0 }}
-        animate={{ opacity: 0.5 }}
-        transition={{ delay: 1.2, duration: 0.8 }}
-        className="mt-8 font-mono uppercase text-center leading-relaxed"
-        style={{
-          fontSize: 10.5,
-          letterSpacing: "0.28em",
-          color: "rgba(245,240,230,0.42)",
-          maxWidth: "44ch",
-        }}
-      >
-        Building from what you told me — a landing page, three social
-        posts, and one paid ad in your brand&rsquo;s voice.
+        Composing your studio.
       </motion.p>
     </motion.div>
   );
@@ -434,7 +420,9 @@ function WowSkeletonLoader() {
       <circle cx="62" cy="42" r="5" fill="#febc2e" />
       <circle cx="80" cy="42" r="5" fill="#28c840" />
 
-      {/* URL bar */}
+      {/* URL bar — minimal skeleton rect, no text. Embedded text
+          in SVGs renders with default sans/mono fallback that looks
+          chunky next to Fraunces; cleaner to leave it as a shape. */}
       <rect
         className="browser-url"
         x="180"
@@ -443,9 +431,14 @@ function WowSkeletonLoader() {
         height="20"
         rx="5"
       />
-      <text className="url-text" x="200" y="46">
-        ⬡ yourbrand.studio
-      </text>
+      <rect
+        className="skeleton"
+        x="200"
+        y="38"
+        width="160"
+        height="8"
+        rx="2"
+      />
 
       {/* === SKELETON CONTENT (mirrors the hero artifact layout) === */}
 
