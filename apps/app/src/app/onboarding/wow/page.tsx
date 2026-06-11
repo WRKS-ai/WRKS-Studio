@@ -736,208 +736,227 @@ function HeroArtifact({
           boxShadow: `0 80px 160px -60px ${accent}88, 0 50px 100px -40px rgba(0,0,0,0.6), 0 0 0 1px ${accent}1a`,
         }}
       >
-      {/* Asymmetric editorial spread — left column is the hero
-          (wordmark + display headline + subhead + CTA), right column
-          is a quiet stack of numbered details. Magazine-cover layout
-          rather than the AI-default "everything center-stacked." */}
-      <div
-        className="relative grid items-stretch"
+      {/* The artifact is laid out like a real website page now —
+          minimal nav chrome at the top, a proper full-width hero
+          section, then a 3-up features row. Linear / Anthropic /
+          Stripe homepage pattern. */}
+
+      {/* === NAV CHROME === */}
+      <motion.nav
+        initial={reduced ? false : { opacity: 0, y: -4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.55, duration: 0.55 }}
+        className="relative flex items-center justify-between"
         style={{
-          gridTemplateColumns: "minmax(0, 1.55fr) minmax(0, 1fr)",
-          padding: "64px clamp(36px, 5vw, 72px) 64px",
-          gap: "clamp(40px, 5vw, 72px)",
+          padding: "26px clamp(28px, 4vw, 56px) 22px",
+          borderBottom: `1px solid ${rim}`,
         }}
       >
-        {/* === LEFT COLUMN === */}
-        <div className="relative flex flex-col">
-          {/* Brand wordmark — top of the spread, no decorative
-              dot. Just the name in display Fraunces. */}
-          <motion.div
-            initial={reduced ? false : { opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.65, duration: 0.55 }}
-            className="flex items-center gap-3"
-            style={{ marginBottom: 56 }}
-          >
-            <span
-              aria-hidden
-              className="block h-px"
-              style={{ width: 28, background: accent }}
-            />
-            <span
-              className="font-serif"
-              style={{
-                fontSize: 18,
-                fontWeight: 500,
-                letterSpacing: "-0.012em",
-                color: ink,
-              }}
-            >
-              {brandName}
-            </span>
-          </motion.div>
+        {/* Brand wordmark */}
+        <span
+          className="font-serif"
+          style={{
+            fontSize: 17,
+            fontWeight: 500,
+            letterSpacing: "-0.012em",
+            color: ink,
+          }}
+        >
+          {brandName}
+        </span>
 
-          {/* Headline — display scale, word-by-word stagger */}
-          <h2
-            className="font-serif"
-            style={{
-              fontSize: "clamp(2.5rem, 5.8vw, 5rem)",
-              fontWeight: 500,
-              letterSpacing: "-0.042em",
-              lineHeight: 0.95,
-              color: ink,
-              margin: 0,
-            }}
-          >
-            {headlineWords.map((word, i) => (
-              <motion.span
-                key={`${word}-${i}`}
-                initial={
-                  reduced
-                    ? false
-                    : { opacity: 0, y: 20, filter: "blur(8px)" }
-                }
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{
-                  duration: 0.7,
-                  delay: 0.85 + i * 0.045,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
-                className="inline-block mr-[0.22em]"
-              >
-                {word}
-              </motion.span>
-            ))}
-          </h2>
-
-          {/* Subhead — narrower max-width on the left column */}
-          <motion.p
-            initial={reduced ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              delay: 1.1 + headlineWords.length * 0.045,
-              duration: 0.7,
-            }}
-            className="font-sans"
-            style={{
-              fontSize: "clamp(0.9375rem, 1.05vw, 1.0625rem)",
-              lineHeight: 1.55,
-              color: inkMuted,
-              maxWidth: "44ch",
-              margin: "32px 0 0",
-            }}
-          >
-            {landing.subhead}
-          </motion.p>
-
-          {/* CTA — anchored to bottom of left column. mt-auto plus
-              top margin so it always sits with breathing room above
-              regardless of subhead length. */}
-          <motion.div
-            initial={reduced ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 2.0, duration: 0.55 }}
-            className="mt-auto"
-            style={{ paddingTop: 48 }}
-          >
-            <motion.button
-              whileHover={reduced ? undefined : { y: -2, scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              type="button"
-              className="inline-flex items-center gap-3 rounded-full font-mono uppercase"
-              style={{
-                padding: "16px 28px",
-                background: accent,
-                color: bg,
-                fontSize: 11.5,
-                letterSpacing: "0.22em",
-                boxShadow: `0 14px 36px -8px ${accent}aa, inset 0 1px 0 rgba(255,255,255,0.15)`,
-              }}
-            >
-              {landing.primaryCta}
-              <span aria-hidden>→</span>
-            </motion.button>
-          </motion.div>
-        </div>
-
-        {/* === RIGHT COLUMN === */}
-        {/* Vertical numbered details. A tiny hairline at top splits
-            them off from the wordmark line on the left without
-            needing a visible vertical divider. */}
-        <div className="relative flex flex-col" style={{ paddingTop: 0 }}>
-          <motion.div
-            initial={reduced ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.5, duration: 0.5 }}
-            className="flex items-center gap-2 mb-7"
-          >
+        {/* Nav links — small mono caps, restrained */}
+        <div className="flex items-center" style={{ gap: 28 }}>
+          {["Work", "Process", "Book"].map((item, i) => (
             <span
-              aria-hidden
-              className="block h-px w-6"
-              style={{ background: accent }}
-            />
-            <span
+              key={item}
               className="font-mono uppercase"
               style={{
-                fontSize: 9.5,
-                letterSpacing: "0.32em",
-                color: inkMuted,
+                fontSize: 10.5,
+                letterSpacing: "0.28em",
+                color: i === 2 ? accent : inkMuted,
+                fontWeight: i === 2 ? 600 : 400,
               }}
             >
-              The details
+              {item}
             </span>
-          </motion.div>
-
-          <div className="flex flex-col" style={{ gap: 28 }}>
-            {landing.valueBullets.map((bullet, i) => (
-              <motion.div
-                key={i}
-                initial={reduced ? false : { opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 1.6 + i * 0.12,
-                  duration: 0.5,
-                  ease: [0.2, 0.7, 0.2, 1],
-                }}
-                className="flex gap-4"
-              >
-                <span
-                  className="font-mono tabular-nums shrink-0"
-                  style={{
-                    fontSize: 11,
-                    letterSpacing: "0.16em",
-                    color: accent,
-                    fontWeight: 600,
-                    paddingTop: 2,
-                    minWidth: 24,
-                  }}
-                >
-                  0{i + 1}
-                </span>
-                <span
-                  className="font-serif"
-                  style={{
-                    fontSize: "clamp(0.9375rem, 1.05vw, 1.0625rem)",
-                    lineHeight: 1.4,
-                    color: ink,
-                    letterSpacing: "-0.005em",
-                  }}
-                >
-                  {bullet}
-                </span>
-              </motion.div>
-            ))}
-          </div>
+          ))}
         </div>
+      </motion.nav>
+
+      {/* === HERO === */}
+      <div
+        className="relative"
+        style={{ padding: "clamp(56px, 7vw, 96px) clamp(28px, 4vw, 56px) clamp(56px, 6vw, 84px)" }}
+      >
+        {/* Small eyebrow above the headline — premium product page
+            convention (e.g. "v2.4 — out now", "Spring '26", etc.).
+            We make it generic but specific-feeling. */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8, duration: 0.55 }}
+          className="flex items-center gap-3"
+          style={{ marginBottom: 28 }}
+        >
+          <span
+            aria-hidden
+            className="block h-px"
+            style={{ width: 22, background: accent }}
+          />
+          <span
+            className="font-mono uppercase"
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.34em",
+              color: inkMuted,
+            }}
+          >
+            Now booking · Vol. 01
+          </span>
+        </motion.div>
+
+        {/* Headline — display scale, full editorial weight, word-by-
+            word reveal. Now centered alignment so it carries the
+            full card width as a single statement. */}
+        <h2
+          className="font-serif"
+          style={{
+            fontSize: "clamp(2.5rem, 6vw, 5.5rem)",
+            fontWeight: 500,
+            letterSpacing: "-0.044em",
+            lineHeight: 0.97,
+            color: ink,
+            margin: 0,
+            maxWidth: "20ch",
+          }}
+        >
+          {headlineWords.map((word, i) => (
+            <motion.span
+              key={`${word}-${i}`}
+              initial={
+                reduced
+                  ? false
+                  : { opacity: 0, y: 20, filter: "blur(8px)" }
+              }
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{
+                duration: 0.7,
+                delay: 0.95 + i * 0.045,
+                ease: [0.2, 0.7, 0.2, 1],
+              }}
+              className="inline-block mr-[0.22em]"
+            >
+              {word}
+            </motion.span>
+          ))}
+        </h2>
+
+        {/* Subhead — sits below the headline, wider column allowed */}
+        <motion.p
+          initial={reduced ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            delay: 1.15 + headlineWords.length * 0.045,
+            duration: 0.7,
+          }}
+          className="font-sans"
+          style={{
+            fontSize: "clamp(1rem, 1.15vw, 1.1875rem)",
+            lineHeight: 1.55,
+            color: inkMuted,
+            maxWidth: "60ch",
+            margin: "36px 0 0",
+          }}
+        >
+          {landing.subhead}
+        </motion.p>
+
+        {/* CTA — sits below subhead with generous space */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.7, duration: 0.55 }}
+          style={{ marginTop: 44 }}
+        >
+          <motion.button
+            whileHover={reduced ? undefined : { y: -2, scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            type="button"
+            className="inline-flex items-center gap-3 rounded-full font-mono uppercase"
+            style={{
+              padding: "16px 30px",
+              background: accent,
+              color: bg,
+              fontSize: 11.5,
+              letterSpacing: "0.22em",
+              boxShadow: `0 14px 36px -8px ${accent}aa, inset 0 1px 0 rgba(255,255,255,0.15)`,
+            }}
+          >
+            {landing.primaryCta}
+            <span aria-hidden>→</span>
+          </motion.button>
+        </motion.div>
       </div>
 
-      {/* Subtle bottom hairline running the full card width — gives
-          the spread a "printed page" footer feel. */}
+      {/* === FEATURES SECTION ===
+          Sub-background section with a thin top rule. Pattern from
+          modern SaaS homepages (Stripe, Linear, Anthropic) where the
+          hero block is followed by a 3-up features row. */}
       <div
-        aria-hidden
-        className="absolute inset-x-0 bottom-0 h-px pointer-events-none"
-        style={{ background: rim }}
-      />
+        className="relative"
+        style={{
+          padding: "clamp(40px, 5vw, 68px) clamp(28px, 4vw, 56px) clamp(48px, 5vw, 64px)",
+          borderTop: `1px solid ${rim}`,
+          background: `linear-gradient(180deg, ${accent}06, transparent)`,
+        }}
+      >
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: "clamp(24px, 3vw, 40px)",
+          }}
+        >
+          {landing.valueBullets.map((bullet, i) => (
+            <motion.div
+              key={i}
+              initial={reduced ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                delay: 1.9 + i * 0.1,
+                duration: 0.55,
+                ease: [0.2, 0.7, 0.2, 1],
+              }}
+              className="flex flex-col"
+            >
+              <span
+                className="font-mono tabular-nums"
+                style={{
+                  fontSize: 13,
+                  letterSpacing: "0.18em",
+                  color: accent,
+                  fontWeight: 700,
+                  marginBottom: 14,
+                }}
+              >
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span
+                className="font-serif"
+                style={{
+                  fontSize: "clamp(0.9375rem, 1.05vw, 1.0625rem)",
+                  lineHeight: 1.45,
+                  color: ink,
+                  letterSpacing: "-0.005em",
+                }}
+              >
+                {bullet}
+              </span>
+            </motion.div>
+          ))}
+        </div>
+      </div>
       </motion.div>
     </div>
   );
