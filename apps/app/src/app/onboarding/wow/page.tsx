@@ -611,9 +611,12 @@ function ReadyState({
 }
 
 /* ============================================================
- * IdentityStrip — "drafted by {agent}" at the top.
- * Quiet, single line. Replaces the giant "Here's what I made for
- * you." headline which was AI-template territory.
+ * IdentityStrip — single editorial line. NO orb, NO icon.
+ *
+ * Just a hairline + mono caps eyebrow. Decorative dots / icon
+ * marks before wordmarks are on the explicit dislike list in the
+ * design taste profile, and the personality orb at the top of the
+ * wow page was hitting exactly that pattern.
  * ============================================================ */
 function IdentityStrip({
   agentName,
@@ -624,24 +627,34 @@ function IdentityStrip({
   personality: Personality;
   reduced: boolean;
 }) {
+  void personality;
   return (
     <motion.div
       initial={reduced ? false : { opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-      className="flex items-center gap-3 mb-12"
+      className="flex items-center gap-4 mb-14"
     >
-      <PersonalityIcon personality={personality} size="sm" />
+      <span
+        aria-hidden
+        className="block h-px w-12"
+        style={{ background: "rgba(245,240,230,0.22)" }}
+      />
       <span
         className="font-mono uppercase"
         style={{
           fontSize: 10.5,
-          letterSpacing: "0.32em",
+          letterSpacing: "0.36em",
           color: "rgba(245,240,230,0.5)",
         }}
       >
-        Drafted by {agentName}
+        Act Five · drafted by {agentName}
       </span>
+      <span
+        aria-hidden
+        className="block h-px w-12"
+        style={{ background: "rgba(245,240,230,0.22)" }}
+      />
     </motion.div>
   );
 }
@@ -679,26 +692,50 @@ function HeroArtifact({
   const headlineWords = landing.headline.split(" ");
 
   return (
-    <motion.div
-      initial={
-        reduced
-          ? false
-          : { opacity: 0, y: 24, scale: 0.97, filter: "blur(8px)" }
-      }
-      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-      transition={{
-        duration: 1.1,
-        delay: 0.25,
-        ease: [0.2, 0.7, 0.2, 1],
-      }}
-      className="wrks-crystal-border w-full max-w-[840px] relative"
-      style={{
-        borderRadius: 32,
-        background: bg,
-        border: `1px solid ${rim}`,
-        boxShadow: `0 80px 160px -60px ${accent}66, 0 50px 100px -40px rgba(0,0,0,0.55)`,
-      }}
-    >
+    <div className="relative w-full max-w-[840px] flex items-center justify-center">
+      {/* Atmospheric backdrop — three layered radial glows in the
+          palette accent so the card reads as bathed in light rather
+          than pasted onto a void. These sit BEHIND the card and
+          spread well beyond its edges. */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          inset: "-180px -200px",
+          background: `radial-gradient(ellipse 55% 50% at 50% 50%, ${accent}33, transparent 65%)`,
+          filter: "blur(30px)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          inset: "-80px -100px",
+          background: `radial-gradient(ellipse 65% 70% at 50% 50%, ${accent}1f, transparent 70%)`,
+          filter: "blur(12px)",
+        }}
+      />
+
+      <motion.div
+        initial={
+          reduced
+            ? false
+            : { opacity: 0, y: 24, scale: 0.97, filter: "blur(8px)" }
+        }
+        animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+        transition={{
+          duration: 1.1,
+          delay: 0.25,
+          ease: [0.2, 0.7, 0.2, 1],
+        }}
+        className="wrks-crystal-border relative w-full"
+        style={{
+          borderRadius: 32,
+          background: bg,
+          border: `1px solid ${rim}`,
+          boxShadow: `0 80px 160px -60px ${accent}88, 0 50px 100px -40px rgba(0,0,0,0.6), 0 0 0 1px ${accent}1a`,
+        }}
+      >
       <div
         className="relative"
         style={{ padding: "72px clamp(36px, 6vw, 80px) 72px" }}
@@ -877,7 +914,8 @@ function HeroArtifact({
           <span aria-hidden>→</span>
         </motion.button>
       </div>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 }
 
