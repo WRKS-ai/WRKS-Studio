@@ -131,18 +131,21 @@ export function buildFirstMessage({
  * naming + continue handoff.
  * ============================================================ */
 
+// Friendly opener used across every personality. The personality
+// continues to drive the system prompt / ongoing voice — only the
+// greeting itself is unified, because the user wants a warm,
+// friend-like first hello regardless of which agent was picked.
+const onboardingGreeting = (s: string) =>
+  `Hey! I'm here, ready to help. First thing — pick a name for me. ${s} works, or anything you like.`;
+
 const ONBOARDING_GREETING: Record<
   PersonalityId,
   (suggested: string) => string
 > = {
-  maven: (s) =>
-    `Hey! I'm here, ready to help. First thing — pick a name for me. ${s} works, or anything you like.`,
-  sage: (s) =>
-    `Hello. Glad you picked me. To get us started — what would you like to call me? ${s}, perhaps, or anything that feels right.`,
-  spark: (s) =>
-    `Hey! Glad you picked me. First thing — what's my name? ${s}? Or you tell me.`,
-  echo: (s) =>
-    `You picked me. Good. I need a name first. ${s} works for me, but it's your call.`,
+  maven: onboardingGreeting,
+  sage: onboardingGreeting,
+  spark: onboardingGreeting,
+  echo: onboardingGreeting,
 };
 
 export function buildOnboardingSystemPrompt({
