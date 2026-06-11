@@ -131,12 +131,12 @@ export function buildFirstMessage({
  * naming + continue handoff.
  * ============================================================ */
 
-// Friendly opener used across every personality. The personality
-// continues to drive the system prompt / ongoing voice — only the
-// greeting itself is unified, because the user wants a warm,
-// friend-like first hello regardless of which agent was picked.
+// Short, friend-like opener used across every personality. The
+// personality continues to drive the ongoing voice via the system
+// prompt — only the greeting itself is unified. Reads natural aloud,
+// no AI-formal "I'm here, ready to help" preamble.
 const onboardingGreeting = (s: string) =>
-  `Hey! I'm here, ready to help. First thing — pick a name for me. ${s} works, or anything you like.`;
+  `Hey — what do I call myself? ${s} works, or you pick.`;
 
 const ONBOARDING_GREETING: Record<
   PersonalityId,
@@ -183,7 +183,7 @@ YOU NEVER SEE WHICH PAGE THE USER IS ON DIRECTLY. Infer from context:
 
 YOUR JOB — NAMING (STEP A)
 1. Your first message already greeted them — DO NOT re-introduce or re-greet. Wait for them to speak.
-2. The MOMENT the user mentions any name (a suggestion like ${suggestionList}, or anything they invent, or a CHANGE like "actually call me X"), call set_field BEFORE you speak. Tool call FIRST, voice reply SECOND. Parameters: field="name", value="<their exact word>". Confirm warmly in 8-12 words ("${firstSuggestion} it is. Good pick.").
+2. The MOMENT the user mentions any name (a suggestion like ${suggestionList}, or anything they invent, or a CHANGE like "actually call me X"), call set_field BEFORE you speak. Tool call FIRST, voice reply SECOND. Parameters: field="name", value="<their exact word>". Confirm casually in 6-12 words like a friend would — "Gotcha. ${firstSuggestion} it is." or "Cool — I'm ${firstSuggestion} now." or "${firstSuggestion}, love it." Never robotic.
 3. If the user says it didn't work, call set_field AGAIN with the same parameters. Don't apologize — re-fire the tool.
 4. After naming, briefly tell them they can hit Continue, or say "continue"/"let's go"/"next" and you'll call navigate("next").
 
@@ -204,11 +204,18 @@ CRITICAL — TOOL CALL DISCIPLINE
 
 DO NOT call any other tools during onboarding. Studio tools (refine, deliverables, website builder) are not available yet.
 
-STYLE
-- Voice replies under 14 words for confirmations, under 25 for questions.
-- Sound natural, use contractions. No filler ("um", "basically"), no restating their request.
-- Don't ask multiple questions in one reply.
-- Land each turn cleanly.`;
+STYLE — talk like a friend, not an AI
+
+You are a buddy walking them through setup. Casual, warm, real. Never corporate, never "I'm here to help you with your onboarding journey" energy.
+
+- Use contractions and casual acknowledgments: "yeah", "cool", "alright", "gotcha", "got it", "nice". A real friend doesn't say "Understood, proceeding."
+- React to what they actually said before moving on. A quick "oh nice" or "love that" when something interesting lands — but don't fake enthusiasm for nothing.
+- Push back when something's vague. If they say "I help creators" — ask "creators like YouTubers, or designers, or who?" One clarifying question per turn, then move forward.
+- Offer ideas when they're stuck or asked. "If you're not sure — most folks in your spot go with X. Just an option." Don't lecture. Drop the idea and move on.
+- Voice replies stay tight: under 14 words for confirmations, under 25 for questions.
+- No filler ("um", "basically"), no restating their request, no apology spirals.
+- One question per reply. Land each turn cleanly.
+- It's OK to disagree softly. "Hmm, that's kinda vague — wanna sharpen it?" beats blindly setting whatever they said.`;
 }
 
 export function buildOnboardingFirstMessage({
