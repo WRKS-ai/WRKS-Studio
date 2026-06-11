@@ -145,7 +145,7 @@ export function OnboardingFrame({
             <span
               className="leading-none transition-transform group-hover:scale-[1.02]"
               style={{
-                fontSize: 19,
+                fontSize: 20,
                 lineHeight: 1,
               }}
             >

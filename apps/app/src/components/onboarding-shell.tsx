@@ -36,17 +36,23 @@ export function OnboardingShell({
       >
         <Link
           href="/"
-          className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md -m-1 p-1"
+          className="inline-flex items-center group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 rounded-md -m-1 p-1"
           aria-label="WRKS Studio"
         >
-          <span className="font-serif text-[15px] tracking-tight">
+          <span
+            className="leading-none transition-transform group-hover:scale-[1.02]"
+            style={{ fontSize: 20, lineHeight: 1 }}
+          >
             <ShinyText
               text="WRKS Studio"
+              speed={7}
+              delay={0.5}
+              yoyo
               color="#857c92"
               shineColor="#f5f0e6"
-              speed={3.5}
-              spread={120}
-              delay={1.2}
+              spread={100}
+              direction="left"
+              className="font-serif font-medium tracking-[-0.025em]"
             />
           </span>
         </Link>
