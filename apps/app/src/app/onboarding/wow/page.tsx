@@ -3,6 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { ContinueButton } from "@/components/continue-button";
 import { OnboardingShell } from "@/components/onboarding-shell";
 import { PersonalityIcon } from "@/components/personality-icon";
 import {
@@ -228,18 +229,8 @@ export default function WowPage() {
   const personality = PERSONALITIES.find((p) => p.id === personalityId)!;
 
   return (
-    <OnboardingShell tint={personality.glow}>
-      <div className="w-full max-w-[1080px] flex flex-col items-center text-center">
-        {/* Subtle "post-act" label */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-          className="text-[10px] tracking-[0.28em] uppercase text-ink-dim font-mono mb-6 sm:mb-8"
-        >
-          Your studio · First deliverables
-        </motion.div>
-
+    <OnboardingShell tint={palette?.accent ?? personality.glow}>
+      <div className="w-full max-w-[1080px] flex flex-col items-center">
         <AnimatePresence mode="wait">
           {state.kind === "loading" && (
             <LoadingState
@@ -435,6 +426,537 @@ function ErrorState({
  * READY — three deliverables in staging-style preview frames
  * ============================================================ */
 function ReadyState({
+  personality,
+  agentName,
+  deliverables,
+  images,
+  onContinue,
+  onRegenerate,
+  palette,
+  theme,
+  reduced,
+}: {
+  personality: Personality;
+  agentName: string;
+  palette: Palette | null;
+  theme: Theme;
+  deliverables: WowDeliverables;
+  images: WowImages;
+  onContinue: () => void;
+  onRegenerate: () => void;
+  reduced: boolean;
+}) {
+  void images; // Stock photos retired — the redesign is typography-led.
+
+  return (
+    <motion.div
+      initial={reduced ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.55 }}
+      className="w-full flex flex-col items-center pt-4 pb-12"
+    >
+      <IdentityStrip
+        agentName={agentName}
+        personality={personality}
+        reduced={reduced}
+      />
+      <HeroArtifact
+        brandName={deliverables.brandName}
+        landing={deliverables.landing}
+        palette={palette}
+        theme={theme}
+        accentFallback={personality.accent}
+        reduced={reduced}
+      />
+      <StudioPipeline
+        deliverables={deliverables}
+        accent={palette?.accent ?? personality.accent}
+        reduced={reduced}
+      />
+      <Actions
+        onContinue={onContinue}
+        onRegenerate={onRegenerate}
+        reduced={reduced}
+      />
+    </motion.div>
+  );
+}
+
+/* ============================================================
+ * IdentityStrip — "drafted by {agent}" at the top.
+ * Quiet, single line. Replaces the giant "Here's what I made for
+ * you." headline which was AI-template territory.
+ * ============================================================ */
+function IdentityStrip({
+  agentName,
+  personality,
+  reduced,
+}: {
+  agentName: string;
+  personality: Personality;
+  reduced: boolean;
+}) {
+  return (
+    <motion.div
+      initial={reduced ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+      className="flex items-center gap-3 mb-12"
+    >
+      <PersonalityIcon personality={personality} size="sm" />
+      <span
+        className="font-mono uppercase"
+        style={{
+          fontSize: 10.5,
+          letterSpacing: "0.32em",
+          color: "rgba(245,240,230,0.5)",
+        }}
+      >
+        Drafted by {agentName}
+      </span>
+    </motion.div>
+  );
+}
+
+/* ============================================================
+ * HeroArtifact — the single deliverable, full glory.
+ *
+ * Premium glass card with the wrks-crystal-border revolving light
+ * around the rim. Inside, the landing-page hero renders in the
+ * user's picked palette + theme — every surface (bg, ink, accent)
+ * reskins to match the brand. No mock browser chrome. No stock
+ * photo. Pure editorial typography. Stripe Press × Aesop.
+ * ============================================================ */
+function HeroArtifact({
+  brandName,
+  landing,
+  palette,
+  theme,
+  accentFallback,
+  reduced,
+}: {
+  brandName: string;
+  landing: WowDeliverables["landing"];
+  palette: Palette | null;
+  theme: Theme;
+  accentFallback: string;
+  reduced: boolean;
+}) {
+  const render = palette ? getRender(palette, theme) : null;
+  const bg = render?.bg ?? "#f7f2e8";
+  const ink = render?.ink ?? "#0e0c08";
+  const inkMuted = render?.inkMuted ?? "#4a443c";
+  const rim = render?.rim ?? "rgba(0,0,0,0.08)";
+  const accent = palette?.accent ?? accentFallback;
+  const headlineWords = landing.headline.split(" ");
+
+  return (
+    <motion.div
+      initial={
+        reduced
+          ? false
+          : { opacity: 0, y: 24, scale: 0.97, filter: "blur(8px)" }
+      }
+      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      transition={{
+        duration: 1.1,
+        delay: 0.25,
+        ease: [0.2, 0.7, 0.2, 1],
+      }}
+      className="wrks-crystal-border w-full max-w-[840px] relative"
+      style={{
+        borderRadius: 32,
+        background: bg,
+        border: `1px solid ${rim}`,
+        boxShadow: `0 80px 160px -60px ${accent}66, 0 50px 100px -40px rgba(0,0,0,0.55)`,
+      }}
+    >
+      <div
+        className="relative"
+        style={{ padding: "72px clamp(36px, 6vw, 80px) 72px" }}
+      >
+        {/* Brand eyebrow */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7, duration: 0.5 }}
+          className="flex items-center gap-3 mb-10"
+        >
+          <span
+            aria-hidden
+            className="block rounded-full"
+            style={{
+              width: 7,
+              height: 7,
+              background: accent,
+              boxShadow: `0 0 10px ${accent}cc`,
+            }}
+          />
+          <span
+            className="font-mono uppercase"
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.32em",
+              color: inkMuted,
+            }}
+          >
+            Brand · {brandName}
+          </span>
+        </motion.div>
+
+        {/* Headline — huge editorial, word-by-word stagger */}
+        <h2
+          className="font-serif"
+          style={{
+            fontSize: "clamp(2.75rem, 6vw, 5.25rem)",
+            fontWeight: 500,
+            letterSpacing: "-0.04em",
+            lineHeight: 0.98,
+            color: ink,
+            margin: 0,
+          }}
+        >
+          {headlineWords.map((word, i) => (
+            <motion.span
+              key={`${word}-${i}`}
+              initial={
+                reduced
+                  ? false
+                  : { opacity: 0, y: 18, filter: "blur(8px)" }
+              }
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{
+                duration: 0.7,
+                delay: 0.85 + i * 0.045,
+                ease: [0.2, 0.7, 0.2, 1],
+              }}
+              className="inline-block mr-[0.25em]"
+            >
+              {word}
+            </motion.span>
+          ))}
+        </h2>
+
+        {/* Subhead */}
+        <motion.p
+          initial={reduced ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            delay: 1.15 + headlineWords.length * 0.045,
+            duration: 0.7,
+          }}
+          className="font-sans"
+          style={{
+            fontSize: "clamp(1rem, 1.2vw, 1.1875rem)",
+            lineHeight: 1.55,
+            color: inkMuted,
+            maxWidth: "58ch",
+            margin: "32px 0 0",
+          }}
+        >
+          {landing.subhead}
+        </motion.p>
+
+        {/* Accent rule */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.5, duration: 0.6 }}
+          className="flex items-center gap-4"
+          style={{ margin: "48px 0 32px" }}
+        >
+          <span
+            aria-hidden
+            className="block h-px flex-1"
+            style={{ background: rim }}
+          />
+          <span
+            aria-hidden
+            className="block rounded-full"
+            style={{
+              width: 40,
+              height: 2,
+              background: accent,
+              boxShadow: `0 0 12px ${accent}88`,
+            }}
+          />
+          <span
+            aria-hidden
+            className="block h-px flex-1"
+            style={{ background: rim }}
+          />
+        </motion.div>
+
+        {/* Value bullets */}
+        <ul className="m-0 p-0 list-none" style={{ marginBottom: 48 }}>
+          {landing.valueBullets.map((bullet, i) => (
+            <motion.li
+              key={i}
+              initial={reduced ? false : { opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{
+                delay: 1.65 + i * 0.1,
+                duration: 0.55,
+                ease: [0.2, 0.7, 0.2, 1],
+              }}
+              className="flex items-start gap-4"
+              style={{ marginTop: i === 0 ? 0 : 18 }}
+            >
+              <span
+                aria-hidden
+                className="block rounded-full shrink-0"
+                style={{
+                  width: 6,
+                  height: 6,
+                  background: accent,
+                  marginTop: 11,
+                }}
+              />
+              <span
+                className="font-serif"
+                style={{
+                  fontSize: "clamp(1rem, 1.1vw, 1.125rem)",
+                  lineHeight: 1.45,
+                  color: ink,
+                  letterSpacing: "-0.005em",
+                }}
+              >
+                {bullet}
+              </span>
+            </motion.li>
+          ))}
+        </ul>
+
+        {/* CTA — palette accent button */}
+        <motion.button
+          initial={reduced ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2.05, duration: 0.55 }}
+          whileHover={reduced ? undefined : { y: -2, scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          type="button"
+          className="inline-flex items-center gap-2.5 rounded-full font-mono uppercase"
+          style={{
+            padding: "16px 28px",
+            background: accent,
+            color: bg,
+            fontSize: 11.5,
+            letterSpacing: "0.22em",
+            boxShadow: `0 14px 36px -8px ${accent}aa, inset 0 1px 0 rgba(255,255,255,0.15)`,
+          }}
+        >
+          {landing.primaryCta}
+          <span aria-hidden>→</span>
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ============================================================
+ * StudioPipeline — three glass pills teasing what's next.
+ * ============================================================ */
+function StudioPipeline({
+  deliverables,
+  accent,
+  reduced,
+}: {
+  deliverables: WowDeliverables;
+  accent: string;
+  reduced: boolean;
+}) {
+  const chips = [
+    { label: "Instagram", text: firstSentence(deliverables.social.instagram) },
+    { label: "X · Twitter", text: firstSentence(deliverables.social.twitter) },
+    { label: "Facebook ad", text: deliverables.ad.headline },
+  ];
+
+  return (
+    <motion.div
+      initial={reduced ? false : { opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, delay: 2.4, ease: [0.2, 0.7, 0.2, 1] }}
+      className="w-full max-w-[840px]"
+      style={{ marginTop: 80 }}
+    >
+      <div className="flex items-center gap-3 mb-7">
+        <span
+          aria-hidden
+          className="block h-px w-8"
+          style={{ background: "rgba(245,240,230,0.22)" }}
+        />
+        <span
+          className="font-mono uppercase"
+          style={{
+            fontSize: 10.5,
+            letterSpacing: "0.32em",
+            color: "rgba(245,240,230,0.46)",
+          }}
+        >
+          Coming up in your studio
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {chips.map((chip, i) => (
+          <StudioChip
+            key={chip.label}
+            label={chip.label}
+            text={chip.text}
+            accent={accent}
+            index={i}
+            reduced={reduced}
+          />
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+function StudioChip({
+  label,
+  text,
+  accent,
+  index,
+  reduced,
+}: {
+  label: string;
+  text: string;
+  accent: string;
+  index: number;
+  reduced: boolean;
+}) {
+  return (
+    <motion.div
+      initial={reduced ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, delay: 2.55 + index * 0.08 }}
+      whileHover={reduced ? undefined : { y: -2 }}
+      className="relative rounded-2xl overflow-hidden"
+      style={{
+        padding: "22px 22px 24px",
+        minHeight: 124,
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        backdropFilter: "blur(28px) saturate(170%)",
+        WebkitBackdropFilter: "blur(28px) saturate(170%)",
+        boxShadow: "0 18px 40px -16px rgba(0,0,0,0.5)",
+      }}
+    >
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse 60% 60% at 100% 100%, ${accent}22, transparent 75%)`,
+        }}
+      />
+      <div
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-10 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 100% at 50% 0%, rgba(255,255,255,0.08), transparent 70%)",
+        }}
+      />
+      <div className="relative flex items-center gap-2.5 mb-3">
+        <span
+          aria-hidden
+          className="block rounded-full"
+          style={{
+            width: 5,
+            height: 5,
+            background: accent,
+            boxShadow: `0 0 8px ${accent}`,
+          }}
+        />
+        <span
+          className="font-mono uppercase"
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.3em",
+            color: "rgba(245,240,230,0.55)",
+          }}
+        >
+          {label}
+        </span>
+      </div>
+      <p
+        className="relative font-sans"
+        style={{
+          fontSize: 13,
+          lineHeight: 1.5,
+          color: "rgba(245,240,230,0.78)",
+          margin: 0,
+          display: "-webkit-box",
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}
+      >
+        {text}
+      </p>
+    </motion.div>
+  );
+}
+
+function firstSentence(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  const match = trimmed.match(/^[\s\S]{20,200}?[.!?](\s|$)/);
+  if (match) return match[0].trim();
+  return trimmed.slice(0, 180);
+}
+
+/* ============================================================
+ * Actions — Continue is the hero, Regenerate is the escape hatch
+ * ============================================================ */
+function Actions({
+  onContinue,
+  onRegenerate,
+  reduced,
+}: {
+  onContinue: () => void;
+  onRegenerate: () => void;
+  reduced: boolean;
+}) {
+  return (
+    <motion.div
+      initial={reduced ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6, delay: 3.0 }}
+      className="flex flex-col items-center gap-6"
+      style={{ marginTop: 64 }}
+    >
+      <ContinueButton onClick={onContinue}>
+        Take it to the studio
+        <span aria-hidden style={{ marginLeft: "0.7em" }}>
+          →
+        </span>
+      </ContinueButton>
+      <button
+        type="button"
+        onClick={onRegenerate}
+        className="font-mono uppercase transition-opacity hover:opacity-80"
+        style={{
+          fontSize: 10.5,
+          letterSpacing: "0.32em",
+          color: "rgba(245,240,230,0.4)",
+        }}
+      >
+        Or regenerate it all
+      </button>
+    </motion.div>
+  );
+}
+
+// ============================================================
+// LEGACY components below are no longer rendered by ReadyState but
+// remain in the file to keep the diff focused. Safe to delete in a
+// follow-up commit once the new layout is locked in.
+// ============================================================
+function _LegacyReadyStateBody({
   personality,
   agentName,
   deliverables,
