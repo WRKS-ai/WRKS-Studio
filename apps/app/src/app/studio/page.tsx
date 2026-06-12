@@ -365,17 +365,23 @@ function BrandChip({
         zIndex: 5,
       }}
     >
+      {/* Dark glass + revolving crystal-light comet on the rim.
+          Matches the WRKS button language (master plan §D). No purple,
+          even on the brand mark — the comet does the premium work. */}
       <span
-        className="shrink-0 grid place-items-center"
+        className="wrks-crystal-border-button shrink-0 grid place-items-center"
         style={{
-          width: 28,
-          height: 28,
-          borderRadius: 7,
-          background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-          color: "white",
+          width: 32,
+          height: 32,
+          borderRadius: 9,
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.012) 100%)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+          color: "#f5f0e6",
           fontSize: 13,
-          fontWeight: 700,
-          boxShadow: `0 8px 20px -10px ${personality.glow}`,
+          fontWeight: 600,
+          letterSpacing: "-0.005em",
         }}
         aria-hidden
       >
