@@ -14,6 +14,7 @@ import {
   type Site,
 } from "@/lib/site-model";
 import { SiteCanvas } from "@/components/site-canvas";
+import { CrystalButton } from "@/components/crystal-button";
 import {
   FacebookAdInFeed,
   InstagramMini,
@@ -66,8 +67,6 @@ export default function StudioPage() {
     setSite,
   } = useStudio();
 
-  const accent = personality.accent;
-
   return (
     <main className="size-full flex overflow-hidden">
       {/* ============================================================
@@ -77,7 +76,6 @@ export default function StudioPage() {
         items={DELIVERABLES}
         activeId={activeId}
         onPick={setActiveId}
-        accent={accent}
       />
 
       {/* ============================================================
@@ -88,19 +86,18 @@ export default function StudioPage() {
         style={{ borderLeft: "1px solid rgba(255,255,255,0.04)" }}
       >
         {/* Mercury-style canvas header: eyebrow + display title + meta */}
-        <CanvasHeader
-          kind={activeId}
-          thinking={thinking}
-          accent={accent}
-        />
+        <CanvasHeader kind={activeId} thinking={thinking} />
 
-        {/* Canvas panel */}
+        {/* Canvas panel — neutral chrome halo. The user's palette
+            accent stays inside their actual site preview, not on the
+            framing around it. */}
         <div className="flex-1 min-h-0 relative overflow-auto">
           <div
             aria-hidden
             className="absolute inset-0 pointer-events-none"
             style={{
-              background: `radial-gradient(ellipse 55% 45% at 50% 32%, ${accent}0d, transparent 70%)`,
+              background:
+                "radial-gradient(ellipse 55% 45% at 50% 32%, rgba(245,240,230,0.04), transparent 70%)",
             }}
           />
           <div className="relative min-h-full flex items-center justify-center px-6 sm:px-10 py-10">
@@ -154,12 +151,10 @@ function DeliverableRail({
   items,
   activeId,
   onPick,
-  accent,
 }: {
   items: DeliverableMeta[];
   activeId: DeliverableKind;
   onPick: (id: DeliverableKind) => void;
-  accent: string;
 }) {
   return (
     <aside
@@ -199,7 +194,10 @@ function DeliverableRail({
                 <span
                   aria-hidden
                   className="absolute left-0 top-0 bottom-0"
-                  style={{ width: 1.5, background: accent }}
+                  style={{
+                    width: 1.5,
+                    background: "rgba(245,240,230,0.7)",
+                  }}
                 />
               )}
               <span
@@ -224,7 +222,9 @@ function DeliverableRail({
               >
                 {it.label}
               </span>
-              {/* Status dot — quiet, only really visible when active */}
+              {/* Status dot — quiet warm-cream when active, otherwise
+                  the same near-white hairline as inactive icons. The
+                  personality accent never appears in the nav chrome. */}
               <span
                 aria-hidden
                 className="block rounded-full"
@@ -232,10 +232,13 @@ function DeliverableRail({
                   width: 4,
                   height: 4,
                   background: isActive
-                    ? accent
+                    ? "#f5f0e6"
                     : "rgba(245,245,247,0.18)",
-                  boxShadow: isActive ? `0 0 6px ${accent}` : "none",
-                  transition: "background 180ms ease-out, box-shadow 180ms ease-out",
+                  boxShadow: isActive
+                    ? "0 0 6px rgba(245,240,230,0.55)"
+                    : "none",
+                  transition:
+                    "background 180ms ease-out, box-shadow 180ms ease-out",
                 }}
               />
             </button>
@@ -258,11 +261,9 @@ function DeliverableRail({
 function CanvasHeader({
   kind,
   thinking,
-  accent,
 }: {
   kind: DeliverableKind;
   thinking: boolean;
-  accent: string;
 }) {
   const meta = DELIVERABLES.find((d) => d.id === kind);
   return (
@@ -316,10 +317,10 @@ function CanvasHeader({
               style={{
                 width: 5,
                 height: 5,
-                background: thinking ? "#fbbf24" : accent,
+                background: thinking ? "#fbbf24" : "#f5f0e6",
                 boxShadow: thinking
                   ? "0 0 6px #fbbf24"
-                  : `0 0 6px ${accent}`,
+                  : "0 0 6px rgba(245,240,230,0.55)",
               }}
             />
             {thinking ? "Refining" : "In sync"}
@@ -329,27 +330,14 @@ function CanvasHeader({
         </div>
       </div>
 
-      {/* Actions */}
+      {/* Actions — every button speaks the same crystal-light dark-glass
+          language. No solid-color filled Publish. */}
       <div className="flex items-center gap-1.5 shrink-0">
         <CanvasAction label="Preview" />
         <CanvasAction label="Share" />
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 transition-opacity hover:opacity-95"
-          style={{
-            padding: "0 18px",
-            height: 36,
-            borderRadius: 8,
-            background: accent,
-            color: "white",
-            fontSize: 13,
-            fontWeight: 500,
-            letterSpacing: "-0.005em",
-            marginLeft: 6,
-          }}
-        >
+        <CrystalButton size="md" style={{ marginLeft: 6 }}>
           Publish
-        </button>
+        </CrystalButton>
       </div>
     </header>
   );
@@ -410,23 +398,12 @@ function EmptyCanvas({
       >
         No work saved yet.
       </p>
-      <button
-        onClick={onContinue}
-        className="mt-6 inline-flex items-center gap-2 transition-opacity hover:opacity-95"
-        style={{
-          padding: "0 18px",
-          height: 38,
-          borderRadius: 8,
-          background: personality.accent,
-          color: "white",
-          fontSize: 13,
-          fontWeight: 500,
-          letterSpacing: "-0.005em",
-        }}
-      >
-        Back to onboarding
-        <span aria-hidden>→</span>
-      </button>
+      <div className="mt-6 inline-flex">
+        <CrystalButton size="md" onClick={onContinue}>
+          Back to onboarding
+          <span aria-hidden>→</span>
+        </CrystalButton>
+      </div>
     </div>
   );
 }

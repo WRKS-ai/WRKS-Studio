@@ -109,9 +109,11 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
     );
   }
 
-  const accent = personality.accent;
-  const accentDeep = personality.accentDeep;
-  const glow = personality.glow;
+  // personality.accent does NOT bleed into the studio chrome.
+  // Per master plan §C: the user's palette accent only appears in
+  // their site preview, the brand-system card, the floating Siri orb,
+  // active page-card glow, and the publish-sweep animation.
+  void personality;
 
   return (
     <div
@@ -138,7 +140,9 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
       >
         {/* Workspace switcher — Linear pattern. Single-line, small
             16px brand mark + 13px name + chevron. No border, no card.
-            Click opens a workspace picker (wired in a later phase). */}
+            Click opens a workspace picker (wired in a later phase).
+            The brand tile stays neutral chrome glass — the user's
+            palette accent does NOT bleed into the workspace UI. */}
         <div className="px-4 pt-5 pb-5">
           <button
             type="button"
@@ -148,11 +152,12 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
             <span
               className="shrink-0 size-4 rounded grid place-items-center"
               style={{
-                background: accent,
-                color: "white",
+                background: "rgba(255,255,255,0.08)",
+                color: "rgba(245,240,230,0.95)",
                 fontSize: 10,
                 fontWeight: 600,
                 lineHeight: 1,
+                border: "1px solid rgba(255,255,255,0.06)",
               }}
             >
               {brandName.charAt(0).toUpperCase()}
@@ -192,8 +197,6 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
                 Icon={item.Icon}
                 shortcut={item.shortcut}
                 isActive={pathname === item.href}
-                accent={accent}
-                glow={glow}
               />
             ))}
           </nav>
@@ -208,8 +211,6 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
                   label={item.label}
                   Icon={item.Icon}
                   isActive={pathname === item.href}
-                  accent={accent}
-                  glow={glow}
                 />
               ))}
             </nav>
@@ -320,7 +321,7 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
               }}
             >
               <span style={{ color: "rgba(245,245,247,0.45)" }}>Starter</span>
-              <span style={{ color: accent, fontWeight: 600 }}>· Upgrade</span>
+              <span style={{ color: "#f5f0e6", fontWeight: 600 }}>· Upgrade</span>
             </Link>
 
             <UtilButton title="Notifications">
@@ -330,15 +331,15 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
                 style={{
                   width: 5,
                   height: 5,
-                  background: accent,
-                  boxShadow: `0 0 6px ${accent}`,
+                  background: "#f5f0e6",
+                  boxShadow: "0 0 6px rgba(245,240,230,0.55)",
                 }}
               />
             </UtilButton>
 
-            {/* Avatar / profile menu — tighter scale to match the
-                rest of the top-bar cluster. Flat accent, no gradient
-                + glow chrome (consistent with surgical accent use). */}
+            {/* Avatar / profile menu — neutral chrome glass. The
+                user's palette accent never appears on the top-bar
+                avatar; it stays a brand-neutral element. */}
             <div data-profile-menu className="relative" style={{ marginLeft: 4 }}>
               <button
                 type="button"
@@ -350,8 +351,9 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
                 style={{
                   width: 32,
                   height: 32,
-                  background: accent,
-                  color: "white",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "#f5f0e6",
                   fontSize: 13.5,
                   fontWeight: 600,
                 }}
@@ -377,8 +379,9 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
                     <div
                       className="size-9 rounded-full grid place-items-center text-[13px] font-semibold"
                       style={{
-                        background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
-                        color: "white",
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        color: "#f5f0e6",
                       }}
                     >
                       {(user?.firstName?.[0] || user?.username?.[0] || "W").toUpperCase()}
@@ -484,18 +487,13 @@ function SidebarLink({
   Icon,
   shortcut,
   isActive,
-  accent,
-  glow,
 }: {
   href: string;
   label: string;
   Icon: (p: { size?: number }) => React.ReactElement;
   shortcut?: string;
   isActive: boolean;
-  accent: string;
-  glow: string;
 }) {
-  void glow;
   return (
     <Link
       href={href}
@@ -507,8 +505,8 @@ function SidebarLink({
           : "rgba(245,245,247,0.66)",
       }}
     >
-      {/* Hairline left rule on active — single-pixel accent stripe,
-          no glow, no rounded background. Linear's pattern.
+      {/* Hairline left rule on active — warm-cream stripe, neutral
+          chrome (no personality accent). Linear's pattern.
           Hover state: slightly lifted text color, NO background. */}
       {isActive && (
         <span
@@ -516,7 +514,7 @@ function SidebarLink({
           className="absolute left-0 top-0 bottom-0"
           style={{
             width: 1.5,
-            background: accent,
+            background: "rgba(245,240,230,0.7)",
           }}
         />
       )}
