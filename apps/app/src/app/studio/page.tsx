@@ -22,22 +22,33 @@ import {
   XMini,
 } from "@/components/wow-mockups";
 
-// The /studio main page is now just the deliverable canvas. The right
-// inspector (orb, chat, composer, voice session) lives in the layout
-// so it persists across all /studio/* routes. All shared state (active
-// deliverable, stored payload, flash flags) comes via useStudio().
+// /studio main page — Phase 2 redesign.
+//
+// LAYOUT (left to right):
+//   • Deliverable rail (200px) — vertical list of 5 deliverables, each a
+//     first-class object with platform glyph + name + sync status dot.
+//     Replaces the horizontal tab strip that previously lived in a
+//     top-bar position. Pattern from Cursor 2.0 / Figma / Vercel.
+//   • Canvas region — Mercury-style typographic header (eyebrow +
+//     display title + thin meta line + inline status), then the
+//     borderless canvas panel (#16161A) hosting the preview.
+//
+// Refactor strategy: same data shapes, same useStudio() hook, same
+// ActiveDeliverable component. Only the chrome changed.
 
-const DELIVERABLE_TABS: {
+type DeliverableMeta = {
   id: DeliverableKind;
   label: string;
   Icon: (p: { size?: number }) => React.ReactElement;
-  meta: string;
-}[] = [
-  { id: "landing", label: "Website", Icon: BrowserIcon, meta: "Hero · 1440 × 900" },
-  { id: "instagram", label: "Instagram", Icon: CameraIcon, meta: "Feed · 1080 × 1080" },
-  { id: "twitter", label: "X", Icon: XGlyphIcon, meta: "Post · 280 chars" },
-  { id: "linkedin", label: "LinkedIn", Icon: WorkIcon, meta: "Update · 700 chars" },
-  { id: "ad", label: "Facebook Ad", Icon: CampaignIcon, meta: "In-feed · 1200 × 628" },
+  dims: string;
+};
+
+const DELIVERABLES: DeliverableMeta[] = [
+  { id: "landing", label: "Website", Icon: BrowserIcon, dims: "Hero · 1440 × 900" },
+  { id: "instagram", label: "Instagram", Icon: CameraIcon, dims: "Feed · 1080 × 1080" },
+  { id: "twitter", label: "X", Icon: XGlyphIcon, dims: "Post · 280 chars" },
+  { id: "linkedin", label: "LinkedIn", Icon: WorkIcon, dims: "Update · 700 chars" },
+  { id: "ad", label: "Facebook Ad", Icon: CampaignIcon, dims: "In-feed · 1200 × 628" },
 ];
 
 export default function StudioPage() {
@@ -56,174 +67,311 @@ export default function StudioPage() {
   } = useStudio();
 
   const accent = personality.accent;
-  const accentDeep = personality.accentDeep;
-  const glow = personality.glow;
 
   return (
-    <main className="size-full flex flex-col overflow-hidden">
-      {/* Subnav: deliverable tabs */}
+    <main className="size-full flex overflow-hidden">
+      {/* ============================================================
+          DELIVERABLE RAIL — vertical, inside the canvas region.
+          ============================================================ */}
+      <DeliverableRail
+        items={DELIVERABLES}
+        activeId={activeId}
+        onPick={setActiveId}
+        accent={accent}
+      />
+
+      {/* ============================================================
+          CANVAS REGION
+          ============================================================ */}
       <div
-        className="shrink-0 px-9 pt-6 pb-5 flex items-center justify-between gap-6"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+        className="flex-1 min-w-0 h-full flex flex-col"
+        style={{ borderLeft: "1px solid rgba(255,255,255,0.04)" }}
       >
-        <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1">
-          {DELIVERABLE_TABS.map((t) => {
-            const isActive = activeId === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setActiveId(t.id)}
-                className="relative shrink-0 h-12 px-5 rounded-lg inline-flex items-center gap-3 transition-colors"
-                style={{
-                  background: isActive ? "rgba(255,255,255,0.06)" : "transparent",
-                  border: isActive
-                    ? "1px solid rgba(255,255,255,0.1)"
-                    : "1px solid transparent",
-                  color: isActive
-                    ? "rgba(245,245,247,1)"
-                    : "rgba(245,245,247,0.65)",
-                }}
-              >
-                <span
-                  style={{ color: isActive ? accent : "rgba(245,245,247,0.6)" }}
-                >
-                  <t.Icon size={18} />
-                </span>
-                <span className="text-[16px] font-medium">{t.label}</span>
-                {isActive && (
-                  <span
-                    className="size-2 rounded-full"
-                    style={{
-                      background: accent,
-                      boxShadow: `0 0 8px ${accent}`,
-                    }}
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            type="button"
-            className="h-11 px-[18px] rounded-lg text-[15px] font-medium transition-colors hover:bg-white/[0.05]"
-            style={{
-              color: "rgba(245,245,247,0.82)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            Preview
-          </button>
-          <button
-            type="button"
-            className="h-11 px-[18px] rounded-lg text-[15px] font-medium transition-colors hover:bg-white/[0.05]"
-            style={{
-              color: "rgba(245,245,247,0.82)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            Share
-          </button>
-          <button
-            type="button"
-            className="h-11 px-5 rounded-lg text-[15px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
-            style={{
-              background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
-              boxShadow: `0 8px 24px -8px ${glow}`,
-            }}
-          >
-            Publish
-          </button>
-        </div>
-      </div>
-
-      {/* Title strip */}
-      <div className="shrink-0 px-9 py-5 flex items-center justify-between gap-6">
-        <div className="flex items-baseline gap-4">
-          <h2
-            className="font-serif font-medium tracking-tight"
-            style={{
-              fontSize: 36,
-              color: "rgba(245,245,247,0.98)",
-              letterSpacing: "-0.025em",
-              lineHeight: 1,
-            }}
-          >
-            {labelFor(activeId)}
-          </h2>
-          <span
-            className="text-[14.5px]"
-            style={{
-              color: "rgba(245,245,247,0.55)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            {metaFor(activeId)}
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <StatusDot
-            color={thinking ? "#fbbf24" : "#10b981"}
-            label={thinking ? "Refining" : "In sync"}
-          />
-          <span
-            className="text-[14px]"
-            style={{
-              color: "rgba(245,245,247,0.55)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            Saved · just now
-          </span>
-        </div>
-      </div>
-
-      {/* Canvas */}
-      <div className="flex-1 min-h-0 relative overflow-auto">
-        <div
-          aria-hidden
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `radial-gradient(ellipse 60% 50% at 50% 35%, ${accent}10, transparent 70%)`,
-          }}
+        {/* Mercury-style canvas header: eyebrow + display title + meta */}
+        <CanvasHeader
+          kind={activeId}
+          thinking={thinking}
+          accent={accent}
         />
-        <div className="relative min-h-full flex items-center justify-center px-4 py-8">
-          {stored ? (
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeId}
-                initial={
-                  reduced ? false : { opacity: 0, y: 16, filter: "blur(8px)" }
-                }
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={
-                  reduced ? undefined : { opacity: 0, y: -10, filter: "blur(6px)" }
-                }
-                transition={{ duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }}
-                className="flex justify-center w-full"
-              >
-                <ActiveDeliverable
-                  kind={activeId}
-                  personality={personality}
-                  agentName={agentName}
-                  stored={stored}
-                  flashFields={flashFields}
-                  site={site}
-                  setSite={setSite}
-                />
-              </motion.div>
-            </AnimatePresence>
-          ) : (
-            <EmptyCanvas
-              personality={personality}
-              onContinue={() => router.push("/onboarding/personality")}
-            />
-          )}
+
+        {/* Canvas panel */}
+        <div className="flex-1 min-h-0 relative overflow-auto">
+          <div
+            aria-hidden
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: `radial-gradient(ellipse 55% 45% at 50% 32%, ${accent}0d, transparent 70%)`,
+            }}
+          />
+          <div className="relative min-h-full flex items-center justify-center px-6 sm:px-10 py-10">
+            {stored ? (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeId}
+                  initial={
+                    reduced ? false : { opacity: 0, y: 14, filter: "blur(8px)" }
+                  }
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  exit={
+                    reduced
+                      ? undefined
+                      : { opacity: 0, y: -8, filter: "blur(6px)" }
+                  }
+                  transition={{ duration: 0.42, ease: [0.2, 0.7, 0.2, 1] }}
+                  className="w-full flex justify-center"
+                >
+                  <ActiveDeliverable
+                    kind={activeId}
+                    personality={personality}
+                    agentName={agentName}
+                    stored={stored}
+                    flashFields={flashFields}
+                    site={site}
+                    setSite={setSite}
+                  />
+                </motion.div>
+              </AnimatePresence>
+            ) : (
+              <EmptyCanvas
+                personality={personality}
+                onContinue={() => router.push("/onboarding/personality")}
+              />
+            )}
+          </div>
         </div>
       </div>
     </main>
+  );
+}
+
+/* ============================================================
+ * DeliverableRail — vertical list of deliverables as first-class
+ * objects. Each row: platform glyph + name + status dot. Active
+ * row uses the same 1.5px accent left-rule as the sidebar nav,
+ * so the rail reads as a continuation of the same navigation system.
+ * ============================================================ */
+function DeliverableRail({
+  items,
+  activeId,
+  onPick,
+  accent,
+}: {
+  items: DeliverableMeta[];
+  activeId: DeliverableKind;
+  onPick: (id: DeliverableKind) => void;
+  accent: string;
+}) {
+  return (
+    <aside
+      className="shrink-0 h-full flex flex-col"
+      style={{ width: 208, background: "#0d0d10" }}
+    >
+      {/* Section label */}
+      <div
+        className="px-4 pt-6 pb-3 uppercase"
+        style={{
+          fontSize: 10.5,
+          letterSpacing: "0.28em",
+          color: "rgba(245,245,247,0.38)",
+          fontFamily: "var(--font-mono)",
+          fontWeight: 500,
+        }}
+      >
+        Deliverables
+      </div>
+      <nav className="flex flex-col">
+        {items.map((it) => {
+          const isActive = activeId === it.id;
+          return (
+            <button
+              key={it.id}
+              type="button"
+              onClick={() => onPick(it.id)}
+              className="relative flex items-center gap-3 transition-colors text-left"
+              style={{
+                padding: "10px 16px",
+                color: isActive
+                  ? "rgba(245,245,247,1)"
+                  : "rgba(245,245,247,0.66)",
+              }}
+            >
+              {isActive && (
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-0 bottom-0"
+                  style={{ width: 1.5, background: accent }}
+                />
+              )}
+              <span
+                className="shrink-0"
+                style={{
+                  color: isActive
+                    ? "rgba(245,245,247,0.94)"
+                    : "rgba(245,245,247,0.5)",
+                  transition: "color 180ms ease-out",
+                }}
+              >
+                <it.Icon size={16} />
+              </span>
+              <span
+                className="flex-1 truncate"
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: isActive ? 500 : 400,
+                  letterSpacing: "-0.005em",
+                  transition: "color 180ms ease-out",
+                }}
+              >
+                {it.label}
+              </span>
+              {/* Status dot — quiet, only really visible when active */}
+              <span
+                aria-hidden
+                className="block rounded-full"
+                style={{
+                  width: 4,
+                  height: 4,
+                  background: isActive
+                    ? accent
+                    : "rgba(245,245,247,0.18)",
+                  boxShadow: isActive ? `0 0 6px ${accent}` : "none",
+                  transition: "background 180ms ease-out, box-shadow 180ms ease-out",
+                }}
+              />
+            </button>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}
+
+/* ============================================================
+ * CanvasHeader — Mercury-style typographic block.
+ *
+ * Eyebrow (mono caps) + display title (Fraunces 28-34px weight 480)
+ * + thin meta line (dims + inline sync state with tiny dot). The
+ * action cluster (Preview / Share / Publish) sits on the right.
+ * No tinted backgrounds, no chip pills, no border at the bottom —
+ * the canvas panel's shadow does the separation.
+ * ============================================================ */
+function CanvasHeader({
+  kind,
+  thinking,
+  accent,
+}: {
+  kind: DeliverableKind;
+  thinking: boolean;
+  accent: string;
+}) {
+  const meta = DELIVERABLES.find((d) => d.id === kind);
+  return (
+    <header
+      className="shrink-0 flex items-end justify-between gap-8"
+      style={{
+        padding: "28px 32px 24px",
+      }}
+    >
+      {/* Title block */}
+      <div className="min-w-0">
+        <div
+          className="uppercase mb-2.5"
+          style={{
+            fontSize: 10.5,
+            letterSpacing: "0.28em",
+            fontFamily: "var(--font-mono)",
+            color: "rgba(245,245,247,0.38)",
+            fontWeight: 500,
+          }}
+        >
+          Now editing
+        </div>
+        <h2
+          className="font-serif truncate"
+          style={{
+            fontSize: 30,
+            fontWeight: 480,
+            letterSpacing: "-0.025em",
+            lineHeight: 1.05,
+            color: "rgba(245,245,247,0.97)",
+          }}
+        >
+          {labelFor(kind)}
+        </h2>
+        <div
+          className="mt-2 flex items-center gap-2.5"
+          style={{
+            fontSize: 12.5,
+            color: "rgba(245,245,247,0.5)",
+            fontFamily: "var(--font-mono)",
+            letterSpacing: "0.02em",
+          }}
+        >
+          <span>{meta?.dims}</span>
+          <span style={{ color: "rgba(245,245,247,0.22)" }}>·</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="block rounded-full"
+              style={{
+                width: 5,
+                height: 5,
+                background: thinking ? "#fbbf24" : accent,
+                boxShadow: thinking
+                  ? "0 0 6px #fbbf24"
+                  : `0 0 6px ${accent}`,
+              }}
+            />
+            {thinking ? "Refining" : "In sync"}
+          </span>
+          <span style={{ color: "rgba(245,245,247,0.22)" }}>·</span>
+          <span>Saved · just now</span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        <CanvasAction label="Preview" />
+        <CanvasAction label="Share" />
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 transition-opacity hover:opacity-95"
+          style={{
+            padding: "0 18px",
+            height: 36,
+            borderRadius: 8,
+            background: accent,
+            color: "white",
+            fontSize: 13,
+            fontWeight: 500,
+            letterSpacing: "-0.005em",
+            marginLeft: 6,
+          }}
+        >
+          Publish
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function CanvasAction({ label }: { label: string }) {
+  return (
+    <button
+      type="button"
+      className="transition-colors hover:bg-white/[0.04]"
+      style={{
+        padding: "0 14px",
+        height: 36,
+        borderRadius: 8,
+        color: "rgba(245,245,247,0.75)",
+        fontSize: 13,
+        fontWeight: 500,
+        letterSpacing: "-0.005em",
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -242,36 +390,6 @@ function labelFor(kind: DeliverableKind) {
   }
 }
 
-function metaFor(kind: DeliverableKind) {
-  return DELIVERABLE_TABS.find((t) => t.id === kind)?.meta ?? "";
-}
-
-function StatusDot({ color, label }: { color: string; label: string }) {
-  return (
-    <div
-      className="inline-flex items-center gap-2 px-3 h-9 rounded-md"
-      style={{
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
-      <span
-        className="size-2 rounded-full"
-        style={{ background: color, boxShadow: `0 0 6px ${color}` }}
-      />
-      <span
-        className="text-[14px] font-medium"
-        style={{
-          color: "rgba(245,245,247,0.85)",
-          fontFamily: "var(--font-mono)",
-        }}
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
-
 function EmptyCanvas({
   personality,
   onContinue,
@@ -283,20 +401,31 @@ function EmptyCanvas({
     <div className="text-center max-w-md">
       <PersonalityIcon personality={personality} size="md" />
       <p
-        className="mt-8 font-serif italic text-[clamp(1.25rem,2vw,1.5rem)]"
-        style={{ color: "rgba(245,245,247,0.6)" }}
+        className="mt-8 font-serif italic"
+        style={{
+          fontSize: "clamp(1.25rem,2vw,1.5rem)",
+          color: "rgba(245,245,247,0.6)",
+          letterSpacing: "-0.012em",
+        }}
       >
         No work saved yet.
       </p>
       <button
         onClick={onContinue}
-        className="mt-6 inline-flex items-center gap-2 h-11 px-5 rounded-full text-[13.5px] font-medium text-white transition-transform hover:scale-[1.02]"
+        className="mt-6 inline-flex items-center gap-2 transition-opacity hover:opacity-95"
         style={{
-          background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
+          padding: "0 18px",
+          height: 38,
+          borderRadius: 8,
+          background: personality.accent,
+          color: "white",
+          fontSize: 13,
+          fontWeight: 500,
+          letterSpacing: "-0.005em",
         }}
       >
         Back to onboarding
-        <span>→</span>
+        <span aria-hidden>→</span>
       </button>
     </div>
   );
@@ -337,8 +466,10 @@ function ActiveDeliverable({
     if (!site) {
       return (
         <div
-          className="text-[13px] tracking-[0.22em] uppercase"
+          className="uppercase"
           style={{
+            fontSize: 11,
+            letterSpacing: "0.28em",
             color: "rgba(245,245,247,0.4)",
             fontFamily: "var(--font-mono)",
           }}
@@ -348,7 +479,7 @@ function ActiveDeliverable({
       );
     }
     return (
-      <div className="w-full" style={flashStyle("landing", "16px")}>
+      <div className="w-full" style={flashStyle("landing", "20px")}>
         <SiteCanvas
           site={site}
           personality={personality}
@@ -438,6 +569,9 @@ function ActiveDeliverable({
   );
 }
 
+/* ============================================================
+ * Icons — kept inline so the page is self-contained.
+ * ============================================================ */
 function BrowserIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>

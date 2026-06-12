@@ -6,8 +6,13 @@ import type React from "react";
 import { PERSONALITIES, type Personality, type PersonalityId } from "@/lib/personalities";
 
 // Shared shell for /studio sub-pages (Plans, Settings, Profile, Library, etc.).
-// Provides a consistent header (title + subtitle + actions) and a scrollable
-// content area that sits inside the StudioLayout's content slot.
+// Phase 4 — surface system aligned with the redesigned /studio main page:
+//   * Borderless cards (#16161A panel tone, no visible 1px rim) — depth
+//     comes from a soft shadow, not chrome.
+//   * Mercury-style title block: Fraunces 28-32 weight 480 with mono-
+//     caps eyebrow above and a thin sub-line.
+//   * No tinted backgrounds or chip pills.
+//   * Accent used only on focus, active state, and primary CTA.
 
 export function StudioPageShell({
   title,
@@ -15,47 +20,73 @@ export function StudioPageShell({
   actions,
   children,
   maxWidth = 980,
+  eyebrow,
 }: {
   title: string;
   subtitle?: string;
   actions?: React.ReactNode;
   children: React.ReactNode;
   maxWidth?: number;
+  /** Small mono caps label above the title — page section context.
+   *  Defaults to nothing when omitted (legacy callers stay clean). */
+  eyebrow?: string;
 }) {
   return (
-    <div className="size-full overflow-y-auto">
+    <div className="size-full overflow-y-auto" style={{ background: "#0a0a0c" }}>
       <div
-        className="mx-auto px-10 py-10"
-        style={{ maxWidth }}
+        className="mx-auto"
+        style={{ maxWidth, padding: "36px 40px 56px" }}
       >
         <motion.header
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
-          className="mb-10 flex items-end justify-between gap-6"
+          className="flex items-end justify-between gap-6"
+          style={{ marginBottom: 36 }}
         >
-          <div>
+          <div className="min-w-0">
+            {eyebrow && (
+              <div
+                className="uppercase mb-3"
+                style={{
+                  fontSize: 10.5,
+                  letterSpacing: "0.28em",
+                  color: "rgba(245,245,247,0.38)",
+                  fontFamily: "var(--font-mono)",
+                  fontWeight: 500,
+                }}
+              >
+                {eyebrow}
+              </div>
+            )}
             <h1
-              className="font-serif font-medium tracking-tight"
+              className="font-serif"
               style={{
-                fontSize: "clamp(1.75rem, 2.2vw, 2.25rem)",
-                lineHeight: 1.1,
-                letterSpacing: "-0.02em",
-                color: "rgba(245,245,247,0.98)",
+                fontSize: "clamp(1.75rem, 2.3vw, 2.125rem)",
+                fontWeight: 480,
+                lineHeight: 1.05,
+                letterSpacing: "-0.025em",
+                color: "rgba(245,245,247,0.97)",
               }}
             >
               {title}
             </h1>
             {subtitle && (
               <p
-                className="mt-3 text-[15px] leading-relaxed max-w-[55ch]"
-                style={{ color: "rgba(245,245,247,0.6)" }}
+                className="mt-2.5"
+                style={{
+                  fontSize: 13.5,
+                  lineHeight: 1.55,
+                  color: "rgba(245,245,247,0.55)",
+                  maxWidth: "55ch",
+                  letterSpacing: "-0.005em",
+                }}
               >
                 {subtitle}
               </p>
             )}
           </div>
-          {actions && <div className="flex items-center gap-2.5">{actions}</div>}
+          {actions && <div className="flex items-center gap-1.5 shrink-0">{actions}</div>}
         </motion.header>
 
         <motion.div
@@ -70,6 +101,9 @@ export function StudioPageShell({
   );
 }
 
+/** Borderless canvas panel — replaces the visible-rim card. Depth
+ *  comes from a single soft shadow against the slightly lifted
+ *  surface tone (#16161A on #0a0a0c body). */
 export function Card({
   children,
   className = "",
@@ -83,8 +117,8 @@ export function Card({
     <div
       className={`rounded-2xl ${className}`}
       style={{
-        background: "rgba(255,255,255,0.025)",
-        border: "1px solid rgba(255,255,255,0.06)",
+        background: "#16161A",
+        boxShadow: "0 24px 60px -28px rgba(0,0,0,0.45)",
         ...style,
       }}
     >
@@ -107,54 +141,80 @@ export function ComingSoon({
   accent: string;
 }) {
   return (
-    <Card className="p-10">
+    <Card style={{ padding: "32px 36px 36px" }}>
       <div className="flex items-start gap-5">
         <div
-          className="size-12 rounded-xl grid place-items-center"
+          className="shrink-0 grid place-items-center"
           style={{
-            background: `${accent}1a`,
-            border: `1px solid ${accent}33`,
+            width: 36,
+            height: 36,
+            borderRadius: 8,
             color: accent,
           }}
         >
           {icon}
         </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-1">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap" style={{ marginBottom: 8 }}>
             <h2
-              className="text-[20px] font-medium tracking-tight"
-              style={{ color: "rgba(245,245,247,0.95)" }}
+              style={{
+                fontSize: 18,
+                fontWeight: 500,
+                color: "rgba(245,245,247,0.95)",
+                letterSpacing: "-0.012em",
+              }}
             >
               {title}
             </h2>
             <span
-              className="px-2 py-0.5 rounded-md text-[10.5px] tracking-[0.2em] uppercase"
+              className="uppercase"
               style={{
-                background: `${accent}1f`,
+                fontSize: 10,
+                letterSpacing: "0.32em",
                 color: accent,
-                border: `1px solid ${accent}33`,
                 fontFamily: "var(--font-mono)",
+                fontWeight: 500,
               }}
             >
-              Soon
+              · soon
             </span>
           </div>
           <p
-            className="text-[15px] leading-relaxed max-w-[60ch]"
-            style={{ color: "rgba(245,245,247,0.65)" }}
+            style={{
+              fontSize: 13.5,
+              lineHeight: 1.6,
+              color: "rgba(245,245,247,0.6)",
+              maxWidth: "62ch",
+              letterSpacing: "-0.005em",
+            }}
           >
             {description}
           </p>
-          <ul className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ul
+            className="grid grid-cols-1 sm:grid-cols-2"
+            style={{ marginTop: 24, gap: 10 }}
+          >
             {bullets.map((b) => (
               <li
                 key={b}
-                className="flex items-start gap-2.5 text-[14px]"
-                style={{ color: "rgba(245,245,247,0.78)" }}
+                className="flex items-start gap-2.5"
+                style={{
+                  fontSize: 13,
+                  color: "rgba(245,245,247,0.75)",
+                  lineHeight: 1.5,
+                  letterSpacing: "-0.005em",
+                }}
               >
                 <span
-                  className="mt-1.5 size-1.5 rounded-full shrink-0"
-                  style={{ background: accent, boxShadow: `0 0 6px ${accent}` }}
+                  aria-hidden
+                  className="block rounded-full shrink-0"
+                  style={{
+                    marginTop: 7,
+                    width: 4,
+                    height: 4,
+                    background: accent,
+                    boxShadow: `0 0 5px ${accent}`,
+                  }}
                 />
                 <span>{b}</span>
               </li>

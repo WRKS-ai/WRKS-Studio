@@ -7,7 +7,7 @@ import {
 } from "@elevenlabs/react";
 import { motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { PersonalityIcon } from "@/components/personality-icon";
 import {
   PERSONALITIES,
@@ -642,115 +642,63 @@ function StudioInspectorInner({
             {children}
           </div>
 
-        {/* Right inspector — persistent across routes */}
+        {/* Right inspector — persistent across routes.
+            Phase 3 redesign: tabbed (Agent · Properties · Comments),
+            compact identity, ambient always-listening Aura orb (NOT a
+            button — state visualizer only), transcript-style activity
+            feed, minimal composer pinned at footer. */}
         <aside
           className="shrink-0 h-full flex flex-col"
           style={{
-            width: 340,
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.014) 0%, rgba(0,0,0,0) 80%)",
-            borderLeft: "1px solid rgba(255,255,255,0.05)",
+            width: 320,
+            background: "#101012",
+            borderLeft: "1px solid rgba(255,255,255,0.06)",
           }}
         >
-          {/* Inspector header — orb + name */}
-          <div
-            className="shrink-0 px-6 pt-7 pb-6 flex flex-col items-center text-center relative overflow-hidden"
-            style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
-          >
-            <div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: `radial-gradient(ellipse 80% 60% at 50% 40%, ${accent}14, transparent 70%)`,
-              }}
-            />
-            <div className="relative pt-3 pb-2">
-              <PersonalityIcon personality={personality} size="md" />
-            </div>
-            <h3
-              className="relative mt-7 font-serif font-medium tracking-tight"
-              style={{
-                fontSize: 38,
-                lineHeight: 1.05,
-                color: "rgba(245,245,247,0.98)",
-                letterSpacing: "-0.03em",
-              }}
-            >
-              {agentName}
-            </h3>
-            <div
-              className="relative mt-3.5 text-[14.5px] flex items-center gap-2.5"
-              style={{
-                color: "rgba(245,245,247,0.65)",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              <motion.span
-                animate={
-                  reduced || !thinking
-                    ? { opacity: 0.9 }
-                    : { opacity: [0.4, 1, 0.4] }
-                }
-                transition={{
-                  duration: 1.2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-                className="size-1.5 rounded-full"
-                style={{ background: accent, boxShadow: `0 0 6px ${accent}` }}
-              />
-              <span>
-                {personality.name} · {voice.name} ·{" "}
-                {thinking
-                  ? "Refining"
-                  : voiceState === "speaking"
-                    ? "Speaking"
-                    : voiceState === "listening"
-                      ? "Listening"
-                      : voiceState === "connecting"
-                        ? "Connecting"
-                        : "Ready"}
-              </span>
-            </div>
-          </div>
+          <InspectorTabs accent={accent} />
 
-          {/* Transcript */}
-          <div
+          {/* Compact agent identity — one row, no big Fraunces */}
+          <InspectorIdentity
+            personality={personality}
+            agentName={agentName}
+            voiceName={voice.name}
+            voiceState={voiceState}
+            thinking={thinking}
+            accent={accent}
+            reduced={!!reduced}
+          />
+
+          {/* Ambient Aura orb — state visualizer, no tap */}
+          <AmbientAura
+            personality={personality}
+            voiceActive={voiceActive}
+            voiceState={voiceState}
+            thinking={thinking}
+            reduced={!!reduced}
+          />
+
+          {/* Activity feed — replaces chat bubbles + templated chips */}
+          <ActivityFeed
             ref={transcriptRef}
-            className="flex-1 min-h-0 overflow-y-auto px-5 py-5 flex flex-col gap-4"
-            style={{ scrollbarWidth: "thin" }}
-          >
-            {chatLines.length === 0 ? (
-              <EmptyTranscript
-                personality={personality}
-                suggestions={SUGGESTIONS}
-                onPick={(s) => {
-                  setComposing(s);
-                  composerRef.current?.focus();
-                }}
-              />
-            ) : (
-              chatLines.map((line, i) => (
-                <ChatBubble
-                  key={i}
-                  line={line}
-                  personality={personality}
-                  agentName={agentName}
-                  reduced={!!reduced}
-                />
-              ))
-            )}
-            {thinking && <ThinkingDots accent={accent} reduced={!!reduced} />}
-          </div>
+            personality={personality}
+            agentName={agentName}
+            chatLines={chatLines}
+            thinking={thinking}
+            suggestions={SUGGESTIONS}
+            reduced={!!reduced}
+            onPickSuggestion={(s) => {
+              setComposing(s);
+              composerRef.current?.focus();
+            }}
+          />
 
-          {/* Composer */}
-          <div className="shrink-0 px-4 pb-5 pt-3">
-            <Composer
+          {/* Composer — minimal text input with tiny mic toggle */}
+          <div className="shrink-0 px-4 pb-4 pt-3">
+            <MiniComposer
               personality={personality}
               agentName={agentName}
               composing={composing}
               thinking={thinking}
-              voiceState={voiceState}
               voiceActive={voiceActive}
               voiceError={voiceError}
               onVoiceToggle={voiceActive ? stopVoice : startVoice}
@@ -1235,5 +1183,675 @@ function WaveformIcon({ size = 28 }: { size?: number }) {
         </path>
       </g>
     </svg>
+  );
+}
+
+/* ============================================================
+ * PHASE 3 INSPECTOR COMPONENTS
+ * ============================================================
+ * The pieces below replace the original inspector header / orb
+ * button / Composer / EmptyTranscript stack with a tabbed-inspector
+ * pattern (Figma) + ambient Aura orb (LiveKit) + transcript-style
+ * activity feed (Granola). Mic-as-hero is gone; voice is always
+ * listening when in the studio and the orb is a passive state
+ * visualizer. The legacy Composer / VoiceOrbButton / ChatBubble /
+ * EmptyTranscript above are dead code, safe to delete in a follow-up.
+ * ============================================================ */
+
+/* ----------------------------------------------------------
+ * InspectorTabs — Figma-style tabbed inspector header.
+ * ---------------------------------------------------------- */
+const INSPECTOR_TABS = ["Agent", "Properties", "Comments"] as const;
+type InspectorTab = (typeof INSPECTOR_TABS)[number];
+
+function InspectorTabs({ accent }: { accent: string }) {
+  const [active, setActive] = useState<InspectorTab>("Agent");
+  return (
+    <div
+      className="shrink-0 flex items-stretch"
+      style={{
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        padding: "0 16px",
+      }}
+    >
+      {INSPECTOR_TABS.map((tab) => {
+        const isActive = active === tab;
+        return (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActive(tab)}
+            className="relative transition-colors"
+            style={{
+              padding: "16px 14px 14px",
+              color: isActive
+                ? "rgba(245,245,247,0.95)"
+                : "rgba(245,245,247,0.5)",
+              fontSize: 12.5,
+              fontWeight: isActive ? 500 : 400,
+              letterSpacing: "-0.005em",
+            }}
+          >
+            {tab}
+            {isActive && (
+              <span
+                aria-hidden
+                className="absolute left-3 right-3 bottom-0"
+                style={{ height: 1.5, background: accent }}
+              />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------
+ * InspectorIdentity — single-row identity strip.
+ * Replaces the giant 38px Fraunces agent name + multiline meta.
+ * ---------------------------------------------------------- */
+function InspectorIdentity({
+  personality,
+  agentName,
+  voiceName,
+  voiceState,
+  thinking,
+  accent,
+  reduced,
+}: {
+  personality: Personality;
+  agentName: string;
+  voiceName: string;
+  voiceState: "idle" | "connecting" | "listening" | "speaking" | "error";
+  thinking: boolean;
+  accent: string;
+  reduced: boolean;
+}) {
+  const state = thinking
+    ? "Refining"
+    : voiceState === "speaking"
+      ? "Speaking"
+      : voiceState === "listening"
+        ? "Listening"
+        : voiceState === "connecting"
+          ? "Connecting"
+          : voiceState === "error"
+            ? "Voice error"
+            : "Ready";
+  return (
+    <div
+      className="shrink-0 flex items-center gap-3"
+      style={{ padding: "16px 18px 14px" }}
+    >
+      <span
+        aria-hidden
+        className="shrink-0 rounded-full grid place-items-center"
+        style={{
+          width: 30,
+          height: 30,
+          background: accent,
+          color: "white",
+          fontSize: 12,
+          fontWeight: 600,
+        }}
+      >
+        {(agentName?.[0] ?? "A").toUpperCase()}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div
+          className="truncate"
+          style={{
+            fontSize: 13.5,
+            fontWeight: 500,
+            color: "rgba(245,245,247,0.95)",
+            letterSpacing: "-0.005em",
+          }}
+        >
+          {agentName}
+        </div>
+        <div
+          className="flex items-center gap-1.5 truncate mt-0.5"
+          style={{
+            fontSize: 11,
+            color: "rgba(245,245,247,0.5)",
+            fontFamily: "var(--font-mono)",
+            letterSpacing: "0.04em",
+          }}
+        >
+          <motion.span
+            aria-hidden
+            animate={
+              reduced || (!thinking && voiceState !== "listening" && voiceState !== "speaking")
+                ? { opacity: 0.8 }
+                : { opacity: [0.35, 1, 0.35] }
+            }
+            transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+            className="block rounded-full"
+            style={{
+              width: 4,
+              height: 4,
+              background: accent,
+              boxShadow: `0 0 6px ${accent}`,
+            }}
+          />
+          <span className="truncate uppercase">
+            {personality.name} · {voiceName} · {state}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------
+ * AmbientAura — Aura-style state visualizer (NOT a button).
+ *
+ * Soft 80px orb that pulses with the voice state. Sits centered in
+ * its own band. Replaces the giant tap-to-talk mic. Below the orb
+ * is a quiet one-line state caption.
+ * ---------------------------------------------------------- */
+function AmbientAura({
+  personality,
+  voiceActive,
+  voiceState,
+  thinking,
+  reduced,
+}: {
+  personality: Personality;
+  voiceActive: boolean;
+  voiceState: "idle" | "connecting" | "listening" | "speaking" | "error";
+  thinking: boolean;
+  reduced: boolean;
+}) {
+  const accent = personality.accent;
+  const accentDeep = personality.accentDeep;
+  const speaking = voiceState === "speaking";
+  const listening = voiceState === "listening";
+  const breathing = !reduced && (voiceActive || thinking);
+  const caption = thinking
+    ? "Refining the draft…"
+    : speaking
+      ? "Speaking"
+      : listening
+        ? "Listening"
+        : voiceState === "connecting"
+          ? "Connecting…"
+          : voiceState === "error"
+            ? "Voice paused — tap mic to retry"
+            : "Idle · always listening when active";
+
+  return (
+    <div
+      className="shrink-0 relative flex flex-col items-center"
+      style={{
+        padding: "20px 16px 22px",
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
+      }}
+    >
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse 70% 70% at 50% 35%, ${accent}14, transparent 70%)`,
+        }}
+      />
+      <div className="relative" style={{ width: 84, height: 84 }}>
+        {/* Outer halo — breathes when active */}
+        <motion.div
+          aria-hidden
+          animate={
+            breathing
+              ? { opacity: [0.55, 0.85, 0.55], scale: [1, 1.08, 1] }
+              : { opacity: 0.45, scale: 1 }
+          }
+          transition={{
+            duration: speaking ? 1.6 : listening ? 3 : 4,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="absolute rounded-full"
+          style={{
+            inset: -18,
+            background: `radial-gradient(circle, ${accent}66, transparent 65%)`,
+            filter: "blur(18px)",
+          }}
+        />
+        {/* Inner halo */}
+        <motion.div
+          aria-hidden
+          animate={
+            breathing
+              ? { opacity: [0.7, 1, 0.7] }
+              : { opacity: 0.7 }
+          }
+          transition={{
+            duration: speaking ? 1.6 : 3,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="absolute rounded-full"
+          style={{
+            inset: -4,
+            background: `radial-gradient(circle, ${accent}80, transparent 70%)`,
+            filter: "blur(8px)",
+          }}
+        />
+        {/* Orb body */}
+        <div
+          aria-hidden
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: `
+              radial-gradient(circle at 32% 28%, rgba(255,255,255,0.55), transparent 28%),
+              radial-gradient(circle at 28% 22%, rgba(255,255,255,0.92), transparent 9%),
+              radial-gradient(circle at 70% 78%, rgba(0,0,0,0.45), transparent 38%),
+              radial-gradient(circle at 50% 50%, ${accent} 0%, ${accentDeep} 70%, rgba(0,0,0,0.2) 100%)
+            `,
+            boxShadow: `
+              0 24px 60px -16px ${accent}b0,
+              inset 0 -10px 24px rgba(0,0,0,0.35),
+              inset 0 7px 14px rgba(255,255,255,0.18),
+              inset 0 0 0 1px rgba(255,255,255,0.08)
+            `,
+          }}
+        />
+        {/* Status dot — top-right corner */}
+        <div
+          aria-hidden
+          className="absolute rounded-full"
+          style={{
+            top: 2,
+            right: 2,
+            width: 11,
+            height: 11,
+            background:
+              voiceState === "error"
+                ? "#f87171"
+                : voiceActive
+                  ? "#10b981"
+                  : "rgba(245,245,247,0.25)",
+            boxShadow:
+              voiceState === "error"
+                ? "0 0 8px #f87171"
+                : voiceActive
+                  ? "0 0 8px #10b981"
+                  : "none",
+            border: "1.5px solid #101012",
+          }}
+        />
+      </div>
+      <div
+        className="relative mt-3.5 text-center"
+        style={{
+          fontSize: 11,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: voiceState === "error"
+            ? "#fda4af"
+            : "rgba(245,245,247,0.48)",
+          fontFamily: "var(--font-mono)",
+        }}
+      >
+        {caption}
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------
+ * ActivityFeed — transcript-style chronological feed.
+ *
+ * Replaces ChatBubble + EmptyTranscript with templated chips. When
+ * there's no history we show three quiet starter prompts. When there's
+ * history we show each turn as a compact entry — agent in normal text,
+ * user in muted italic, with timestamps inline. Past actions are
+ * one-click re-runnable (handled by parent via onPickSuggestion when
+ * the user clicks a chip, transcript click re-run is a Phase 4 add).
+ * ---------------------------------------------------------- */
+type ActivityFeedProps = {
+  personality: Personality;
+  agentName: string;
+  chatLines: ChatLine[];
+  thinking: boolean;
+  suggestions: string[];
+  reduced: boolean;
+  onPickSuggestion: (s: string) => void;
+};
+
+const ActivityFeed = forwardRef<HTMLDivElement, ActivityFeedProps>(
+  function ActivityFeed(
+    { personality, agentName, chatLines, thinking, suggestions, reduced, onPickSuggestion },
+    ref,
+  ) {
+    void agentName;
+    return (
+      <div
+        ref={ref}
+        className="flex-1 min-h-0 overflow-y-auto"
+        style={{ scrollbarWidth: "thin" }}
+      >
+        {chatLines.length === 0 ? (
+          <FeedEmpty
+            personality={personality}
+            suggestions={suggestions}
+            onPick={onPickSuggestion}
+          />
+        ) : (
+          <div className="flex flex-col" style={{ padding: "12px 0 14px" }}>
+            <div
+              className="px-5 pt-3 pb-2 uppercase"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.32em",
+                color: "rgba(245,245,247,0.36)",
+                fontFamily: "var(--font-mono)",
+                fontWeight: 500,
+              }}
+            >
+              Activity
+            </div>
+            {chatLines.map((line, i) => (
+              <FeedEntry
+                key={i}
+                line={line}
+                personality={personality}
+                reduced={reduced}
+              />
+            ))}
+            {thinking && (
+              <div
+                className="flex items-center gap-2 px-5 py-3"
+                style={{
+                  fontSize: 11,
+                  color: "rgba(245,245,247,0.52)",
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                <motion.span
+                  aria-hidden
+                  animate={
+                    reduced ? { opacity: 0.7 } : { opacity: [0.3, 1, 0.3] }
+                  }
+                  transition={{ duration: 1.2, repeat: Infinity }}
+                  className="block rounded-full"
+                  style={{
+                    width: 4,
+                    height: 4,
+                    background: personality.accent,
+                    boxShadow: `0 0 6px ${personality.accent}`,
+                  }}
+                />
+                Refining…
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
+function FeedEmpty({
+  personality,
+  suggestions,
+  onPick,
+}: {
+  personality: Personality;
+  suggestions: string[];
+  onPick: (s: string) => void;
+}) {
+  return (
+    <div className="px-5 pt-7 pb-4 flex flex-col">
+      <div
+        className="uppercase mb-3"
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.32em",
+          color: "rgba(245,245,247,0.36)",
+          fontFamily: "var(--font-mono)",
+          fontWeight: 500,
+        }}
+      >
+        Try something
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {suggestions.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => onPick(s)}
+            className="text-left rounded-md transition-colors hover:bg-white/[0.04]"
+            style={{
+              padding: "9px 12px",
+              fontSize: 13,
+              color: "rgba(245,245,247,0.78)",
+              letterSpacing: "-0.005em",
+              border: "1px solid rgba(255,255,255,0.04)",
+            }}
+          >
+            <span
+              aria-hidden
+              className="inline-block mr-2"
+              style={{ color: personality.accent }}
+            >
+              →
+            </span>
+            {s}
+          </button>
+        ))}
+      </div>
+      <p
+        className="mt-5 font-serif italic"
+        style={{
+          fontSize: 12.5,
+          color: "rgba(245,245,247,0.4)",
+          lineHeight: 1.55,
+          letterSpacing: "-0.005em",
+        }}
+      >
+        Or just start talking — the agent is listening.
+      </p>
+    </div>
+  );
+}
+
+function FeedEntry({
+  line,
+  personality,
+  reduced,
+}: {
+  line: ChatLine;
+  personality: Personality;
+  reduced: boolean;
+}) {
+  void reduced;
+  const isAgent = line.role === "agent";
+  return (
+    <div
+      className="px-5 py-2.5"
+      style={{
+        borderTop: "1px solid rgba(255,255,255,0.03)",
+      }}
+    >
+      <div
+        className="uppercase mb-1.5 flex items-center gap-1.5"
+        style={{
+          fontSize: 9.5,
+          letterSpacing: "0.3em",
+          color: isAgent
+            ? "rgba(245,245,247,0.52)"
+            : "rgba(245,245,247,0.36)",
+          fontFamily: "var(--font-mono)",
+          fontWeight: 500,
+        }}
+      >
+        <span
+          aria-hidden
+          className="block rounded-full"
+          style={{
+            width: 3,
+            height: 3,
+            background: isAgent
+              ? personality.accent
+              : "rgba(245,245,247,0.4)",
+            boxShadow: isAgent ? `0 0 4px ${personality.accent}` : "none",
+          }}
+        />
+        {isAgent ? "Agent" : "You"}
+      </div>
+      <div
+        style={{
+          fontSize: 13,
+          lineHeight: 1.5,
+          color: isAgent
+            ? "rgba(245,245,247,0.88)"
+            : "rgba(245,245,247,0.6)",
+          letterSpacing: "-0.005em",
+        }}
+      >
+        {line.text}
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------
+ * MiniComposer — minimal text input + tiny mic toggle.
+ *
+ * Replaces the original Composer which had a giant centered orb
+ * + state copy + "Or type" divider + full-width input with gradient
+ * send button. Now: a single low-chrome input row, mic icon on the
+ * left (toggles voice session — small affordance, NOT the centerpiece),
+ * send arrow on the right.
+ * ---------------------------------------------------------- */
+function MiniComposer({
+  personality,
+  agentName,
+  composing,
+  thinking,
+  voiceActive,
+  voiceError,
+  onVoiceToggle,
+  onComposingChange,
+  onSubmit,
+  composerRef,
+}: {
+  personality: Personality;
+  agentName: string;
+  composing: string;
+  thinking: boolean;
+  voiceActive: boolean;
+  voiceError: string | null;
+  onVoiceToggle: () => void;
+  onComposingChange: (v: string) => void;
+  onSubmit: () => void;
+  composerRef: React.RefObject<HTMLTextAreaElement | null>;
+}) {
+  void voiceError;
+  const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      onSubmit();
+    }
+  };
+  const hasText = composing.trim().length > 0;
+  return (
+    <div
+      className="rounded-xl flex items-end gap-1"
+      style={{
+        padding: "8px 8px 8px 10px",
+        background: "rgba(255,255,255,0.025)",
+        border: `1px solid ${
+          hasText
+            ? `${personality.accent}55`
+            : "rgba(255,255,255,0.07)"
+        }`,
+        transition: "border-color 180ms ease-out",
+      }}
+    >
+      {/* Mic toggle — small, mute/start affordance. NOT a CTA. */}
+      <button
+        type="button"
+        onClick={onVoiceToggle}
+        title={voiceActive ? "Pause voice" : "Resume voice"}
+        aria-label={voiceActive ? "Pause voice" : "Resume voice"}
+        className="shrink-0 grid place-items-center transition-colors"
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          color: voiceActive
+            ? personality.accent
+            : "rgba(245,245,247,0.5)",
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <rect
+            x="9"
+            y="3"
+            width="6"
+            height="11"
+            rx="3"
+            stroke="currentColor"
+            strokeWidth="1.7"
+          />
+          <path
+            d="M5 11a7 7 0 0 0 14 0M12 18v3"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
+
+      <textarea
+        ref={composerRef}
+        value={composing}
+        onChange={(e) => onComposingChange(e.target.value)}
+        onKeyDown={onKey}
+        placeholder={`Tell ${agentName} what to change…`}
+        disabled={thinking}
+        rows={1}
+        className="flex-1 bg-transparent border-0 outline-none resize-none"
+        style={{
+          padding: "5px 4px",
+          fontSize: 13.5,
+          lineHeight: 1.5,
+          color: "rgba(245,245,247,0.95)",
+          caretColor: personality.accent,
+          fontFamily: "var(--font-sans)",
+          minHeight: 28,
+          maxHeight: 110,
+        }}
+      />
+
+      {/* Send arrow */}
+      <button
+        type="button"
+        onClick={onSubmit}
+        disabled={!hasText || thinking}
+        aria-label="Send"
+        className="shrink-0 grid place-items-center transition-opacity disabled:opacity-25"
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          background: hasText ? personality.accent : "transparent",
+          color: hasText ? "white" : "rgba(245,245,247,0.4)",
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path
+            d="M12 19V5M5 12l7-7 7 7"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+    </div>
   );
 }
