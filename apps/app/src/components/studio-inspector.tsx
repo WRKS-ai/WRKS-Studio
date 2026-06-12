@@ -9,6 +9,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { PersonalityIcon } from "@/components/personality-icon";
+import { orbColorsFromAccent, SiriOrb } from "@/components/siri-orb";
 import {
   PERSONALITIES,
   type Personality,
@@ -668,14 +669,10 @@ function StudioInspectorInner({
             reduced={!!reduced}
           />
 
-          {/* Ambient Aura orb — state visualizer, no tap */}
-          <AmbientAura
-            personality={personality}
-            voiceActive={voiceActive}
-            voiceState={voiceState}
-            thinking={thinking}
-            reduced={!!reduced}
-          />
+          {/* AmbientAura removed — replaced by the floating Siri-orb
+              at bottom-right of the studio (sibling to the layout
+              flex, see end of this return). User rejected the
+              inspector-panel orb pattern multiple times. */}
 
           {/* Activity feed — replaces chat bubbles + templated chips */}
           <ActivityFeed
@@ -709,8 +706,130 @@ function StudioInspectorInner({
           </div>
         </aside>
         </div>
+
+        {/* Floating Siri orb at bottom-right — same affordance and
+            material as the onboarding pages. Doubles as start/stop
+            control for the voice session. The big AmbientAura that
+            used to live inside the inspector aside is gone. */}
+        <StudioFloatingAgent
+          personality={personality}
+          voiceState={voiceState}
+          voiceActive={voiceActive}
+          onClick={voiceActive ? stopVoice : startVoice}
+        />
       </VoiceFieldRegistryProvider>
     </StudioContextProvider>
+  );
+}
+
+/* ============================================================
+ * StudioFloatingAgent — fixed bottom-right Siri orb.
+ *
+ * Visual + behavior mirror of the onboarding FloatingAgent so the
+ * same agent experience persists into /studio. Click toggles voice
+ * session start/stop. Pulses with voice state (faster while
+ * speaking). 64px button with backdrop blur, accent ring, layered
+ * shadows; SiriOrb at 50px inside.
+ * ============================================================ */
+function StudioFloatingAgent({
+  personality,
+  voiceState,
+  voiceActive,
+  onClick,
+}: {
+  personality: Personality;
+  voiceState: "idle" | "connecting" | "listening" | "speaking" | "error";
+  voiceActive: boolean;
+  onClick: () => void;
+}) {
+  const reduced = useReducedMotion();
+  const [hovered, setHovered] = useState(false);
+  const accent = personality.accent;
+  const isConnecting = voiceState === "connecting";
+  const speaking = voiceState === "speaking";
+  const listening = voiceState === "listening";
+  const active = speaking || listening || voiceActive;
+  const errored = voiceState === "error";
+
+  const ringColor = errored
+    ? "rgba(255,150,150,0.7)"
+    : active || hovered
+      ? `${accent}aa`
+      : "rgba(255,255,255,0.18)";
+
+  const orbColors = orbColorsFromAccent(accent);
+  const orbDuration = speaking ? 5 : listening ? 16 : isConnecting ? 12 : 30;
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      onHoverStart={() => setHovered(true)}
+      onHoverEnd={() => setHovered(false)}
+      whileTap={{ scale: 0.92 }}
+      whileHover={reduced ? undefined : { scale: 1.06, y: -2 }}
+      transition={{ type: "spring", stiffness: 280, damping: 22 }}
+      className="fixed grid place-items-center rounded-full z-40"
+      style={{
+        bottom: 28,
+        right: 28,
+        width: 64,
+        height: 64,
+        background: `linear-gradient(180deg, rgba(255,255,255,0.08) 0%, ${accent}1a 100%)`,
+        backdropFilter: "blur(28px)",
+        WebkitBackdropFilter: "blur(28px)",
+        border: `1px solid ${ringColor}`,
+        boxShadow: active
+          ? `0 0 44px -4px ${accent}aa, 0 14px 36px -10px rgba(0,0,0,0.7)`
+          : `0 0 30px -10px ${accent}88, 0 12px 28px -10px rgba(0,0,0,0.6)`,
+        transition: "border-color 0.4s ease, box-shadow 0.4s ease",
+      }}
+      aria-label={active ? "Stop the agent" : "Start the agent"}
+    >
+      {speaking && !reduced && (
+        <>
+          {[0, 0.6].map((delay, i) => (
+            <motion.div
+              key={i}
+              aria-hidden
+              className="absolute rounded-full pointer-events-none"
+              style={{ inset: 0, border: `1px solid ${accent}66` }}
+              animate={{
+                scale: [1, 1.32, 1.6],
+                opacity: [0.55, 0.18, 0],
+              }}
+              transition={{
+                duration: 2.2,
+                repeat: Infinity,
+                delay,
+                ease: "easeOut",
+              }}
+            />
+          ))}
+        </>
+      )}
+      {!reduced && voiceState === "idle" && (
+        <motion.div
+          aria-hidden
+          className="absolute rounded-full pointer-events-none"
+          style={{ inset: -8, border: `1px solid ${accent}44` }}
+          initial={{ opacity: 0, scale: 0.94 }}
+          animate={{ opacity: [0, 0.55, 0], scale: [0.94, 1.08, 1.2] }}
+          transition={{
+            duration: 2.6,
+            repeat: Infinity,
+            ease: "easeOut",
+            repeatDelay: 0.6,
+          }}
+        />
+      )}
+      <SiriOrb
+        size="50px"
+        colors={orbColors}
+        animationDuration={orbDuration}
+        className="relative"
+      />
+    </motion.button>
   );
 }
 
