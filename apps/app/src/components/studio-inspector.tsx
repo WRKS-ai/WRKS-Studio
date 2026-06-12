@@ -6,7 +6,7 @@ import {
   useConversationClientTool,
 } from "@elevenlabs/react";
 import { motion, useReducedMotion } from "motion/react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { PersonalityIcon } from "@/components/personality-icon";
 import { orbColorsFromAccent, SiriOrb } from "@/components/siri-orb";
@@ -622,6 +622,13 @@ function StudioInspectorInner({
   // Siri orb (StudioFloatingAgent below), active page-card glow, and
   // the publish-sweep animation. The inspector chrome stays neutral.
 
+  // /studio is the welcome canvas — a voice-first surface that owns its
+  // own hero orb. On that route we hide the right aside AND skip the
+  // floating-agent orb so the welcome stays clean. Other studio routes
+  // (library, settings, plans, …) keep the editor chrome.
+  const pathname = usePathname();
+  const isWelcome = pathname === "/studio";
+
   return (
     <StudioContextProvider
       value={{
@@ -636,6 +643,11 @@ function StudioInspectorInner({
         thinking,
         site,
         setSite,
+        voiceState,
+        voiceActive,
+        voiceError,
+        startVoice,
+        stopVoice,
       }}
     >
       <VoiceFieldRegistryProvider registry={registry}>
@@ -645,77 +657,73 @@ function StudioInspectorInner({
             {children}
           </div>
 
-        {/* Right inspector — persistent across routes.
-            Phase 3 redesign: tabbed (Agent · Properties · Comments),
-            compact identity, ambient always-listening Aura orb (NOT a
-            button — state visualizer only), transcript-style activity
-            feed, minimal composer pinned at footer. */}
-        <aside
-          className="shrink-0 h-full flex flex-col"
-          style={{
-            width: 320,
-            background: "#101012",
-            borderLeft: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          <InspectorTabs />
+          {/* Right inspector — present on the editor routes. Hidden on
+              the welcome canvas, which is voice-first and owns its own
+              hero orb in the center. */}
+          {!isWelcome && (
+            <aside
+              className="shrink-0 h-full flex flex-col"
+              style={{
+                width: 320,
+                background: "#101012",
+                borderLeft: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <InspectorTabs />
 
-          {/* Compact agent identity — one row, no big Fraunces */}
-          <InspectorIdentity
-            personality={personality}
-            agentName={agentName}
-            voiceName={voice.name}
-            voiceState={voiceState}
-            thinking={thinking}
-            reduced={!!reduced}
-          />
+              {/* Compact agent identity — one row, no big Fraunces */}
+              <InspectorIdentity
+                personality={personality}
+                agentName={agentName}
+                voiceName={voice.name}
+                voiceState={voiceState}
+                thinking={thinking}
+                reduced={!!reduced}
+              />
 
-          {/* AmbientAura removed — replaced by the floating Siri-orb
-              at bottom-right of the studio (sibling to the layout
-              flex, see end of this return). User rejected the
-              inspector-panel orb pattern multiple times. */}
+              {/* Activity feed — replaces chat bubbles + templated chips */}
+              <ActivityFeed
+                ref={transcriptRef}
+                agentName={agentName}
+                chatLines={chatLines}
+                thinking={thinking}
+                suggestions={SUGGESTIONS}
+                reduced={!!reduced}
+                onPickSuggestion={(s) => {
+                  setComposing(s);
+                  composerRef.current?.focus();
+                }}
+              />
 
-          {/* Activity feed — replaces chat bubbles + templated chips */}
-          <ActivityFeed
-            ref={transcriptRef}
-            agentName={agentName}
-            chatLines={chatLines}
-            thinking={thinking}
-            suggestions={SUGGESTIONS}
-            reduced={!!reduced}
-            onPickSuggestion={(s) => {
-              setComposing(s);
-              composerRef.current?.focus();
-            }}
-          />
-
-          {/* Composer — minimal text input with tiny mic toggle */}
-          <div className="shrink-0 px-4 pb-4 pt-3">
-            <MiniComposer
-              agentName={agentName}
-              composing={composing}
-              thinking={thinking}
-              voiceActive={voiceActive}
-              voiceError={voiceError}
-              onVoiceToggle={voiceActive ? stopVoice : startVoice}
-              onComposingChange={setComposing}
-              onSubmit={onTextSubmit}
-              composerRef={composerRef}
-            />
-          </div>
-        </aside>
+              {/* Composer — minimal text input with tiny mic toggle */}
+              <div className="shrink-0 px-4 pb-4 pt-3">
+                <MiniComposer
+                  agentName={agentName}
+                  composing={composing}
+                  thinking={thinking}
+                  voiceActive={voiceActive}
+                  voiceError={voiceError}
+                  onVoiceToggle={voiceActive ? stopVoice : startVoice}
+                  onComposingChange={setComposing}
+                  onSubmit={onTextSubmit}
+                  composerRef={composerRef}
+                />
+              </div>
+            </aside>
+          )}
         </div>
 
-        {/* Floating Siri orb at bottom-right — same affordance and
-            material as the onboarding pages. Doubles as start/stop
-            control for the voice session. The big AmbientAura that
-            used to live inside the inspector aside is gone. */}
-        <StudioFloatingAgent
-          personality={personality}
-          voiceState={voiceState}
-          voiceActive={voiceActive}
-          onClick={voiceActive ? stopVoice : startVoice}
-        />
+        {/* Floating Siri orb at bottom-right — present on the editor
+            routes only. The welcome canvas at /studio renders its own
+            big centered orb instead. */}
+        {!isWelcome && (
+          <StudioFloatingAgent
+            personality={personality}
+            voiceState={voiceState}
+            voiceActive={voiceActive}
+            onClick={voiceActive ? stopVoice : startVoice}
+          />
+        )}
       </VoiceFieldRegistryProvider>
     </StudioContextProvider>
   );

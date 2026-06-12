@@ -41,6 +41,13 @@ export type StoredWowPayload = {
 
 export type ChatLine = { role: "user" | "agent"; text: string };
 
+export type VoiceState =
+  | "idle"
+  | "connecting"
+  | "listening"
+  | "speaking"
+  | "error";
+
 export type StudioContextValue = {
   personality: Personality;
   voice: Voice;
@@ -53,6 +60,14 @@ export type StudioContextValue = {
   thinking: boolean;
   site: Site | null;
   setSite: (s: Site) => void;
+  // Voice session — driven by the inspector frame; exposed here so the
+  // welcome canvas at /studio can render its own hero orb that controls
+  // start/stop without re-implementing the session.
+  voiceState: VoiceState;
+  voiceActive: boolean;
+  voiceError: string | null;
+  startVoice: () => void;
+  stopVoice: () => void;
 };
 
 const StudioContext = createContext<StudioContextValue | null>(null);
