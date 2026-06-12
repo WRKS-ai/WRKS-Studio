@@ -39,28 +39,33 @@ export default function StudioWelcomePage() {
   const bgRef = useRef<HTMLDivElement>(null);
 
   // Mouse spotlight via CSS variables on the bg element (no React rerenders).
+  // Listener lives on window because the bg div has pointer-events:none so
+  // it never receives mousemove itself; we translate window coords into
+  // bg-local coords via getBoundingClientRect each frame.
   useEffect(() => {
     const el = bgRef.current;
     if (!el) return;
     let raf = 0;
+    let pendingX = 0;
+    let pendingY = 0;
     const onMove = (e: MouseEvent) => {
-      cancelAnimationFrame(raf);
+      pendingX = e.clientX;
+      pendingY = e.clientY;
+      if (raf) return;
       raf = requestAnimationFrame(() => {
+        raf = 0;
         const rect = el.getBoundingClientRect();
-        el.style.setProperty("--sx", `${e.clientX - rect.left}px`);
-        el.style.setProperty("--sy", `${e.clientY - rect.top}px`);
+        el.style.setProperty("--sx", `${pendingX - rect.left}px`);
+        el.style.setProperty("--sy", `${pendingY - rect.top}px`);
       });
     };
-    const onLeave = () => {
-      el.style.setProperty("--sx", `50%`);
-      el.style.setProperty("--sy", `42%`);
-    };
-    el.addEventListener("mousemove", onMove);
-    el.addEventListener("mouseleave", onLeave);
-    onLeave();
+    // Initial: spotlight rests just above center so the orb is gently lit.
+    const rect = el.getBoundingClientRect();
+    el.style.setProperty("--sx", `${rect.width / 2}px`);
+    el.style.setProperty("--sy", `${rect.height * 0.45}px`);
+    window.addEventListener("mousemove", onMove, { passive: true });
     return () => {
-      el.removeEventListener("mousemove", onMove);
-      el.removeEventListener("mouseleave", onLeave);
+      window.removeEventListener("mousemove", onMove);
       cancelAnimationFrame(raf);
     };
   }, []);
@@ -111,22 +116,33 @@ export default function StudioWelcomePage() {
       className="relative size-full overflow-hidden"
       style={{ background: "#101012" }}
     >
-      {/* Dotted grid + spotlight — one ref-element with CSS var driving the spotlight. */}
+      {/* Dotted grid + spotlight — one ref-element drives the spotlight via
+          CSS vars that the global mousemove listener updates each rAF. */}
       <div
         ref={bgRef}
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage:
-            "radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px)",
-          backgroundSize: "22px 22px",
+            "radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
         }}
       >
+        {/* Bright spotlight head — follows the cursor */}
         <div
-          className="absolute inset-0 transition-opacity duration-500"
+          className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(circle 520px at var(--sx, 50%) var(--sy, 42%), rgba(255,255,255,0.07), transparent 70%)",
+              "radial-gradient(circle 360px at var(--sx, 50%) var(--sy, 45%), rgba(255,255,255,0.16), rgba(255,255,255,0.04) 35%, transparent 70%)",
+            mixBlendMode: "screen",
+          }}
+        />
+        {/* Slow trailing halo — softer, larger, lags the cursor visually */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(circle 640px at var(--sx, 50%) var(--sy, 45%), rgba(167,139,250,0.06), transparent 70%)",
             mixBlendMode: "screen",
           }}
         />
@@ -138,7 +154,7 @@ export default function StudioWelcomePage() {
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 80% 60% at 50% 100%, transparent, rgba(0,0,0,0.4))",
+            "radial-gradient(ellipse 80% 60% at 50% 100%, transparent, rgba(0,0,0,0.45))",
         }}
       />
 
