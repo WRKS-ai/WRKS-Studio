@@ -616,9 +616,11 @@ function StudioInspectorInner({
     });
   }, [chatLines.length, thinking]);
 
-  const accent = personality.accent;
-  const accentDeep = personality.accentDeep;
-  const glow = personality.glow;
+  // personality.accent is intentionally NOT pulled into chrome here.
+  // Per master plan §C, the user's palette accent only appears in
+  // their site preview content, the brand-system card, the floating
+  // Siri orb (StudioFloatingAgent below), active page-card glow, and
+  // the publish-sweep animation. The inspector chrome stays neutral.
 
   return (
     <StudioContextProvider
@@ -656,7 +658,7 @@ function StudioInspectorInner({
             borderLeft: "1px solid rgba(255,255,255,0.06)",
           }}
         >
-          <InspectorTabs accent={accent} />
+          <InspectorTabs />
 
           {/* Compact agent identity — one row, no big Fraunces */}
           <InspectorIdentity
@@ -665,7 +667,6 @@ function StudioInspectorInner({
             voiceName={voice.name}
             voiceState={voiceState}
             thinking={thinking}
-            accent={accent}
             reduced={!!reduced}
           />
 
@@ -677,7 +678,6 @@ function StudioInspectorInner({
           {/* Activity feed — replaces chat bubbles + templated chips */}
           <ActivityFeed
             ref={transcriptRef}
-            personality={personality}
             agentName={agentName}
             chatLines={chatLines}
             thinking={thinking}
@@ -692,7 +692,6 @@ function StudioInspectorInner({
           {/* Composer — minimal text input with tiny mic toggle */}
           <div className="shrink-0 px-4 pb-4 pt-3">
             <MiniComposer
-              personality={personality}
               agentName={agentName}
               composing={composing}
               thinking={thinking}
@@ -1323,7 +1322,7 @@ function WaveformIcon({ size = 28 }: { size?: number }) {
 const INSPECTOR_TABS = ["Agent", "Properties", "Comments"] as const;
 type InspectorTab = (typeof INSPECTOR_TABS)[number];
 
-function InspectorTabs({ accent }: { accent: string }) {
+function InspectorTabs() {
   const [active, setActive] = useState<InspectorTab>("Agent");
   return (
     <div
@@ -1356,7 +1355,7 @@ function InspectorTabs({ accent }: { accent: string }) {
               <span
                 aria-hidden
                 className="absolute left-3 right-3 bottom-0"
-                style={{ height: 1.5, background: accent }}
+                style={{ height: 1.5, background: "rgba(245,240,230,0.7)" }}
               />
             )}
           </button>
@@ -1376,7 +1375,6 @@ function InspectorIdentity({
   voiceName,
   voiceState,
   thinking,
-  accent,
   reduced,
 }: {
   personality: Personality;
@@ -1384,7 +1382,6 @@ function InspectorIdentity({
   voiceName: string;
   voiceState: "idle" | "connecting" | "listening" | "speaking" | "error";
   thinking: boolean;
-  accent: string;
   reduced: boolean;
 }) {
   const state = thinking
@@ -1409,8 +1406,9 @@ function InspectorIdentity({
         style={{
           width: 30,
           height: 30,
-          background: accent,
-          color: "white",
+          background: "rgba(255,255,255,0.06)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          color: "#f5f0e6",
           fontSize: 12,
           fontWeight: 600,
         }}
@@ -1450,8 +1448,8 @@ function InspectorIdentity({
             style={{
               width: 4,
               height: 4,
-              background: accent,
-              boxShadow: `0 0 6px ${accent}`,
+              background: "#f5f0e6",
+              boxShadow: "0 0 6px rgba(245,240,230,0.55)",
             }}
           />
           <span className="truncate uppercase">
@@ -1629,7 +1627,6 @@ function AmbientAura({
  * the user clicks a chip, transcript click re-run is a Phase 4 add).
  * ---------------------------------------------------------- */
 type ActivityFeedProps = {
-  personality: Personality;
   agentName: string;
   chatLines: ChatLine[];
   thinking: boolean;
@@ -1640,7 +1637,7 @@ type ActivityFeedProps = {
 
 const ActivityFeed = forwardRef<HTMLDivElement, ActivityFeedProps>(
   function ActivityFeed(
-    { personality, agentName, chatLines, thinking, suggestions, reduced, onPickSuggestion },
+    { agentName, chatLines, thinking, suggestions, reduced, onPickSuggestion },
     ref,
   ) {
     void agentName;
@@ -1651,11 +1648,7 @@ const ActivityFeed = forwardRef<HTMLDivElement, ActivityFeedProps>(
         style={{ scrollbarWidth: "thin" }}
       >
         {chatLines.length === 0 ? (
-          <FeedEmpty
-            personality={personality}
-            suggestions={suggestions}
-            onPick={onPickSuggestion}
-          />
+          <FeedEmpty suggestions={suggestions} onPick={onPickSuggestion} />
         ) : (
           <div className="flex flex-col" style={{ padding: "12px 0 14px" }}>
             <div
@@ -1671,12 +1664,7 @@ const ActivityFeed = forwardRef<HTMLDivElement, ActivityFeedProps>(
               Activity
             </div>
             {chatLines.map((line, i) => (
-              <FeedEntry
-                key={i}
-                line={line}
-                personality={personality}
-                reduced={reduced}
-              />
+              <FeedEntry key={i} line={line} reduced={reduced} />
             ))}
             {thinking && (
               <div
@@ -1698,8 +1686,8 @@ const ActivityFeed = forwardRef<HTMLDivElement, ActivityFeedProps>(
                   style={{
                     width: 4,
                     height: 4,
-                    background: personality.accent,
-                    boxShadow: `0 0 6px ${personality.accent}`,
+                    background: "#f5f0e6",
+                    boxShadow: "0 0 6px rgba(245,240,230,0.55)",
                   }}
                 />
                 Refining…
@@ -1713,11 +1701,9 @@ const ActivityFeed = forwardRef<HTMLDivElement, ActivityFeedProps>(
 );
 
 function FeedEmpty({
-  personality,
   suggestions,
   onPick,
 }: {
-  personality: Personality;
   suggestions: string[];
   onPick: (s: string) => void;
 }) {
@@ -1753,7 +1739,7 @@ function FeedEmpty({
             <span
               aria-hidden
               className="inline-block mr-2"
-              style={{ color: personality.accent }}
+              style={{ color: "rgba(245,240,230,0.85)" }}
             >
               →
             </span>
@@ -1778,11 +1764,9 @@ function FeedEmpty({
 
 function FeedEntry({
   line,
-  personality,
   reduced,
 }: {
   line: ChatLine;
-  personality: Personality;
   reduced: boolean;
 }) {
   void reduced;
@@ -1812,10 +1796,8 @@ function FeedEntry({
           style={{
             width: 3,
             height: 3,
-            background: isAgent
-              ? personality.accent
-              : "rgba(245,245,247,0.4)",
-            boxShadow: isAgent ? `0 0 4px ${personality.accent}` : "none",
+            background: isAgent ? "#f5f0e6" : "rgba(245,245,247,0.4)",
+            boxShadow: isAgent ? "0 0 4px rgba(245,240,230,0.55)" : "none",
           }}
         />
         {isAgent ? "Agent" : "You"}
@@ -1846,7 +1828,6 @@ function FeedEntry({
  * send arrow on the right.
  * ---------------------------------------------------------- */
 function MiniComposer({
-  personality,
   agentName,
   composing,
   thinking,
@@ -1857,7 +1838,6 @@ function MiniComposer({
   onSubmit,
   composerRef,
 }: {
-  personality: Personality;
   agentName: string;
   composing: string;
   thinking: boolean;
@@ -1884,7 +1864,7 @@ function MiniComposer({
         background: "rgba(255,255,255,0.025)",
         border: `1px solid ${
           hasText
-            ? `${personality.accent}55`
+            ? "rgba(245,240,230,0.35)"
             : "rgba(255,255,255,0.07)"
         }`,
         transition: "border-color 180ms ease-out",
@@ -1901,9 +1881,7 @@ function MiniComposer({
           width: 28,
           height: 28,
           borderRadius: 6,
-          color: voiceActive
-            ? personality.accent
-            : "rgba(245,245,247,0.5)",
+          color: voiceActive ? "#f5f0e6" : "rgba(245,245,247,0.5)",
         }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -1939,14 +1917,15 @@ function MiniComposer({
           fontSize: 13.5,
           lineHeight: 1.5,
           color: "rgba(245,245,247,0.95)",
-          caretColor: personality.accent,
+          caretColor: "#f5f0e6",
           fontFamily: "var(--font-sans)",
           minHeight: 28,
           maxHeight: 110,
         }}
       />
 
-      {/* Send arrow */}
+      {/* Send arrow — warm-cream chip when armed, transparent when
+          empty. No personality accent on the composer chrome. */}
       <button
         type="button"
         onClick={onSubmit}
@@ -1957,8 +1936,11 @@ function MiniComposer({
           width: 28,
           height: 28,
           borderRadius: 6,
-          background: hasText ? personality.accent : "transparent",
-          color: hasText ? "white" : "rgba(245,245,247,0.4)",
+          background: hasText ? "rgba(245,240,230,0.14)" : "transparent",
+          border: hasText
+            ? "1px solid rgba(245,240,230,0.3)"
+            : "1px solid transparent",
+          color: hasText ? "#f5f0e6" : "rgba(245,245,247,0.4)",
         }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>

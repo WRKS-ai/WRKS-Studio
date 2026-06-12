@@ -3,6 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { PersonalityIcon } from "@/components/personality-icon";
 import { Card, StudioPageShell, usePersonality } from "@/components/studio-page-shell";
+import { CrystalButton } from "@/components/crystal-button";
 
 const STATS: { label: string; value: string }[] = [
   { label: "Deliverables created", value: "5" },
@@ -13,9 +14,6 @@ const STATS: { label: string; value: string }[] = [
 
 export default function ProfilePage() {
   const personality = usePersonality();
-  const accent = personality.accent;
-  const accentDeep = personality.accentDeep;
-  const glow = personality.glow;
   const { user } = useUser();
 
   const displayName =
@@ -29,22 +27,24 @@ export default function ProfilePage() {
       subtitle="How you show up in WRKS — your details and how your agent collaborates with you."
       maxWidth={980}
     >
-      {/* Identity card */}
+      {/* Identity card — chrome only, no personality accent. */}
       <Card className="p-7 mb-7 relative overflow-hidden">
         <div
           aria-hidden
           className="absolute inset-x-0 -top-24 h-44 pointer-events-none"
           style={{
-            background: `radial-gradient(ellipse 60% 100% at 30% 100%, ${accent}24, transparent 70%)`,
+            background:
+              "radial-gradient(ellipse 60% 100% at 30% 100%, rgba(245,240,230,0.06), transparent 70%)",
           }}
         />
         <div className="relative flex items-start gap-6 flex-wrap">
           <div
             className="size-20 shrink-0 rounded-2xl grid place-items-center text-[32px] font-semibold"
             style={{
-              background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
-              color: "white",
-              boxShadow: `0 14px 40px -10px ${glow}`,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "#f5f0e6",
+              boxShadow: "0 14px 40px -10px rgba(0,0,0,0.6)",
             }}
           >
             {initial}
@@ -69,9 +69,9 @@ export default function ProfilePage() {
               <span
                 className="px-2.5 py-1 rounded-md text-[11px] tracking-[0.16em] uppercase"
                 style={{
-                  background: `${accent}1f`,
-                  color: accent,
-                  border: `1px solid ${accent}33`,
+                  background: "rgba(245,240,230,0.08)",
+                  color: "#f5f0e6",
+                  border: "1px solid rgba(245,240,230,0.22)",
                   fontFamily: "var(--font-mono)",
                 }}
               >
@@ -101,16 +101,7 @@ export default function ProfilePage() {
             >
               Change avatar
             </button>
-            <button
-              type="button"
-              className="h-10 px-5 rounded-lg text-[13.5px] font-semibold text-white transition-transform hover:scale-[1.02]"
-              style={{
-                background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
-                boxShadow: `0 8px 24px -8px ${glow}`,
-              }}
-            >
-              Edit profile
-            </button>
+            <CrystalButton size="md">Edit profile</CrystalButton>
           </div>
         </div>
       </Card>
@@ -189,7 +180,7 @@ export default function ProfilePage() {
             </div>
             <p
               className="mt-5 font-serif italic text-[15px] leading-relaxed"
-              style={{ color: `${accent}cc` }}
+              style={{ color: "rgba(245,240,230,0.78)" }}
             >
               &ldquo;{personality.sample}&rdquo;
             </p>
@@ -204,7 +195,7 @@ export default function ProfilePage() {
               }}
             >
               Change agent
-              <span style={{ color: accent }}>→</span>
+              <span style={{ color: "#f5f0e6" }}>→</span>
             </a>
           </div>
         </div>
@@ -222,7 +213,7 @@ export default function ProfilePage() {
           <a
             href="/studio/library"
             className="text-[13px] font-medium hover:underline"
-            style={{ color: accent }}
+            style={{ color: "#f5f0e6" }}
           >
             View library
           </a>

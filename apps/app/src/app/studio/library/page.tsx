@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Card, StudioPageShell, usePersonality } from "@/components/studio-page-shell";
+import { Card, StudioPageShell } from "@/components/studio-page-shell";
+import { CrystalButton } from "@/components/crystal-button";
 
 type StoredPayload = {
   deliverables: { brandName: string; landing: { headline: string } };
@@ -11,8 +12,6 @@ type StoredPayload = {
 };
 
 export default function LibraryPage() {
-  const personality = usePersonality();
-  const accent = personality.accent;
   const [stored, setStored] = useState<StoredPayload | null>(null);
 
   useEffect(() => {
@@ -64,16 +63,11 @@ export default function LibraryPage() {
           >
             You haven&rsquo;t saved any deliverables yet.
           </div>
-          <Link
-            href="/onboarding/personality"
-            className="inline-flex items-center gap-2 h-11 px-5 rounded-lg text-[14px] font-semibold text-white"
-            style={{
-              background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-              boxShadow: `0 8px 24px -8px ${personality.glow}`,
-            }}
-          >
-            Start a new brand
-            <span>→</span>
+          <Link href="/onboarding/personality" className="inline-flex">
+            <CrystalButton size="lg">
+              Start a new brand
+              <span aria-hidden>→</span>
+            </CrystalButton>
           </Link>
         </Card>
       ) : (
@@ -100,7 +94,7 @@ export default function LibraryPage() {
                 <div
                   className="text-[11px] tracking-[0.2em] uppercase mb-1.5"
                   style={{
-                    color: accent,
+                    color: "rgba(245,240,230,0.85)",
                     fontFamily: "var(--font-mono)",
                   }}
                 >

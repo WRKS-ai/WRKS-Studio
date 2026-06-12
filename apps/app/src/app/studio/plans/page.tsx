@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Card, StudioPageShell, usePersonality } from "@/components/studio-page-shell";
+import { Card, StudioPageShell } from "@/components/studio-page-shell";
+import { CrystalButton } from "@/components/crystal-button";
 
 const PLANS = [
   {
@@ -64,10 +65,9 @@ const USAGE = [
 ];
 
 export default function PlansPage() {
-  const personality = usePersonality();
-  const accent = personality.accent;
-  const accentDeep = personality.accentDeep;
-  const glow = personality.glow;
+  // Plans is chrome — no personality accent. The "Most popular" tag,
+  // active-plan border, progress bars, and upgrade CTAs all use the
+  // warm-cream neutral so the studio chrome stays brand-agnostic.
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
 
   return (
@@ -101,7 +101,7 @@ export default function PlansPage() {
               {b === "yearly" && (
                 <span
                   className="ml-1.5 text-[11px]"
-                  style={{ color: accent }}
+                  style={{ color: "#f5f0e6" }}
                 >
                   −20%
                 </span>
@@ -134,9 +134,9 @@ export default function PlansPage() {
               <span
                 className="px-2.5 py-0.5 rounded-md text-[11px] tracking-[0.16em] uppercase"
                 style={{
-                  background: `${accent}1a`,
-                  color: accent,
-                  border: `1px solid ${accent}33`,
+                  background: "rgba(245,240,230,0.08)",
+                  color: "#f5f0e6",
+                  border: "1px solid rgba(245,240,230,0.22)",
                   fontFamily: "var(--font-mono)",
                 }}
               >
@@ -150,16 +150,7 @@ export default function PlansPage() {
               Renews automatically · No payment method on file
             </p>
           </div>
-          <button
-            type="button"
-            className="h-10 px-5 rounded-lg text-[13.5px] font-semibold text-white transition-transform hover:scale-[1.02]"
-            style={{
-              background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
-              boxShadow: `0 8px 24px -8px ${glow}`,
-            }}
-          >
-            Upgrade plan
-          </button>
+          <CrystalButton size="md">Upgrade plan</CrystalButton>
         </div>
 
         <div className="mt-7 pt-6 grid grid-cols-1 sm:grid-cols-3 gap-6" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
@@ -195,7 +186,8 @@ export default function PlansPage() {
                     className="h-full rounded-full"
                     style={{
                       width: `${pct}%`,
-                      background: `linear-gradient(90deg, ${accent} 0%, ${accentDeep} 100%)`,
+                      background:
+                        "linear-gradient(90deg, rgba(245,240,230,0.85) 0%, rgba(245,240,230,0.55) 100%)",
                     }}
                   />
                 </div>
@@ -217,13 +209,13 @@ export default function PlansPage() {
               className="p-7 relative flex flex-col"
               style={{
                 border: isRec
-                  ? `1px solid ${accent}55`
+                  ? "1px solid rgba(245,240,230,0.28)"
                   : "1px solid rgba(255,255,255,0.06)",
                 boxShadow: isRec
-                  ? `0 20px 50px -20px ${glow}, 0 0 0 1px ${accent}22`
+                  ? "0 20px 50px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(245,240,230,0.08)"
                   : undefined,
                 background: isRec
-                  ? `linear-gradient(180deg, ${accent}08 0%, rgba(255,255,255,0.02) 60%)`
+                  ? "linear-gradient(180deg, rgba(245,240,230,0.04) 0%, rgba(255,255,255,0.02) 60%)"
                   : "rgba(255,255,255,0.025)",
               }}
             >
@@ -231,8 +223,8 @@ export default function PlansPage() {
                 <span
                   className="absolute -top-3 left-7 px-2.5 py-1 rounded-md text-[10.5px] tracking-[0.22em] uppercase"
                   style={{
-                    background: accent,
-                    color: "white",
+                    background: "rgba(245,240,230,0.92)",
+                    color: "#0a0a0c",
                     fontFamily: "var(--font-mono)",
                     fontWeight: 600,
                   }}
@@ -271,21 +263,15 @@ export default function PlansPage() {
                   {p.cadence}
                 </span>
               </div>
-              <button
-                type="button"
-                disabled={p.disabled}
-                className="h-11 rounded-lg text-[13.5px] font-semibold transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 mb-6"
-                style={{
-                  background: isRec
-                    ? `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`
-                    : "rgba(255,255,255,0.05)",
-                  color: "white",
-                  border: isRec ? "none" : "1px solid rgba(255,255,255,0.1)",
-                  boxShadow: isRec ? `0 8px 24px -8px ${glow}` : "none",
-                }}
-              >
-                {p.cta}
-              </button>
+              <div className="mb-6 flex">
+                <CrystalButton
+                  size="md"
+                  disabled={p.disabled}
+                  style={{ width: "100%" }}
+                >
+                  {p.cta}
+                </CrystalButton>
+              </div>
               <ul className="flex flex-col gap-2.5">
                 {p.highlights.map((h) => (
                   <li
@@ -293,7 +279,7 @@ export default function PlansPage() {
                     className="flex items-start gap-2.5 text-[13.5px] leading-relaxed"
                     style={{ color: "rgba(245,245,247,0.78)" }}
                   >
-                    <CheckIcon color={accent} />
+                    <CheckIcon color="#f5f0e6" />
                     <span>{h}</span>
                   </li>
                 ))}

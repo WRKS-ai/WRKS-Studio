@@ -1,9 +1,8 @@
 "use client";
 
-import { ComingSoon, StudioPageShell, usePersonality } from "@/components/studio-page-shell";
+import { ComingSoon, StudioPageShell } from "@/components/studio-page-shell";
 
 export default function AudiencePage() {
-  const personality = usePersonality();
   return (
     <StudioPageShell
       title="Audience"
@@ -33,7 +32,6 @@ export default function AudiencePage() {
           "Audience-specific brand voice variations",
           "Performance overlays per audience",
         ]}
-        accent={personality.accent}
       />
     </StudioPageShell>
   );

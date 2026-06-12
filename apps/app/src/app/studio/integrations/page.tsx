@@ -1,6 +1,6 @@
 "use client";
 
-import { StudioPageShell, usePersonality } from "@/components/studio-page-shell";
+import { StudioPageShell } from "@/components/studio-page-shell";
 
 const INTEGRATIONS: {
   name: string;
@@ -59,8 +59,6 @@ const INTEGRATIONS: {
 ];
 
 export default function IntegrationsPage() {
-  const personality = usePersonality();
-  const accent = personality.accent;
   return (
     <StudioPageShell
       title="Integrations"
@@ -105,7 +103,7 @@ export default function IntegrationsPage() {
                 </p>
               </div>
             </div>
-            <StatusButton status={it.status} accent={accent} />
+            <StatusButton status={it.status} />
           </div>
         ))}
       </div>
@@ -115,10 +113,8 @@ export default function IntegrationsPage() {
 
 function StatusButton({
   status,
-  accent,
 }: {
   status: "connect" | "soon" | "connected";
-  accent: string;
 }) {
   if (status === "connected") {
     return (
@@ -163,9 +159,9 @@ function StatusButton({
       type="button"
       className="h-9 px-3.5 rounded-lg text-[12.5px] font-medium transition-transform hover:scale-[1.02]"
       style={{
-        background: `${accent}1a`,
-        color: accent,
-        border: `1px solid ${accent}33`,
+        background: "rgba(245,240,230,0.08)",
+        color: "#f5f0e6",
+        border: "1px solid rgba(245,240,230,0.22)",
       }}
     >
       Connect

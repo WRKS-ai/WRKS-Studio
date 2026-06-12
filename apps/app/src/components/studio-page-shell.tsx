@@ -132,14 +132,14 @@ export function ComingSoon({
   title,
   description,
   bullets,
-  accent,
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
   bullets: string[];
-  accent: string;
 }) {
+  // Chrome surface — neutral warm-cream only. Personality accent
+  // does not bleed into the stub-page shell.
   return (
     <Card style={{ padding: "32px 36px 36px" }}>
       <div className="flex items-start gap-5">
@@ -149,7 +149,7 @@ export function ComingSoon({
             width: 36,
             height: 36,
             borderRadius: 8,
-            color: accent,
+            color: "rgba(245,240,230,0.85)",
           }}
         >
           {icon}
@@ -171,7 +171,7 @@ export function ComingSoon({
               style={{
                 fontSize: 10,
                 letterSpacing: "0.32em",
-                color: accent,
+                color: "rgba(245,240,230,0.85)",
                 fontFamily: "var(--font-mono)",
                 fontWeight: 500,
               }}
@@ -212,8 +212,8 @@ export function ComingSoon({
                     marginTop: 7,
                     width: 4,
                     height: 4,
-                    background: accent,
-                    boxShadow: `0 0 5px ${accent}`,
+                    background: "#f5f0e6",
+                    boxShadow: "0 0 5px rgba(245,240,230,0.55)",
                   }}
                 />
                 <span>{b}</span>

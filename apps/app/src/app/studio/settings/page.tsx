@@ -2,7 +2,8 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useMemo, useState } from "react";
-import { Card, StudioPageShell, usePersonality } from "@/components/studio-page-shell";
+import { Card, StudioPageShell } from "@/components/studio-page-shell";
+import { CrystalButton } from "@/components/crystal-button";
 import { useRegisterVoiceField } from "@/lib/studio-context";
 
 type Section =
@@ -25,10 +26,7 @@ const SECTIONS: { id: Section; label: string; description: string }[] = [
 ];
 
 export default function SettingsPage() {
-  const personality = usePersonality();
-  const accent = personality.accent;
-  const accentDeep = personality.accentDeep;
-  const glow = personality.glow;
+  // Settings is chrome — no personality accent bleeds in.
   const { user } = useUser();
   const [section, setSection] = useState<Section>("account");
 
@@ -95,8 +93,8 @@ export default function SettingsPage() {
                     <span
                       className="size-1.5 rounded-full"
                       style={{
-                        background: accent,
-                        boxShadow: `0 0 6px ${accent}`,
+                        background: "#f5f0e6",
+                        boxShadow: "0 0 6px rgba(245,240,230,0.55)",
                       }}
                     />
                   )}
@@ -117,21 +115,16 @@ export default function SettingsPage() {
         <div>
           {section === "account" && (
             <AccountSection
-              accent={accent}
-              accentDeep={accentDeep}
-              glow={glow}
               userName={user?.fullName ?? user?.firstName ?? ""}
               userEmail={user?.primaryEmailAddress?.emailAddress ?? ""}
             />
           )}
-          {section === "brand-voice" && (
-            <BrandVoiceSection accent={accent} accentDeep={accentDeep} glow={glow} />
-          )}
-          {section === "team" && <TeamSection accent={accent} accentDeep={accentDeep} glow={glow} />}
+          {section === "brand-voice" && <BrandVoiceSection />}
+          {section === "team" && <TeamSection />}
           {section === "billing" && <BillingPlaceholder />}
-          {section === "api" && <ApiSection accent={accent} />}
-          {section === "integrations" && <IntegrationsSection accent={accent} />}
-          {section === "shortcuts" && <ShortcutsSection accent={accent} />}
+          {section === "api" && <ApiSection />}
+          {section === "integrations" && <IntegrationsSection />}
+          {section === "shortcuts" && <ShortcutsSection />}
         </div>
       </div>
     </StudioPageShell>
@@ -167,15 +160,9 @@ function resolveTimezone(spoken: string): string | null {
 }
 
 function AccountSection({
-  accent,
-  accentDeep,
-  glow,
   userName,
   userEmail,
 }: {
-  accent: string;
-  accentDeep: string;
-  glow: string;
   userName: string;
   userEmail: string;
 }) {
@@ -310,9 +297,7 @@ function AccountSection({
 
       <div className="flex justify-end gap-3">
         <SecondaryButton>Cancel</SecondaryButton>
-        <PrimaryButton accent={accent} accentDeep={accentDeep} glow={glow}>
-          Save changes
-        </PrimaryButton>
+        <PrimaryButton>Save changes</PrimaryButton>
       </div>
     </div>
   );
@@ -321,15 +306,7 @@ function AccountSection({
 /* ============================================================
  * Brand voice
  * ============================================================ */
-function BrandVoiceSection({
-  accent,
-  accentDeep,
-  glow,
-}: {
-  accent: string;
-  accentDeep: string;
-  glow: string;
-}) {
+function BrandVoiceSection() {
   const [houseStyle, setHouseStyle] = useState(
     "Direct, opinionated, never corporate. Short sentences. Specific verbs. Skip hedging.",
   );
@@ -430,7 +407,7 @@ function BrandVoiceSection({
                       idx === 1 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)",
                     border:
                       idx === 1
-                        ? `1px solid ${accent}55`
+                        ? "1px solid rgba(245,240,230,0.28)"
                         : "1px solid rgba(255,255,255,0.08)",
                     color:
                       idx === 1
@@ -447,9 +424,7 @@ function BrandVoiceSection({
       </Card>
       <div className="flex justify-end gap-3">
         <SecondaryButton>Cancel</SecondaryButton>
-        <PrimaryButton accent={accent} accentDeep={accentDeep} glow={glow}>
-          Save brand voice
-        </PrimaryButton>
+        <PrimaryButton>Save brand voice</PrimaryButton>
       </div>
     </div>
   );
@@ -458,15 +433,7 @@ function BrandVoiceSection({
 /* ============================================================
  * Team
  * ============================================================ */
-function TeamSection({
-  accent,
-  accentDeep,
-  glow,
-}: {
-  accent: string;
-  accentDeep: string;
-  glow: string;
-}) {
+function TeamSection() {
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader
@@ -486,9 +453,7 @@ function TeamSection({
               }}
             />
           </Field>
-          <PrimaryButton accent={accent} accentDeep={accentDeep} glow={glow}>
-            Send invite
-          </PrimaryButton>
+          <PrimaryButton>Send invite</PrimaryButton>
         </div>
         <div
           className="mt-7 pt-6"
@@ -552,7 +517,7 @@ function BillingPlaceholder() {
 /* ============================================================
  * API
  * ============================================================ */
-function ApiSection({ accent }: { accent: string }) {
+function ApiSection() {
   return (
     <Card className="p-6">
       <SectionHeader
@@ -564,9 +529,9 @@ function ApiSection({ accent }: { accent: string }) {
           <span
             className="px-2 py-0.5 rounded text-[10.5px] tracking-[0.18em] uppercase"
             style={{
-              background: `${accent}1f`,
-              color: accent,
-              border: `1px solid ${accent}33`,
+              background: "rgba(245,240,230,0.08)",
+              color: "#f5f0e6",
+              border: "1px solid rgba(245,240,230,0.22)",
               fontFamily: "var(--font-mono)",
             }}
           >
@@ -584,7 +549,7 @@ function ApiSection({ accent }: { accent: string }) {
 /* ============================================================
  * Integrations
  * ============================================================ */
-function IntegrationsSection({ accent }: { accent: string }) {
+function IntegrationsSection() {
   const items = [
     { name: "Instagram Business", status: "Connect" },
     { name: "Meta Ads", status: "Connect" },
@@ -618,11 +583,13 @@ function IntegrationsSection({ accent }: { accent: string }) {
               disabled={it.disabled}
               className="h-9 px-4 rounded-lg text-[13px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                color: it.disabled ? "rgba(245,245,247,0.5)" : accent,
-                background: it.disabled ? "rgba(255,255,255,0.04)" : `${accent}1a`,
+                color: it.disabled ? "rgba(245,245,247,0.5)" : "#f5f0e6",
+                background: it.disabled
+                  ? "rgba(255,255,255,0.04)"
+                  : "rgba(245,240,230,0.08)",
                 border: it.disabled
                   ? "1px solid rgba(255,255,255,0.06)"
-                  : `1px solid ${accent}33`,
+                  : "1px solid rgba(245,240,230,0.22)",
               }}
             >
               {it.status}
@@ -637,7 +604,7 @@ function IntegrationsSection({ accent }: { accent: string }) {
 /* ============================================================
  * Shortcuts
  * ============================================================ */
-function ShortcutsSection({ accent }: { accent: string }) {
+function ShortcutsSection() {
   const shortcuts: { keys: string; label: string }[] = [
     { keys: "⌘ K", label: "Open command palette" },
     { keys: "G then S", label: "Go to Studio" },
@@ -687,7 +654,7 @@ function ShortcutsSection({ accent }: { accent: string }) {
         style={{ color: "rgba(245,245,247,0.4)" }}
       >
         Tip: customise these in the next release.
-        <span style={{ color: accent }}> Coming soon.</span>
+        <span style={{ color: "#f5f0e6" }}> Coming soon.</span>
       </div>
     </Card>
   );
@@ -767,29 +734,8 @@ function FieldDivider() {
   );
 }
 
-function PrimaryButton({
-  children,
-  accent,
-  accentDeep,
-  glow,
-}: {
-  children: React.ReactNode;
-  accent: string;
-  accentDeep: string;
-  glow: string;
-}) {
-  return (
-    <button
-      type="button"
-      className="h-10 px-5 rounded-lg text-[13.5px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
-      style={{
-        background: `linear-gradient(135deg, ${accent} 0%, ${accentDeep} 100%)`,
-        boxShadow: `0 8px 24px -8px ${glow}`,
-      }}
-    >
-      {children}
-    </button>
-  );
+function PrimaryButton({ children }: { children: React.ReactNode }) {
+  return <CrystalButton size="md">{children}</CrystalButton>;
 }
 
 function SecondaryButton({ children }: { children: React.ReactNode }) {

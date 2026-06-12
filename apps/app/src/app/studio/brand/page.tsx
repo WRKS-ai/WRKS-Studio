@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ComingSoon, StudioPageShell, usePersonality } from "@/components/studio-page-shell";
+import { ComingSoon, StudioPageShell } from "@/components/studio-page-shell";
 
 export default function BrandPage() {
-  const personality = usePersonality();
   return (
     <StudioPageShell
       title="Brand"
@@ -44,7 +43,6 @@ export default function BrandPage() {
           "Version history of brand voice changes",
           "Style guide auto-generated",
         ]}
-        accent={personality.accent}
       />
     </StudioPageShell>
   );

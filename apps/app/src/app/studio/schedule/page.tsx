@@ -1,9 +1,8 @@
 "use client";
 
-import { ComingSoon, StudioPageShell, usePersonality } from "@/components/studio-page-shell";
+import { ComingSoon, StudioPageShell } from "@/components/studio-page-shell";
 
 export default function SchedulePage() {
-  const personality = usePersonality();
   return (
     <StudioPageShell
       title="Schedule"
@@ -40,7 +39,6 @@ export default function SchedulePage() {
           "Pause campaigns with one click",
           "Sync to Google Calendar + Notion",
         ]}
-        accent={personality.accent}
       />
     </StudioPageShell>
   );

@@ -1,9 +1,8 @@
 "use client";
 
-import { ComingSoon, StudioPageShell, usePersonality } from "@/components/studio-page-shell";
+import { ComingSoon, StudioPageShell } from "@/components/studio-page-shell";
 
 export default function AnalyticsPage() {
-  const personality = usePersonality();
   return (
     <StudioPageShell
       title="Analytics"
@@ -31,7 +30,6 @@ export default function AnalyticsPage() {
           "Weekly digest in your inbox",
           "Export to CSV or PDF",
         ]}
-        accent={personality.accent}
       />
     </StudioPageShell>
   );
