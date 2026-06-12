@@ -3,45 +3,32 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { useStudio } from "@/lib/studio-context";
-import { orbColorsFromAccent, SiriOrb } from "@/components/siri-orb";
 
-// /studio — voice-first welcome canvas.
+// /studio — brand cover welcome.
 //
-// Per the master plan, /studio is the heart of the product. We rejected
-// the Lovable-style composer-on-pedestal pattern: WRKS is voice-first,
-// the agent is the input. The welcome canvas is a meditation — empty,
-// premium, the orb is the focal point.
+// Per the user's latest review: the centered meditation orb was too
+// sparse, and the floating Siri orb belongs bottom-right (consistent
+// with the onboarding pages). The agent presence is handled by
+// StudioInspectorFrame's <StudioFloatingAgent> — we don't render an
+// orb on this page at all.
 //
-// Layout:
-//   • Dotted grid background tinted #101012, ~22px spacing
-//   • Mouse-tracked spotlight (radial brightness following the cursor)
-//   • Top-left: small brand chip (mark + name + agent · personality)
-//   • Center: Fraunces headline → big breathing SiriOrb (~260px) → hint
-//   • Bottom-left: hairline + mono caps status line
+// The welcome is now a brand cover. The user opens /studio and sees
+// their brand presented like a Stripe Press cover: their brand name as
+// a massive Fraunces wordmark with an atmospheric palette halo behind
+// it, an italic subhead, a single hairline, then a 3-cell editorial
+// brand-system row (palette · display · voice). The personality accent
+// appears only inside the halo + the palette swatches — both content.
 //
-// The orb IS the voice control. Tapping toggles the session. Spacebar
-// also toggles. No text composer on this surface — that lives in the
-// editor (/studio/library). Right inspector is hidden on this route by
-// StudioInspectorFrame.
+// Reference: Stripe Press, Aesop's identity pages, Anthropic essay
+// covers. NOT a Lovable composer pedestal. NOT a dashboard.
 
 export default function StudioWelcomePage() {
   const reduced = useReducedMotion();
-  const {
-    personality,
-    agentName,
-    stored,
-    voiceState,
-    voiceActive,
-    voiceError,
-    startVoice,
-    stopVoice,
-  } = useStudio();
+  const { personality, agentName, stored, voice } = useStudio();
   const bgRef = useRef<HTMLDivElement>(null);
 
-  // Mouse spotlight via CSS variables on the bg element (no React rerenders).
-  // Listener lives on window because the bg div has pointer-events:none so
-  // it never receives mousemove itself; we translate window coords into
-  // bg-local coords via getBoundingClientRect each frame.
+  // Cursor-tracked spotlight via CSS vars + rAF (no React rerenders).
+  // Listener lives on window because the bg has pointer-events:none.
   useEffect(() => {
     const el = bgRef.current;
     if (!el) return;
@@ -59,10 +46,9 @@ export default function StudioWelcomePage() {
         el.style.setProperty("--sy", `${pendingY - rect.top}px`);
       });
     };
-    // Initial: spotlight rests just above center so the orb is gently lit.
     const rect = el.getBoundingClientRect();
     el.style.setProperty("--sx", `${rect.width / 2}px`);
-    el.style.setProperty("--sy", `${rect.height * 0.45}px`);
+    el.style.setProperty("--sy", `${rect.height * 0.42}px`);
     window.addEventListener("mousemove", onMove, { passive: true });
     return () => {
       window.removeEventListener("mousemove", onMove);
@@ -70,54 +56,19 @@ export default function StudioWelcomePage() {
     };
   }, []);
 
-  // Spacebar = toggle the voice session. Only fires when nothing else
-  // (input/textarea) has focus, so it never hijacks typing elsewhere.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code !== "Space") return;
-      const t = e.target as HTMLElement | null;
-      const tag = t?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || t?.isContentEditable) return;
-      e.preventDefault();
-      voiceActive ? stopVoice() : startVoice();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [voiceActive, startVoice, stopVoice]);
-
-  const greeting = (() => {
-    const name = agentName?.trim() || "there";
-    if (!stored) return `Let's start, ${name}`;
-    return `What's next, ${name}?`;
-  })();
-
-  const hint = (() => {
-    if (voiceError) return voiceError.toUpperCase();
-    switch (voiceState) {
-      case "connecting":
-        return "Connecting…";
-      case "listening":
-        return "I'm listening — go ahead";
-      case "speaking":
-        return `${agentName || "Agent"} is talking`;
-      case "error":
-        return "Couldn't reach the agent · tap to retry";
-      default:
-        return "Tap the orb · or press space";
-    }
-  })();
-
+  const brandName = stored?.deliverables.brandName ?? "Untitled studio";
+  const subhead = `Drafted by ${agentName?.trim() || personality.name} · ${personality.name.toLowerCase()} stands ready`;
   const status = stored
-    ? `Draft · ${stored.deliverables.brandName} · not published yet`
-    : "Ready · just say what you want to build";
+    ? `Edition one · draft · not published yet`
+    : `Ready · just say what you want to build`;
 
   return (
     <main
       className="relative size-full overflow-hidden"
       style={{ background: "#101012" }}
     >
-      {/* Dotted grid + spotlight — one ref-element drives the spotlight via
-          CSS vars that the global mousemove listener updates each rAF. */}
+      {/* Dotted grid + cursor-tracked spotlight (bright white head +
+          soft violet trailing halo, both reading the same CSS vars). */}
       <div
         ref={bgRef}
         aria-hidden
@@ -128,101 +79,180 @@ export default function StudioWelcomePage() {
           backgroundSize: "24px 24px",
         }}
       >
-        {/* Bright spotlight head — follows the cursor */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(circle 360px at var(--sx, 50%) var(--sy, 45%), rgba(255,255,255,0.16), rgba(255,255,255,0.04) 35%, transparent 70%)",
+              "radial-gradient(circle 360px at var(--sx, 50%) var(--sy, 42%), rgba(255,255,255,0.16), rgba(255,255,255,0.04) 35%, transparent 70%)",
             mixBlendMode: "screen",
           }}
         />
-        {/* Slow trailing halo — softer, larger, lags the cursor visually */}
         <div
           className="absolute inset-0"
           style={{
-            background:
-              "radial-gradient(circle 640px at var(--sx, 50%) var(--sy, 45%), rgba(167,139,250,0.06), transparent 70%)",
+            background: `radial-gradient(circle 640px at var(--sx, 50%) var(--sy, 42%), ${personality.accent}14, transparent 70%)`,
             mixBlendMode: "screen",
           }}
         />
       </div>
 
-      {/* Soft bottom vignette so the dots fade into deeper black. */}
+      {/* Bottom vignette so the dots fade into deeper black. */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 80% 60% at 50% 100%, transparent, rgba(0,0,0,0.45))",
+            "radial-gradient(ellipse 80% 60% at 50% 100%, transparent, rgba(0,0,0,0.5))",
         }}
       />
 
-      {/* Top-left brand chip — quiet, no panel, just text. The brand
-          mark uses the personality accent (this card is on the
-          master-plan accent-allowed list). */}
-      <BrandChip
-        personality={personality}
-        agentName={agentName}
-        brandName={stored?.deliverables.brandName ?? "Your brand"}
-        reduced={!!reduced}
-      />
-
-      {/* Centered hero column */}
-      <div className="relative h-full w-full flex flex-col items-center justify-center px-8 z-10">
-        <motion.h1
-          initial={reduced ? false : { opacity: 0, y: 16, filter: "blur(12px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.78, ease: [0.22, 0.72, 0.2, 1] }}
-          className="font-serif text-center"
-          style={{
-            fontSize: "clamp(36px, 4.8vw, 60px)",
-            fontWeight: 480,
-            letterSpacing: "-0.028em",
-            color: "rgba(245,245,247,0.97)",
-            lineHeight: 1.04,
-          }}
-        >
-          {greeting}
-        </motion.h1>
-
-        <motion.div
-          initial={reduced ? false : { opacity: 0, scale: 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.9, delay: 0.18, ease: [0.22, 0.72, 0.2, 1] }}
-          className="relative grid place-items-center"
-          style={{ marginTop: 56, marginBottom: 36 }}
-        >
-          <HeroOrb
-            personality={personality}
-            voiceState={voiceState}
-            voiceActive={voiceActive}
-            onClick={voiceActive ? stopVoice : startVoice}
-            reduced={!!reduced}
+      {/* Centered brand cover column */}
+      <div className="relative z-10 h-full w-full flex flex-col items-center justify-center px-8">
+        {/* Atmospheric accent halo behind the wordmark (palette accent
+            allowed here: this is content, not chrome). Slow breathing
+            so the cover feels alive without animation flair. */}
+        <div className="relative flex flex-col items-center" style={{ width: "min(960px, 92vw)" }}>
+          <motion.div
+            aria-hidden
+            animate={
+              reduced
+                ? { opacity: 0.55 }
+                : { opacity: [0.4, 0.62, 0.4], scale: [0.98, 1.02, 0.98] }
+            }
+            transition={{
+              duration: 9,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute pointer-events-none"
+            style={{
+              inset: "-40% -10% -20% -10%",
+              background: `radial-gradient(ellipse 60% 55% at 50% 45%, ${personality.accent}30, ${personality.accentDeep}10 35%, transparent 70%)`,
+              filter: "blur(40px)",
+              zIndex: 0,
+            }}
           />
-        </motion.div>
 
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.42, ease: [0.2, 0.7, 0.2, 1] }}
-          className="uppercase text-center"
-          style={{
-            fontSize: 11.5,
-            letterSpacing: "0.28em",
-            color:
-              voiceState === "error"
-                ? "rgba(253,164,175,0.85)"
-                : voiceActive
-                  ? "rgba(245,240,230,0.85)"
-                  : "rgba(245,245,247,0.5)",
-            fontFamily: "var(--font-mono)",
-            fontWeight: 500,
-            transition: "color 240ms ease-out",
-          }}
-        >
-          {hint}
-        </motion.div>
+          {/* Top eyebrow */}
+          <motion.div
+            initial={reduced ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.05, ease: [0.22, 0.72, 0.2, 1] }}
+            className="relative flex items-center gap-3 mb-7 z-10"
+          >
+            <span
+              aria-hidden
+              className="block"
+              style={{
+                width: 22,
+                height: 1,
+                background: "rgba(245,245,247,0.22)",
+              }}
+            />
+            <span
+              className="uppercase"
+              style={{
+                fontSize: 11,
+                letterSpacing: "0.32em",
+                color: "rgba(245,245,247,0.5)",
+                fontFamily: "var(--font-mono)",
+                fontWeight: 500,
+              }}
+            >
+              Studio · Edition one
+            </span>
+            <span
+              aria-hidden
+              className="block"
+              style={{
+                width: 22,
+                height: 1,
+                background: "rgba(245,245,247,0.22)",
+              }}
+            />
+          </motion.div>
+
+          {/* Hero brand wordmark */}
+          <motion.h1
+            initial={reduced ? false : { opacity: 0, y: 22, filter: "blur(14px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.95, delay: 0.12, ease: [0.22, 0.72, 0.2, 1] }}
+            className="relative font-serif text-center z-10"
+            style={{
+              fontSize: "clamp(64px, 10.8vw, 156px)",
+              fontWeight: 480,
+              letterSpacing: "-0.04em",
+              lineHeight: 0.92,
+              color: "rgba(248,247,252,0.98)",
+              textShadow: `0 30px 80px ${personality.accentDeep}55`,
+            }}
+          >
+            {brandName}
+          </motion.h1>
+
+          {/* Italic Fraunces subhead */}
+          <motion.p
+            initial={reduced ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.32, ease: [0.22, 0.72, 0.2, 1] }}
+            className="relative font-serif italic text-center z-10"
+            style={{
+              fontSize: "clamp(16px, 1.5vw, 19px)",
+              color: "rgba(245,245,247,0.6)",
+              letterSpacing: "-0.005em",
+              marginTop: 22,
+              maxWidth: "44ch",
+            }}
+          >
+            {subhead}
+          </motion.p>
+
+          {/* Hairline separator */}
+          <motion.div
+            aria-hidden
+            initial={reduced ? false : { opacity: 0, scaleX: 0 }}
+            animate={{ opacity: 1, scaleX: 1 }}
+            transition={{ duration: 0.7, delay: 0.5, ease: [0.22, 0.72, 0.2, 1] }}
+            className="relative z-10"
+            style={{
+              width: 56,
+              height: 1,
+              background: "rgba(245,245,247,0.16)",
+              marginTop: 36,
+              marginBottom: 28,
+            }}
+          />
+
+          {/* Brand system label */}
+          <motion.div
+            initial={reduced ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.58, ease: [0.22, 0.72, 0.2, 1] }}
+            className="relative uppercase mb-5 z-10"
+            style={{
+              fontSize: 10.5,
+              letterSpacing: "0.34em",
+              color: "rgba(245,245,247,0.38)",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 500,
+            }}
+          >
+            Brand system
+          </motion.div>
+
+          {/* 3-cell editorial brand-system row */}
+          <motion.div
+            initial={reduced ? false : { opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.78, delay: 0.66, ease: [0.22, 0.72, 0.2, 1] }}
+            className="relative grid grid-cols-3 z-10"
+            style={{ gap: 14, width: "min(680px, 92vw)" }}
+          >
+            <PaletteCell personality={personality} />
+            <DisplayCell />
+            <VoiceCell voiceName={voice?.name ?? "—"} />
+          </motion.div>
+        </div>
       </div>
 
       {/* Bottom-left status line */}
@@ -232,204 +262,163 @@ export default function StudioWelcomePage() {
 }
 
 /* ============================================================
- * HeroOrb — large clickable SiriOrb that drives the voice session.
- * Rings + pulses pick up from the orb to communicate state. The
- * personality accent is allowed here per master-plan §C (this IS
- * the agent embodied — the same exception the floating Siri orb
- * gets on other studio routes).
+ * Brand system cells — small editorial moments framed by the
+ * revolving crystal-light comet (no purple chrome).
  * ============================================================ */
-function HeroOrb({
-  personality,
-  voiceState,
-  voiceActive,
-  onClick,
-  reduced,
-}: {
-  personality: import("@/lib/personalities").Personality;
-  voiceState: import("@/lib/studio-context").VoiceState;
-  voiceActive: boolean;
-  onClick: () => void;
-  reduced: boolean;
-}) {
-  const accent = personality.accent;
-  const orbColors = orbColorsFromAccent(accent);
-  const speaking = voiceState === "speaking";
-  const listening = voiceState === "listening";
-  const connecting = voiceState === "connecting";
-  const orbSeconds = speaking ? 5 : listening ? 14 : connecting ? 10 : 28;
-
-  // Concentric breathing rings — visible only in idle so the orb reads
-  // as clickable. Hidden while active (rings would compete with the
-  // orb's own animation).
+function CellFrame({ children, label }: { children: React.ReactNode; label: string }) {
   return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      whileTap={{ scale: 0.96 }}
-      whileHover={reduced ? undefined : { scale: 1.035 }}
-      transition={{ type: "spring", stiffness: 240, damping: 22 }}
-      className="relative grid place-items-center rounded-full"
+    <div
+      className="wrks-crystal-border relative flex flex-col"
       style={{
-        width: 280,
-        height: 280,
-        background: `radial-gradient(circle at 50% 45%, rgba(255,255,255,0.04), rgba(255,255,255,0.012) 70%)`,
-        backdropFilter: "blur(28px)",
-        WebkitBackdropFilter: "blur(28px)",
-        boxShadow: voiceActive
-          ? `0 0 120px -20px ${accent}aa, 0 30px 90px -30px rgba(0,0,0,0.7)`
-          : `0 0 90px -30px ${accent}80, 0 28px 80px -30px rgba(0,0,0,0.6)`,
-        border: `1px solid ${voiceActive ? `${accent}55` : "rgba(255,255,255,0.08)"}`,
-        transition: "border-color 0.4s ease, box-shadow 0.4s ease",
+        height: 144,
+        padding: "16px 18px 18px",
+        borderRadius: 16,
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.028) 0%, rgba(255,255,255,0.008) 100%)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        boxShadow:
+          "0 24px 60px -28px rgba(0,0,0,0.65), 0 2px 6px -2px rgba(0,0,0,0.4)",
       }}
-      aria-label={voiceActive ? "Stop the agent" : "Start the agent"}
     >
-      {/* Idle breathing rings */}
-      {!reduced && voiceState === "idle" && (
-        <>
-          {[0, 0.8, 1.6].map((delay, i) => (
-            <motion.span
-              key={i}
-              aria-hidden
-              className="absolute rounded-full pointer-events-none"
-              style={{ inset: -10, border: `1px solid ${accent}33` }}
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: [0, 0.45, 0], scale: [0.98, 1.15, 1.3] }}
-              transition={{
-                duration: 3.4,
-                repeat: Infinity,
-                delay,
-                ease: "easeOut",
-                repeatDelay: 0.4,
-              }}
-            />
-          ))}
-        </>
-      )}
-
-      {/* Speaking expanding rings */}
-      {!reduced && speaking && (
-        <>
-          {[0, 0.55, 1.1].map((delay, i) => (
-            <motion.span
-              key={i}
-              aria-hidden
-              className="absolute rounded-full pointer-events-none"
-              style={{ inset: 0, border: `1px solid ${accent}66` }}
-              animate={{
-                scale: [1, 1.18, 1.4],
-                opacity: [0.6, 0.25, 0],
-              }}
-              transition={{
-                duration: 1.9,
-                repeat: Infinity,
-                delay,
-                ease: "easeOut",
-              }}
-            />
-          ))}
-        </>
-      )}
-
-      {/* Connecting ring — slow rotating dashed */}
-      {!reduced && connecting && (
-        <motion.span
-          aria-hidden
-          className="absolute rounded-full pointer-events-none"
+      <div className="relative z-[2] flex flex-col h-full">
+        <div
+          className="uppercase shrink-0"
           style={{
-            inset: -6,
-            border: `1px dashed ${accent}88`,
+            fontSize: 9.5,
+            letterSpacing: "0.34em",
+            color: "rgba(245,245,247,0.4)",
+            fontFamily: "var(--font-mono)",
+            fontWeight: 500,
           }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 4.5, repeat: Infinity, ease: "linear" }}
-        />
-      )}
-
-      <SiriOrb
-        size="220px"
-        colors={orbColors}
-        animationDuration={orbSeconds}
-        className="relative"
-      />
-    </motion.button>
+        >
+          {label}
+        </div>
+        <div className="flex-1 grid place-items-center w-full">{children}</div>
+      </div>
+    </div>
   );
 }
 
-/* ============================================================
- * BrandChip — tiny top-left identity. Brand mark uses personality
- * accent (allowed: master plan §C "brand-system card").
- * ============================================================ */
-function BrandChip({
+function PaletteCell({
   personality,
-  agentName,
-  brandName,
-  reduced,
 }: {
   personality: import("@/lib/personalities").Personality;
-  agentName: string;
-  brandName: string;
-  reduced: boolean;
 }) {
+  const swatches = [personality.accent, personality.accentDeep, personality.glow];
   return (
-    <motion.div
-      initial={reduced ? false : { opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.65, delay: 0.3, ease: [0.22, 0.72, 0.2, 1] }}
-      className="absolute inline-flex items-center gap-3"
-      style={{
-        top: 28,
-        left: 32,
-        zIndex: 5,
-      }}
-    >
-      {/* Dark glass + revolving crystal-light comet on the rim.
-          Matches the WRKS button language (master plan §D). No purple,
-          even on the brand mark — the comet does the premium work. */}
-      <span
-        className="wrks-crystal-border-button shrink-0 grid place-items-center"
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: 9,
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.012) 100%)",
-          backdropFilter: "blur(18px)",
-          WebkitBackdropFilter: "blur(18px)",
-          color: "#f5f0e6",
-          fontSize: 13,
-          fontWeight: 600,
-          letterSpacing: "-0.005em",
-        }}
-        aria-hidden
-      >
-        {brandName.charAt(0).toUpperCase()}
-      </span>
-      <div className="flex flex-col" style={{ lineHeight: 1.15 }}>
+    <CellFrame label="Palette">
+      <div className="flex flex-col items-center" style={{ gap: 12 }}>
+        <div className="flex items-center" style={{ gap: 8 }}>
+          {swatches.map((c, i) => (
+            <span
+              key={i}
+              aria-hidden
+              className="block rounded-full"
+              style={{
+                width: 22,
+                height: 22,
+                background: c,
+                boxShadow:
+                  i === 0
+                    ? `0 0 0 1px rgba(255,255,255,0.18), 0 8px 18px -4px ${personality.glow}`
+                    : "0 0 0 1px rgba(255,255,255,0.08)",
+              }}
+            />
+          ))}
+        </div>
         <span
-          className="truncate"
+          className="uppercase"
           style={{
-            fontSize: 13.5,
+            fontSize: 10,
+            letterSpacing: "0.28em",
+            color: "rgba(245,245,247,0.6)",
+            fontFamily: "var(--font-mono)",
             fontWeight: 500,
-            color: "rgba(245,245,247,0.96)",
-            letterSpacing: "-0.005em",
           }}
         >
-          {brandName}
+          {personality.name}
+        </span>
+      </div>
+    </CellFrame>
+  );
+}
+
+function DisplayCell() {
+  return (
+    <CellFrame label="Display">
+      <div className="flex flex-col items-center" style={{ gap: 6 }}>
+        <span
+          className="font-serif"
+          style={{
+            fontSize: 56,
+            fontWeight: 480,
+            letterSpacing: "-0.028em",
+            color: "rgba(245,245,247,0.96)",
+            lineHeight: 0.95,
+          }}
+        >
+          Aa
         </span>
         <span
           className="uppercase"
           style={{
-            fontSize: 9.5,
-            letterSpacing: "0.26em",
-            color: "rgba(245,245,247,0.42)",
+            fontSize: 10,
+            letterSpacing: "0.28em",
+            color: "rgba(245,245,247,0.6)",
             fontFamily: "var(--font-mono)",
             fontWeight: 500,
-            marginTop: 3,
           }}
         >
-          {(agentName?.trim() || "Agent")} · {personality.name}
+          Fraunces
         </span>
       </div>
-    </motion.div>
+    </CellFrame>
+  );
+}
+
+function VoiceCell({ voiceName }: { voiceName: string }) {
+  // 7 bars of varying base heights — animate to mimic a quiet waveform.
+  const bars = [10, 18, 26, 34, 26, 18, 10];
+  return (
+    <CellFrame label="Voice">
+      <div className="flex flex-col items-center" style={{ gap: 10 }}>
+        <div className="flex items-end" style={{ gap: 4, height: 36 }}>
+          {bars.map((h, i) => (
+            <motion.span
+              key={i}
+              aria-hidden
+              className="block rounded-full"
+              animate={{
+                height: [h, h * 1.6, h * 0.7, h],
+              }}
+              transition={{
+                duration: 1.6 + i * 0.07,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: i * 0.06,
+              }}
+              style={{
+                width: 3,
+                background: "rgba(245,240,230,0.7)",
+              }}
+            />
+          ))}
+        </div>
+        <span
+          className="uppercase"
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.28em",
+            color: "rgba(245,245,247,0.6)",
+            fontFamily: "var(--font-mono)",
+            fontWeight: 500,
+          }}
+        >
+          {voiceName}
+        </span>
+      </div>
+    </CellFrame>
   );
 }
 

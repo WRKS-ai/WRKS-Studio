@@ -713,17 +713,16 @@ function StudioInspectorInner({
           )}
         </div>
 
-        {/* Floating Siri orb at bottom-right — present on the editor
-            routes only. The welcome canvas at /studio renders its own
-            big centered orb instead. */}
-        {!isWelcome && (
-          <StudioFloatingAgent
-            personality={personality}
-            voiceState={voiceState}
-            voiceActive={voiceActive}
-            onClick={voiceActive ? stopVoice : startVoice}
-          />
-        )}
+        {/* Floating Siri orb at bottom-right — present on every studio
+            route, including the welcome. The agent presence is
+            continuous: same affordance and material as the onboarding
+            floating agent so the experience reads as one product. */}
+        <StudioFloatingAgent
+          personality={personality}
+          voiceState={voiceState}
+          voiceActive={voiceActive}
+          onClick={voiceActive ? stopVoice : startVoice}
+        />
       </VoiceFieldRegistryProvider>
     </StudioContextProvider>
   );
