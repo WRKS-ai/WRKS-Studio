@@ -65,44 +65,55 @@ export default function StudioWelcomePage() {
   return (
     <main
       className="relative size-full overflow-hidden"
-      style={{ background: "#101012" }}
+      style={{ background: "#0a0a0c" }}
     >
-      {/* Dotted grid + cursor-tracked spotlight (bright white head +
-          soft violet trailing halo, both reading the same CSS vars). */}
+      {/* Premium atmosphere — 3 layers from back to front:
+          1) Drifting palette aurora orbs (slow, organic translation)
+          2) Hairline dotted grid (very subtle, fades into the aurora)
+          3) Cursor-tracked spotlight (bright white head + palette halo) */}
+      <AuroraLayer accent={personality.accent} accentDeep={personality.accentDeep} reduced={!!reduced} />
+
       <div
         ref={bgRef}
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage:
-            "radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
+            "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)",
+          backgroundSize: "26px 26px",
         }}
       >
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(circle 360px at var(--sx, 50%) var(--sy, 42%), rgba(255,255,255,0.16), rgba(255,255,255,0.04) 35%, transparent 70%)",
+              "radial-gradient(circle 380px at var(--sx, 50%) var(--sy, 42%), rgba(255,255,255,0.14), rgba(255,255,255,0.04) 35%, transparent 70%)",
             mixBlendMode: "screen",
           }}
         />
         <div
           className="absolute inset-0"
           style={{
-            background: `radial-gradient(circle 640px at var(--sx, 50%) var(--sy, 42%), ${personality.accent}14, transparent 70%)`,
+            background: `radial-gradient(circle 640px at var(--sx, 50%) var(--sy, 42%), ${personality.accent}1c, transparent 70%)`,
             mixBlendMode: "screen",
           }}
         />
       </div>
 
-      {/* Bottom vignette so the dots fade into deeper black. */}
+      {/* Film grain — analog warmth on top of the atmosphere */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none wrks-studio-grain"
+        style={{ opacity: 0.32, mixBlendMode: "overlay" }}
+      />
+
+      {/* Bottom vignette so the atmosphere settles into deeper black. */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 80% 60% at 50% 100%, transparent, rgba(0,0,0,0.5))",
+            "radial-gradient(ellipse 85% 65% at 50% 100%, transparent, rgba(0,0,0,0.55))",
         }}
       />
 
@@ -138,7 +149,8 @@ export default function StudioWelcomePage() {
             initial={reduced ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.05, ease: [0.22, 0.72, 0.2, 1] }}
-            className="relative flex items-center gap-3 mb-7 z-10"
+            className="relative flex items-center gap-3 z-10"
+            style={{ marginBottom: 48 }}
           >
             <span
               aria-hidden
@@ -197,10 +209,10 @@ export default function StudioWelcomePage() {
             transition={{ duration: 0.7, delay: 0.32, ease: [0.22, 0.72, 0.2, 1] }}
             className="relative font-serif italic text-center z-10"
             style={{
-              fontSize: "clamp(16px, 1.5vw, 19px)",
+              fontSize: "clamp(17px, 1.6vw, 20px)",
               color: "rgba(245,245,247,0.6)",
               letterSpacing: "-0.005em",
-              marginTop: 22,
+              marginTop: 36,
               maxWidth: "44ch",
             }}
           >
@@ -215,11 +227,11 @@ export default function StudioWelcomePage() {
             transition={{ duration: 0.7, delay: 0.5, ease: [0.22, 0.72, 0.2, 1] }}
             className="relative z-10"
             style={{
-              width: 56,
+              width: 64,
               height: 1,
-              background: "rgba(245,245,247,0.16)",
-              marginTop: 36,
-              marginBottom: 28,
+              background: "rgba(245,245,247,0.18)",
+              marginTop: 64,
+              marginBottom: 44,
             }}
           />
 
@@ -228,10 +240,11 @@ export default function StudioWelcomePage() {
             initial={reduced ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.58, ease: [0.22, 0.72, 0.2, 1] }}
-            className="relative uppercase mb-5 z-10"
+            className="relative uppercase z-10"
             style={{
               fontSize: 10.5,
               letterSpacing: "0.34em",
+              marginBottom: 32,
               color: "rgba(245,245,247,0.38)",
               fontFamily: "var(--font-mono)",
               fontWeight: 500,
@@ -246,7 +259,7 @@ export default function StudioWelcomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.78, delay: 0.66, ease: [0.22, 0.72, 0.2, 1] }}
             className="relative grid grid-cols-3 z-10"
-            style={{ gap: 14, width: "min(680px, 92vw)" }}
+            style={{ gap: 18, width: "min(740px, 94vw)" }}
           >
             <PaletteCell personality={personality} />
             <DisplayCell />
@@ -262,6 +275,83 @@ export default function StudioWelcomePage() {
 }
 
 /* ============================================================
+ * AuroraLayer — drifting palette orbs that give the canvas premium
+ * atmospheric depth. Two large soft-blurred ellipses in the user's
+ * accent + accentDeep, translating slowly on offset cycles so the
+ * background never feels static. Sits behind the dotted grid + grain.
+ * ============================================================ */
+function AuroraLayer({
+  accent,
+  accentDeep,
+  reduced,
+}: {
+  accent: string;
+  accentDeep: string;
+  reduced: boolean;
+}) {
+  const orbBase = (color: string, opacityHex: string) =>
+    `radial-gradient(ellipse 50% 50% at 50% 50%, ${color}${opacityHex}, transparent 70%)`;
+  return (
+    <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
+      {/* Orb A — accent, drifts top-right ↔ center */}
+      <motion.div
+        className="absolute"
+        animate={
+          reduced
+            ? undefined
+            : { x: [0, 60, -40, 0], y: [0, 40, -30, 0], scale: [1, 1.05, 0.98, 1] }
+        }
+        transition={{ duration: 48, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          width: 900,
+          height: 720,
+          right: "-12%",
+          top: "-18%",
+          background: orbBase(accent, "30"),
+          filter: "blur(70px)",
+        }}
+      />
+      {/* Orb B — accentDeep, drifts bottom-left ↔ center */}
+      <motion.div
+        className="absolute"
+        animate={
+          reduced
+            ? undefined
+            : { x: [0, -50, 30, 0], y: [0, -30, 20, 0], scale: [1, 1.04, 0.99, 1] }
+        }
+        transition={{ duration: 62, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          width: 820,
+          height: 760,
+          left: "-15%",
+          bottom: "-22%",
+          background: orbBase(accentDeep, "28"),
+          filter: "blur(80px)",
+        }}
+      />
+      {/* Orb C — accent (smaller), wanders through center */}
+      <motion.div
+        className="absolute"
+        animate={
+          reduced
+            ? undefined
+            : { x: [0, 80, -60, 40, 0], y: [0, -40, 30, -20, 0] }
+        }
+        transition={{ duration: 38, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          width: 560,
+          height: 560,
+          left: "30%",
+          top: "30%",
+          background: orbBase(accent, "1a"),
+          filter: "blur(90px)",
+        }}
+      />
+    </div>
+  );
+}
+
+/* ============================================================
  * Brand system cells — small editorial moments framed by the
  * revolving crystal-light comet (no purple chrome).
  * ============================================================ */
@@ -270,15 +360,15 @@ function CellFrame({ children, label }: { children: React.ReactNode; label: stri
     <div
       className="wrks-crystal-border relative flex flex-col"
       style={{
-        height: 144,
-        padding: "16px 18px 18px",
-        borderRadius: 16,
+        height: 172,
+        padding: "20px 22px 22px",
+        borderRadius: 18,
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.028) 0%, rgba(255,255,255,0.008) 100%)",
-        backdropFilter: "blur(18px)",
-        WebkitBackdropFilter: "blur(18px)",
+          "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.008) 100%)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
         boxShadow:
-          "0 24px 60px -28px rgba(0,0,0,0.65), 0 2px 6px -2px rgba(0,0,0,0.4)",
+          "0 28px 70px -28px rgba(0,0,0,0.7), 0 2px 6px -2px rgba(0,0,0,0.4)",
       }}
     >
       <div className="relative z-[2] flex flex-col h-full">
