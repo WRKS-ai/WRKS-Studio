@@ -1,113 +1,79 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
-import { useEffect, useRef } from "react";
-import { useStudio } from "@/lib/studio-context";
+import {
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "motion/react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import type { Personality } from "@/lib/personalities";
+import { useStudio, type StoredWowPayload } from "@/lib/studio-context";
 
-// /studio — brand cover welcome.
+// /studio — layered depth scene.
 //
-// Per the user's latest review: the centered meditation orb was too
-// sparse, and the floating Siri orb belongs bottom-right (consistent
-// with the onboarding pages). The agent presence is handled by
-// StudioInspectorFrame's <StudioFloatingAgent> — we don't render an
-// orb on this page at all.
+// Direction picked 2026-06-15 after the brand-cover composition (massive
+// wordmark + 3-cell row) failed to read as stunning across multiple
+// iterations. New move: a constellation of floating glass cards at
+// different Z-depths, each carrying one piece of context, with mouse
+// parallax so the canvas feels three-dimensional. Inspired by visionOS
+// home + Apple Vision Pro launch.
 //
-// The welcome is now a brand cover. The user opens /studio and sees
-// their brand presented like a Stripe Press cover: their brand name as
-// a massive Fraunces wordmark with an atmospheric palette halo behind
-// it, an italic subhead, a single hairline, then a 3-cell editorial
-// brand-system row (palette · display · voice). The personality accent
-// appears only inside the halo + the palette swatches — both content.
+// The cards in this composition:
+//   • HERO (center, depth 1.0)      — brand identity moment
+//   • PREVIEW (top-right, depth 0.7) — mini draft landing preview
+//   • VOICE   (bottom-left, depth 0.55) — agent voice quote
 //
-// Reference: Stripe Press, Aesop's identity pages, Anthropic essay
-// covers. NOT a Lovable composer pedestal. NOT a dashboard.
+// The personality accent appears only inside the cards (palette
+// swatches, halos behind the brand name, preview accent) — the chrome
+// surrounding them stays neutral per master plan §C.
 
 export default function StudioWelcomePage() {
   const reduced = useReducedMotion();
+  const router = useRouter();
   const { personality, agentName, stored, voice } = useStudio();
-  const bgRef = useRef<HTMLDivElement>(null);
 
-  // Cursor-tracked spotlight via CSS vars + rAF (no React rerenders).
-  // Listener lives on window because the bg has pointer-events:none.
+  // Mouse position normalized to viewport center, range [-1, 1].
+  // Springs add elastic ease so the cards drift rather than snap.
+  const rawX = useMotionValue(0);
+  const rawY = useMotionValue(0);
+  const mx = useSpring(rawX, { stiffness: 60, damping: 18, mass: 0.6 });
+  const my = useSpring(rawY, { stiffness: 60, damping: 18, mass: 0.6 });
+
   useEffect(() => {
-    const el = bgRef.current;
-    if (!el) return;
-    let raf = 0;
-    let pendingX = 0;
-    let pendingY = 0;
+    if (reduced) return;
     const onMove = (e: MouseEvent) => {
-      pendingX = e.clientX;
-      pendingY = e.clientY;
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        const rect = el.getBoundingClientRect();
-        el.style.setProperty("--sx", `${pendingX - rect.left}px`);
-        el.style.setProperty("--sy", `${pendingY - rect.top}px`);
-      });
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      rawX.set((e.clientX - cx) / cx);
+      rawY.set((e.clientY - cy) / cy);
     };
-    const rect = el.getBoundingClientRect();
-    el.style.setProperty("--sx", `${rect.width / 2}px`);
-    el.style.setProperty("--sy", `${rect.height * 0.42}px`);
     window.addEventListener("mousemove", onMove, { passive: true });
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      cancelAnimationFrame(raf);
-    };
-  }, []);
-
-  const brandName = stored?.deliverables.brandName ?? "Untitled studio";
-  const subhead = `Drafted by ${agentName?.trim() || personality.name} · ${personality.name.toLowerCase()} stands ready`;
-  const status = stored
-    ? `Edition one · draft · not published yet`
-    : `Ready · just say what you want to build`;
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [rawX, rawY, reduced]);
 
   return (
     <main
       className="relative size-full overflow-hidden"
       style={{ background: "#0a0a0c" }}
     >
-      {/* Premium atmosphere — 3 layers from back to front:
-          1) Drifting palette aurora orbs (slow, organic translation)
-          2) Hairline dotted grid (very subtle, fades into the aurora)
-          3) Cursor-tracked spotlight (bright white head + palette halo) */}
-      <AuroraLayer accent={personality.accent} accentDeep={personality.accentDeep} reduced={!!reduced} />
-
-      <div
-        ref={bgRef}
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)",
-          backgroundSize: "26px 26px",
-        }}
-      >
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(circle 380px at var(--sx, 50%) var(--sy, 42%), rgba(255,255,255,0.14), rgba(255,255,255,0.04) 35%, transparent 70%)",
-            mixBlendMode: "screen",
-          }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `radial-gradient(circle 640px at var(--sx, 50%) var(--sy, 42%), ${personality.accent}1c, transparent 70%)`,
-            mixBlendMode: "screen",
-          }}
-        />
-      </div>
+      {/* Drifting palette aurora */}
+      <AuroraLayer
+        accent={personality.accent}
+        accentDeep={personality.accentDeep}
+        reduced={!!reduced}
+      />
 
       {/* Film grain — analog warmth on top of the atmosphere */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none wrks-studio-grain"
-        style={{ opacity: 0.32, mixBlendMode: "overlay" }}
+        style={{ opacity: 0.3, mixBlendMode: "overlay" }}
       />
 
-      {/* Bottom vignette so the atmosphere settles into deeper black. */}
+      {/* Bottom vignette anchors the composition */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
@@ -117,168 +83,472 @@ export default function StudioWelcomePage() {
         }}
       />
 
-      {/* Centered brand cover column */}
-      <div className="relative z-10 h-full w-full flex flex-col items-center justify-center px-8">
-        {/* Atmospheric accent halo behind the wordmark (palette accent
-            allowed here: this is content, not chrome). Slow breathing
-            so the cover feels alive without animation flair. */}
-        <div className="relative flex flex-col items-center" style={{ width: "min(960px, 92vw)" }}>
+      {/* HERO card — center, closest depth */}
+      <div className="absolute inset-0 grid place-items-center pointer-events-none">
+        <ParallaxWrapper depth={1.0} mx={mx} my={my} className="pointer-events-auto">
           <motion.div
-            aria-hidden
-            animate={
-              reduced
-                ? { opacity: 0.55 }
-                : { opacity: [0.4, 0.62, 0.4], scale: [0.98, 1.02, 0.98] }
-            }
-            transition={{
-              duration: 9,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="absolute pointer-events-none"
-            style={{
-              inset: "-40% -10% -20% -10%",
-              background: `radial-gradient(ellipse 60% 55% at 50% 45%, ${personality.accent}30, ${personality.accentDeep}10 35%, transparent 70%)`,
-              filter: "blur(40px)",
-              zIndex: 0,
-            }}
-          />
-
-          {/* Top eyebrow */}
-          <motion.div
-            initial={reduced ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.05, ease: [0.22, 0.72, 0.2, 1] }}
-            className="relative flex items-center gap-3 z-10"
-            style={{ marginBottom: 48 }}
+            initial={reduced ? false : { opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.9, delay: 0.05, ease: [0.22, 0.72, 0.2, 1] }}
           >
-            <span
-              aria-hidden
-              className="block"
-              style={{
-                width: 22,
-                height: 1,
-                background: "rgba(245,245,247,0.22)",
-              }}
-            />
-            <span
-              className="uppercase"
-              style={{
-                fontSize: 11,
-                letterSpacing: "0.32em",
-                color: "rgba(245,245,247,0.5)",
-                fontFamily: "var(--font-mono)",
-                fontWeight: 500,
-              }}
-            >
-              Studio · Edition one
-            </span>
-            <span
-              aria-hidden
-              className="block"
-              style={{
-                width: 22,
-                height: 1,
-                background: "rgba(245,245,247,0.22)",
-              }}
+            <HeroCard
+              personality={personality}
+              agentName={agentName}
+              voice={voice}
+              stored={stored}
             />
           </motion.div>
-
-          {/* Hero brand wordmark */}
-          <motion.h1
-            initial={reduced ? false : { opacity: 0, y: 22, filter: "blur(14px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 0.95, delay: 0.12, ease: [0.22, 0.72, 0.2, 1] }}
-            className="relative font-serif text-center z-10"
-            style={{
-              fontSize: "clamp(64px, 10.8vw, 156px)",
-              fontWeight: 480,
-              letterSpacing: "-0.04em",
-              lineHeight: 0.92,
-              color: "rgba(248,247,252,0.98)",
-              textShadow: `0 30px 80px ${personality.accentDeep}55`,
-            }}
-          >
-            {brandName}
-          </motion.h1>
-
-          {/* Italic Fraunces subhead */}
-          <motion.p
-            initial={reduced ? false : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.32, ease: [0.22, 0.72, 0.2, 1] }}
-            className="relative font-serif italic text-center z-10"
-            style={{
-              fontSize: "clamp(17px, 1.6vw, 20px)",
-              color: "rgba(245,245,247,0.6)",
-              letterSpacing: "-0.005em",
-              marginTop: 36,
-              maxWidth: "44ch",
-            }}
-          >
-            {subhead}
-          </motion.p>
-
-          {/* Hairline separator */}
-          <motion.div
-            aria-hidden
-            initial={reduced ? false : { opacity: 0, scaleX: 0 }}
-            animate={{ opacity: 1, scaleX: 1 }}
-            transition={{ duration: 0.7, delay: 0.5, ease: [0.22, 0.72, 0.2, 1] }}
-            className="relative z-10"
-            style={{
-              width: 64,
-              height: 1,
-              background: "rgba(245,245,247,0.18)",
-              marginTop: 64,
-              marginBottom: 44,
-            }}
-          />
-
-          {/* Brand system label */}
-          <motion.div
-            initial={reduced ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.58, ease: [0.22, 0.72, 0.2, 1] }}
-            className="relative uppercase z-10"
-            style={{
-              fontSize: 10.5,
-              letterSpacing: "0.34em",
-              marginBottom: 32,
-              color: "rgba(245,245,247,0.38)",
-              fontFamily: "var(--font-mono)",
-              fontWeight: 500,
-            }}
-          >
-            Brand system
-          </motion.div>
-
-          {/* 3-cell editorial brand-system row */}
-          <motion.div
-            initial={reduced ? false : { opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.78, delay: 0.66, ease: [0.22, 0.72, 0.2, 1] }}
-            className="relative grid grid-cols-3 z-10"
-            style={{ gap: 18, width: "min(740px, 94vw)" }}
-          >
-            <PaletteCell personality={personality} />
-            <DisplayCell />
-            <VoiceCell voiceName={voice?.name ?? "—"} />
-          </motion.div>
-        </div>
+        </ParallaxWrapper>
       </div>
 
+      {/* PREVIEW card — top-right floater, mid depth */}
+      <motion.div
+        initial={reduced ? false : { opacity: 0, y: -16, scale: 0.94 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.85, delay: 0.35, ease: [0.22, 0.72, 0.2, 1] }}
+        className="absolute"
+        style={{
+          top: "11%",
+          right: "5%",
+          zIndex: 6,
+        }}
+      >
+        <ParallaxWrapper depth={0.7} mx={mx} my={my}>
+          <button
+            type="button"
+            onClick={() => router.push("/studio/library")}
+            className="block cursor-pointer text-left transition-transform duration-300 hover:-translate-y-0.5"
+            aria-label="Open landing draft"
+          >
+            <PreviewCard personality={personality} stored={stored} />
+          </button>
+        </ParallaxWrapper>
+      </motion.div>
+
+      {/* VOICE card — bottom-left floater, furthest depth */}
+      <motion.div
+        initial={reduced ? false : { opacity: 0, y: 18, scale: 0.94 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.9, delay: 0.5, ease: [0.22, 0.72, 0.2, 1] }}
+        className="absolute"
+        style={{
+          bottom: "13%",
+          left: "4%",
+          zIndex: 5,
+        }}
+      >
+        <ParallaxWrapper depth={0.55} mx={mx} my={my}>
+          <VoiceCard personality={personality} voiceName={voice?.name ?? "—"} />
+        </ParallaxWrapper>
+      </motion.div>
+
       {/* Bottom-left status line */}
-      <StatusLine status={status} />
+      <StatusLine
+        status={
+          stored
+            ? `Edition one · draft · not published yet`
+            : `Ready · just say what you want to build`
+        }
+      />
     </main>
   );
 }
 
 /* ============================================================
- * AuroraLayer — drifting palette orbs that give the canvas premium
- * atmospheric depth. Two large soft-blurred ellipses in the user's
- * accent + accentDeep, translating slowly on offset cycles so the
- * background never feels static. Sits behind the dotted grid + grain.
+ * ParallaxWrapper — translates its child by a small fraction of the
+ * normalized mouse offset. Cards at higher `depth` translate more
+ * (parallax closer = larger apparent motion).
+ * ============================================================ */
+function ParallaxWrapper({
+  depth,
+  mx,
+  my,
+  children,
+  className = "",
+}: {
+  depth: number;
+  mx: import("motion/react").MotionValue<number>;
+  my: import("motion/react").MotionValue<number>;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const range = 36 * depth;
+  const x = useTransform(mx, [-1, 1], [-range, range]);
+  const y = useTransform(my, [-1, 1], [-range * 0.7, range * 0.7]);
+  return (
+    <motion.div className={className} style={{ x, y }}>
+      {children}
+    </motion.div>
+  );
+}
+
+/* ============================================================
+ * HeroCard — center of the constellation.
+ * Brand identity in editorial typography. Carries the welcome moment.
+ * ============================================================ */
+function HeroCard({
+  personality,
+  agentName,
+  voice,
+  stored,
+}: {
+  personality: Personality;
+  agentName: string;
+  voice: import("@/lib/voices").Voice | null;
+  stored: StoredWowPayload | null;
+}) {
+  const brandName = stored?.deliverables.brandName ?? "Untitled studio";
+  return (
+    <article
+      className="wrks-crystal-border relative flex flex-col"
+      style={{
+        width: 460,
+        maxWidth: "92vw",
+        padding: "32px 36px 32px",
+        borderRadius: 22,
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)",
+        backdropFilter: "blur(28px)",
+        WebkitBackdropFilter: "blur(28px)",
+        boxShadow:
+          "0 60px 120px -40px rgba(0,0,0,0.85), 0 2px 6px -2px rgba(0,0,0,0.4)",
+      }}
+    >
+      {/* Atmospheric halo behind the brand name (accent allowed: content) */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          inset: "12% -16% 30% -16%",
+          background: `radial-gradient(ellipse 60% 55% at 50% 50%, ${personality.accent}30, ${personality.accentDeep}10 35%, transparent 70%)`,
+          filter: "blur(34px)",
+          zIndex: 0,
+        }}
+      />
+
+      <div className="relative z-[2] flex flex-col">
+        {/* Eyebrow */}
+        <div className="flex items-center gap-3 mb-7">
+          <span
+            aria-hidden
+            className="block"
+            style={{
+              width: 18,
+              height: 1,
+              background: "rgba(245,245,247,0.22)",
+            }}
+          />
+          <span
+            className="uppercase"
+            style={{
+              fontSize: 10.5,
+              letterSpacing: "0.32em",
+              color: "rgba(245,245,247,0.5)",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 500,
+            }}
+          >
+            Studio · Edition one
+          </span>
+        </div>
+
+        {/* Brand name */}
+        <h1
+          className="font-serif"
+          style={{
+            fontSize: "clamp(40px, 4.5vw, 60px)",
+            fontWeight: 480,
+            letterSpacing: "-0.034em",
+            lineHeight: 0.96,
+            color: "rgba(248,247,252,0.98)",
+            textShadow: `0 24px 60px ${personality.accentDeep}50`,
+          }}
+        >
+          {brandName}
+        </h1>
+
+        {/* Italic subhead */}
+        <p
+          className="font-serif italic"
+          style={{
+            fontSize: 16,
+            color: "rgba(245,245,247,0.62)",
+            letterSpacing: "-0.005em",
+            marginTop: 14,
+          }}
+        >
+          Drafted by {agentName?.trim() || personality.name.toLowerCase()}.
+        </p>
+
+        {/* Hairline + identity row */}
+        <div
+          aria-hidden
+          className="h-px"
+          style={{
+            background: "rgba(245,245,247,0.12)",
+            marginTop: 28,
+            marginBottom: 22,
+          }}
+        />
+        <div className="flex items-center justify-between">
+          {/* Palette swatches */}
+          <div className="flex items-center" style={{ gap: 7 }}>
+            {[personality.accent, personality.accentDeep, personality.glow].map((c, i) => (
+              <span
+                key={i}
+                aria-hidden
+                className="block rounded-full"
+                style={{
+                  width: 14,
+                  height: 14,
+                  background: c,
+                  boxShadow:
+                    i === 0
+                      ? `0 0 0 1px rgba(255,255,255,0.18), 0 4px 12px -2px ${personality.glow}`
+                      : "0 0 0 1px rgba(255,255,255,0.08)",
+                }}
+              />
+            ))}
+          </div>
+          <span
+            className="uppercase"
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.28em",
+              color: "rgba(245,245,247,0.58)",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 500,
+            }}
+          >
+            {personality.name} · {voice?.name ?? "—"} · Ready
+          </span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/* ============================================================
+ * PreviewCard — mini editorial render of the user's draft landing.
+ * Sits top-right of the canvas. Click → opens the editor.
+ * ============================================================ */
+function PreviewCard({
+  personality,
+  stored,
+}: {
+  personality: Personality;
+  stored: StoredWowPayload | null;
+}) {
+  const brandName = stored?.deliverables.brandName ?? "Your brand";
+  const headline =
+    stored?.deliverables.landing.headline ?? "Tell your agent what to build.";
+  const cta = stored?.deliverables.landing.primaryCta ?? "Get started";
+  return (
+    <article
+      className="wrks-crystal-border relative flex flex-col"
+      style={{
+        width: 296,
+        padding: "16px 18px 18px",
+        borderRadius: 18,
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.032) 0%, rgba(255,255,255,0.008) 100%)",
+        backdropFilter: "blur(22px)",
+        WebkitBackdropFilter: "blur(22px)",
+        boxShadow:
+          "0 36px 80px -30px rgba(0,0,0,0.75), 0 2px 6px -2px rgba(0,0,0,0.35)",
+      }}
+    >
+      <div className="relative z-[2] flex flex-col">
+        {/* Eyebrow + chevron */}
+        <div className="flex items-center justify-between mb-3.5">
+          <span
+            className="uppercase"
+            style={{
+              fontSize: 9.5,
+              letterSpacing: "0.32em",
+              color: "rgba(245,245,247,0.42)",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 500,
+            }}
+          >
+            Landing · Draft
+          </span>
+          <span
+            aria-hidden
+            style={{ color: "rgba(245,245,247,0.4)" }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M7 17L17 7M17 7H8M17 7v9"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </div>
+
+        {/* Brand mark + name */}
+        <div className="flex items-center gap-2.5 mb-3.5">
+          <span
+            className="wrks-crystal-border-button shrink-0 grid place-items-center"
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.012) 100%)",
+              color: "#f5f0e6",
+              fontSize: 10,
+              fontWeight: 600,
+              lineHeight: 1,
+            }}
+            aria-hidden
+          >
+            {brandName.charAt(0).toUpperCase()}
+          </span>
+          <span
+            className="truncate"
+            style={{
+              fontSize: 12.5,
+              color: "rgba(245,245,247,0.78)",
+              letterSpacing: "-0.005em",
+              fontWeight: 500,
+            }}
+          >
+            {brandName}
+          </span>
+        </div>
+
+        {/* Headline excerpt — Fraunces */}
+        <h3
+          className="font-serif"
+          style={{
+            fontSize: 19,
+            fontWeight: 480,
+            letterSpacing: "-0.018em",
+            lineHeight: 1.18,
+            color: "rgba(245,245,247,0.95)",
+            display: "-webkit-box",
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {headline}
+        </h3>
+
+        {/* Mini CTA */}
+        <div
+          className="inline-flex items-center gap-1.5 mt-4 self-start"
+          style={{
+            padding: "5px 10px",
+            borderRadius: 6,
+            background: `${personality.accent}1a`,
+            border: `1px solid ${personality.accent}33`,
+            color: personality.accent,
+            fontSize: 11,
+            fontWeight: 500,
+            letterSpacing: "-0.003em",
+          }}
+        >
+          {cta}
+          <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>
+            →
+          </span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/* ============================================================
+ * VoiceCard — italic Fraunces quote in the agent's voice.
+ * Bottom-left floater, furthest depth.
+ * ============================================================ */
+function VoiceCard({
+  personality,
+  voiceName,
+}: {
+  personality: Personality;
+  voiceName: string;
+}) {
+  return (
+    <article
+      className="wrks-crystal-border relative flex flex-col"
+      style={{
+        width: 332,
+        padding: "18px 22px 20px",
+        borderRadius: 18,
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.028) 0%, rgba(255,255,255,0.006) 100%)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        boxShadow:
+          "0 30px 70px -28px rgba(0,0,0,0.7), 0 2px 6px -2px rgba(0,0,0,0.35)",
+      }}
+    >
+      <div className="relative z-[2] flex flex-col">
+        {/* Eyebrow */}
+        <span
+          className="uppercase mb-3"
+          style={{
+            fontSize: 9.5,
+            letterSpacing: "0.32em",
+            color: "rgba(245,245,247,0.42)",
+            fontFamily: "var(--font-mono)",
+            fontWeight: 500,
+          }}
+        >
+          Agent voice
+        </span>
+
+        {/* Italic quote */}
+        <p
+          className="font-serif italic"
+          style={{
+            fontSize: 17,
+            lineHeight: 1.35,
+            color: "rgba(245,245,247,0.92)",
+            letterSpacing: "-0.012em",
+          }}
+        >
+          &ldquo;{personality.sample}&rdquo;
+        </p>
+
+        {/* Attribution */}
+        <div className="flex items-center gap-2 mt-4">
+          <span
+            aria-hidden
+            className="block"
+            style={{
+              width: 14,
+              height: 1,
+              background: "rgba(245,245,247,0.28)",
+            }}
+          />
+          <span
+            className="uppercase"
+            style={{
+              fontSize: 9.5,
+              letterSpacing: "0.3em",
+              color: "rgba(245,245,247,0.55)",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 500,
+            }}
+          >
+            {personality.name} · {voiceName}
+          </span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/* ============================================================
+ * AuroraLayer — drifting palette orbs (kept from previous iteration).
+ * Two large soft-blurred ellipses translate slowly so the bg has motion.
  * ============================================================ */
 function AuroraLayer({
   accent,
@@ -293,7 +563,6 @@ function AuroraLayer({
     `radial-gradient(ellipse 50% 50% at 50% 50%, ${color}${opacityHex}, transparent 70%)`;
   return (
     <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
-      {/* Orb A — accent, drifts top-right ↔ center */}
       <motion.div
         className="absolute"
         animate={
@@ -311,7 +580,6 @@ function AuroraLayer({
           filter: "blur(70px)",
         }}
       />
-      {/* Orb B — accentDeep, drifts bottom-left ↔ center */}
       <motion.div
         className="absolute"
         animate={
@@ -329,7 +597,6 @@ function AuroraLayer({
           filter: "blur(80px)",
         }}
       />
-      {/* Orb C — accent (smaller), wanders through center */}
       <motion.div
         className="absolute"
         animate={
@@ -348,167 +615,6 @@ function AuroraLayer({
         }}
       />
     </div>
-  );
-}
-
-/* ============================================================
- * Brand system cells — small editorial moments framed by the
- * revolving crystal-light comet (no purple chrome).
- * ============================================================ */
-function CellFrame({ children, label }: { children: React.ReactNode; label: string }) {
-  return (
-    <div
-      className="wrks-crystal-border relative flex flex-col"
-      style={{
-        height: 172,
-        padding: "20px 22px 22px",
-        borderRadius: 18,
-        background:
-          "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.008) 100%)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        boxShadow:
-          "0 28px 70px -28px rgba(0,0,0,0.7), 0 2px 6px -2px rgba(0,0,0,0.4)",
-      }}
-    >
-      <div className="relative z-[2] flex flex-col h-full">
-        <div
-          className="uppercase shrink-0"
-          style={{
-            fontSize: 9.5,
-            letterSpacing: "0.34em",
-            color: "rgba(245,245,247,0.4)",
-            fontFamily: "var(--font-mono)",
-            fontWeight: 500,
-          }}
-        >
-          {label}
-        </div>
-        <div className="flex-1 grid place-items-center w-full">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function PaletteCell({
-  personality,
-}: {
-  personality: import("@/lib/personalities").Personality;
-}) {
-  const swatches = [personality.accent, personality.accentDeep, personality.glow];
-  return (
-    <CellFrame label="Palette">
-      <div className="flex flex-col items-center" style={{ gap: 12 }}>
-        <div className="flex items-center" style={{ gap: 8 }}>
-          {swatches.map((c, i) => (
-            <span
-              key={i}
-              aria-hidden
-              className="block rounded-full"
-              style={{
-                width: 22,
-                height: 22,
-                background: c,
-                boxShadow:
-                  i === 0
-                    ? `0 0 0 1px rgba(255,255,255,0.18), 0 8px 18px -4px ${personality.glow}`
-                    : "0 0 0 1px rgba(255,255,255,0.08)",
-              }}
-            />
-          ))}
-        </div>
-        <span
-          className="uppercase"
-          style={{
-            fontSize: 10,
-            letterSpacing: "0.28em",
-            color: "rgba(245,245,247,0.6)",
-            fontFamily: "var(--font-mono)",
-            fontWeight: 500,
-          }}
-        >
-          {personality.name}
-        </span>
-      </div>
-    </CellFrame>
-  );
-}
-
-function DisplayCell() {
-  return (
-    <CellFrame label="Display">
-      <div className="flex flex-col items-center" style={{ gap: 6 }}>
-        <span
-          className="font-serif"
-          style={{
-            fontSize: 56,
-            fontWeight: 480,
-            letterSpacing: "-0.028em",
-            color: "rgba(245,245,247,0.96)",
-            lineHeight: 0.95,
-          }}
-        >
-          Aa
-        </span>
-        <span
-          className="uppercase"
-          style={{
-            fontSize: 10,
-            letterSpacing: "0.28em",
-            color: "rgba(245,245,247,0.6)",
-            fontFamily: "var(--font-mono)",
-            fontWeight: 500,
-          }}
-        >
-          Fraunces
-        </span>
-      </div>
-    </CellFrame>
-  );
-}
-
-function VoiceCell({ voiceName }: { voiceName: string }) {
-  // 7 bars of varying base heights — animate to mimic a quiet waveform.
-  const bars = [10, 18, 26, 34, 26, 18, 10];
-  return (
-    <CellFrame label="Voice">
-      <div className="flex flex-col items-center" style={{ gap: 10 }}>
-        <div className="flex items-end" style={{ gap: 4, height: 36 }}>
-          {bars.map((h, i) => (
-            <motion.span
-              key={i}
-              aria-hidden
-              className="block rounded-full"
-              animate={{
-                height: [h, h * 1.6, h * 0.7, h],
-              }}
-              transition={{
-                duration: 1.6 + i * 0.07,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: i * 0.06,
-              }}
-              style={{
-                width: 3,
-                background: "rgba(245,240,230,0.7)",
-              }}
-            />
-          ))}
-        </div>
-        <span
-          className="uppercase"
-          style={{
-            fontSize: 10,
-            letterSpacing: "0.28em",
-            color: "rgba(245,245,247,0.6)",
-            fontFamily: "var(--font-mono)",
-            fontWeight: 500,
-          }}
-        >
-          {voiceName}
-        </span>
-      </div>
-    </CellFrame>
   );
 }
 
