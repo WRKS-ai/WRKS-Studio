@@ -11,6 +11,7 @@ import {
   type PersonalityId,
 } from "@/lib/personalities";
 import { StudioInspectorFrame } from "@/components/studio-inspector";
+import { ShinyText } from "@/components/shiny-text";
 
 // Shared chrome for the /studio dashboard family:
 // - 248px left sidebar (workspace + primary nav + secondary nav at bottom)
@@ -138,49 +139,34 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
           borderRight: "1px solid rgba(255,255,255,0.06)",
         }}
       >
-        {/* Workspace switcher — Linear pattern. Single-line, small
-            16px brand mark + 13px name + chevron. No border, no card.
-            Click opens a workspace picker (wired in a later phase).
-            The brand tile stays neutral chrome glass — the user's
-            palette accent does NOT bleed into the workspace UI. */}
-        <div className="px-4 pt-5 pb-5">
-          <button
-            type="button"
-            className="group w-full inline-flex items-center gap-2.5 transition-opacity"
-            style={{ minHeight: 28 }}
+        {/* WRKS Studio shining wordmark — same metallic shine sweep as
+            the onboarding pages, slightly larger here (24px vs 20px)
+            because the sidebar gives it room. The wordmark IS the brand
+            mark for the chrome; the user's brand name lives in the top
+            bar breadcrumb. */}
+        <div className="px-5 pt-6 pb-6">
+          <Link
+            href="/studio"
+            className="inline-flex items-center group"
+            aria-label="WRKS Studio home"
           >
             <span
-              className="shrink-0 size-4 rounded grid place-items-center"
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                color: "rgba(245,240,230,0.95)",
-                fontSize: 10,
-                fontWeight: 600,
-                lineHeight: 1,
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
+              className="leading-none transition-transform group-hover:scale-[1.02]"
+              style={{ fontSize: 24, lineHeight: 1 }}
             >
-              {brandName.charAt(0).toUpperCase()}
+              <ShinyText
+                text="WRKS Studio"
+                speed={7}
+                delay={0.5}
+                yoyo
+                color="#857c92"
+                shineColor="#f5f0e6"
+                spread={100}
+                direction="left"
+                className="font-serif font-medium tracking-[-0.025em]"
+              />
             </span>
-            <span
-              className="flex-1 text-left truncate"
-              style={{
-                color: "rgba(245,245,247,0.92)",
-                fontSize: 13.5,
-                fontWeight: 500,
-                letterSpacing: "-0.005em",
-              }}
-            >
-              {brandName}
-            </span>
-            <span
-              aria-hidden
-              className="opacity-50 group-hover:opacity-90 transition-opacity"
-              style={{ color: "rgba(245,245,247,0.6)" }}
-            >
-              <ChevronUpDown />
-            </span>
-          </button>
+          </Link>
         </div>
 
         {/* Primary nav. No horizontal padding on the container —
@@ -733,20 +719,6 @@ function SettingsIcon({ size = 17 }: { size?: number }) {
         d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
         stroke="currentColor"
         strokeWidth="1.5"
-      />
-    </svg>
-  );
-}
-function ChevronUpDown() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M8 9l4-4 4 4M8 15l4 4 4-4"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ color: "rgba(245,245,247,0.4)" }}
       />
     </svg>
   );
