@@ -167,10 +167,10 @@ body {
   background: conic-gradient(
     from var(--wrks-crystal-angle, 0deg),
     transparent 0deg,
-    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.04) 200deg,
-    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.2) 295deg,
-    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 1) 332deg,
-    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.2) 350deg,
+    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.03) 200deg,
+    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.16) 295deg,
+    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.7) 332deg,
+    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.16) 350deg,
     transparent 360deg
   );
   -webkit-mask:
@@ -178,7 +178,11 @@ body {
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
+  /* --wrks-crystal-delay defaults to 0s; set a negative value on the host
+     (e.g. "-1.4s") to offset this card's comet so a row of cards isn't
+     all peaking at the same angle. */
   animation: wrks-crystal-spin 7s linear infinite;
+  animation-delay: var(--wrks-crystal-delay, 0s);
   pointer-events: none;
   z-index: 1;
 }
@@ -219,6 +223,7 @@ body {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   animation: wrks-crystal-spin 7s linear infinite;
+  animation-delay: var(--wrks-crystal-delay, 0s);
   pointer-events: none;
   z-index: 1;
 }

@@ -103,13 +103,14 @@ const DELIVERABLES: {
   label: string;
   dims: string;
   Icon: (p: { size?: number }) => React.ReactElement;
-  hueShift: number; // degrees relative to accent
+  hueShift: number; // degrees relative to accent — kept tight so the
+  // four siblings read as one palette family, not four different colors
 }[] = [
   { id: "landing", label: "Landing page", dims: "1440 × 900", Icon: BrowserIcon, hueShift: 0 },
-  { id: "instagram", label: "Instagram post", dims: "1080 × 1080", Icon: CameraIcon, hueShift: -22 },
-  { id: "twitter", label: "X post", dims: "280 chars", Icon: XGlyphIcon, hueShift: 18 },
-  { id: "linkedin", label: "LinkedIn update", dims: "700 chars", Icon: WorkIcon, hueShift: 38 },
-  { id: "ad", label: "Meta ad", dims: "1200 × 628", Icon: CampaignIcon, hueShift: -38 },
+  { id: "instagram", label: "Instagram post", dims: "1080 × 1080", Icon: CameraIcon, hueShift: -10 },
+  { id: "twitter", label: "X post", dims: "280 chars", Icon: XGlyphIcon, hueShift: 8 },
+  { id: "linkedin", label: "LinkedIn update", dims: "700 chars", Icon: WorkIcon, hueShift: 20 },
+  { id: "ad", label: "Meta ad", dims: "1200 × 628", Icon: CampaignIcon, hueShift: -20 },
 ];
 
 export default function StudioWelcomePage() {
@@ -156,7 +157,7 @@ export default function StudioWelcomePage() {
         className="relative z-10 mx-auto flex flex-col items-center text-center"
         style={{
           maxWidth: 1180,
-          padding: "44px 56px 96px",
+          padding: "56px 56px 80px",
         }}
       >
         {/* HEADER */}
@@ -245,13 +246,10 @@ export default function StudioWelcomePage() {
         </motion.section>
       </div>
 
-      <StatusLine
-        status={
-          stored
-            ? `Edition one · draft · not published yet`
-            : `Ready · just say what you want to build`
-        }
-      />
+      {/* Bottom-left status line removed — its info ("draft · not
+          published yet") is redundant with the centered status meta in
+          the header, AND it was colliding with the work cards in the
+          screenshot the user flagged. */}
     </main>
   );
 }
@@ -479,6 +477,11 @@ function SmallWorkCard({
           backdropFilter: "blur(14px)",
           WebkitBackdropFilter: "blur(14px)",
           "--wrks-crystal-rgb": accentRgb,
+          // Stagger each card's comet by ~1.7s of the 7s loop so the
+          // bright peak isn't on every card simultaneously — kills the
+          // "synchronized bright stripe" effect that made the row look
+          // chaotic.
+          "--wrks-crystal-delay": `${-1.7 * index}s`,
         } as React.CSSProperties
       }
     >
@@ -540,37 +543,6 @@ function SmallWorkCard({
         </div>
       </div>
     </motion.button>
-  );
-}
-
-function StatusLine({ status }: { status: string }) {
-  return (
-    <div
-      className="absolute flex items-center gap-3 pointer-events-none"
-      style={{ bottom: 26, left: 32, zIndex: 5 }}
-    >
-      <span
-        aria-hidden
-        className="block"
-        style={{
-          width: 22,
-          height: 1,
-          background: "rgba(245,245,247,0.18)",
-        }}
-      />
-      <span
-        className="uppercase"
-        style={{
-          fontSize: 10.5,
-          letterSpacing: "0.28em",
-          color: "rgba(245,245,247,0.4)",
-          fontFamily: "var(--font-mono)",
-          fontWeight: 500,
-        }}
-      >
-        {status}
-      </span>
-    </div>
   );
 }
 
