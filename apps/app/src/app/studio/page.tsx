@@ -34,26 +34,28 @@ export default function StudioWelcomePage() {
       className="relative size-full overflow-hidden"
       style={{ background: "#0a0a0c" }}
     >
-      {/* React Bits SoftAurora — fixed WRKS-brand dark palette.
-          Tuned so the band reads as one continuous wave across the
-          canvas instead of breaking at the center, while staying dark
-          enough to feel atmospheric, not neon. */}
+      {/* React Bits SoftAurora — fixed WRKS-brand palette, retuned for
+          visibility. Brightness pushed to 2.0 because the shader caps
+          per-channel output around 0.4 × color × 0.99 before mixing,
+          and dark violet/blue have ~half the luminance of white.
+          noiseAmplitude dropped to 0.55 so the band stays smooth across
+          the canvas instead of dipping out at the center. */}
       <div className="absolute inset-0 pointer-events-none">
         <SoftAurora
           speed={0.55}
-          scale={1.2}
-          brightness={1.1}
-          color1="#8b5cf6"
-          color2="#1e3a8a"
-          noiseFrequency={1.8}
-          noiseAmplitude={0.85}
+          scale={1.1}
+          brightness={2}
+          color1="#a78bfa"
+          color2="#4f46e5"
+          noiseFrequency={1.5}
+          noiseAmplitude={0.55}
           bandHeight={0.5}
-          bandSpread={0.55}
-          octaveDecay={0.35}
-          layerOffset={4}
+          bandSpread={0.95}
+          octaveDecay={0.4}
+          layerOffset={5}
           colorSpeed={0.6}
           enableMouseInteraction
-          mouseInfluence={0.25}
+          mouseInfluence={0.3}
         />
       </div>
 
