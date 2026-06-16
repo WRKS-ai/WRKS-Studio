@@ -128,11 +128,29 @@ export default function StudioWelcomePage() {
     ? `5 deliverables · draft · not published yet`
     : `Nothing drafted yet · just say what you want to build`;
 
-  const landingHeadline = stored?.deliverables.landing.headline;
-
   const onPickWork = (id: DeliverableKind) => {
     setActiveId(id);
     router.push("/studio/library");
+  };
+
+  // Pull content excerpts from the stored work so each card carries the
+  // user's actual voice — the dashboard becomes a contact sheet of
+  // their brand in motion rather than a row of labeled buttons.
+  const excerptForKind = (id: DeliverableKind): string | undefined => {
+    if (!stored) return undefined;
+    const d = stored.deliverables;
+    switch (id) {
+      case "instagram":
+        return d.social.instagram;
+      case "twitter":
+        return d.social.twitter;
+      case "linkedin":
+        return d.social.linkedin;
+      case "ad":
+        return d.ad.headline;
+      default:
+        return undefined;
+    }
   };
 
   // The Landing card is special — separated out as the hero piece.
@@ -144,12 +162,21 @@ export default function StudioWelcomePage() {
       className="relative size-full overflow-auto"
       style={{ background: "#0a0a0c" }}
     >
-      {/* One subtle accent halo top-right, the only ambient flourish */}
+      {/* Two subtle palette halos for atmospheric depth — top-right
+          (accent) and bottom-left (accentDeep), both very low opacity
+          so they read as ambient light, not decoration. */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse 50% 40% at 90% 0%, ${personality.accent}1a, transparent 65%)`,
+          background: `radial-gradient(ellipse 50% 45% at 92% -5%, ${personality.accent}22, transparent 60%)`,
+        }}
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse 55% 50% at 8% 105%, ${personality.accentDeep}1e, transparent 60%)`,
         }}
       />
 
@@ -206,15 +233,16 @@ export default function StudioWelcomePage() {
         >
           <CenteredEyebrow>Your work</CenteredEyebrow>
 
-          <div style={{ width: "100%", maxWidth: 880, marginTop: 22 }}>
-            {/* BIG Landing card */}
+          <div style={{ width: "100%", maxWidth: 920, marginTop: 28 }}>
+            {/* BIG Landing card — editorial brand cover */}
             <BigLandingCard
-              label={landing.label}
               dims={landing.dims}
-              Icon={landing.Icon}
               hasDraft={!!stored}
               accentRgb={hexToRgbTriplet(personality.accent)}
-              headlineExcerpt={landingHeadline}
+              brandName={brandName}
+              landingHeadline={stored?.deliverables.landing.headline}
+              landingSubhead={stored?.deliverables.landing.subhead}
+              landingCta={stored?.deliverables.landing.primaryCta}
               onPick={() => onPickWork(landing.id)}
               reduced={!!reduced}
             />
@@ -224,8 +252,8 @@ export default function StudioWelcomePage() {
               className="grid"
               style={{
                 gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                gap: 12,
-                marginTop: 12,
+                gap: 14,
+                marginTop: 14,
               }}
             >
               {rest.map((d, i) => (
@@ -237,6 +265,7 @@ export default function StudioWelcomePage() {
                   Icon={d.Icon}
                   hasDraft={!!stored}
                   accentRgb={shiftHueRgb(personality.accent, d.hueShift)}
+                  excerpt={excerptForKind(d.id)}
                   onPick={() => onPickWork(d.id)}
                   reduced={!!reduced}
                 />
@@ -296,26 +325,31 @@ function CenteredEyebrow({ children }: { children: React.ReactNode }) {
 }
 
 /* ============================================================
- * BigLandingCard — the hero piece. Full content width, taller, shows
- * an excerpt of the drafted headline so the user sees their work
- * inline. Click → opens the editor.
+ * BigLandingCard — the hero piece. Renders an editorial brand cover
+ * INSIDE the card: brand identity strip on top, big Fraunces headline
+ * as the typographic centerpiece, italic subhead, palette-accented
+ * CTA hint, and a mono caps footer with status + dims + dot.
+ *
+ * Click → opens the editor.
  * ============================================================ */
 function BigLandingCard({
-  label,
   dims,
-  Icon,
   hasDraft,
   accentRgb,
-  headlineExcerpt,
+  brandName,
+  landingHeadline,
+  landingSubhead,
+  landingCta,
   onPick,
   reduced,
 }: {
-  label: string;
   dims: string;
-  Icon: (p: { size?: number }) => React.ReactElement;
   hasDraft: boolean;
   accentRgb: string;
-  headlineExcerpt: string | undefined;
+  brandName: string;
+  landingHeadline: string | undefined;
+  landingSubhead: string | undefined;
+  landingCta: string | undefined;
   onPick: () => void;
   reduced: boolean;
 }) {
@@ -323,65 +357,183 @@ function BigLandingCard({
     <motion.button
       type="button"
       onClick={onPick}
-      initial={reduced ? false : { opacity: 0, y: 12 }}
+      initial={reduced ? false : { opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.65, delay: 0.15, ease: [0.22, 0.72, 0.2, 1] }}
-      className="wrks-crystal-border group relative block w-full text-left transition-transform duration-200 hover:-translate-y-0.5"
+      transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 0.72, 0.2, 1] }}
+      className="wrks-crystal-border group relative block w-full text-left transition-transform duration-300 hover:-translate-y-0.5"
       style={
         {
-          padding: "26px 30px 28px",
-          minHeight: 200,
-          borderRadius: 18,
-          background: `linear-gradient(180deg, rgba(${accentRgb}, 0.05) 0%, rgba(255,255,255,0.008) 100%)`,
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
+          padding: "44px 52px 30px",
+          minHeight: 360,
+          borderRadius: 22,
+          background: `linear-gradient(180deg, rgba(${accentRgb}, 0.07) 0%, rgba(${accentRgb}, 0.015) 55%, rgba(255,255,255,0.008) 100%)`,
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          boxShadow: `0 40px 100px -40px rgba(0,0,0,0.7), 0 1px 2px -1px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)`,
           "--wrks-crystal-rgb": accentRgb,
         } as React.CSSProperties
       }
     >
+      {/* Atmospheric halo behind the headline (palette-accent content) */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          inset: "8% -8% 30% -8%",
+          background: `radial-gradient(ellipse 55% 50% at 50% 60%, rgba(${accentRgb}, 0.16), transparent 70%)`,
+          filter: "blur(36px)",
+          zIndex: 0,
+        }}
+      />
+
       <div className="relative z-[2] h-full flex flex-col">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3.5">
+        {/* Brand identity strip */}
+        <div className="flex items-center gap-3">
+          <span
+            className="shrink-0 grid place-items-center"
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 7,
+              background: `rgba(${accentRgb}, 0.16)`,
+              border: `1px solid rgba(${accentRgb}, 0.32)`,
+              color: `rgba(${accentRgb}, 1)`,
+              fontSize: 12,
+              fontWeight: 700,
+              lineHeight: 1,
+            }}
+            aria-hidden
+          >
+            {brandName.charAt(0).toUpperCase()}
+          </span>
+          <span
+            className="uppercase truncate"
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.3em",
+              color: "rgba(245,245,247,0.78)",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 500,
+            }}
+          >
+            {brandName}
+          </span>
+          <span
+            aria-hidden
+            className="block flex-1"
+            style={{
+              height: 1,
+              background: "rgba(245,245,247,0.1)",
+              marginLeft: 4,
+            }}
+          />
+        </div>
+
+        {/* Editorial headline — the hero typographic moment */}
+        {landingHeadline ? (
+          <h2
+            className="font-serif"
+            style={{
+              fontSize: "clamp(34px, 4vw, 54px)",
+              fontWeight: 480,
+              lineHeight: 1.02,
+              letterSpacing: "-0.034em",
+              color: "rgba(248,247,252,0.98)",
+              marginTop: 36,
+              maxWidth: "18ch",
+              textShadow: `0 24px 60px rgba(${accentRgb}, 0.35)`,
+            }}
+          >
+            {landingHeadline}
+          </h2>
+        ) : (
+          <h2
+            className="font-serif italic"
+            style={{
+              fontSize: "clamp(28px, 3.2vw, 40px)",
+              fontWeight: 480,
+              lineHeight: 1.1,
+              letterSpacing: "-0.024em",
+              color: "rgba(245,245,247,0.5)",
+              marginTop: 36,
+              maxWidth: "22ch",
+            }}
+          >
+            Ask the agent to draft your headline.
+          </h2>
+        )}
+
+        {/* Italic subhead */}
+        {landingSubhead && (
+          <p
+            className="font-serif italic"
+            style={{
+              fontSize: "clamp(15px, 1.4vw, 18px)",
+              color: "rgba(245,245,247,0.62)",
+              letterSpacing: "-0.005em",
+              marginTop: 18,
+              maxWidth: "44ch",
+              lineHeight: 1.45,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {landingSubhead}
+          </p>
+        )}
+
+        {/* CTA hint */}
+        {landingCta && (
+          <div
+            className="flex items-center gap-2.5"
+            style={{ marginTop: 22 }}
+          >
             <span
-              className="grid place-items-center shrink-0"
+              aria-hidden
+              className="block"
               style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                background: `rgba(${accentRgb}, 0.1)`,
-                border: `1px solid rgba(${accentRgb}, 0.22)`,
-                color: `rgba(${accentRgb}, 0.95)`,
+                width: 22,
+                height: 1,
+                background: `rgba(${accentRgb}, 0.85)`,
+              }}
+            />
+            <span
+              className="uppercase"
+              style={{
+                fontSize: 11,
+                letterSpacing: "0.3em",
+                color: `rgba(${accentRgb}, 0.92)`,
+                fontFamily: "var(--font-mono)",
+                fontWeight: 500,
               }}
             >
-              <Icon size={18} />
+              {landingCta}
             </span>
-            <div className="flex flex-col" style={{ lineHeight: 1.1 }}>
-              <span
-                style={{
-                  fontSize: 16,
-                  fontWeight: 500,
-                  color: "rgba(245,245,247,0.96)",
-                  letterSpacing: "-0.005em",
-                }}
-              >
-                {label}
-              </span>
-              <span
-                className="uppercase"
-                style={{
-                  fontSize: 10.5,
-                  letterSpacing: "0.2em",
-                  color: "rgba(245,245,247,0.48)",
-                  fontFamily: "var(--font-mono)",
-                  fontWeight: 500,
-                  marginTop: 6,
-                }}
-              >
-                {hasDraft ? "Draft" : "Not started"} · {dims}
-              </span>
-            </div>
           </div>
+        )}
 
+        {/* Footer status strip */}
+        <div
+          className="flex items-center justify-between"
+          style={{
+            marginTop: "auto",
+            paddingTop: 32,
+          }}
+        >
+          <span
+            className="uppercase"
+            style={{
+              fontSize: 10.5,
+              letterSpacing: "0.28em",
+              color: "rgba(245,245,247,0.5)",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 500,
+            }}
+          >
+            Landing · {dims} · {hasDraft ? "Draft" : "Not started"}
+          </span>
           <span
             aria-hidden
             className="block rounded-full"
@@ -391,51 +543,20 @@ function BigLandingCard({
               background: hasDraft
                 ? `rgba(${accentRgb}, 1)`
                 : "rgba(245,245,247,0.22)",
-              boxShadow: hasDraft ? `0 0 12px rgba(${accentRgb}, 0.55)` : "none",
+              boxShadow: hasDraft ? `0 0 14px rgba(${accentRgb}, 0.6)` : "none",
             }}
           />
         </div>
-
-        {/* Excerpt — pulled from stored.deliverables.landing.headline */}
-        {headlineExcerpt ? (
-          <p
-            className="font-serif"
-            style={{
-              fontSize: "clamp(20px, 2vw, 26px)",
-              fontWeight: 480,
-              lineHeight: 1.22,
-              letterSpacing: "-0.018em",
-              color: "rgba(245,245,247,0.94)",
-              marginTop: 32,
-              maxWidth: "32ch",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            {`“${headlineExcerpt}”`}
-          </p>
-        ) : (
-          <p
-            className="font-serif italic"
-            style={{
-              fontSize: 17,
-              color: "rgba(245,245,247,0.55)",
-              marginTop: 32,
-              letterSpacing: "-0.005em",
-            }}
-          >
-            Ask the agent to draft your headline.
-          </p>
-        )}
       </div>
     </motion.button>
   );
 }
 
 /* ============================================================
- * SmallWorkCard — under the hero. Compact icon + label + status.
+ * SmallWorkCard — under the hero. Shows a real italic Fraunces excerpt
+ * of THIS deliverable's content (the IG caption, the tweet, the
+ * LinkedIn post, the ad headline) so the dashboard reads as a contact
+ * sheet of the user's brand voice in motion, not a row of labels.
  * ============================================================ */
 function SmallWorkCard({
   label,
@@ -443,6 +564,7 @@ function SmallWorkCard({
   Icon,
   hasDraft,
   accentRgb,
+  excerpt,
   onPick,
   index,
   reduced,
@@ -452,6 +574,7 @@ function SmallWorkCard({
   Icon: (p: { size?: number }) => React.ReactElement;
   hasDraft: boolean;
   accentRgb: string;
+  excerpt: string | undefined;
   onPick: () => void;
   index: number;
   reduced: boolean;
@@ -460,22 +583,23 @@ function SmallWorkCard({
     <motion.button
       type="button"
       onClick={onPick}
-      initial={reduced ? false : { opacity: 0, y: 8 }}
+      initial={reduced ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
-        duration: 0.5,
-        delay: 0.24 + index * 0.04,
+        duration: 0.55,
+        delay: 0.26 + index * 0.05,
         ease: [0.22, 0.72, 0.2, 1],
       }}
-      className="wrks-crystal-border group relative block text-left transition-transform duration-200 hover:-translate-y-0.5"
+      className="wrks-crystal-border group relative block text-left transition-transform duration-300 hover:-translate-y-0.5"
       style={
         {
-          height: 142,
-          padding: "16px 16px 16px",
-          borderRadius: 14,
-          background: `linear-gradient(180deg, rgba(${accentRgb}, 0.045) 0%, rgba(255,255,255,0.006) 100%)`,
-          backdropFilter: "blur(14px)",
-          WebkitBackdropFilter: "blur(14px)",
+          height: 196,
+          padding: "18px 18px 18px",
+          borderRadius: 16,
+          background: `linear-gradient(180deg, rgba(${accentRgb}, 0.05) 0%, rgba(${accentRgb}, 0.012) 60%, rgba(255,255,255,0.006) 100%)`,
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          boxShadow: `0 26px 60px -30px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.03)`,
           "--wrks-crystal-rgb": accentRgb,
           // Stagger each card's comet by ~1.7s of the 7s loop so the
           // bright peak isn't on every card simultaneously — kills the
@@ -486,16 +610,17 @@ function SmallWorkCard({
       }
     >
       <div className="relative z-[2] h-full flex flex-col">
+        {/* Top: icon + status dot */}
         <div className="flex items-start justify-between">
           <span
             className="grid place-items-center"
             style={{
-              width: 28,
-              height: 28,
+              width: 30,
+              height: 30,
               borderRadius: 8,
-              background: `rgba(${accentRgb}, 0.1)`,
-              border: `1px solid rgba(${accentRgb}, 0.2)`,
-              color: `rgba(${accentRgb}, 0.92)`,
+              background: `rgba(${accentRgb}, 0.14)`,
+              border: `1px solid rgba(${accentRgb}, 0.28)`,
+              color: `rgba(${accentRgb}, 0.98)`,
             }}
           >
             <Icon size={14} />
@@ -507,20 +632,54 @@ function SmallWorkCard({
               width: 6,
               height: 6,
               background: hasDraft
-                ? `rgba(${accentRgb}, 0.92)`
+                ? `rgba(${accentRgb}, 0.95)`
                 : "rgba(245,245,247,0.22)",
               boxShadow: hasDraft
-                ? `0 0 8px rgba(${accentRgb}, 0.5)`
+                ? `0 0 10px rgba(${accentRgb}, 0.6)`
                 : "none",
             }}
           />
         </div>
+
+        {/* Italic Fraunces excerpt — the actual voice for this deliverable */}
+        {excerpt ? (
+          <p
+            className="font-serif italic"
+            style={{
+              fontSize: 14,
+              lineHeight: 1.32,
+              color: "rgba(245,245,247,0.82)",
+              letterSpacing: "-0.008em",
+              marginTop: 14,
+              display: "-webkit-box",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {`“${excerpt}”`}
+          </p>
+        ) : (
+          <p
+            className="font-serif italic"
+            style={{
+              fontSize: 13,
+              lineHeight: 1.4,
+              color: "rgba(245,245,247,0.4)",
+              marginTop: 14,
+            }}
+          >
+            Nothing drafted yet.
+          </p>
+        )}
+
+        {/* Bottom: label + dims */}
         <div className="mt-auto">
           <div
             style={{
               fontSize: 13.5,
               fontWeight: 500,
-              color: "rgba(245,245,247,0.95)",
+              color: "rgba(245,245,247,0.94)",
               letterSpacing: "-0.005em",
               lineHeight: 1.2,
             }}
@@ -531,8 +690,8 @@ function SmallWorkCard({
             className="uppercase"
             style={{
               fontSize: 10,
-              letterSpacing: "0.18em",
-              color: "rgba(245,245,247,0.42)",
+              letterSpacing: "0.2em",
+              color: "rgba(245,245,247,0.4)",
               fontFamily: "var(--font-mono)",
               fontWeight: 500,
               marginTop: 4,
