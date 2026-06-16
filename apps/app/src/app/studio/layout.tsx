@@ -115,12 +115,12 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
       >
         {/* WRKS Studio shining wordmark — same metallic shine sweep as
             the onboarding pages, slightly larger here (24px vs 20px)
-            because the sidebar gives it room. The wordmark IS the brand
-            mark for the chrome; the user's brand name lives in the top
-            bar breadcrumb. A horizontal hairline underneath separates
-            the wordmark from the nav, matching the Lovable pattern. */}
+            because the sidebar gives it room. A horizontal hairline
+            underneath separates the wordmark from the nav, matching the
+            Lovable pattern. Padding tuned so the hairline → WORKSPACE
+            label gap sits at ~24px, not ~40px. */}
         <div
-          className="px-5 pt-6 pb-5"
+          className="px-5 pt-5 pb-4"
           style={{
             borderBottom: "1px solid rgba(255,255,255,0.07)",
           }}
@@ -167,7 +167,7 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
             ))}
           </nav>
 
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 10 }}>
             <SidebarSection label="Account" />
             <nav className="flex flex-col">
               {SECONDARY_NAV.map((item) => (
@@ -212,13 +212,15 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
 function SidebarSection({ label }: { label: string }) {
   return (
     <div
-      className="pt-5 pb-2 uppercase"
+      className="uppercase"
       style={{
+        paddingTop: 14,
+        paddingBottom: 8,
         paddingLeft: 20,
         paddingRight: 20,
         fontSize: 11,
         letterSpacing: "0.28em",
-        color: "rgba(245,245,247,0.4)",
+        color: "rgba(245,245,247,0.42)",
         fontFamily: "var(--font-mono)",
         fontWeight: 500,
       }}
