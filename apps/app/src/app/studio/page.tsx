@@ -68,17 +68,6 @@ export default function StudioWelcomePage() {
           >
             Welcome back, {firstName || " "}.
           </h1>
-          <p
-            className="font-serif italic"
-            style={{
-              fontSize: "clamp(15px, 1.4vw, 19px)",
-              color: "rgba(245,245,247,0.55)",
-              letterSpacing: "-0.005em",
-              marginTop: 18,
-            }}
-          >
-            May these lights guide you on your path.
-          </p>
         </motion.div>
       </div>
     </main>
