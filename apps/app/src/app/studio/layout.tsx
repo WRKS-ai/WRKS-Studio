@@ -453,11 +453,13 @@ function labelForPath(pathname: string) {
 function SidebarSection({ label }: { label: string }) {
   return (
     <div
-      className="px-4 pt-5 pb-2 uppercase"
+      className="pt-5 pb-2 uppercase"
       style={{
-        fontSize: 10.5,
+        paddingLeft: 20,
+        paddingRight: 20,
+        fontSize: 11,
         letterSpacing: "0.28em",
-        color: "rgba(245,245,247,0.38)",
+        color: "rgba(245,245,247,0.4)",
         fontFamily: "var(--font-mono)",
         fontWeight: 500,
       }}
@@ -483,42 +485,40 @@ function SidebarLink({
   return (
     <Link
       href={href}
-      className="relative flex items-center gap-3 transition-colors group"
+      className={`relative flex items-center gap-3 transition-colors group ${
+        isActive ? "" : "hover:bg-white/[0.035]"
+      }`}
       style={{
-        padding: "9px 16px 9px 16px",
+        padding: "9px 12px",
+        marginLeft: 8,
+        marginRight: 8,
+        borderRadius: 8,
+        background: isActive
+          ? "rgba(255,255,255,0.065)"
+          : undefined,
+        border: isActive
+          ? "1px solid rgba(255,255,255,0.07)"
+          : "1px solid transparent",
         color: isActive
           ? "rgba(245,245,247,1)"
-          : "rgba(245,245,247,0.66)",
+          : "rgba(245,245,247,0.7)",
       }}
     >
-      {/* Hairline left rule on active — warm-cream stripe, neutral
-          chrome (no personality accent). Linear's pattern.
-          Hover state: slightly lifted text color, NO background. */}
-      {isActive && (
-        <span
-          aria-hidden
-          className="absolute left-0 top-0 bottom-0"
-          style={{
-            width: 1.5,
-            background: "rgba(245,240,230,0.7)",
-          }}
-        />
-      )}
       <span
         className="shrink-0"
         style={{
           color: isActive
-            ? "rgba(245,245,247,0.94)"
-            : "rgba(245,245,247,0.5)",
+            ? "rgba(245,245,247,0.96)"
+            : "rgba(245,245,247,0.55)",
           transition: "color 180ms ease-out",
         }}
       >
-        <Icon size={17} />
+        <Icon size={18} />
       </span>
       <span
         className="flex-1"
         style={{
-          fontSize: 13.5,
+          fontSize: 15,
           fontWeight: isActive ? 500 : 400,
           letterSpacing: "-0.005em",
           transition: "color 180ms ease-out",
@@ -531,7 +531,7 @@ function SidebarLink({
           className="opacity-0 group-hover:opacity-100 transition-opacity"
           style={{
             fontSize: 10.5,
-            color: "rgba(245,245,247,0.4)",
+            color: "rgba(245,245,247,0.45)",
             fontFamily: "var(--font-mono)",
             letterSpacing: "0.04em",
           }}
