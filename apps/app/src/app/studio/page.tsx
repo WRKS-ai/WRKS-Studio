@@ -4,6 +4,17 @@ import { motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useStudio, type DeliverableKind } from "@/lib/studio-context";
 
+// Convert a #rrggbb hex into the "r, g, b" tuple a CSS custom property
+// can plug into rgba(). Used to tint the crystal-light comet on work
+// cards with the user's palette accent.
+function hexToRgbTriplet(hex: string): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `${r}, ${g}, ${b}`;
+}
+
 // /studio — practical professional dashboard.
 //
 // User directive 2026-06-15: "We are making a professional app, think as a
@@ -21,12 +32,6 @@ import { useStudio, type DeliverableKind } from "@/lib/studio-context";
 // No aurora. No grain. No decorative cards. Flat dark canvas, hairline
 // structure, typography hierarchy. The agent presence is the
 // bottom-right floating Siri orb (rendered by StudioInspectorFrame).
-
-type ActivityItem = {
-  role: "agent" | "user";
-  text: string;
-  time: string;
-};
 
 const DELIVERABLE_META: {
   id: DeliverableKind;
@@ -47,40 +52,20 @@ export default function StudioWelcomePage() {
   const { personality, agentName, stored, setActiveId } = useStudio();
 
   const brandName = stored?.deliverables.brandName ?? "Your brand";
-  const agent = agentName?.trim() || personality.name;
 
   const headline = stored
     ? "Your edition is drafted."
     : "Let's draft your first edition.";
 
   const status = stored
-    ? `5 deliverables · ${personality.name} stands ready · not published yet`
-    : `${personality.name} stands ready · just say what you want to build`;
+    ? `5 deliverables · draft · not published yet`
+    : `Nothing drafted yet · just say what you want to build`;
 
-  const activity: ActivityItem[] = stored
-    ? [
-        {
-          role: "agent",
-          text: `${agent} refined the landing headline.`,
-          time: "2 hours ago",
-        },
-        {
-          role: "agent",
-          text: `${agent} drafted an Instagram caption for ${brandName}.`,
-          time: "Yesterday",
-        },
-        {
-          role: "user",
-          text: "You asked to add a pricing section.",
-          time: "Yesterday",
-        },
-        {
-          role: "agent",
-          text: `${agent} set up the brand voice for ${brandName}.`,
-          time: "2 days ago",
-        },
-      ]
-    : [];
+  // The crystal-light comet on each work card picks up the user's
+  // palette accent so the cards visually belong to their content
+  // (master plan §C: active page-card glow is one of the accent-allowed
+  // surfaces). All other chrome stays neutral white.
+  const accentRgb = hexToRgbTriplet(personality.accent);
 
   const onPickWork = (id: DeliverableKind) => {
     setActiveId(id);
@@ -168,34 +153,12 @@ export default function StudioWelcomePage() {
                 dims={d.dims}
                 Icon={d.Icon}
                 hasDraft={!!stored}
+                accentRgb={accentRgb}
                 onPick={() => onPickWork(d.id)}
                 reduced={!!reduced}
               />
             ))}
           </div>
-        </motion.section>
-
-        {/* RECENT ACTIVITY — scannable timeline */}
-        <motion.section
-          initial={reduced ? false : { opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.24, ease: [0.22, 0.72, 0.2, 1] }}
-          style={{ marginTop: 56 }}
-        >
-          <EyebrowRule>Recent activity</EyebrowRule>
-          {activity.length === 0 ? (
-            <EmptyActivity agentName={agent} />
-          ) : (
-            <ul className="flex flex-col mt-3">
-              {activity.map((item, i) => (
-                <ActivityRow
-                  key={i}
-                  item={item}
-                  isLast={i === activity.length - 1}
-                />
-              ))}
-            </ul>
-          )}
         </motion.section>
       </div>
 
@@ -248,6 +211,7 @@ function WorkCard({
   dims,
   Icon,
   hasDraft,
+  accentRgb,
   onPick,
   index,
   reduced,
@@ -256,6 +220,7 @@ function WorkCard({
   dims: string;
   Icon: (p: { size?: number }) => React.ReactElement;
   hasDraft: boolean;
+  accentRgb: string;
   onPick: () => void;
   index: number;
   reduced: boolean;
@@ -272,15 +237,20 @@ function WorkCard({
         ease: [0.22, 0.72, 0.2, 1],
       }}
       className="wrks-crystal-border group relative block text-left transition-transform duration-200 hover:-translate-y-0.5"
-      style={{
-        height: 156,
-        padding: "18px 18px 18px",
-        borderRadius: 14,
-        background:
-          "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.008) 100%)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-      }}
+      style={
+        {
+          height: 156,
+          padding: "18px 18px 18px",
+          borderRadius: 14,
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.008) 100%)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          // Tint the revolving crystal comet with the user's accent
+          // palette — these cards represent their content.
+          "--wrks-crystal-rgb": accentRgb,
+        } as React.CSSProperties
+      }
     >
       <div className="relative z-[2] h-full flex flex-col">
         <div className="flex items-start justify-between">
@@ -341,83 +311,6 @@ function WorkCard({
         </div>
       </div>
     </motion.button>
-  );
-}
-
-function ActivityRow({
-  item,
-  isLast,
-}: {
-  item: ActivityItem;
-  isLast: boolean;
-}) {
-  const isAgent = item.role === "agent";
-  return (
-    <li
-      className="flex items-center justify-between"
-      style={{
-        padding: "16px 4px",
-        borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.05)",
-      }}
-    >
-      <div className="flex items-center gap-3.5 flex-1 min-w-0">
-        <span
-          aria-hidden
-          className="block rounded-full shrink-0"
-          style={{
-            width: 5,
-            height: 5,
-            background: isAgent
-              ? "rgba(245,240,230,0.78)"
-              : "rgba(245,245,247,0.4)",
-            boxShadow: isAgent
-              ? "0 0 6px rgba(245,240,230,0.45)"
-              : "none",
-          }}
-        />
-        <span
-          className="truncate"
-          style={{
-            fontSize: 14,
-            color: "rgba(245,245,247,0.88)",
-            letterSpacing: "-0.005em",
-          }}
-        >
-          {item.text}
-        </span>
-      </div>
-      <span
-        className="shrink-0 uppercase"
-        style={{
-          fontSize: 11,
-          letterSpacing: "0.14em",
-          color: "rgba(245,245,247,0.42)",
-          fontFamily: "var(--font-mono)",
-          fontWeight: 500,
-          marginLeft: 24,
-        }}
-      >
-        {item.time}
-      </span>
-    </li>
-  );
-}
-
-function EmptyActivity({ agentName }: { agentName: string }) {
-  return (
-    <div
-      className="font-serif italic"
-      style={{
-        fontSize: 16,
-        color: "rgba(245,245,247,0.55)",
-        marginTop: 18,
-        letterSpacing: "-0.005em",
-        lineHeight: 1.5,
-      }}
-    >
-      Nothing here yet — tell {agentName} what to build and the log will
-      fill in.
-    </div>
   );
 }
 

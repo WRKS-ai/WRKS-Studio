@@ -161,13 +161,16 @@ body {
   inset: 0;
   border-radius: inherit;
   padding: 1.5px;
+  /* Comet color is white by default; override --wrks-crystal-rgb on the
+     host element (e.g. "167, 139, 250") to tint the revolving light
+     with the user's palette accent on content surfaces. */
   background: conic-gradient(
     from var(--wrks-crystal-angle, 0deg),
     transparent 0deg,
-    rgba(255, 255, 255, 0.04) 200deg,
-    rgba(255, 255, 255, 0.2) 295deg,
-    rgba(255, 255, 255, 1) 332deg,
-    rgba(255, 255, 255, 0.2) 350deg,
+    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.04) 200deg,
+    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.2) 295deg,
+    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 1) 332deg,
+    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.2) 350deg,
     transparent 360deg
   );
   -webkit-mask:
@@ -200,13 +203,14 @@ body {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
+  /* Same --wrks-crystal-rgb override as the card variant. */
   background: conic-gradient(
     from var(--wrks-crystal-angle, 0deg),
     transparent 0deg,
-    rgba(255, 255, 255, 0.04) 200deg,
-    rgba(255, 255, 255, 0.2) 295deg,
-    rgba(255, 255, 255, 1) 332deg,
-    rgba(255, 255, 255, 0.2) 350deg,
+    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.04) 200deg,
+    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.2) 295deg,
+    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 1) 332deg,
+    rgba(var(--wrks-crystal-rgb, 255, 255, 255), 0.2) 350deg,
     transparent 360deg
   );
   -webkit-mask:
