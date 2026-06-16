@@ -3,17 +3,16 @@
 import { useUser } from "@clerk/nextjs";
 import { motion, useReducedMotion } from "motion/react";
 import LightRays from "@/components/light-rays";
-import { useStudio } from "@/lib/studio-context";
 
 // /studio — welcome canvas.
 //
 // The React Bits LightRays effect runs full-bleed across the canvas
-// (top-center anchor, soft cone, mouse-tracked parallax). The ray color
-// is the SIGNED-IN USER'S personality accent — Maven user gets violet,
-// Sage gets sky, Spark gets amber, Echo gets forest. That keeps the
-// chrome palette-neutral (rays are still essentially white-cinematic
-// because of the shader's built-in brightness gradient) while giving
-// each user a beam that's quietly theirs.
+// (top-center anchor, soft cone, mouse-tracked parallax). raysColor is
+// pure white because the shader has a built-in brightness gradient
+// (cool/blue near the source, warm white near the bottom) that already
+// reads as cinematic. Multiplying that by personality.accent ended up
+// dimming everything to near-invisible — white preserves the intended
+// brightness and still feels palette-neutral.
 //
 // Centered Fraunces greeting overlays the rays — "Welcome back,
 // {firstName}." with the React Bits hero kicker as the subhead.
@@ -21,7 +20,6 @@ import { useStudio } from "@/lib/studio-context";
 export default function StudioWelcomePage() {
   const reduced = useReducedMotion();
   const { user, isLoaded } = useUser();
-  const { personality } = useStudio();
 
   const firstName =
     user?.firstName ||
@@ -33,11 +31,11 @@ export default function StudioWelcomePage() {
       className="relative size-full overflow-hidden"
       style={{ background: "#0a0a0c" }}
     >
-      {/* React Bits LightRays — color tied to the user's personality */}
+      {/* React Bits LightRays — white, full brightness */}
       <div className="absolute inset-0 pointer-events-none">
         <LightRays
           raysOrigin="top-center"
-          raysColor={personality.accent}
+          raysColor="#ffffff"
           raysSpeed={1}
           lightSpread={0.5}
           rayLength={3}
