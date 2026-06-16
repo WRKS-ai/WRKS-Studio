@@ -143,8 +143,14 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
             the onboarding pages, slightly larger here (24px vs 20px)
             because the sidebar gives it room. The wordmark IS the brand
             mark for the chrome; the user's brand name lives in the top
-            bar breadcrumb. */}
-        <div className="px-5 pt-6 pb-6">
+            bar breadcrumb. A horizontal hairline underneath separates
+            the wordmark from the nav, matching the Lovable pattern. */}
+        <div
+          className="px-5 pt-6 pb-5"
+          style={{
+            borderBottom: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
           <Link
             href="/studio"
             className="inline-flex items-center group"
