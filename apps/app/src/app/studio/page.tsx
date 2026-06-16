@@ -2,23 +2,20 @@
 
 import { useUser } from "@clerk/nextjs";
 import { motion, useReducedMotion } from "motion/react";
-import SoftAurora from "@/components/soft-aurora";
+import Aurora from "@/components/aurora";
 
 // /studio — welcome canvas.
 //
-// Background: React Bits SoftAurora with fixed WRKS-brand dark colors
-// (deep violet #6d28d9 + near-black indigo #1e1b4b). The bright white +
-// magenta from the user's spec read as a neon billboard against the
-// #0a0a0c page; these darker palette-aligned tones sit atmospheric
-// instead. Brightness dropped 1 → 0.85 to keep the aurora restrained.
-// Mouse parallax responds properly now (listener moved canvas → window
-// inside the component so events pass through the pointer-events:none
-// wrapper).
+// Background: React Bits Aurora — simplex-noise ribbon that rises from
+// the BOTTOM of the canvas (the original effect comes from the top;
+// we flipped uv.y in the shader so the ribbon rises into view). The
+// three-stop color ramp interpolates horizontally across the canvas.
+// Native WebGL port — no OGL dependency.
 //
-// Foreground: centered Fraunces greeting that pulls from Clerk's
-// useUser() — "Welcome back, {firstName}." with the React Bits hero
-// kicker as the subhead. The sidebar + floating Siri orb stay as layout
-// chrome across all studio routes.
+// Foreground: centered Fraunces greeting from Clerk's useUser() —
+// "Welcome back, {firstName}." with the React Bits hero kicker as the
+// subhead. The sidebar (WRKS Studio wordmark + nav panel + user-menu)
+// and the floating Siri orb stay as layout chrome across studio routes.
 
 export default function StudioWelcomePage() {
   const reduced = useReducedMotion();
@@ -34,28 +31,13 @@ export default function StudioWelcomePage() {
       className="relative size-full overflow-hidden"
       style={{ background: "#0a0a0c" }}
     >
-      {/* React Bits SoftAurora — fixed WRKS-brand palette, retuned for
-          visibility. Brightness pushed to 2.0 because the shader caps
-          per-channel output around 0.4 × color × 0.99 before mixing,
-          and dark violet/blue have ~half the luminance of white.
-          noiseAmplitude dropped to 0.55 so the band stays smooth across
-          the canvas instead of dipping out at the center. */}
+      {/* React Bits Aurora — rising from the bottom */}
       <div className="absolute inset-0 pointer-events-none">
-        <SoftAurora
-          speed={0.55}
-          scale={1.1}
-          brightness={2}
-          color1="#a78bfa"
-          color2="#4f46e5"
-          noiseFrequency={1.5}
-          noiseAmplitude={0.55}
-          bandHeight={0.5}
-          bandSpread={0.95}
-          octaveDecay={0.4}
-          layerOffset={5}
-          colorSpeed={0.6}
-          enableMouseInteraction
-          mouseInfluence={0.3}
+        <Aurora
+          colorStops={["#7cff67", "#B497CF", "#5227FF"]}
+          blend={0.5}
+          amplitude={1.0}
+          speed={1}
         />
       </div>
 
