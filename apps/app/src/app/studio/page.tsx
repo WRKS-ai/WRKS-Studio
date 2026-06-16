@@ -31,13 +31,15 @@ export default function StudioWelcomePage() {
       className="relative size-full overflow-hidden"
       style={{ background: "#0a0a0c" }}
     >
-      {/* React Bits LightRays — white, full brightness */}
+      {/* React Bits LightRays — beam comes diagonally from the top-right
+          corner so it crosses the canvas (the centered top-center cone
+          was too narrow + sat too high above the frame to read). */}
       <div className="absolute inset-0 pointer-events-none">
         <LightRays
-          raysOrigin="top-center"
+          raysOrigin="top-right"
           raysColor="#ffffff"
           raysSpeed={1}
-          lightSpread={0.5}
+          lightSpread={0.8}
           rayLength={3}
           followMouse={true}
           mouseInfluence={0.1}
