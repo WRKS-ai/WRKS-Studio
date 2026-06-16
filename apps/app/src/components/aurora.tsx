@@ -75,35 +75,22 @@ float snoise(vec2 v){
   return 130.0 * dot(m, g);
 }
 
-struct ColorStop {
-  vec3 color;
-  float position;
-};
-
-#define COLOR_RAMP(colors, factor, finalColor) {              \\
-  int index = 0;                                              \\
-  for (int i = 0; i < 2; i++) {                               \\
-     ColorStop currentColor = colors[i];                      \\
-     bool isInBetween = currentColor.position <= factor;      \\
-     index = int(mix(float(index), float(i), float(isInBetween))); \\
-  }                                                           \\
-  ColorStop currentColor = colors[index];                     \\
-  ColorStop nextColor = colors[index + 1];                    \\
-  float range = nextColor.position - currentColor.position;   \\
-  float lerpFactor = (factor - currentColor.position) / range;\\
-  finalColor = mix(currentColor.color, nextColor.color, lerpFactor); \\
+// Three-stop color ramp without dynamic array indexing — GLSL ES 1.00
+// (WebGL1) only allows constant array indices. The reference uses a
+// COLOR_RAMP macro with runtime indexing, which compiles only on
+// WebGL2 (GLSL ES 3.00). Inlining as two explicit segments gives the
+// same lerp without that restriction.
+vec3 colorRamp(float factor) {
+  if (factor < 0.5) {
+    return mix(uColorStops[0], uColorStops[1], factor / 0.5);
+  }
+  return mix(uColorStops[1], uColorStops[2], (factor - 0.5) / 0.5);
 }
 
 void main() {
   vec2 uv = gl_FragCoord.xy / uResolution;
 
-  ColorStop colors[3];
-  colors[0] = ColorStop(uColorStops[0], 0.0);
-  colors[1] = ColorStop(uColorStops[1], 0.5);
-  colors[2] = ColorStop(uColorStops[2], 1.0);
-
-  vec3 rampColor;
-  COLOR_RAMP(colors, uv.x, rampColor);
+  vec3 rampColor = colorRamp(uv.x);
 
   float height = snoise(vec2(uv.x * 2.0 + uTime * 0.1, uTime * 0.25)) * 0.5 * uAmplitude;
   height = exp(height);
