@@ -1,7 +1,15 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import {
+  motion,
+  useAnimationFrame,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "motion/react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import type { Personality } from "@/lib/personalities";
 import {
   useStudio,
@@ -9,31 +17,30 @@ import {
   type StoredWowPayload,
 } from "@/lib/studio-context";
 
-// /studio — Trading Desk dashboard (direction picked 2026-06-16).
+// /studio — orbital constellation.
 //
-// Replaces the previous "big card + 4 small cards with italic excerpts"
-// composition, which the user called cheap because it was text describing
-// text instead of showing the actual work. Trading Desk is the shape
-// Linear, Mercury, and Vercel converged on:
+// Direction picked 2026-06-16 after the Trading Desk read as "too much
+// information bombarded" and the user asked for something that wows.
 //
-//   ROW 1 (96px) — Status strip. Brand wordmark, KPI pills, agent status.
-//                  No greeting headline.
-//   ROW 2 (380px) — Asymmetric bento, 2-3-2 columns.
-//                   LEFT (2): big Landing card with a real mini-render
-//                             of the drafted landing page (in a forward-
-//                             tilted glass frame with palette accent halo).
-//                   CENTER (3): 2×2 grid of mini-renders for IG, X,
-//                               LinkedIn, and Meta ad — each laid out
-//                               like the actual platform, not text.
-//                   RIGHT (2): vertical activity feed.
-//   ROW 3 (auto) — "Up next" action pill row.
+// The user's drafted landing page renders editorially at the center of
+// the canvas. Their four social deliverables (Instagram, X, LinkedIn,
+// Meta ad) slowly revolve around it on elliptical orbits with slightly
+// different periods so the constellation drifts organically and never
+// locks into a clockwork. Hover any orbiter → the whole system gently
+// pauses, that card scales up + comes forward, others dim. Click → opens
+// that piece in the editor.
 //
-// The user's palette accent shows up only inside the content surfaces
-// (the rendered previews) and the brand-system pieces — chrome stays
-// neutral per master plan §C.
+// Visual taste:
+//   * No greeting headline ("Your edition is drafted" was rejected as
+//     SaaS hello cliché).
+//   * No personality.accent on chrome anywhere — accent lives only
+//     inside the rendered content (landing render, orbiter mini-renders).
+//   * WRKS Studio shining wordmark stays in the sidebar; bottom-right
+//     floating Siri orb stays via the inspector layout.
+//   * Slow orbit so it's cinematic, not "fidget spinner".
 
 /* ============================================================
- * Color helpers (same as before)
+ * Color helpers
  * ============================================================ */
 
 function hexToRgbTriplet(hex: string): string {
@@ -92,163 +99,234 @@ function shiftHueRgb(hex: string, degrees: number): string {
     g2 = hue2rgb(p, q, hue);
     b2 = hue2rgb(p, q, hue - 1 / 3);
   }
-  const rr = Math.round(r2 * 255);
-  const gg = Math.round(g2 * 255);
-  const bb = Math.round(b2 * 255);
-  return `${rr}, ${gg}, ${bb}`;
+  return `${Math.round(r2 * 255)}, ${Math.round(g2 * 255)}, ${Math.round(b2 * 255)}`;
+}
+
+/* ============================================================
+ * useOrbitAngle — drives a MotionValue<number> angle that revolves
+ * around the center. Spring-smoothed acceleration so hover-pause
+ * decelerates over ~600ms and resumes over ~1200ms (premium reference:
+ * Framer Orbit Cards, Notion AI ambient motion). Linear keyframe
+ * rotation reads as a loading spinner; sine-driven position (which
+ * the call site does via cos/sin of the angle) reads as ambient drift.
+ * ============================================================ */
+
+function useOrbitAngle({
+  baseAngleDeg,
+  period,
+  paused,
+}: {
+  baseAngleDeg: number;
+  period: number;
+  paused: boolean;
+}) {
+  const angle = useMotionValue(baseAngleDeg);
+  // factor goes 1 → 0 on pause (snappy, 600ms) and 0 → 1 on resume
+  // (slower, 1200ms) — slower resume than pause is the premium tell.
+  const factor = useSpring(paused ? 0 : 1, {
+    stiffness: paused ? 240 : 110,
+    damping: 30,
+  });
+
+  useAnimationFrame((_now, dt) => {
+    if (period === Infinity) return;
+    const f = factor.get();
+    if (f < 0.001) return;
+    const omegaDegPerMs = (360 / period) * f;
+    angle.set(angle.get() + omegaDegPerMs * dt);
+  });
+
+  return angle;
 }
 
 /* ============================================================
  * Page
  * ============================================================ */
 
-export default function StudioTradingDesk() {
+type OrbitalKind = "instagram" | "twitter" | "linkedin" | "ad";
+
+const ORBITERS: {
+  kind: OrbitalKind;
+  baseAngleDeg: number;
+  rx: number;
+  ry: number;
+  period: number;
+  hueShift: number;
+  label: string;
+}[] = [
+  // Periods 95/108/117/124s — mutually prime-ish so the constellation
+  // never re-syncs ("wandering constellation," not "clockwork"). Radii
+  // follow ~1.6 : 1 aspect (ry ≈ rx × 0.6) which the research called the
+  // composed/golden-ratio ellipse vs the "classroom solar system" circle.
+  { kind: "instagram", baseAngleDeg: -100, rx: 460, ry: 280, period: 95_000, hueShift: -10, label: "Instagram" },
+  { kind: "twitter", baseAngleDeg: -10, rx: 520, ry: 310, period: 108_000, hueShift: 8, label: "X · Twitter" },
+  { kind: "linkedin", baseAngleDeg: 80, rx: 450, ry: 270, period: 117_000, hueShift: 20, label: "LinkedIn" },
+  { kind: "ad", baseAngleDeg: 170, rx: 500, ry: 295, period: 124_000, hueShift: -20, label: "Meta ad" },
+];
+
+export default function StudioOrbitalPage() {
   const reduced = useReducedMotion();
   const router = useRouter();
   const { personality, agentName, voice, stored, setActiveId } = useStudio();
 
+  const [hovered, setHovered] = useState<OrbitalKind | "landing" | null>(null);
+
   const brandName = stored?.deliverables.brandName ?? "Your brand";
-  const accentRgb = hexToRgbTriplet(personality.accent);
-  const accentDeepRgb = hexToRgbTriplet(personality.accentDeep);
+  const accent = personality.accent;
+  const accentRgb = hexToRgbTriplet(accent);
 
   const onPickWork = (id: DeliverableKind) => {
     setActiveId(id);
     router.push("/studio/library");
   };
 
+  const paused = hovered !== null;
+
   return (
     <main
-      className="relative size-full overflow-auto"
+      className="relative size-full overflow-hidden"
       style={{ background: "#0a0a0c" }}
     >
-      {/* Ambient palette halos — top-right (accent) + bottom-left (accentDeep) */}
+      {/* Ambient palette halos — top-right (accent) + bottom-left (deep) */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse 50% 45% at 92% -5%, ${personality.accent}22, transparent 60%)`,
+          background: `radial-gradient(ellipse 55% 50% at 92% -5%, ${accent}1d, transparent 65%)`,
         }}
       />
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse 55% 50% at 8% 105%, ${personality.accentDeep}1c, transparent 60%)`,
+          background: `radial-gradient(ellipse 55% 50% at 8% 108%, ${personality.accentDeep}1a, transparent 65%)`,
         }}
       />
 
+      {/* Top strip — minimal: brand wordmark + edition + agent status */}
+      <TopStrip
+        brandName={brandName}
+        agentName={agentName}
+        voiceName={voice?.name}
+        personality={personality}
+        reduced={!!reduced}
+      />
+
+      {/* Orbital canvas */}
       <div
-        className="relative z-10 mx-auto flex flex-col"
+        className="absolute"
         style={{
-          maxWidth: 1320,
-          padding: "32px 40px 56px",
-          gap: 16,
+          left: 0,
+          right: 0,
+          top: 72,
+          bottom: 56,
         }}
       >
-        {/* ROW 1 — STATUS STRIP */}
-        <StatusStrip
-          brandName={brandName}
-          personality={personality}
-          voice={voice}
-          agentName={agentName}
-          hasStored={!!stored}
-          reduced={!!reduced}
-        />
-
-        {/* ROW 2 — ASYMMETRIC BENTO (2-3-2) */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.06, ease: [0.22, 0.72, 0.2, 1] }}
-          className="grid"
-          style={{
-            gridTemplateColumns: "minmax(0, 2fr) minmax(0, 3fr) minmax(0, 2fr)",
-            gap: 16,
-            minHeight: 420,
-          }}
+        {/* Center landing render */}
+        <div
+          className="absolute"
+          style={{ left: "50%", top: "50%" }}
         >
-          {/* LEFT — Landing hero with real mini-render */}
-          <LandingHero
-            personality={personality}
-            stored={stored}
-            accentRgb={accentRgb}
-            accentDeepRgb={accentDeepRgb}
-            onPick={() => onPickWork("landing")}
-            reduced={!!reduced}
-          />
-
-          {/* CENTER — 2×2 mini-renders of IG / X / LinkedIn / Ad */}
-          <div
-            className="grid"
+          <motion.div
+            initial={reduced ? false : { opacity: 0, scale: 0.94 }}
+            animate={{
+              opacity: hovered && hovered !== "landing" ? 0.55 : 1,
+              scale: hovered === "landing" ? 1.02 : 1,
+            }}
+            transition={{ duration: 0.6, ease: [0.22, 0.72, 0.2, 1] }}
+            onMouseEnter={() => setHovered("landing")}
+            onMouseLeave={() => setHovered(null)}
+            onClick={() => onPickWork("landing")}
+            className="cursor-pointer"
             style={{
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gridTemplateRows: "repeat(2, minmax(0, 1fr))",
-              gap: 12,
+              width: 540,
+              height: 400,
+              marginLeft: -270,
+              marginTop: -200,
+              willChange: "transform, opacity",
             }}
           >
-            <SocialTile kind="instagram" personality={personality} stored={stored} brandName={brandName} accentRgb={shiftHueRgb(personality.accent, -10)} onPick={() => onPickWork("instagram")} reduced={!!reduced} delay={0.18} />
-            <SocialTile kind="twitter" personality={personality} stored={stored} brandName={brandName} accentRgb={shiftHueRgb(personality.accent, 8)} onPick={() => onPickWork("twitter")} reduced={!!reduced} delay={0.22} />
-            <SocialTile kind="linkedin" personality={personality} stored={stored} brandName={brandName} accentRgb={shiftHueRgb(personality.accent, 20)} onPick={() => onPickWork("linkedin")} reduced={!!reduced} delay={0.26} />
-            <SocialTile kind="ad" personality={personality} stored={stored} brandName={brandName} accentRgb={shiftHueRgb(personality.accent, -20)} onPick={() => onPickWork("ad")} reduced={!!reduced} delay={0.3} />
-          </div>
+            <CenterLanding
+              personality={personality}
+              stored={stored}
+              brandName={brandName}
+              accentRgb={accentRgb}
+            />
+          </motion.div>
+        </div>
 
-          {/* RIGHT — Activity feed */}
-          <ActivityPanel
-            brandName={brandName}
-            agentName={agentName}
+        {/* 4 orbiters */}
+        {ORBITERS.map((o) => (
+          <OrbitingCard
+            key={o.kind}
+            kind={o.kind}
+            label={o.label}
+            baseAngleDeg={o.baseAngleDeg}
+            rx={o.rx}
+            ry={o.ry}
+            period={reduced ? Infinity : o.period}
             personality={personality}
-            hasStored={!!stored}
-            reduced={!!reduced}
+            stored={stored}
+            brandName={brandName}
+            accentRgb={shiftHueRgb(accent, o.hueShift)}
+            paused={paused}
+            isHovered={hovered === o.kind}
+            anyHoveredButMe={hovered !== null && hovered !== o.kind}
+            onHoverStart={() => setHovered(o.kind)}
+            onHoverEnd={() => setHovered(null)}
+            onClick={() => onPickWork(o.kind)}
           />
-        </motion.div>
-
-        {/* ROW 3 — UP NEXT */}
-        <UpNextRow accentRgb={accentRgb} reduced={!!reduced} />
+        ))}
       </div>
+
+      {/* Bottom-left activity ticker — single italic line, low presence */}
+      <ActivityTicker
+        agentName={agentName}
+        personality={personality}
+        hasStored={!!stored}
+      />
     </main>
   );
 }
 
 /* ============================================================
- * Row 1 — Status strip
+ * TopStrip — thin, minimal
  * ============================================================ */
 
-function StatusStrip({
+function TopStrip({
   brandName,
-  personality,
-  voice,
   agentName,
-  hasStored,
+  voiceName,
+  personality,
   reduced,
 }: {
   brandName: string;
-  personality: Personality;
-  voice: { name: string } | null;
   agentName: string;
-  hasStored: boolean;
+  voiceName: string | undefined;
+  personality: Personality;
   reduced: boolean;
 }) {
-  const lastEdit = "14:32";
   return (
     <motion.div
-      initial={reduced ? false : { opacity: 0, y: 8 }}
+      initial={reduced ? false : { opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.22, 0.72, 0.2, 1] }}
-      className="flex items-center justify-between gap-6"
+      className="absolute flex items-center justify-between gap-6"
       style={{
-        height: 76,
-        padding: "0 6px",
+        left: 40,
+        right: 40,
+        top: 24,
+        height: 32,
       }}
     >
-      {/* Left — brand wordmark */}
-      <div className="flex items-center gap-4 min-w-0">
+      <div className="flex items-center gap-3 min-w-0">
         <span
           className="font-serif truncate"
           style={{
-            fontSize: 30,
+            fontSize: 22,
             fontWeight: 480,
-            letterSpacing: "-0.024em",
-            color: "rgba(248,247,252,0.97)",
+            letterSpacing: "-0.022em",
+            color: "rgba(248,247,252,0.96)",
             lineHeight: 1,
           }}
         >
@@ -259,15 +337,15 @@ function StatusStrip({
           className="block"
           style={{
             width: 1,
-            height: 22,
-            background: "rgba(245,245,247,0.12)",
+            height: 18,
+            background: "rgba(245,245,247,0.14)",
           }}
         />
         <span
           className="uppercase"
           style={{
-            fontSize: 11,
-            letterSpacing: "0.3em",
+            fontSize: 10.5,
+            letterSpacing: "0.32em",
             color: "rgba(245,245,247,0.5)",
             fontFamily: "var(--font-mono)",
             fontWeight: 500,
@@ -277,236 +355,369 @@ function StatusStrip({
         </span>
       </div>
 
-      {/* Center — KPI pills */}
-      <div className="flex items-center gap-2">
-        <KpiPill label="Drafted" value={hasStored ? "5/5" : "0/5"} />
-        <KpiPill label="Published" value="0" />
-        <KpiPill label="Last edit" value={hasStored ? lastEdit : "—"} />
-      </div>
-
-      {/* Right — agent status */}
       <div className="flex items-center gap-2.5">
-        <span
+        <motion.span
           aria-hidden
+          animate={
+            reduced
+              ? { opacity: 0.85 }
+              : { opacity: [0.55, 1, 0.55] }
+          }
+          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
           className="block rounded-full"
           style={{
-            width: 7,
-            height: 7,
-            background: `${personality.accent}`,
-            boxShadow: `0 0 10px ${personality.accent}aa`,
+            width: 6,
+            height: 6,
+            background: personality.accent,
+            boxShadow: `0 0 8px ${personality.accent}aa`,
           }}
         />
         <span
           className="uppercase"
           style={{
-            fontSize: 11,
-            letterSpacing: "0.24em",
-            color: "rgba(245,245,247,0.78)",
+            fontSize: 10.5,
+            letterSpacing: "0.28em",
+            color: "rgba(245,245,247,0.7)",
             fontFamily: "var(--font-mono)",
             fontWeight: 500,
           }}
         >
-          {(agentName?.trim() || personality.name)} is idle · {voice?.name ?? "—"}
+          {(agentName?.trim() || personality.name)} stands ready
+          {voiceName ? ` · ${voiceName}` : ""}
         </span>
       </div>
     </motion.div>
   );
 }
 
-function KpiPill({ label, value }: { label: string; value: string }) {
+/* ============================================================
+ * OrbitingCard — wraps a platform mini-render in a glass card and
+ * orbits it around the canvas center with smooth pause-on-hover.
+ * ============================================================ */
+
+function OrbitingCard({
+  kind,
+  label,
+  baseAngleDeg,
+  rx,
+  ry,
+  period,
+  personality,
+  stored,
+  brandName,
+  accentRgb,
+  paused,
+  isHovered,
+  anyHoveredButMe,
+  onHoverStart,
+  onHoverEnd,
+  onClick,
+}: {
+  kind: OrbitalKind;
+  label: string;
+  baseAngleDeg: number;
+  rx: number;
+  ry: number;
+  period: number;
+  personality: Personality;
+  stored: StoredWowPayload | null;
+  brandName: string;
+  accentRgb: string;
+  paused: boolean;
+  isHovered: boolean;
+  anyHoveredButMe: boolean;
+  onHoverStart: () => void;
+  onHoverEnd: () => void;
+  onClick: () => void;
+}) {
+  const angle = useOrbitAngle({
+    baseAngleDeg,
+    period,
+    paused: paused || period === Infinity,
+  });
+  // Spring-smooth the x/y so the orbit doesn't ever feel jerky.
+  const rawX = useTransform(angle, (a) => Math.cos((a * Math.PI) / 180) * rx);
+  const rawY = useTransform(angle, (a) => Math.sin((a * Math.PI) / 180) * ry);
+  const x = useSpring(rawX, { stiffness: 80, damping: 22, mass: 0.5 });
+  const y = useSpring(rawY, { stiffness: 80, damping: 22, mass: 0.5 });
+  // Subtle near-far depth scale — orbiter is "closer to the viewer"
+  // (1.03×) at the bottom of the ellipse and "farther" (0.97×) at the
+  // top. sin(angle) gives us exactly the right [-1, 1] axis.
+  const depthScale = useTransform(angle, (a) =>
+    1 + 0.03 * Math.sin((a * Math.PI) / 180),
+  );
+
+  const cardW = 232;
+  const cardH = 168;
+
   return (
-    <div
-      className="inline-flex items-center gap-2"
+    <motion.div
+      className="absolute"
       style={{
-        height: 30,
-        padding: "0 12px",
-        borderRadius: 8,
-        background: "rgba(255,255,255,0.025)",
-        border: "1px solid rgba(255,255,255,0.06)",
+        left: "50%",
+        top: "50%",
+        x,
+        y,
+        willChange: "transform",
       }}
     >
-      <span
-        className="uppercase"
-        style={{
-          fontSize: 9.5,
-          letterSpacing: "0.3em",
-          color: "rgba(245,245,247,0.45)",
-          fontFamily: "var(--font-mono)",
-          fontWeight: 500,
+      <motion.div style={{ scale: depthScale }}>
+      <motion.button
+        type="button"
+        onClick={onClick}
+        onMouseEnter={onHoverStart}
+        onMouseLeave={onHoverEnd}
+        animate={{
+          opacity: anyHoveredButMe ? 0.35 : 1,
+          scale: isHovered ? 1.12 : 1,
         }}
+        transition={{ duration: 0.5, ease: [0.22, 0.72, 0.2, 1] }}
+        className="wrks-crystal-border group relative block text-left cursor-pointer overflow-hidden"
+        style={
+          {
+            width: cardW,
+            height: cardH,
+            marginLeft: -cardW / 2,
+            marginTop: -cardH / 2,
+            borderRadius: 14,
+            background: `linear-gradient(180deg, rgba(${accentRgb}, 0.07) 0%, rgba(255,255,255,0.012) 100%)`,
+            backdropFilter: "blur(18px)",
+            WebkitBackdropFilter: "blur(18px)",
+            boxShadow: isHovered
+              ? `0 40px 80px -28px rgba(0,0,0,0.85), 0 0 40px -8px rgba(${accentRgb}, 0.45), inset 0 1px 0 rgba(255,255,255,0.05)`
+              : `0 24px 60px -32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)`,
+            "--wrks-crystal-rgb": accentRgb,
+            zIndex: isHovered ? 30 : 10,
+          } as React.CSSProperties
+        }
       >
-        {label}
-      </span>
-      <span
-        style={{
-          fontSize: 12.5,
-          color: "rgba(245,245,247,0.95)",
-          letterSpacing: "-0.005em",
-          fontWeight: 500,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {value}
-      </span>
-    </div>
+        <div className="relative z-[2] h-full flex flex-col" style={{ padding: 12 }}>
+          {/* Top: label + status dot */}
+          <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+            <span
+              className="uppercase"
+              style={{
+                fontSize: 8.5,
+                letterSpacing: "0.32em",
+                color: "rgba(245,245,247,0.5)",
+                fontFamily: "var(--font-mono)",
+                fontWeight: 500,
+              }}
+            >
+              {label}
+            </span>
+            <span
+              aria-hidden
+              className="block rounded-full"
+              style={{
+                width: 5,
+                height: 5,
+                background: stored
+                  ? `rgba(${accentRgb}, 1)`
+                  : "rgba(245,245,247,0.22)",
+                boxShadow: stored ? `0 0 7px rgba(${accentRgb}, 0.6)` : "none",
+              }}
+            />
+          </div>
+
+          {/* Mini-render frame */}
+          <div
+            className="relative flex-1 overflow-hidden"
+            style={{
+              borderRadius: 8,
+              background: `linear-gradient(180deg, rgba(${accentRgb}, 0.04) 0%, #0d0d10 100%)`,
+              border: "1px solid rgba(255,255,255,0.05)",
+              padding: "9px 11px 10px",
+            }}
+          >
+            {kind === "instagram" && (
+              <MiniInstagram
+                brandName={brandName}
+                handle={slugify(brandName)}
+                caption={stored?.deliverables.social.instagram ?? "Tell your agent what to post on Instagram."}
+                accentRgb={accentRgb}
+                personality={personality}
+              />
+            )}
+            {kind === "twitter" && (
+              <MiniX
+                brandName={brandName}
+                handle={slugify(brandName)}
+                text={stored?.deliverables.social.twitter ?? "Tell your agent what to tweet."}
+                accentRgb={accentRgb}
+              />
+            )}
+            {kind === "linkedin" && (
+              <MiniLinkedIn
+                brandName={brandName}
+                text={stored?.deliverables.social.linkedin ?? "Tell your agent what to post on LinkedIn."}
+                accentRgb={accentRgb}
+              />
+            )}
+            {kind === "ad" && (
+              <MiniAd
+                brandName={brandName}
+                text={stored?.deliverables.ad.headline ?? "Tell your agent what to advertise."}
+                cta={stored?.deliverables.ad.cta ?? "Learn more"}
+                accentRgb={accentRgb}
+                personality={personality}
+              />
+            )}
+          </div>
+        </div>
+      </motion.button>
+      </motion.div>
+    </motion.div>
   );
 }
 
+function slugify(name: string) {
+  return name.toLowerCase().replace(/\s+/g, "");
+}
+
 /* ============================================================
- * Row 2 LEFT — Landing hero with mini-render of the landing page
+ * CenterLanding — bigger mini-render of the drafted landing page
+ * at canvas center. The protagonist.
  * ============================================================ */
 
-function LandingHero({
+function CenterLanding({
   personality,
   stored,
+  brandName,
   accentRgb,
-  accentDeepRgb,
-  onPick,
-  reduced,
 }: {
   personality: Personality;
   stored: StoredWowPayload | null;
+  brandName: string;
   accentRgb: string;
-  accentDeepRgb: string;
-  onPick: () => void;
-  reduced: boolean;
 }) {
   const headline =
     stored?.deliverables.landing.headline ?? "Tell your agent what to build.";
   const subhead =
     stored?.deliverables.landing.subhead ?? "We're drafting your edition.";
   const cta = stored?.deliverables.landing.primaryCta ?? "Get started";
-  const brandName = stored?.deliverables.brandName ?? "Your brand";
 
   return (
-    <motion.button
-      type="button"
-      onClick={onPick}
-      initial={reduced ? false : { opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 0.72, 0.2, 1] }}
-      className="wrks-crystal-border group relative block text-left transition-transform duration-300 hover:-translate-y-0.5"
+    <div
+      className="wrks-crystal-border relative h-full w-full"
       style={
         {
-          padding: 20,
-          borderRadius: 18,
+          padding: 16,
+          borderRadius: 20,
           background:
-            "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.012) 100%)",
-          backdropFilter: "blur(18px)",
-          WebkitBackdropFilter: "blur(18px)",
-          boxShadow:
-            "0 50px 110px -40px rgba(0,0,0,0.78), inset 0 1px 0 rgba(255,255,255,0.05)",
+            "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.014) 100%)",
+          backdropFilter: "blur(22px)",
+          WebkitBackdropFilter: "blur(22px)",
+          boxShadow: `0 60px 140px -40px rgba(0,0,0,0.85), 0 0 60px -10px rgba(${accentRgb}, 0.45), inset 0 1px 0 rgba(255,255,255,0.06)`,
           "--wrks-crystal-rgb": accentRgb,
         } as React.CSSProperties
       }
     >
-      {/* Top eyebrow strip */}
-      <div className="flex items-center justify-between mb-3.5">
-        <span
-          className="uppercase"
-          style={{
-            fontSize: 9.5,
-            letterSpacing: "0.32em",
-            color: "rgba(245,245,247,0.5)",
-            fontFamily: "var(--font-mono)",
-            fontWeight: 500,
-          }}
-        >
-          Landing page · 1440 × 900
-        </span>
-        <span
-          className="inline-flex items-center gap-1.5 uppercase"
-          style={{
-            fontSize: 9.5,
-            letterSpacing: "0.28em",
-            color: "rgba(245,245,247,0.62)",
-            fontFamily: "var(--font-mono)",
-            fontWeight: 500,
-          }}
-        >
+      {/* Atmospheric halo behind the render */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          inset: "-12% -10% 0 -10%",
+          background: `radial-gradient(ellipse 55% 50% at 50% 60%, rgba(${accentRgb}, 0.25), transparent 70%)`,
+          filter: "blur(50px)",
+          zIndex: 0,
+        }}
+      />
+
+      <div className="relative z-[2] flex flex-col" style={{ height: "100%" }}>
+        {/* Top eyebrow */}
+        <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
           <span
-            aria-hidden
-            className="block rounded-full"
+            className="uppercase"
             style={{
-              width: 5,
-              height: 5,
-              background: `rgba(${accentRgb}, 1)`,
-              boxShadow: `0 0 8px rgba(${accentRgb}, 0.7)`,
+              fontSize: 9.5,
+              letterSpacing: "0.32em",
+              color: "rgba(245,245,247,0.5)",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 500,
             }}
-          />
-          Draft
-        </span>
-      </div>
+          >
+            Landing page · 1440 × 900
+          </span>
+          <span
+            className="inline-flex items-center gap-1.5 uppercase"
+            style={{
+              fontSize: 9.5,
+              letterSpacing: "0.28em",
+              color: "rgba(245,245,247,0.62)",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 500,
+            }}
+          >
+            <span
+              aria-hidden
+              className="block rounded-full"
+              style={{
+                width: 5,
+                height: 5,
+                background: `rgba(${accentRgb}, 1)`,
+                boxShadow: `0 0 8px rgba(${accentRgb}, 0.65)`,
+              }}
+            />
+            Draft
+          </span>
+        </div>
 
-      {/* The render frame — atmospheric halo behind it, glass frame around */}
-      <div className="relative" style={{ height: 320 }}>
-        {/* Halo */}
+        {/* Render frame */}
         <div
-          aria-hidden
-          className="absolute pointer-events-none"
-          style={{
-            inset: "-10% -8% 0 -8%",
-            background: `radial-gradient(ellipse 55% 50% at 50% 60%, rgba(${accentRgb}, 0.22), transparent 70%)`,
-            filter: "blur(40px)",
-            zIndex: 0,
-          }}
-        />
-
-        {/* The render itself */}
-        <div
-          className="relative w-full h-full overflow-hidden"
+          className="relative flex-1 overflow-hidden"
           style={{
             borderRadius: 12,
-            background: `linear-gradient(180deg, rgba(${accentRgb}, 0.05) 0%, rgba(${accentDeepRgb}, 0.02) 100%), #0e0e12`,
-            border: "1px solid rgba(255,255,255,0.06)",
+            background: `linear-gradient(180deg, rgba(${accentRgb}, 0.05) 0%, ${personality.accentDeep}22 100%), #0e0e12`,
+            border: "1px solid rgba(255,255,255,0.07)",
             boxShadow:
-              "0 22px 50px -22px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
+              "0 22px 50px -22px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05)",
           }}
         >
           {/* Mini browser top */}
           <div
             className="flex items-center gap-1.5"
             style={{
-              padding: "10px 12px",
+              padding: "11px 14px",
               borderBottom: "1px solid rgba(255,255,255,0.05)",
             }}
           >
             <span
               aria-hidden
               className="block rounded-full"
-              style={{ width: 7, height: 7, background: "rgba(255,255,255,0.14)" }}
+              style={{ width: 8, height: 8, background: "rgba(255,255,255,0.16)" }}
             />
             <span
               aria-hidden
               className="block rounded-full"
-              style={{ width: 7, height: 7, background: "rgba(255,255,255,0.14)" }}
+              style={{ width: 8, height: 8, background: "rgba(255,255,255,0.16)" }}
             />
             <span
               aria-hidden
               className="block rounded-full"
-              style={{ width: 7, height: 7, background: "rgba(255,255,255,0.14)" }}
+              style={{ width: 8, height: 8, background: "rgba(255,255,255,0.16)" }}
             />
             <span
               className="ml-3 truncate uppercase"
               style={{
-                fontSize: 9,
+                fontSize: 9.5,
                 letterSpacing: "0.24em",
-                color: "rgba(245,245,247,0.4)",
+                color: "rgba(245,245,247,0.42)",
                 fontFamily: "var(--font-mono)",
                 fontWeight: 500,
               }}
             >
-              {brandName.toLowerCase().replace(/\s+/g, "")}.wrks.studio
+              {slugify(brandName)}.wrks.studio
             </span>
           </div>
 
-          {/* The page hero */}
+          {/* Page hero */}
           <div
+            className="flex flex-col"
             style={{
-              padding: "22px 26px 24px",
-              display: "flex",
-              flexDirection: "column",
-              height: "calc(100% - 32px)",
+              padding: "24px 28px 22px",
+              height: "calc(100% - 36px)",
             }}
           >
             {/* Brand nav */}
@@ -515,12 +726,12 @@ function LandingHero({
                 <span
                   className="shrink-0 grid place-items-center"
                   style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 5,
+                    width: 22,
+                    height: 22,
+                    borderRadius: 6,
                     background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
                     color: "white",
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: 700,
                     lineHeight: 1,
                   }}
@@ -530,31 +741,32 @@ function LandingHero({
                 </span>
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: 500,
-                    color: "rgba(245,245,247,0.85)",
+                    color: "rgba(245,245,247,0.92)",
+                    letterSpacing: "-0.005em",
                   }}
                 >
                   {brandName}
                 </span>
               </div>
-              <div className="flex items-center gap-3">
-                <span style={{ fontSize: 9, color: "rgba(245,245,247,0.42)" }}>About</span>
-                <span style={{ fontSize: 9, color: "rgba(245,245,247,0.42)" }}>Work</span>
-                <span style={{ fontSize: 9, color: `rgba(${accentRgb}, 0.95)` }}>{cta}</span>
+              <div className="flex items-center gap-3.5">
+                <span style={{ fontSize: 10.5, color: "rgba(245,245,247,0.42)" }}>About</span>
+                <span style={{ fontSize: 10.5, color: "rgba(245,245,247,0.42)" }}>Work</span>
+                <span style={{ fontSize: 10.5, color: `rgba(${accentRgb}, 1)`, fontWeight: 500 }}>{cta}</span>
               </div>
             </div>
 
             {/* Editorial headline */}
-            <h3
+            <h2
               className="font-serif"
               style={{
-                fontSize: "clamp(22px, 2.4vw, 30px)",
+                fontSize: "clamp(24px, 2.4vw, 32px)",
                 fontWeight: 480,
-                lineHeight: 1.02,
-                letterSpacing: "-0.028em",
-                color: "rgba(248,247,252,0.96)",
-                maxWidth: "16ch",
+                lineHeight: 1.04,
+                letterSpacing: "-0.03em",
+                color: "rgba(248,247,252,0.97)",
+                maxWidth: "18ch",
                 display: "-webkit-box",
                 WebkitLineClamp: 3,
                 WebkitBoxOrient: "vertical",
@@ -562,17 +774,17 @@ function LandingHero({
               }}
             >
               {headline}
-            </h3>
+            </h2>
 
             {/* Subhead */}
             <p
               className="font-serif italic"
               style={{
-                fontSize: 12,
-                color: "rgba(245,245,247,0.55)",
-                marginTop: 12,
+                fontSize: 13,
+                color: "rgba(245,245,247,0.6)",
+                marginTop: 14,
                 lineHeight: 1.45,
-                maxWidth: "40ch",
+                maxWidth: "44ch",
                 display: "-webkit-box",
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: "vertical",
@@ -582,246 +794,92 @@ function LandingHero({
               {subhead}
             </p>
 
+            {/* CTA pill */}
             <div className="mt-auto pt-3">
-              {/* CTA pill */}
               <div
                 className="inline-flex items-center gap-1.5"
                 style={{
-                  padding: "5px 11px",
-                  borderRadius: 6,
-                  background: `rgba(${accentRgb}, 0.16)`,
-                  border: `1px solid rgba(${accentRgb}, 0.34)`,
+                  padding: "6px 14px",
+                  borderRadius: 7,
+                  background: `rgba(${accentRgb}, 0.18)`,
+                  border: `1px solid rgba(${accentRgb}, 0.38)`,
                   color: `rgba(${accentRgb}, 1)`,
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 500,
                   letterSpacing: "-0.003em",
                 }}
               >
                 {cta}
-                <span aria-hidden style={{ fontSize: 11, lineHeight: 1 }}>→</span>
+                <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>→</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </motion.button>
-  );
-}
-
-/* ============================================================
- * Row 2 CENTER — SocialTile — mini-renders of each social/ad piece
- * ============================================================ */
-
-function SocialTile({
-  kind,
-  personality,
-  stored,
-  brandName,
-  accentRgb,
-  onPick,
-  reduced,
-  delay,
-}: {
-  kind: "instagram" | "twitter" | "linkedin" | "ad";
-  personality: Personality;
-  stored: StoredWowPayload | null;
-  brandName: string;
-  accentRgb: string;
-  onPick: () => void;
-  reduced: boolean;
-  delay: number;
-}) {
-  const meta = SOCIAL_META[kind];
-  const text = stored ? meta.getText(stored) : meta.placeholder;
-  const handle = brandName.toLowerCase().replace(/\s+/g, "");
-
-  return (
-    <motion.button
-      type="button"
-      onClick={onPick}
-      initial={reduced ? false : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 0.72, 0.2, 1] }}
-      className="wrks-crystal-border group relative block text-left transition-transform duration-300 hover:-translate-y-0.5 overflow-hidden"
-      style={
-        {
-          padding: 14,
-          borderRadius: 14,
-          background: `linear-gradient(180deg, rgba(${accentRgb}, 0.06) 0%, rgba(255,255,255,0.008) 100%)`,
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
-          boxShadow:
-            "0 22px 50px -28px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
-          "--wrks-crystal-rgb": accentRgb,
-          "--wrks-crystal-delay": `${-1.75 * (delay - 0.18) * 10}s`,
-        } as React.CSSProperties
-      }
-    >
-      <div className="relative z-[2] h-full flex flex-col">
-        {/* Eyebrow */}
-        <div
-          className="flex items-center justify-between"
-          style={{ marginBottom: 10 }}
-        >
-          <span
-            className="uppercase"
-            style={{
-              fontSize: 8.5,
-              letterSpacing: "0.32em",
-              color: "rgba(245,245,247,0.48)",
-              fontFamily: "var(--font-mono)",
-              fontWeight: 500,
-            }}
-          >
-            {meta.label}
-          </span>
-          <span
-            aria-hidden
-            className="block rounded-full"
-            style={{
-              width: 5,
-              height: 5,
-              background: stored ? `rgba(${accentRgb}, 1)` : "rgba(245,245,247,0.22)",
-              boxShadow: stored ? `0 0 7px rgba(${accentRgb}, 0.6)` : "none",
-            }}
-          />
-        </div>
-
-        {/* Mini-render canvas */}
-        <div
-          className="relative flex-1 overflow-hidden"
-          style={{
-            borderRadius: 8,
-            background: `linear-gradient(180deg, rgba(${accentRgb}, 0.05) 0%, #0d0d10 100%)`,
-            border: "1px solid rgba(255,255,255,0.05)",
-            padding: "10px 12px 11px",
-          }}
-        >
-          {kind === "instagram" && (
-            <MiniInstagram brandName={brandName} handle={handle} caption={text} accentRgb={accentRgb} personality={personality} />
-          )}
-          {kind === "twitter" && (
-            <MiniX brandName={brandName} handle={handle} text={text} accentRgb={accentRgb} />
-          )}
-          {kind === "linkedin" && (
-            <MiniLinkedIn brandName={brandName} text={text} accentRgb={accentRgb} />
-          )}
-          {kind === "ad" && (
-            <MiniAd brandName={brandName} text={text} accentRgb={accentRgb} cta={stored?.deliverables.ad.cta ?? "Learn more"} personality={personality} />
-          )}
-        </div>
-      </div>
-    </motion.button>
-  );
-}
-
-const SOCIAL_META = {
-  instagram: {
-    label: "Instagram",
-    placeholder: "Tell your agent what to post on Instagram.",
-    getText: (s: StoredWowPayload) => s.deliverables.social.instagram,
-  },
-  twitter: {
-    label: "X · Twitter",
-    placeholder: "Tell your agent what to tweet.",
-    getText: (s: StoredWowPayload) => s.deliverables.social.twitter,
-  },
-  linkedin: {
-    label: "LinkedIn",
-    placeholder: "Tell your agent what to post on LinkedIn.",
-    getText: (s: StoredWowPayload) => s.deliverables.social.linkedin,
-  },
-  ad: {
-    label: "Meta ad",
-    placeholder: "Tell your agent what to advertise.",
-    getText: (s: StoredWowPayload) => s.deliverables.ad.headline,
-  },
-} as const;
-
-/* ============================================================
- * Mini-renders — each laid out like the actual platform
- * ============================================================ */
-
-function MiniBrandRow({
-  brandName,
-  subline,
-  personality,
-}: {
-  brandName: string;
-  subline: string;
-  personality: Personality;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span
-        className="shrink-0 grid place-items-center"
-        style={{
-          width: 18,
-          height: 18,
-          borderRadius: 4,
-          background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-          color: "white",
-          fontSize: 9,
-          fontWeight: 700,
-          lineHeight: 1,
-        }}
-        aria-hidden
-      >
-        {brandName.charAt(0).toUpperCase()}
-      </span>
-      <div className="flex flex-col min-w-0" style={{ lineHeight: 1.1 }}>
-        <span
-          className="truncate"
-          style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: "rgba(245,245,247,0.95)",
-            letterSpacing: "-0.005em",
-          }}
-        >
-          {brandName}
-        </span>
-        <span
-          className="truncate"
-          style={{
-            fontSize: 8.5,
-            color: "rgba(245,245,247,0.42)",
-            marginTop: 1,
-          }}
-        >
-          {subline}
-        </span>
-      </div>
     </div>
+  );
+}
+
+/* ============================================================
+ * Mini-renders for each platform — laid out like the actual UI,
+ * not as labels
+ * ============================================================ */
+
+function BrandMark({ brandName, personality, size = 18 }: { brandName: string; personality: Personality; size?: number }) {
+  return (
+    <span
+      className="shrink-0 grid place-items-center"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: Math.max(3, size * 0.22),
+        background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
+        color: "white",
+        fontSize: Math.round(size * 0.5),
+        fontWeight: 700,
+        lineHeight: 1,
+      }}
+      aria-hidden
+    >
+      {brandName.charAt(0).toUpperCase()}
+    </span>
   );
 }
 
 function MiniInstagram({ brandName, handle, caption, accentRgb, personality }: { brandName: string; handle: string; caption: string; accentRgb: string; personality: Personality }) {
   return (
     <div className="flex flex-col h-full">
-      <MiniBrandRow brandName={brandName} subline={`@${handle}`} personality={personality} />
+      <div className="flex items-center gap-1.5" style={{ marginBottom: 5 }}>
+        <BrandMark brandName={brandName} personality={personality} size={16} />
+        <div className="flex flex-col min-w-0" style={{ lineHeight: 1.05 }}>
+          <span className="truncate" style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(245,245,247,0.94)" }}>
+            {brandName}
+          </span>
+          <span className="truncate" style={{ fontSize: 8, color: "rgba(245,245,247,0.4)" }}>
+            @{handle}
+          </span>
+        </div>
+      </div>
       <div
-        className="flex-1 my-2 rounded relative overflow-hidden"
+        className="flex-1 my-1.5 rounded relative overflow-hidden"
         style={{
-          background: `linear-gradient(135deg, rgba(${accentRgb}, 0.28) 0%, ${personality.accentDeep}66 100%)`,
-          minHeight: 32,
+          background: `linear-gradient(135deg, rgba(${accentRgb}, 0.3) 0%, ${personality.accentDeep}77 100%)`,
+          minHeight: 24,
         }}
       >
         <div
           aria-hidden
           className="absolute inset-0"
-          style={{
-            background: `radial-gradient(ellipse 70% 60% at 30% 25%, rgba(255,255,255,0.18), transparent 70%)`,
-          }}
+          style={{ background: `radial-gradient(ellipse 65% 55% at 30% 25%, rgba(255,255,255,0.2), transparent 70%)` }}
         />
         <span
           className="absolute font-serif italic"
           style={{
             bottom: 4,
-            left: 5,
-            right: 5,
+            left: 6,
+            right: 6,
             fontSize: 9,
-            color: "rgba(255,255,255,0.92)",
+            color: "rgba(255,255,255,0.94)",
             lineHeight: 1.15,
             letterSpacing: "-0.008em",
             display: "-webkit-box",
@@ -855,7 +913,7 @@ function MiniInstagram({ brandName, handle, caption, accentRgb, personality }: {
 function MiniX({ brandName, handle, text, accentRgb }: { brandName: string; handle: string; text: string; accentRgb: string }) {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-1.5" style={{ marginBottom: 5 }}>
+      <div className="flex items-center gap-1.5" style={{ marginBottom: 6 }}>
         <span
           className="shrink-0 grid place-items-center"
           style={{
@@ -872,23 +930,10 @@ function MiniX({ brandName, handle, text, accentRgb }: { brandName: string; hand
         >
           {brandName.charAt(0).toUpperCase()}
         </span>
-        <span
-          className="truncate"
-          style={{
-            fontSize: 9.5,
-            fontWeight: 600,
-            color: "rgba(245,245,247,0.95)",
-          }}
-        >
+        <span className="truncate" style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(245,245,247,0.94)" }}>
           {brandName}
         </span>
-        <span
-          className="truncate"
-          style={{
-            fontSize: 8.5,
-            color: "rgba(245,245,247,0.42)",
-          }}
-        >
+        <span className="truncate" style={{ fontSize: 8.5, color: "rgba(245,245,247,0.42)" }}>
           @{handle}
         </span>
       </div>
@@ -896,10 +941,10 @@ function MiniX({ brandName, handle, text, accentRgb }: { brandName: string; hand
         style={{
           fontSize: 9.5,
           color: "rgba(245,245,247,0.86)",
-          lineHeight: 1.32,
+          lineHeight: 1.34,
           letterSpacing: "-0.003em",
           display: "-webkit-box",
-          WebkitLineClamp: 4,
+          WebkitLineClamp: 5,
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
           flex: 1,
@@ -919,7 +964,7 @@ function MiniX({ brandName, handle, text, accentRgb }: { brandName: string; hand
 function MiniLinkedIn({ brandName, text, accentRgb }: { brandName: string; text: string; accentRgb: string }) {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-1.5" style={{ marginBottom: 5 }}>
+      <div className="flex items-center gap-1.5" style={{ marginBottom: 6 }}>
         <span
           className="shrink-0 grid place-items-center"
           style={{
@@ -937,23 +982,10 @@ function MiniLinkedIn({ brandName, text, accentRgb }: { brandName: string; text:
           {brandName.charAt(0).toUpperCase()}
         </span>
         <div className="flex flex-col min-w-0" style={{ lineHeight: 1.05 }}>
-          <span
-            className="truncate"
-            style={{
-              fontSize: 9.5,
-              fontWeight: 600,
-              color: "rgba(245,245,247,0.95)",
-            }}
-          >
+          <span className="truncate" style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(245,245,247,0.94)" }}>
             {brandName}
           </span>
-          <span
-            className="truncate"
-            style={{
-              fontSize: 7.5,
-              color: "rgba(245,245,247,0.42)",
-            }}
-          >
+          <span className="truncate" style={{ fontSize: 7.5, color: "rgba(245,245,247,0.42)" }}>
             Counsel · Just now
           </span>
         </div>
@@ -965,7 +997,7 @@ function MiniLinkedIn({ brandName, text, accentRgb }: { brandName: string; text:
           lineHeight: 1.34,
           letterSpacing: "-0.003em",
           display: "-webkit-box",
-          WebkitLineClamp: 4,
+          WebkitLineClamp: 5,
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
           flex: 1,
@@ -985,35 +1017,10 @@ function MiniLinkedIn({ brandName, text, accentRgb }: { brandName: string; text:
 function MiniAd({ brandName, text, accentRgb, cta, personality }: { brandName: string; text: string; accentRgb: string; cta: string; personality: Personality }) {
   return (
     <div className="flex flex-col h-full">
-      <div
-        className="flex items-center justify-between"
-        style={{ marginBottom: 5 }}
-      >
+      <div className="flex items-center justify-between" style={{ marginBottom: 5 }}>
         <div className="flex items-center gap-1.5">
-          <span
-            className="shrink-0 grid place-items-center"
-            style={{
-              width: 14,
-              height: 14,
-              borderRadius: 3,
-              background: `linear-gradient(135deg, ${personality.accent} 0%, ${personality.accentDeep} 100%)`,
-              color: "white",
-              fontSize: 7.5,
-              fontWeight: 700,
-              lineHeight: 1,
-            }}
-            aria-hidden
-          >
-            {brandName.charAt(0).toUpperCase()}
-          </span>
-          <span
-            className="truncate"
-            style={{
-              fontSize: 9.5,
-              fontWeight: 600,
-              color: "rgba(245,245,247,0.95)",
-            }}
-          >
+          <BrandMark brandName={brandName} personality={personality} size={14} />
+          <span className="truncate" style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(245,245,247,0.94)" }}>
             {brandName}
           </span>
         </div>
@@ -1033,15 +1040,15 @@ function MiniAd({ brandName, text, accentRgb, cta, personality }: { brandName: s
       <div
         className="flex-1 my-1.5 rounded relative overflow-hidden"
         style={{
-          background: `linear-gradient(135deg, rgba(${accentRgb}, 0.3) 0%, ${personality.accentDeep}88 100%)`,
-          minHeight: 24,
+          background: `linear-gradient(135deg, rgba(${accentRgb}, 0.34) 0%, ${personality.accentDeep}88 100%)`,
+          minHeight: 22,
         }}
       >
         <div
           aria-hidden
           className="absolute inset-0"
           style={{
-            background: `radial-gradient(ellipse 70% 60% at 70% 20%, rgba(255,255,255,0.18), transparent 70%)`,
+            background: `radial-gradient(ellipse 70% 60% at 70% 20%, rgba(255,255,255,0.2), transparent 70%)`,
           }}
         />
       </div>
@@ -1083,212 +1090,64 @@ function MiniAd({ brandName, text, accentRgb, cta, personality }: { brandName: s
 }
 
 /* ============================================================
- * Row 2 RIGHT — Activity feed
+ * ActivityTicker — single italic line bottom-left
  * ============================================================ */
 
-type ActivityEntry = { who: "agent" | "user"; text: string; time: string };
-
-function ActivityPanel({
-  brandName,
+function ActivityTicker({
   agentName,
   personality,
   hasStored,
-  reduced,
 }: {
-  brandName: string;
   agentName: string;
   personality: Personality;
   hasStored: boolean;
-  reduced: boolean;
 }) {
   const agent = agentName?.trim() || personality.name;
-  const entries: ActivityEntry[] = hasStored
-    ? [
-        { who: "agent", text: `Refined the landing headline.`, time: "2m" },
-        { who: "agent", text: `Drafted an Instagram caption for ${brandName}.`, time: "1h" },
-        { who: "user", text: "You asked to add a pricing section.", time: "Yest" },
-        { who: "agent", text: `Tuned voice for ${brandName}.`, time: "2d" },
-      ]
-    : [];
-
+  const text = hasStored
+    ? `${agent} refined the landing headline`
+    : `${agent} stands ready · just say what you want to build`;
+  const meta = hasStored ? "2 min ago" : "";
   return (
-    <motion.div
-      initial={reduced ? false : { opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.7, delay: 0.34, ease: [0.22, 0.72, 0.2, 1] }}
-      className="relative flex flex-col"
-      style={{
-        padding: "18px 18px 18px",
-        borderRadius: 16,
-        background:
-          "linear-gradient(180deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.008) 100%)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-      }}
-    >
-      <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
-        <span
-          className="uppercase"
-          style={{
-            fontSize: 10,
-            letterSpacing: "0.32em",
-            color: "rgba(245,245,247,0.48)",
-            fontFamily: "var(--font-mono)",
-            fontWeight: 500,
-          }}
-        >
-          Activity
-        </span>
-        <span
-          className="uppercase"
-          style={{
-            fontSize: 9.5,
-            letterSpacing: "0.24em",
-            color: "rgba(245,245,247,0.4)",
-            fontFamily: "var(--font-mono)",
-          }}
-        >
-          {agent}
-        </span>
-      </div>
-
-      {entries.length === 0 ? (
-        <div
-          className="font-serif italic"
-          style={{
-            fontSize: 13.5,
-            color: "rgba(245,245,247,0.5)",
-            marginTop: 4,
-            lineHeight: 1.5,
-          }}
-        >
-          Nothing yet. Tell {agent} what to build.
-        </div>
-      ) : (
-        <ul className="flex flex-col">
-          {entries.map((e, i) => (
-            <li
-              key={i}
-              className="flex items-start gap-3"
-              style={{
-                padding: "10px 0",
-                borderBottom:
-                  i === entries.length - 1
-                    ? "none"
-                    : "1px solid rgba(255,255,255,0.045)",
-              }}
-            >
-              <span
-                aria-hidden
-                className="block rounded-full shrink-0"
-                style={{
-                  marginTop: 6,
-                  width: 5,
-                  height: 5,
-                  background:
-                    e.who === "agent"
-                      ? `${personality.accent}`
-                      : "rgba(245,245,247,0.4)",
-                  boxShadow:
-                    e.who === "agent" ? `0 0 7px ${personality.accent}aa` : "none",
-                }}
-              />
-              <div className="flex-1 min-w-0">
-                <div
-                  style={{
-                    fontSize: 12.5,
-                    color: "rgba(245,245,247,0.88)",
-                    letterSpacing: "-0.005em",
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {e.text}
-                </div>
-                <div
-                  className="uppercase"
-                  style={{
-                    fontSize: 9.5,
-                    letterSpacing: "0.22em",
-                    color: "rgba(245,245,247,0.4)",
-                    fontFamily: "var(--font-mono)",
-                    fontWeight: 500,
-                    marginTop: 3,
-                  }}
-                >
-                  {e.who === "agent" ? "agent" : "you"} · {e.time}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </motion.div>
-  );
-}
-
-/* ============================================================
- * Row 3 — Up next action pills
- * ============================================================ */
-
-function UpNextRow({ accentRgb, reduced }: { accentRgb: string; reduced: boolean }) {
-  const actions = [
-    { label: "Publish edition" },
-    { label: "Schedule the run" },
-    { label: "Swap palette" },
-    { label: "Brief next edition" },
-  ];
-  return (
-    <motion.div
-      initial={reduced ? false : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.42, ease: [0.22, 0.72, 0.2, 1] }}
-      className="flex items-center justify-between gap-4"
-      style={{ marginTop: 4 }}
+    <div
+      className="absolute flex items-center gap-3 pointer-events-none"
+      style={{ bottom: 22, left: 40, maxWidth: "60vw" }}
     >
       <span
-        className="uppercase shrink-0"
+        aria-hidden
+        className="block rounded-full"
         style={{
-          fontSize: 10,
-          letterSpacing: "0.32em",
-          color: "rgba(245,245,247,0.46)",
-          fontFamily: "var(--font-mono)",
-          fontWeight: 500,
+          width: 5,
+          height: 5,
+          background: hasStored ? personality.accent : "rgba(245,245,247,0.4)",
+          boxShadow: hasStored ? `0 0 7px ${personality.accent}aa` : "none",
+        }}
+      />
+      <span
+        className="truncate font-serif italic"
+        style={{
+          fontSize: 14,
+          color: "rgba(245,245,247,0.6)",
+          letterSpacing: "-0.005em",
         }}
       >
-        Up next
-      </span>
-      <div className="flex items-center gap-2 flex-wrap justify-end">
-        {actions.map((a) => (
-          <button
-            key={a.label}
-            type="button"
-            className="wrks-crystal-border-button inline-flex items-center gap-2 transition-transform duration-200 hover:-translate-y-0.5"
-            style={
-              {
-                height: 34,
-                padding: "0 14px",
-                borderRadius: 10,
-                background:
-                  "linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.012) 100%)",
-                color: "rgba(245,245,247,0.95)",
-                fontSize: 12.5,
-                fontWeight: 500,
-                letterSpacing: "-0.005em",
-                "--wrks-crystal-rgb": accentRgb,
-              } as React.CSSProperties
-            }
+        {text}
+        {meta && (
+          <span
+            className="uppercase"
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.24em",
+              color: "rgba(245,245,247,0.36)",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 500,
+              marginLeft: 10,
+              fontStyle: "normal",
+            }}
           >
-            {a.label}
-            <span
-              aria-hidden
-              style={{ color: "rgba(245,245,247,0.5)", fontSize: 12 }}
-            >
-              →
-            </span>
-          </button>
-        ))}
-      </div>
-    </motion.div>
+            · {meta}
+          </span>
+        )}
+      </span>
+    </div>
   );
 }
