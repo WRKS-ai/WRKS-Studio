@@ -71,43 +71,61 @@ export default function StudioWelcomePage() {
             }
             animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
             transition={{ duration: 0.9, delay: 0.7, ease: [0.22, 0.72, 0.2, 1] }}
-            whileHover={reduced ? undefined : { scale: 1.015, y: -2 }}
-            whileTap={reduced ? undefined : { scale: 0.995 }}
-            className="group relative focus:outline-none"
+            whileHover={reduced ? undefined : { scale: 1.012, y: -2 }}
+            whileTap={reduced ? undefined : { scale: 0.996 }}
+            className="group relative focus:outline-none text-left"
             style={{
-              width: 320,
-              height: 420,
+              width: 420,
+              height: 540,
               background: "#fbf7ee",
-              borderRadius: 12,
+              borderRadius: 14,
               border: "1px solid rgba(255,255,255,0.08)",
               cursor: "pointer",
-              padding: 0,
-              boxShadow: "0 24px 60px rgba(0,0,0,0.45)",
+              padding: "36px 36px 40px",
+              boxShadow:
+                "0 30px 70px rgba(0,0,0,0.5), 0 2px 0 rgba(255,255,255,0.04) inset",
             }}
             aria-label={`Open ${wordmark}'s edition`}
           >
-            <div
-              className="size-full flex flex-col items-center justify-center"
-              style={{ gap: 18 }}
-            >
-              <span
-                className="font-serif"
-                style={{
-                  fontSize: 32,
-                  fontWeight: 460,
-                  color: "#0a0a0c",
-                  letterSpacing: "-0.022em",
-                }}
-              >
-                {wordmark}
-              </span>
+            <div className="size-full flex flex-col justify-between">
+              <div className="flex flex-col" style={{ gap: 12 }}>
+                <span
+                  className="font-serif"
+                  style={{
+                    fontSize: 17,
+                    fontWeight: 500,
+                    color: "#0a0a0c",
+                    letterSpacing: "-0.012em",
+                  }}
+                >
+                  {wordmark}
+                </span>
+                <div
+                  style={{
+                    width: 36,
+                    height: 1,
+                    background: "rgba(10,10,12,0.22)",
+                  }}
+                />
+              </div>
+
               <div
-                style={{
-                  width: 24,
-                  height: 1,
-                  background: "rgba(10,10,12,0.2)",
-                }}
-              />
+                className="flex-1 flex items-center"
+                style={{ paddingBottom: 24 }}
+              >
+                <span
+                  className="font-serif italic"
+                  style={{
+                    fontSize: "clamp(48px, 4.6vw, 64px)",
+                    fontWeight: 380,
+                    color: "#0a0a0c",
+                    letterSpacing: "-0.032em",
+                    lineHeight: 0.98,
+                  }}
+                >
+                  Begin.
+                </span>
+              </div>
             </div>
           </motion.button>
         )}
