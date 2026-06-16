@@ -6,16 +6,19 @@ import SoftAurora from "@/components/soft-aurora";
 
 // /studio — welcome canvas.
 //
-// Background: React Bits SoftAurora — two layered Perlin-noise bands
-// with cosine-gradient color mixing, multiplied against white + magenta
-// per the user's spec. Mouse-influenced UV shift gives the aurora a
-// subtle parallax. Native WebGL port (no OGL dependency).
+// Background: React Bits SoftAurora with fixed WRKS-brand dark colors
+// (deep violet #6d28d9 + near-black indigo #1e1b4b). The bright white +
+// magenta from the user's spec read as a neon billboard against the
+// #0a0a0c page; these darker palette-aligned tones sit atmospheric
+// instead. Brightness dropped 1 → 0.85 to keep the aurora restrained.
+// Mouse parallax responds properly now (listener moved canvas → window
+// inside the component so events pass through the pointer-events:none
+// wrapper).
 //
 // Foreground: centered Fraunces greeting that pulls from Clerk's
 // useUser() — "Welcome back, {firstName}." with the React Bits hero
-// kicker as the subhead. The sidebar (WRKS Studio wordmark + nav panel
-// + user-menu) and the floating Siri orb (StudioInspectorFrame) are
-// layout chrome, present on every studio route.
+// kicker as the subhead. The sidebar + floating Siri orb stay as layout
+// chrome across all studio routes.
 
 export default function StudioWelcomePage() {
   const reduced = useReducedMotion();
@@ -31,14 +34,14 @@ export default function StudioWelcomePage() {
       className="relative size-full overflow-hidden"
       style={{ background: "#0a0a0c" }}
     >
-      {/* React Bits SoftAurora — Perlin-noise aurora bg */}
+      {/* React Bits SoftAurora — fixed WRKS-brand dark palette */}
       <div className="absolute inset-0 pointer-events-none">
         <SoftAurora
           speed={0.6}
           scale={1.5}
-          brightness={1}
-          color1="#f7f7f7"
-          color2="#e100ff"
+          brightness={0.85}
+          color1="#6d28d9"
+          color2="#1e1b4b"
           noiseFrequency={2.5}
           noiseAmplitude={1}
           bandHeight={0.5}

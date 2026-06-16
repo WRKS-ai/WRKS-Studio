@@ -295,18 +295,20 @@ export default function SoftAurora({
     const targetMouse: [number, number] = [0.5, 0.5];
     const currentMouse: [number, number] = [0.5, 0.5];
 
+    // Listen on `window` (not the canvas) because the container above
+    // sets pointer-events: none so click-through works for overlay
+    // content. Canvas-bound listeners would never fire.
     const onMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-      targetMouse[0] = (e.clientX - rect.left) / rect.width;
-      targetMouse[1] = 1 - (e.clientY - rect.top) / rect.height;
-    };
-    const onLeave = () => {
-      targetMouse[0] = 0.5;
-      targetMouse[1] = 0.5;
+      if (rect.width === 0 || rect.height === 0) return;
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = 1 - (e.clientY - rect.top) / rect.height;
+      // Clamp so cursors outside the canvas don't blow out the shift.
+      targetMouse[0] = Math.max(0, Math.min(1, x));
+      targetMouse[1] = Math.max(0, Math.min(1, y));
     };
     if (enableMouseInteraction) {
-      canvas.addEventListener("mousemove", onMove, { passive: true });
-      canvas.addEventListener("mouseleave", onLeave);
+      window.addEventListener("mousemove", onMove, { passive: true });
     }
 
     const resize = () => {
@@ -381,8 +383,7 @@ export default function SoftAurora({
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
       if (enableMouseInteraction) {
-        canvas.removeEventListener("mousemove", onMove);
-        canvas.removeEventListener("mouseleave", onLeave);
+        window.removeEventListener("mousemove", onMove);
       }
       try {
         const lose = gl.getExtension("WEBGL_lose_context");
