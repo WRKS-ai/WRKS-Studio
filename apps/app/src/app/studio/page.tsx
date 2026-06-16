@@ -158,10 +158,11 @@ const ORBITERS: {
   // never re-syncs ("wandering constellation," not "clockwork"). Radii
   // follow ~1.6 : 1 aspect (ry ≈ rx × 0.6) which the research called the
   // composed/golden-ratio ellipse vs the "classroom solar system" circle.
-  { kind: "instagram", baseAngleDeg: -100, rx: 460, ry: 280, period: 95_000, hueShift: -10, label: "Instagram" },
-  { kind: "twitter", baseAngleDeg: -10, rx: 520, ry: 310, period: 108_000, hueShift: 8, label: "X · Twitter" },
-  { kind: "linkedin", baseAngleDeg: 80, rx: 450, ry: 270, period: 117_000, hueShift: 20, label: "LinkedIn" },
-  { kind: "ad", baseAngleDeg: 170, rx: 500, ry: 295, period: 124_000, hueShift: -20, label: "Meta ad" },
+  // Radii bumped a touch so the orbiters clear the bigger 620×460 center.
+  { kind: "instagram", baseAngleDeg: -100, rx: 490, ry: 295, period: 95_000, hueShift: -10, label: "Instagram" },
+  { kind: "twitter", baseAngleDeg: -10, rx: 560, ry: 335, period: 108_000, hueShift: 8, label: "X · Twitter" },
+  { kind: "linkedin", baseAngleDeg: 80, rx: 480, ry: 290, period: 117_000, hueShift: 20, label: "LinkedIn" },
+  { kind: "ad", baseAngleDeg: 170, rx: 540, ry: 320, period: 124_000, hueShift: -20, label: "Meta ad" },
 ];
 
 export default function StudioOrbitalPage() {
@@ -239,10 +240,10 @@ export default function StudioOrbitalPage() {
             onClick={() => onPickWork("landing")}
             className="cursor-pointer"
             style={{
-              width: 540,
-              height: 400,
-              marginLeft: -270,
-              marginTop: -200,
+              width: 620,
+              height: 460,
+              marginLeft: -310,
+              marginTop: -230,
               willChange: "transform, opacity",
             }}
           >
@@ -447,8 +448,8 @@ function OrbitingCard({
     1 + 0.03 * Math.sin((a * Math.PI) / 180),
   );
 
-  const cardW = 232;
-  const cardH = 168;
+  const cardW = 260;
+  const cardH = 196;
 
   return (
     <motion.div
@@ -535,6 +536,7 @@ function OrbitingCard({
                 brandName={brandName}
                 handle={slugify(brandName)}
                 caption={stored?.deliverables.social.instagram ?? "Tell your agent what to post on Instagram."}
+                image={stored?.images.instagramSquare}
                 accentRgb={accentRgb}
                 personality={personality}
               />
@@ -544,6 +546,7 @@ function OrbitingCard({
                 brandName={brandName}
                 handle={slugify(brandName)}
                 text={stored?.deliverables.social.twitter ?? "Tell your agent what to tweet."}
+                image={stored?.images.featured?.[0]}
                 accentRgb={accentRgb}
               />
             )}
@@ -551,6 +554,7 @@ function OrbitingCard({
               <MiniLinkedIn
                 brandName={brandName}
                 text={stored?.deliverables.social.linkedin ?? "Tell your agent what to post on LinkedIn."}
+                image={stored?.images.featured?.[1]}
                 accentRgb={accentRgb}
               />
             )}
@@ -559,6 +563,7 @@ function OrbitingCard({
                 brandName={brandName}
                 text={stored?.deliverables.ad.headline ?? "Tell your agent what to advertise."}
                 cta={stored?.deliverables.ad.cta ?? "Learn more"}
+                image={stored?.images.adHero}
                 accentRgb={accentRgb}
                 personality={personality}
               />
@@ -712,16 +717,16 @@ function CenterLanding({
             </span>
           </div>
 
-          {/* Page hero */}
+          {/* Page hero — split layout: text left, real hero image right */}
           <div
             className="flex flex-col"
             style={{
-              padding: "24px 28px 22px",
+              padding: "22px 24px 24px",
               height: "calc(100% - 36px)",
             }}
           >
             {/* Brand nav */}
-            <div className="flex items-center justify-between" style={{ marginBottom: 22 }}>
+            <div className="flex items-center justify-between shrink-0" style={{ marginBottom: 18 }}>
               <div className="flex items-center gap-2">
                 <span
                   className="shrink-0 grid place-items-center"
@@ -757,60 +762,98 @@ function CenterLanding({
               </div>
             </div>
 
-            {/* Editorial headline */}
-            <h2
-              className="font-serif"
-              style={{
-                fontSize: "clamp(24px, 2.4vw, 32px)",
-                fontWeight: 480,
-                lineHeight: 1.04,
-                letterSpacing: "-0.03em",
-                color: "rgba(248,247,252,0.97)",
-                maxWidth: "18ch",
-                display: "-webkit-box",
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }}
-            >
-              {headline}
-            </h2>
+            {/* Split: text column LEFT, image column RIGHT */}
+            <div className="flex-1 grid" style={{ gridTemplateColumns: "1.05fr 1fr", gap: 18, minHeight: 0 }}>
+              {/* TEXT COLUMN */}
+              <div className="flex flex-col min-w-0">
+                <h2
+                  className="font-serif"
+                  style={{
+                    fontSize: "clamp(22px, 2.2vw, 30px)",
+                    fontWeight: 480,
+                    lineHeight: 1.02,
+                    letterSpacing: "-0.03em",
+                    color: "rgba(248,247,252,0.98)",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 4,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {headline}
+                </h2>
+                <p
+                  className="font-serif italic"
+                  style={{
+                    fontSize: 12.5,
+                    color: "rgba(245,245,247,0.62)",
+                    marginTop: 14,
+                    lineHeight: 1.5,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 4,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {subhead}
+                </p>
+                <div className="mt-auto pt-3">
+                  <div
+                    className="inline-flex items-center gap-1.5"
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: 7,
+                      background: `rgba(${accentRgb}, 0.18)`,
+                      border: `1px solid rgba(${accentRgb}, 0.38)`,
+                      color: `rgba(${accentRgb}, 1)`,
+                      fontSize: 11,
+                      fontWeight: 500,
+                      letterSpacing: "-0.003em",
+                    }}
+                  >
+                    {cta}
+                    <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>→</span>
+                  </div>
+                </div>
+              </div>
 
-            {/* Subhead */}
-            <p
-              className="font-serif italic"
-              style={{
-                fontSize: 13,
-                color: "rgba(245,245,247,0.6)",
-                marginTop: 14,
-                lineHeight: 1.45,
-                maxWidth: "44ch",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }}
-            >
-              {subhead}
-            </p>
-
-            {/* CTA pill */}
-            <div className="mt-auto pt-3">
+              {/* IMAGE COLUMN — real heroLandscape from onboarding */}
               <div
-                className="inline-flex items-center gap-1.5"
+                className="relative overflow-hidden"
                 style={{
-                  padding: "6px 14px",
-                  borderRadius: 7,
-                  background: `rgba(${accentRgb}, 0.18)`,
-                  border: `1px solid rgba(${accentRgb}, 0.38)`,
-                  color: `rgba(${accentRgb}, 1)`,
-                  fontSize: 11,
-                  fontWeight: 500,
-                  letterSpacing: "-0.003em",
+                  borderRadius: 9,
+                  background: `linear-gradient(180deg, rgba(${accentRgb}, 0.18) 0%, ${personality.accentDeep}55 100%)`,
+                  border: `1px solid rgba(${accentRgb}, 0.18)`,
+                  minHeight: 0,
                 }}
               >
-                {cta}
-                <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>→</span>
+                {stored?.images.heroLandscape ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={stored.images.heroLandscape}
+                    alt=""
+                    className="absolute inset-0 w-full h-full"
+                    style={{ objectFit: "cover" }}
+                  />
+                ) : (
+                  <div
+                    aria-hidden
+                    className="absolute inset-0"
+                    style={{
+                      background: `radial-gradient(ellipse 60% 50% at 30% 30%, rgba(255,255,255,0.18), transparent 70%)`,
+                    }}
+                  />
+                )}
+                {/* Soft bottom gradient for premium feel */}
+                <div
+                  aria-hidden
+                  className="absolute inset-x-0 bottom-0"
+                  style={{
+                    height: "40%",
+                    background: "linear-gradient(180deg, transparent, rgba(0,0,0,0.45))",
+                    pointerEvents: "none",
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -846,56 +889,48 @@ function BrandMark({ brandName, personality, size = 18 }: { brandName: string; p
   );
 }
 
-function MiniInstagram({ brandName, handle, caption, accentRgb, personality }: { brandName: string; handle: string; caption: string; accentRgb: string; personality: Personality }) {
+function MiniInstagram({ brandName, handle, caption, image, accentRgb, personality }: { brandName: string; handle: string; caption: string; image: string | undefined; accentRgb: string; personality: Personality }) {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-1.5" style={{ marginBottom: 5 }}>
-        <BrandMark brandName={brandName} personality={personality} size={16} />
+      <div className="flex items-center gap-1.5" style={{ marginBottom: 6 }}>
+        <BrandMark brandName={brandName} personality={personality} size={18} />
         <div className="flex flex-col min-w-0" style={{ lineHeight: 1.05 }}>
-          <span className="truncate" style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(245,245,247,0.94)" }}>
+          <span className="truncate" style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(245,245,247,0.95)" }}>
             {brandName}
           </span>
-          <span className="truncate" style={{ fontSize: 8, color: "rgba(245,245,247,0.4)" }}>
+          <span className="truncate" style={{ fontSize: 8.5, color: "rgba(245,245,247,0.42)" }}>
             @{handle}
           </span>
         </div>
       </div>
       <div
-        className="flex-1 my-1.5 rounded relative overflow-hidden"
+        className="flex-1 my-1.5 rounded-md relative overflow-hidden"
         style={{
           background: `linear-gradient(135deg, rgba(${accentRgb}, 0.3) 0%, ${personality.accentDeep}77 100%)`,
-          minHeight: 24,
+          minHeight: 36,
+          border: `1px solid rgba(${accentRgb}, 0.18)`,
         }}
       >
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{ background: `radial-gradient(ellipse 65% 55% at 30% 25%, rgba(255,255,255,0.2), transparent 70%)` }}
-        />
-        <span
-          className="absolute font-serif italic"
-          style={{
-            bottom: 4,
-            left: 6,
-            right: 6,
-            fontSize: 9,
-            color: "rgba(255,255,255,0.94)",
-            lineHeight: 1.15,
-            letterSpacing: "-0.008em",
-            display: "-webkit-box",
-            WebkitLineClamp: 1,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            textShadow: "0 1px 4px rgba(0,0,0,0.5)",
-          }}
-        >
-          {brandName}
-        </span>
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={image}
+            alt=""
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: "cover" }}
+          />
+        ) : (
+          <div
+            aria-hidden
+            className="absolute inset-0"
+            style={{ background: `radial-gradient(ellipse 65% 55% at 30% 25%, rgba(255,255,255,0.18), transparent 70%)` }}
+          />
+        )}
       </div>
       <p
         style={{
-          fontSize: 8.5,
-          color: "rgba(245,245,247,0.78)",
+          fontSize: 9.5,
+          color: "rgba(245,245,247,0.82)",
           lineHeight: 1.32,
           letterSpacing: "-0.003em",
           display: "-webkit-box",
@@ -910,19 +945,19 @@ function MiniInstagram({ brandName, handle, caption, accentRgb, personality }: {
   );
 }
 
-function MiniX({ brandName, handle, text, accentRgb }: { brandName: string; handle: string; text: string; accentRgb: string }) {
+function MiniX({ brandName, handle, text, image, accentRgb }: { brandName: string; handle: string; text: string; image: string | undefined; accentRgb: string }) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-1.5" style={{ marginBottom: 6 }}>
         <span
           className="shrink-0 grid place-items-center"
           style={{
-            width: 16,
-            height: 16,
+            width: 18,
+            height: 18,
             borderRadius: "50%",
             background: `rgba(${accentRgb}, 0.4)`,
             color: "white",
-            fontSize: 8,
+            fontSize: 9,
             fontWeight: 700,
             lineHeight: 1,
           }}
@@ -930,29 +965,45 @@ function MiniX({ brandName, handle, text, accentRgb }: { brandName: string; hand
         >
           {brandName.charAt(0).toUpperCase()}
         </span>
-        <span className="truncate" style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(245,245,247,0.94)" }}>
+        <span className="truncate" style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(245,245,247,0.94)" }}>
           {brandName}
         </span>
-        <span className="truncate" style={{ fontSize: 8.5, color: "rgba(245,245,247,0.42)" }}>
+        <span className="truncate" style={{ fontSize: 9, color: "rgba(245,245,247,0.42)" }}>
           @{handle}
         </span>
       </div>
       <p
         style={{
-          fontSize: 9.5,
-          color: "rgba(245,245,247,0.86)",
+          fontSize: 10,
+          color: "rgba(245,245,247,0.88)",
           lineHeight: 1.34,
           letterSpacing: "-0.003em",
           display: "-webkit-box",
-          WebkitLineClamp: 5,
+          WebkitLineClamp: image ? 3 : 5,
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
-          flex: 1,
         }}
       >
         {text}
       </p>
-      <div className="flex items-center gap-3" style={{ marginTop: 5, color: "rgba(245,245,247,0.4)", fontSize: 9 }}>
+      {image && (
+        <div
+          className="my-1.5 rounded-md relative overflow-hidden"
+          style={{
+            height: 48,
+            border: `1px solid rgba(${accentRgb}, 0.18)`,
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={image}
+            alt=""
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: "cover" }}
+          />
+        </div>
+      )}
+      <div className="flex items-center gap-3 mt-auto pt-1" style={{ color: "rgba(245,245,247,0.42)", fontSize: 10 }}>
         <span>♡</span>
         <span>↻</span>
         <span>↗</span>
@@ -961,19 +1012,19 @@ function MiniX({ brandName, handle, text, accentRgb }: { brandName: string; hand
   );
 }
 
-function MiniLinkedIn({ brandName, text, accentRgb }: { brandName: string; text: string; accentRgb: string }) {
+function MiniLinkedIn({ brandName, text, image, accentRgb }: { brandName: string; text: string; image: string | undefined; accentRgb: string }) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-1.5" style={{ marginBottom: 6 }}>
         <span
           className="shrink-0 grid place-items-center"
           style={{
-            width: 16,
-            height: 16,
+            width: 18,
+            height: 18,
             borderRadius: 3,
             background: `rgba(${accentRgb}, 0.4)`,
             color: "white",
-            fontSize: 8,
+            fontSize: 9,
             fontWeight: 700,
             lineHeight: 1,
           }}
@@ -982,30 +1033,46 @@ function MiniLinkedIn({ brandName, text, accentRgb }: { brandName: string; text:
           {brandName.charAt(0).toUpperCase()}
         </span>
         <div className="flex flex-col min-w-0" style={{ lineHeight: 1.05 }}>
-          <span className="truncate" style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(245,245,247,0.94)" }}>
+          <span className="truncate" style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(245,245,247,0.94)" }}>
             {brandName}
           </span>
-          <span className="truncate" style={{ fontSize: 7.5, color: "rgba(245,245,247,0.42)" }}>
+          <span className="truncate" style={{ fontSize: 8.5, color: "rgba(245,245,247,0.42)" }}>
             Counsel · Just now
           </span>
         </div>
       </div>
       <p
         style={{
-          fontSize: 9.5,
-          color: "rgba(245,245,247,0.86)",
+          fontSize: 10,
+          color: "rgba(245,245,247,0.88)",
           lineHeight: 1.34,
           letterSpacing: "-0.003em",
           display: "-webkit-box",
-          WebkitLineClamp: 5,
+          WebkitLineClamp: image ? 3 : 5,
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
-          flex: 1,
         }}
       >
         {text}
       </p>
-      <div className="flex items-center gap-2" style={{ marginTop: 5, color: "rgba(245,245,247,0.4)", fontSize: 8.5 }}>
+      {image && (
+        <div
+          className="my-1.5 rounded-md relative overflow-hidden"
+          style={{
+            height: 48,
+            border: `1px solid rgba(${accentRgb}, 0.18)`,
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={image}
+            alt=""
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: "cover" }}
+          />
+        </div>
+      )}
+      <div className="flex items-center gap-2 mt-auto pt-1" style={{ color: "rgba(245,245,247,0.42)", fontSize: 9.5 }}>
         <span>👍 24</span>
         <span>·</span>
         <span>3 comments</span>
@@ -1014,20 +1081,20 @@ function MiniLinkedIn({ brandName, text, accentRgb }: { brandName: string; text:
   );
 }
 
-function MiniAd({ brandName, text, accentRgb, cta, personality }: { brandName: string; text: string; accentRgb: string; cta: string; personality: Personality }) {
+function MiniAd({ brandName, text, image, accentRgb, cta, personality }: { brandName: string; text: string; image: string | undefined; accentRgb: string; cta: string; personality: Personality }) {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between" style={{ marginBottom: 5 }}>
+      <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
         <div className="flex items-center gap-1.5">
-          <BrandMark brandName={brandName} personality={personality} size={14} />
-          <span className="truncate" style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(245,245,247,0.94)" }}>
+          <BrandMark brandName={brandName} personality={personality} size={16} />
+          <span className="truncate" style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(245,245,247,0.94)" }}>
             {brandName}
           </span>
         </div>
         <span
           className="uppercase"
           style={{
-            fontSize: 7,
+            fontSize: 7.5,
             letterSpacing: "0.24em",
             color: "rgba(245,245,247,0.4)",
             fontFamily: "var(--font-mono)",
@@ -1038,26 +1105,35 @@ function MiniAd({ brandName, text, accentRgb, cta, personality }: { brandName: s
         </span>
       </div>
       <div
-        className="flex-1 my-1.5 rounded relative overflow-hidden"
+        className="flex-1 my-1.5 rounded-md relative overflow-hidden"
         style={{
           background: `linear-gradient(135deg, rgba(${accentRgb}, 0.34) 0%, ${personality.accentDeep}88 100%)`,
-          minHeight: 22,
+          minHeight: 36,
+          border: `1px solid rgba(${accentRgb}, 0.18)`,
         }}
       >
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            background: `radial-gradient(ellipse 70% 60% at 70% 20%, rgba(255,255,255,0.2), transparent 70%)`,
-          }}
-        />
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={image}
+            alt=""
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: "cover" }}
+          />
+        ) : (
+          <div
+            aria-hidden
+            className="absolute inset-0"
+            style={{ background: `radial-gradient(ellipse 70% 60% at 70% 20%, rgba(255,255,255,0.18), transparent 70%)` }}
+          />
+        )}
       </div>
       <div className="flex items-center justify-between gap-2">
         <p
           style={{
-            fontSize: 9,
-            color: "rgba(245,245,247,0.88)",
-            lineHeight: 1.2,
+            fontSize: 10,
+            color: "rgba(245,245,247,0.9)",
+            lineHeight: 1.22,
             letterSpacing: "-0.003em",
             fontWeight: 500,
             display: "-webkit-box",
@@ -1073,12 +1149,12 @@ function MiniAd({ brandName, text, accentRgb, cta, personality }: { brandName: s
         <span
           className="shrink-0 inline-flex items-center"
           style={{
-            padding: "3px 7px",
-            borderRadius: 3,
-            background: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.12)",
+            padding: "4px 8px",
+            borderRadius: 4,
+            background: "rgba(255,255,255,0.1)",
+            border: "1px solid rgba(255,255,255,0.14)",
             color: "rgba(245,245,247,0.95)",
-            fontSize: 8.5,
+            fontSize: 9.5,
             fontWeight: 500,
           }}
         >
