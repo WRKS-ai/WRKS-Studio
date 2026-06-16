@@ -2,20 +2,20 @@
 
 import { useUser } from "@clerk/nextjs";
 import { motion, useReducedMotion } from "motion/react";
-import LightRays from "@/components/light-rays";
+import SoftAurora from "@/components/soft-aurora";
 
 // /studio — welcome canvas.
 //
-// The React Bits LightRays effect runs full-bleed across the canvas
-// (top-center anchor, soft cone, mouse-tracked parallax). raysColor is
-// pure white because the shader has a built-in brightness gradient
-// (cool/blue near the source, warm white near the bottom) that already
-// reads as cinematic. Multiplying that by personality.accent ended up
-// dimming everything to near-invisible — white preserves the intended
-// brightness and still feels palette-neutral.
+// Background: React Bits SoftAurora — two layered Perlin-noise bands
+// with cosine-gradient color mixing, multiplied against white + magenta
+// per the user's spec. Mouse-influenced UV shift gives the aurora a
+// subtle parallax. Native WebGL port (no OGL dependency).
 //
-// Centered Fraunces greeting overlays the rays — "Welcome back,
-// {firstName}." with the React Bits hero kicker as the subhead.
+// Foreground: centered Fraunces greeting that pulls from Clerk's
+// useUser() — "Welcome back, {firstName}." with the React Bits hero
+// kicker as the subhead. The sidebar (WRKS Studio wordmark + nav panel
+// + user-menu) and the floating Siri orb (StudioInspectorFrame) are
+// layout chrome, present on every studio route.
 
 export default function StudioWelcomePage() {
   const reduced = useReducedMotion();
@@ -31,23 +31,23 @@ export default function StudioWelcomePage() {
       className="relative size-full overflow-hidden"
       style={{ background: "#0a0a0c" }}
     >
-      {/* React Bits LightRays — beam comes diagonally from the top-right
-          corner so it crosses the canvas (the centered top-center cone
-          was too narrow + sat too high above the frame to read). */}
+      {/* React Bits SoftAurora — Perlin-noise aurora bg */}
       <div className="absolute inset-0 pointer-events-none">
-        <LightRays
-          raysOrigin="top-right"
-          raysColor="#ffffff"
-          raysSpeed={1}
-          lightSpread={0.8}
-          rayLength={3}
-          followMouse={true}
-          mouseInfluence={0.1}
-          noiseAmount={0}
-          distortion={0}
-          pulsating={false}
-          fadeDistance={1}
-          saturation={1}
+        <SoftAurora
+          speed={0.6}
+          scale={1.5}
+          brightness={1}
+          color1="#f7f7f7"
+          color2="#e100ff"
+          noiseFrequency={2.5}
+          noiseAmplitude={1}
+          bandHeight={0.5}
+          bandSpread={1}
+          octaveDecay={0.1}
+          layerOffset={0}
+          colorSpeed={1}
+          enableMouseInteraction
+          mouseInfluence={0.25}
         />
       </div>
 
