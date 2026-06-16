@@ -1,8 +1,10 @@
 "use client";
 
+import { SignOutButton, useUser } from "@clerk/nextjs";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   PERSONALITIES,
   type Personality,
@@ -181,10 +183,12 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
           </div>
         </div>
 
-        {/* Agent identity moved to the right inspector — that's where
-            the agent lives. Sidebar gets quiet bottom padding so the
-            nav doesn't feel anchored to the floor. */}
-        <div className="h-4 shrink-0" aria-hidden />
+        {/* User menu trigger pinned to the bottom-left of the sidebar.
+            Clicking the avatar opens a dropdown that animates upward —
+            user identity row at top, menu items in the middle, Sign out
+            in a separate footer block. Same pattern as the reference
+            (Lovable / Linear / Notion / Cursor sidebar profile menus). */}
+        <UserMenu />
       </aside>
 
       {/* ============================================================
@@ -294,6 +298,280 @@ function SidebarLink({
           ⌘{shortcut}
         </span>
       )}
+    </Link>
+  );
+}
+
+/* ============================================================
+ * UserMenu — bottom-left sidebar profile dropdown
+ *
+ * Trigger: small avatar button anchored at the bottom of the sidebar.
+ * Dropdown: glass card that opens UPWARD smoothly. Identity row at the
+ * top (avatar + name + email), menu items, then Sign out in its own
+ * footer block. Click outside or pick an item to close.
+ * ============================================================ */
+function UserMenu() {
+  const { user } = useUser();
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  // Click outside closes the menu.
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      const node = wrapRef.current;
+      if (!node) return;
+      if (!node.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  // Escape key closes the menu.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const initial = (
+    user?.firstName?.[0] ||
+    user?.username?.[0] ||
+    user?.primaryEmailAddress?.emailAddress?.[0] ||
+    "U"
+  ).toUpperCase();
+  const displayName =
+    user?.fullName || user?.firstName || user?.username || "Account";
+  const email = user?.primaryEmailAddress?.emailAddress ?? "";
+  const photoUrl = user?.imageUrl ?? "";
+
+  return (
+    <div
+      ref={wrapRef}
+      className="relative shrink-0"
+      style={{ padding: "12px 14px" }}
+    >
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Open user menu"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="grid place-items-center transition-transform hover:scale-[1.04]"
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          background: "rgba(255,255,255,0.06)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          color: "#f5f0e6",
+          fontSize: 13.5,
+          fontWeight: 600,
+          overflow: "hidden",
+        }}
+      >
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photoUrl}
+            alt=""
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          initial
+        )}
+      </button>
+
+      {/* Dropdown */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            role="menu"
+            initial={{ opacity: 0, y: 10, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.97 }}
+            transition={{
+              duration: 0.22,
+              ease: [0.22, 0.72, 0.2, 1],
+            }}
+            className="absolute z-50"
+            style={{
+              left: 14,
+              bottom: "calc(100% - 4px)",
+              width: 252,
+              padding: 6,
+              borderRadius: 14,
+              background: "rgba(18,18,22,0.96)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              backdropFilter: "blur(28px)",
+              WebkitBackdropFilter: "blur(28px)",
+              boxShadow:
+                "0 26px 60px -16px rgba(0,0,0,0.75), 0 4px 12px -4px rgba(0,0,0,0.55)",
+              transformOrigin: "bottom left",
+            }}
+          >
+            {/* Identity row */}
+            <div
+              className="flex items-center gap-3"
+              style={{ padding: "10px 10px 12px" }}
+            >
+              <span
+                className="shrink-0 grid place-items-center"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 9,
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "#f5f0e6",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  overflow: "hidden",
+                }}
+                aria-hidden
+              >
+                {photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={photoUrl}
+                    alt=""
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  initial
+                )}
+              </span>
+              <div className="flex-1 min-w-0" style={{ lineHeight: 1.15 }}>
+                <div
+                  className="truncate"
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "rgba(245,245,247,0.96)",
+                    letterSpacing: "-0.005em",
+                  }}
+                >
+                  {displayName}
+                </div>
+                {email && (
+                  <div
+                    className="truncate"
+                    style={{
+                      fontSize: 12,
+                      color: "rgba(245,245,247,0.48)",
+                      marginTop: 2,
+                    }}
+                  >
+                    {email}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Hairline */}
+            <div
+              aria-hidden
+              className="h-px mx-1.5 my-1"
+              style={{ background: "rgba(255,255,255,0.07)" }}
+            />
+
+            {/* Menu items */}
+            <UserMenuLink
+              href="/studio/profile"
+              label="Profile"
+              Icon={ProfileIcon}
+              onPick={() => setOpen(false)}
+            />
+            <UserMenuLink
+              href="/studio/settings"
+              label="Settings"
+              Icon={SettingsIcon}
+              onPick={() => setOpen(false)}
+            />
+            <UserMenuLink
+              href="/studio/plans"
+              label="Plans & billing"
+              Icon={PlansIcon}
+              onPick={() => setOpen(false)}
+            />
+            <UserMenuLink
+              href="/"
+              label="Home"
+              Icon={HomeIcon}
+              onPick={() => setOpen(false)}
+            />
+
+            {/* Hairline */}
+            <div
+              aria-hidden
+              className="h-px mx-1.5 my-1"
+              style={{ background: "rgba(255,255,255,0.07)" }}
+            />
+
+            {/* Sign out — wraps a Clerk SignOutButton */}
+            <SignOutButton>
+              <button
+                type="button"
+                className="flex items-center gap-3 w-full text-left transition-colors hover:bg-white/[0.05] rounded-md"
+                style={{
+                  padding: "9px 10px",
+                  color: "rgba(245,245,247,0.85)",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  letterSpacing: "-0.005em",
+                }}
+              >
+                <span
+                  className="shrink-0"
+                  style={{ color: "rgba(245,245,247,0.55)" }}
+                >
+                  <SignOutIcon size={17} />
+                </span>
+                Sign out
+              </button>
+            </SignOutButton>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function UserMenuLink({
+  href,
+  label,
+  Icon,
+  onPick,
+}: {
+  href: string;
+  label: string;
+  Icon: (p: { size?: number }) => React.ReactElement;
+  onPick: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onPick}
+      className="flex items-center gap-3 transition-colors hover:bg-white/[0.05] rounded-md"
+      style={{
+        padding: "9px 10px",
+        color: "rgba(245,245,247,0.92)",
+        fontSize: 14,
+        fontWeight: 500,
+        letterSpacing: "-0.005em",
+      }}
+    >
+      <span
+        className="shrink-0"
+        style={{ color: "rgba(245,245,247,0.6)" }}
+      >
+        <Icon size={17} />
+      </span>
+      {label}
     </Link>
   );
 }
@@ -429,6 +707,44 @@ function SettingsIcon({ size = 17 }: { size?: number }) {
         d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
         stroke="currentColor"
         strokeWidth="1.5"
+      />
+    </svg>
+  );
+}
+function ProfileIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M4 20c1.5-3.4 4.6-5 8-5s6.5 1.6 8 5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+function HomeIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-3v-7H10v7H5a2 2 0 0 1-2-2z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function SignOutIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
