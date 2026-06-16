@@ -1,7 +1,5 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
-import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -21,8 +19,6 @@ import { ShinyText } from "@/components/shiny-text";
 // body 15px, sidebar nav 14.5px, labels 12.5px minimum, headlines 22px+.
 
 const PERSONALITY_KEY = "wrks-onboarding-personality";
-const NAME_KEY = "wrks-onboarding-name";
-const STUDIO_KEY = "wrks-studio-deliverables";
 
 type PrimaryNavItem = {
   href: string;
@@ -53,12 +49,8 @@ const SECONDARY_NAV: { href: string; label: string; Icon: (p: { size?: number })
 export default function StudioLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useUser();
 
   const [personality, setPersonality] = useState<Personality | null>(null);
-  const [agentName, setAgentName] = useState<string>("");
-  const [brandName, setBrandName] = useState<string>("Untitled");
-  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     const p = localStorage.getItem(PERSONALITY_KEY) as PersonalityId | null;
@@ -72,27 +64,7 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
       return;
     }
     setPersonality(obj);
-    setAgentName(localStorage.getItem(NAME_KEY) ?? "");
-    const raw = localStorage.getItem(STUDIO_KEY);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed?.deliverables?.brandName)
-          setBrandName(parsed.deliverables.brandName);
-      } catch {
-        // ignore
-      }
-    }
   }, [router]);
-
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      const t = e.target as HTMLElement;
-      if (!t.closest("[data-profile-menu]")) setProfileOpen(false);
-    };
-    window.addEventListener("click", onClick);
-    return () => window.removeEventListener("click", onClick);
-  }, []);
 
   if (!personality) {
     return (
@@ -219,216 +191,8 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
           MAIN COLUMN — top bar + content
           ============================================================ */}
       <div className="flex-1 h-full flex flex-col min-w-0">
-        {/* TOP BAR — minimal chrome. Breadcrumb + version as
-            typography on the left; Cmd-K icon, upgrade as a hairline
-            link, notifications, avatar on the right. No visible
-            search input, no chip-style pill for version. */}
-        <header
-          className="shrink-0 flex items-center justify-between gap-6"
-          style={{
-            height: 60,
-            padding: "0 28px",
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
-          }}
-        >
-          {/* Breadcrumb */}
-          <div className="flex items-baseline gap-3 min-w-0">
-            <span
-              style={{
-                fontSize: 13.5,
-                color: "rgba(245,245,247,0.48)",
-                letterSpacing: "-0.005em",
-              }}
-            >
-              {brandName}
-            </span>
-            <span style={{ color: "rgba(245,245,247,0.22)", fontSize: 13 }}>
-              /
-            </span>
-            <span
-              className="truncate"
-              style={{
-                fontSize: 14.5,
-                fontWeight: 500,
-                color: "rgba(245,245,247,0.96)",
-                letterSpacing: "-0.005em",
-              }}
-            >
-              {labelForPath(pathname)}
-            </span>
-            {/* Version — typography element. Hairline before it acts
-                as the visual separator instead of a chip border. */}
-            <span
-              aria-hidden
-              className="block"
-              style={{
-                width: 18,
-                height: 1,
-                marginLeft: 6,
-                marginRight: 2,
-                background: "rgba(245,245,247,0.18)",
-              }}
-            />
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 11.5,
-                letterSpacing: "0.08em",
-                color: "rgba(245,245,247,0.42)",
-              }}
-            >
-              v3.2
-            </span>
-          </div>
-
-          {/* Right cluster — tight, minimal */}
-          <div className="flex items-center gap-1">
-            {/* Cmd-K — icon-only button with shortcut hint that
-                appears on hover. No visible "Search" label. */}
-            <button
-              type="button"
-              aria-label="Search (⌘K)"
-              title="Search · ⌘K"
-              className="group relative inline-flex items-center justify-center transition-colors hover:bg-white/[0.04] rounded-md"
-              style={{ width: 36, height: 36 }}
-            >
-              <span style={{ color: "rgba(245,245,247,0.6)" }}>
-                <SearchIcon />
-              </span>
-            </button>
-
-            {/* Plan — hairline link, not a button. */}
-            <Link
-              href="/studio/plans"
-              className="inline-flex items-center gap-2 transition-opacity hover:opacity-100"
-              style={{
-                padding: "0 12px",
-                height: 36,
-                fontSize: 12,
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "rgba(245,245,247,0.55)",
-                opacity: 0.9,
-              }}
-            >
-              <span style={{ color: "rgba(245,245,247,0.45)" }}>Starter</span>
-              <span style={{ color: "#f5f0e6", fontWeight: 600 }}>· Upgrade</span>
-            </Link>
-
-            <UtilButton title="Notifications">
-              <BellIcon />
-              <span
-                className="absolute top-1.5 right-1.5 rounded-full"
-                style={{
-                  width: 5,
-                  height: 5,
-                  background: "#f5f0e6",
-                  boxShadow: "0 0 6px rgba(245,240,230,0.55)",
-                }}
-              />
-            </UtilButton>
-
-            {/* Avatar / profile menu — neutral chrome glass. The
-                user's palette accent never appears on the top-bar
-                avatar; it stays a brand-neutral element. */}
-            <div data-profile-menu className="relative" style={{ marginLeft: 4 }}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setProfileOpen((v) => !v);
-                }}
-                className="rounded-full grid place-items-center transition-transform hover:scale-105"
-                style={{
-                  width: 32,
-                  height: 32,
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  color: "#f5f0e6",
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                }}
-                aria-label="Profile"
-              >
-                {(user?.firstName?.[0] || user?.username?.[0] || "W").toUpperCase()}
-              </button>
-              {profileOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-12 w-64 rounded-xl py-1.5 z-50"
-                  style={{
-                    background: "rgba(20,20,22,0.95)",
-                    backdropFilter: "blur(40px)",
-                    WebkitBackdropFilter: "blur(40px)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    boxShadow: "0 20px 50px -10px rgba(0,0,0,0.6)",
-                  }}
-                >
-                  <div className="px-3.5 py-3 flex items-center gap-3">
-                    <div
-                      className="size-9 rounded-full grid place-items-center text-[13px] font-semibold"
-                      style={{
-                        background: "rgba(255,255,255,0.06)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        color: "#f5f0e6",
-                      }}
-                    >
-                      {(user?.firstName?.[0] || user?.username?.[0] || "W").toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div
-                        className="text-[13.5px] font-medium truncate"
-                        style={{ color: "rgba(245,245,247,0.95)" }}
-                      >
-                        {user?.fullName ||
-                          user?.firstName ||
-                          user?.username ||
-                          "You"}
-                      </div>
-                      <div
-                        className="text-[11.5px] truncate"
-                        style={{ color: "rgba(245,245,247,0.5)" }}
-                      >
-                        {user?.primaryEmailAddress?.emailAddress ?? ""}
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    className="h-px mx-3 my-1"
-                    style={{ background: "rgba(255,255,255,0.05)" }}
-                  />
-                  <ProfileMenuItem
-                    href="/studio/profile"
-                    label="Profile"
-                    onClick={() => setProfileOpen(false)}
-                  />
-                  <ProfileMenuItem
-                    href="/studio/settings"
-                    label="Settings"
-                    onClick={() => setProfileOpen(false)}
-                  />
-                  <ProfileMenuItem
-                    href="/studio/plans"
-                    label="Plans & billing"
-                    onClick={() => setProfileOpen(false)}
-                  />
-                  <div
-                    className="h-px mx-3 my-1"
-                    style={{ background: "rgba(255,255,255,0.05)" }}
-                  />
-                  <ProfileMenuItem
-                    href="/sign-out"
-                    label="Sign out"
-                    onClick={() => setProfileOpen(false)}
-                  />
-                </motion.div>
-              )}
-            </div>
-          </div>
-        </header>
+        {/* TOP BAR removed — re-add when we agree on what the top
+            chrome should be. Sidebar + floating Siri orb remain. */}
 
         {/* CONTENT + INSPECTOR — inspector persists across routes */}
         <div className="flex-1 min-h-0 overflow-hidden flex">
@@ -438,21 +202,6 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
     </div>
   );
 }
-
-function labelForPath(pathname: string) {
-  if (pathname === "/studio") return "Studio";
-  if (pathname.startsWith("/studio/library")) return "Library";
-  if (pathname.startsWith("/studio/brand")) return "Brand";
-  if (pathname.startsWith("/studio/audience")) return "Audience";
-  if (pathname.startsWith("/studio/schedule")) return "Schedule";
-  if (pathname.startsWith("/studio/analytics")) return "Analytics";
-  if (pathname.startsWith("/studio/integrations")) return "Integrations";
-  if (pathname.startsWith("/studio/settings")) return "Settings";
-  if (pathname.startsWith("/studio/plans")) return "Plans & Billing";
-  if (pathname.startsWith("/studio/profile")) return "Profile";
-  return "Studio";
-}
-
 /* ============================================================
  * Sidebar primitives
  * ============================================================ */
@@ -546,51 +295,6 @@ function SidebarLink({
         </span>
       )}
     </Link>
-  );
-}
-
-function ProfileMenuItem({
-  href,
-  label,
-  onClick,
-}: {
-  href: string;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className="block mx-1.5 px-2.5 py-2 rounded-lg text-[13.5px] transition-colors hover:bg-white/[0.06]"
-      style={{ color: "rgba(245,245,247,0.85)" }}
-    >
-      {label}
-    </Link>
-  );
-}
-
-function UtilButton({
-  children,
-  title,
-}: {
-  children: React.ReactNode;
-  title: string;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      className="relative rounded-md grid place-items-center transition-colors hover:bg-white/[0.04]"
-      style={{
-        width: 36,
-        height: 36,
-        color: "rgba(245,245,247,0.6)",
-      }}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -725,32 +429,6 @@ function SettingsIcon({ size = 17 }: { size?: number }) {
         d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
         stroke="currentColor"
         strokeWidth="1.5"
-      />
-    </svg>
-  );
-}
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
-      <path
-        d="m20 20-3.5-3.5"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-function BellIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-        strokeLinecap="round"
       />
     </svg>
   );
