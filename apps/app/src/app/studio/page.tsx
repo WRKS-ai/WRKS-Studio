@@ -31,13 +31,16 @@ export default function StudioWelcomePage() {
       className="relative size-full overflow-hidden"
       style={{ background: "#0a0a0c" }}
     >
-      {/* React Bits Aurora — rising from the bottom */}
+      {/* React Bits Aurora — rising from the bottom, in WRKS dark-violet
+          palette (violet-900 → violet-600 → indigo-900). Calmer speed +
+          slightly reduced amplitude so the ribbon reads as ambient
+          atmosphere, not a screensaver. */}
       <div className="absolute inset-0 pointer-events-none">
         <Aurora
-          colorStops={["#7cff67", "#B497CF", "#5227FF"]}
-          blend={0.5}
-          amplitude={1.0}
-          speed={1}
+          colorStops={["#4c1d95", "#7c3aed", "#312e81"]}
+          blend={0.55}
+          amplitude={0.85}
+          speed={0.7}
         />
       </div>
 
