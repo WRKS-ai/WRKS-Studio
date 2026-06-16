@@ -108,23 +108,16 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
       <aside
         className="shrink-0 h-full flex flex-col"
         style={{
-          width: 240,
+          width: 268,
           background: "#101012",
           borderRight: "1px solid rgba(255,255,255,0.06)",
         }}
       >
-        {/* WRKS Studio shining wordmark — same metallic shine sweep as
-            the onboarding pages, slightly larger here (24px vs 20px)
-            because the sidebar gives it room. A horizontal hairline
-            underneath separates the wordmark from the nav, matching the
-            Lovable pattern. Padding tuned so the hairline → WORKSPACE
-            label gap sits at ~24px, not ~40px. */}
-        <div
-          className="px-5 pt-5 pb-4"
-          style={{
-            borderBottom: "1px solid rgba(255,255,255,0.07)",
-          }}
-        >
+        {/* WRKS Studio shining wordmark sits ABOVE the nav panel. No
+            hairline under it — the panel below has its own 4-corner
+            border, so the wordmark stays a free-floating element on the
+            sidebar surface (Stitch pattern). */}
+        <div className="px-5 pt-6 pb-5">
           <Link
             href="/studio"
             className="inline-flex items-center group"
@@ -149,10 +142,22 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
           </Link>
         </div>
 
-        {/* Primary nav. No horizontal padding on the container —
-            rows extend edge-to-edge so the active hairline rule
-            sits flush against the sidebar's left edge. */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Nav panel — Stitch-style contained card. Bordered, rounded,
+            with a faint inset bg so it reads as a separate surface
+            within the sidebar. The WRKS Studio wordmark stays above,
+            the user-menu trigger stays below. */}
+        <div
+          className="flex-1 overflow-y-auto"
+          style={{
+            marginLeft: 12,
+            marginRight: 12,
+            marginBottom: 12,
+            padding: 8,
+            borderRadius: 16,
+            border: "1px solid rgba(255,255,255,0.06)",
+            background: "rgba(255,255,255,0.02)",
+          }}
+        >
           <SidebarSection label="Workspace" />
           <nav className="flex flex-col">
             {PRIMARY_NAV.map((item) => (
@@ -214,10 +219,10 @@ function SidebarSection({ label }: { label: string }) {
     <div
       className="uppercase"
       style={{
-        paddingTop: 14,
+        paddingTop: 10,
         paddingBottom: 8,
-        paddingLeft: 20,
-        paddingRight: 20,
+        paddingLeft: 12,
+        paddingRight: 12,
         fontSize: 11,
         letterSpacing: "0.28em",
         color: "rgba(245,245,247,0.42)",
@@ -251,8 +256,6 @@ function SidebarLink({
       }`}
       style={{
         padding: "9px 12px",
-        marginLeft: 8,
-        marginRight: 8,
         borderRadius: 8,
         background: isActive
           ? "rgba(255,255,255,0.065)"
