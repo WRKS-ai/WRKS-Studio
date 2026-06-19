@@ -4,17 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 
 // /studio — composer-first welcome canvas.
-// Implementing project_studio_master_plan.md §E (locked 2026-06-13):
+// Implementing project_studio_master_plan.md §E (revised 2026-06-20):
 //   - Dotted grid bg (~22px spacing) + mouse-spotlight overlay
 //   - Personalized headline: "What's next, {agentName}?" Fraunces 480
-//   - ONE rounded composer (~720px) — dark glass + crystal-light border
-//   - 3 suggestion pills below composer (crystal-light pill buttons)
+//   - ONE rounded composer (~860px) — dark glass + crystal-light border
 //   - (Brand-system mini-card LEFT + work strip + status line — next pass)
-// Aurora + "Welcome back / cover card" experiments removed.
-//
-// {agentName} is the user's named WRKS agent. Falls back to Clerk first
-// name until the agent-name state wiring lands; same TODO for composer
-// placeholder.
+// Suggestion pills removed per user 2026-06-20 — canvas reads cleaner
+// as just headline + composer, centered.
 
 export default function StudioWelcomePage() {
   const { user, isLoaded } = useUser();
@@ -84,7 +80,7 @@ export default function StudioWelcomePage() {
         <div
           className="wrks-crystal-border"
           style={{
-            width: "min(720px, 92vw)",
+            width: "min(860px, 92vw)",
             borderRadius: 18,
             background:
               "linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)",
@@ -107,34 +103,6 @@ export default function StudioWelcomePage() {
               caretColor: "rgba(245,245,247,0.95)",
             }}
           />
-        </div>
-
-        <div className="flex gap-2.5 flex-wrap justify-center">
-          {["Refine the landing", "Draft a new ad", "Add a pricing page"].map(
-            (label) => (
-              <button
-                key={label}
-                type="button"
-                className="wrks-crystal-border-button transition-colors duration-200 hover:bg-white/[0.025]"
-                style={{
-                  borderRadius: 999,
-                  padding: "8px 16px",
-                  fontSize: 13,
-                  fontFamily: "var(--font-sans)",
-                  color: "rgba(245,245,247,0.85)",
-                  background:
-                    "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.012) 100%)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  letterSpacing: "-0.005em",
-                  cursor: "pointer",
-                }}
-              >
-                {label}
-              </button>
-            ),
-          )}
         </div>
       </div>
     </main>
