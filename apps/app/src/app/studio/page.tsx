@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import PixelBlast from "@/components/pixel-blast";
 
 // /studio — composer-first welcome canvas.
 // Implementing project_studio_master_plan.md §E (revised 2026-06-20):
-//   - Dotted grid bg (~22px spacing) + mouse-spotlight overlay
-//   - Personalized headline: "What's next, {agentName}?" Fraunces 480
-//   - ONE rounded composer (~860px) — dark glass + crystal-light border
-//     · Multi-line textarea (~220px tall)
-//     · Bottom-left:  Site / Post mode tabs (mirrors Stitch's App/Web)
-//     · Bottom-right: voice mic + send button
+//   - Background: React Bits PixelBlast (Bayer-dither WebGL field) in
+//     WRKS violet — replaces the dotted grid + mouse-spotlight overlay.
+//     Ripples-on-click are the interactive moment; pointer events on
+//     uncovered canvas trigger them. patternDensity tuned down + edgeFade
+//     bumped so it reads as ambient texture, not a loud pattern.
+//   - Personalized headline: "What's next, {agentName}?" Fraunces 480.
+//   - ONE rounded composer (~860px) — dark glass + crystal-light border,
+//     ~220px tall, with Site/Post mode tabs LEFT + mic/send icons RIGHT.
 //   - (Brand-system mini-card LEFT + work strip + status line — next pass)
-// All chrome stays neutral — no accent color anywhere (master plan §C).
 // {agentName} falls back to Clerk first name until agent-name state wires.
 
 type Mode = "site" | "post";
@@ -22,48 +24,34 @@ export default function StudioWelcomePage() {
   const firstName =
     user?.firstName || user?.username || (isLoaded ? "there" : "");
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [spot, setSpot] = useState<{ x: number; y: number } | null>(null);
   const [mode, setMode] = useState<Mode>("site");
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const onMove = (e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      setSpot({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    };
-    const onLeave = () => setSpot(null);
-    el.addEventListener("mousemove", onMove);
-    el.addEventListener("mouseleave", onLeave);
-    return () => {
-      el.removeEventListener("mousemove", onMove);
-      el.removeEventListener("mouseleave", onLeave);
-    };
-  }, []);
 
   return (
     <main
-      ref={containerRef}
       className="relative size-full overflow-hidden"
-      style={{
-        background: "#0a0a0c",
-        backgroundImage:
-          "radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px)",
-        backgroundSize: "22px 22px",
-      }}
+      style={{ background: "#0a0a0c" }}
     >
-      {spot && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `radial-gradient(circle 420px at ${spot.x}px ${spot.y}px, rgba(255,255,255,0.05), transparent 65%)`,
-          }}
+      <div className="absolute inset-0">
+        <PixelBlast
+          variant="square"
+          pixelSize={4}
+          color="#7c3aed"
+          patternScale={2}
+          patternDensity={0.9}
+          pixelSizeJitter={0}
+          enableRipples
+          rippleSpeed={0.4}
+          rippleThickness={0.12}
+          rippleIntensityScale={1.5}
+          liquid={false}
+          speed={0.45}
+          edgeFade={0.28}
+          transparent
         />
-      )}
+      </div>
 
       <div
-        className="relative z-10 size-full flex flex-col items-center justify-center px-8"
+        className="relative z-10 size-full flex flex-col items-center justify-center px-8 pointer-events-none"
         style={{ gap: 36 }}
       >
         {firstName && (
@@ -84,7 +72,7 @@ export default function StudioWelcomePage() {
         )}
 
         <div
-          className="wrks-crystal-border"
+          className="wrks-crystal-border pointer-events-auto"
           style={{
             width: "min(860px, 92vw)",
             borderRadius: 18,
@@ -204,7 +192,9 @@ function IconButton({
         color: primary
           ? "rgba(245,245,247,0.95)"
           : "rgba(245,245,247,0.6)",
-        border: primary ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
+        border: primary
+          ? "1px solid rgba(255,255,255,0.1)"
+          : "1px solid transparent",
         cursor: "pointer",
       }}
     >
