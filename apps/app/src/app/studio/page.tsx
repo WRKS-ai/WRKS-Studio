@@ -1,134 +1,141 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-import { motion, useReducedMotion } from "motion/react";
-import Aurora from "@/components/aurora";
-import BlurText from "@/components/blur-text";
 
-// /studio — premium welcome canvas.
+// /studio — composer-first welcome canvas.
+// Implementing project_studio_master_plan.md §E (locked 2026-06-13):
+//   - Dotted grid bg (~22px spacing) + mouse-spotlight overlay
+//   - Personalized headline: "What's next, {agentName}?" Fraunces 480
+//   - ONE rounded composer (~720px) — dark glass + crystal-light border
+//   - 3 suggestion pills below composer (crystal-light pill buttons)
+//   - (Brand-system mini-card LEFT + work strip + status line — next pass)
+// Aurora + "Welcome back / cover card" experiments removed.
 //
-// Two elements, that's the whole page:
-//   1) Fraunces headline that names the state ("Your edition is ready.")
-//      — entered through the React Bits BlurText per-word stagger.
-//   2) A single cream "cover" card with the user's wordmark + a hairline,
-//      magazine-cover proportions, click → /studio/library.
-// Aurora rises from the bottom as ambient floor; nothing else competes.
+// {agentName} is the user's named WRKS agent. Falls back to Clerk first
+// name until the agent-name state wiring lands; same TODO for composer
+// placeholder.
 
 export default function StudioWelcomePage() {
   const { user, isLoaded } = useUser();
-  const router = useRouter();
-  const reduced = useReducedMotion();
+  const firstName =
+    user?.firstName || user?.username || (isLoaded ? "there" : "");
 
-  const wordmark =
-    user?.firstName || user?.username || (isLoaded ? "Your brand" : "");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [spot, setSpot] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onMove = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      setSpot({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    };
+    const onLeave = () => setSpot(null);
+    el.addEventListener("mousemove", onMove);
+    el.addEventListener("mouseleave", onLeave);
+    return () => {
+      el.removeEventListener("mousemove", onMove);
+      el.removeEventListener("mouseleave", onLeave);
+    };
+  }, []);
 
   return (
     <main
+      ref={containerRef}
       className="relative size-full overflow-hidden"
-      style={{ background: "#0a0a0c" }}
+      style={{
+        background: "#0a0a0c",
+        backgroundImage:
+          "radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px)",
+        backgroundSize: "22px 22px",
+      }}
     >
-      <div className="absolute inset-0 pointer-events-none">
-        <Aurora
-          colorStops={["#4c1d95", "#7c3aed", "#312e81"]}
-          blend={0.55}
-          amplitude={0.7}
-          speed={0.6}
+      {spot && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(circle 420px at ${spot.x}px ${spot.y}px, rgba(255,255,255,0.05), transparent 65%)`,
+          }}
         />
-      </div>
+      )}
 
       <div
         className="relative z-10 size-full flex flex-col items-center justify-center px-8"
-        style={{ gap: 64 }}
+        style={{ gap: 36 }}
       >
-        {wordmark && (
-          <BlurText
-            text="Your edition is ready."
-            delay={140}
-            animateBy="words"
-            direction="top"
+        {firstName && (
+          <h1
             className="font-serif"
             style={{
-              fontSize: "clamp(36px, 4vw, 52px)",
+              fontSize: "clamp(36px, 4vw, 54px)",
               fontWeight: 480,
               letterSpacing: "-0.028em",
               color: "rgba(248,247,252,0.97)",
               lineHeight: 1.04,
-              justifyContent: "center",
-              padding: 0,
+              textAlign: "center",
+              margin: 0,
+            }}
+          >
+            What&apos;s next, {firstName}?
+          </h1>
+        )}
+
+        <div
+          className="wrks-crystal-border"
+          style={{
+            width: "min(720px, 92vw)",
+            borderRadius: 18,
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            padding: "18px 22px",
+          }}
+        >
+          <textarea
+            rows={2}
+            placeholder="Tell your agent what to build or refine…"
+            className="w-full resize-none bg-transparent outline-none"
+            style={{
+              color: "rgba(245,245,247,0.95)",
+              fontSize: 15,
+              fontFamily: "var(--font-sans)",
+              letterSpacing: "-0.005em",
+              lineHeight: 1.5,
+              caretColor: "rgba(245,245,247,0.95)",
             }}
           />
-        )}
+        </div>
 
-        {wordmark && (
-          <motion.button
-            type="button"
-            onClick={() => router.push("/studio/library")}
-            initial={
-              reduced
-                ? false
-                : { opacity: 0, scale: 0.96, y: 12, filter: "blur(8px)" }
-            }
-            animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 0.9, delay: 0.7, ease: [0.22, 0.72, 0.2, 1] }}
-            whileHover={reduced ? undefined : { scale: 1.012, y: -2 }}
-            whileTap={reduced ? undefined : { scale: 0.996 }}
-            className="group relative focus:outline-none text-left"
-            style={{
-              width: 420,
-              height: 540,
-              background: "#fbf7ee",
-              borderRadius: 14,
-              border: "1px solid rgba(255,255,255,0.08)",
-              cursor: "pointer",
-              padding: "36px 36px 40px",
-              boxShadow:
-                "0 30px 70px rgba(0,0,0,0.5), 0 2px 0 rgba(255,255,255,0.04) inset",
-            }}
-            aria-label={`Open ${wordmark}'s edition`}
-          >
-            <div className="size-full flex flex-col justify-between">
-              <div className="flex flex-col" style={{ gap: 12 }}>
-                <span
-                  className="font-serif"
-                  style={{
-                    fontSize: 17,
-                    fontWeight: 500,
-                    color: "#0a0a0c",
-                    letterSpacing: "-0.012em",
-                  }}
-                >
-                  {wordmark}
-                </span>
-                <div
-                  style={{
-                    width: 36,
-                    height: 1,
-                    background: "rgba(10,10,12,0.22)",
-                  }}
-                />
-              </div>
-
-              <div
-                className="flex-1 flex items-center"
-                style={{ paddingBottom: 24 }}
+        <div className="flex gap-2.5 flex-wrap justify-center">
+          {["Refine the landing", "Draft a new ad", "Add a pricing page"].map(
+            (label) => (
+              <button
+                key={label}
+                type="button"
+                className="wrks-crystal-border-button transition-colors duration-200 hover:bg-white/[0.025]"
+                style={{
+                  borderRadius: 999,
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontFamily: "var(--font-sans)",
+                  color: "rgba(245,245,247,0.85)",
+                  background:
+                    "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.012) 100%)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  letterSpacing: "-0.005em",
+                  cursor: "pointer",
+                }}
               >
-                <span
-                  className="font-serif italic"
-                  style={{
-                    fontSize: "clamp(48px, 4.6vw, 64px)",
-                    fontWeight: 380,
-                    color: "#0a0a0c",
-                    letterSpacing: "-0.032em",
-                    lineHeight: 0.98,
-                  }}
-                >
-                  Begin.
-                </span>
-              </div>
-            </div>
-          </motion.button>
-        )}
+                {label}
+              </button>
+            ),
+          )}
+        </div>
       </div>
     </main>
   );
