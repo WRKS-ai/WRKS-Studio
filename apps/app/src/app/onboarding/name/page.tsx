@@ -29,7 +29,7 @@ const NAME_ALIASES = [
   "agent name",
   "the name",
 ];
-const NEXT_WORDS = ["next", "continue", "intake", "forward", "go", "ready"];
+const NEXT_WORDS = ["next", "continue", "intake", "business", "forward", "go", "ready"];
 const BACK_WORDS = ["back", "previous", "voice", "personality"];
 
 export default function NamePage() {
@@ -108,7 +108,7 @@ export default function NamePage() {
       localStorage.setItem(NAME_KEY, final);
       // Tiny delay so the agent's confirmation can play. 200ms is
       // imperceptible vs. the prior 900ms which felt sluggish.
-      setTimeout(() => router.push("/onboarding/intake"), 200);
+      setTimeout(() => router.push("/onboarding/business"), 200);
       return `Continuing as ${final}.`;
     }
 
@@ -134,7 +134,7 @@ export default function NamePage() {
   const onContinue = () => {
     if (!canContinue) return;
     localStorage.setItem(NAME_KEY, trimmed);
-    router.push("/onboarding/intake");
+    router.push("/onboarding/business");
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -146,79 +146,99 @@ export default function NamePage() {
 
   return (
     <OnboardingFrame step={2} totalSteps={3} bloomTint={accent}>
-      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10">
-        {/* Eyebrow */}
-        <motion.div
-          initial={
-            reduced ? false : { opacity: 0, y: 8, filter: "blur(6px)" }
-          }
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-          className="flex items-center gap-4"
-        >
-          <span
-            className="inline-block h-px w-10"
-            style={{ background: "rgba(245,240,230,0.2)" }}
-          />
-          <span
-            className="text-[11px] tracking-[0.32em] uppercase"
+      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center overflow-hidden">
+        {/* Asymmetric editorial spread — prompt on left, typed-name display
+            on right. Echoes the /onboarding/voice grammar (type LEFT / hero
+            object RIGHT) so the two pages read as the same composition rhythm.
+            Eyebrow + glass card wrapper + redundant "Select a name" label all
+            removed 2026-06-24 per the new design rules. */}
+        <div className="relative w-full max-w-[1440px]">
+          <div
+            className="grid items-center gap-12 lg:gap-16"
             style={{
-              color: "rgba(245,240,230,0.4)",
-              fontFamily: "var(--font-mono)",
+              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.05fr)",
             }}
           >
-            Act Two — The Name
-          </span>
-        </motion.div>
+            {/* LEFT — prompt copy + Continue (mirrors voice page Continue
+                column). Continue fades in once a valid name is entered. */}
+            <div className="relative flex flex-col items-start">
+              <motion.div
+                initial={
+                  reduced
+                    ? false
+                    : { opacity: 0, y: 14, filter: "blur(8px)" }
+                }
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{ duration: 0.55, ease: [0.2, 0.7, 0.2, 1] }}
+                className="w-full"
+              >
+                <h1
+                  className="font-serif"
+                  style={{
+                    fontSize: "clamp(2.5rem, 6.25vw, 6.5rem)",
+                    fontWeight: 600,
+                    lineHeight: 0.95,
+                    letterSpacing: "-0.04em",
+                    color: "rgba(245,240,230,0.98)",
+                  }}
+                >
+                  What should we call them?
+                </h1>
+                <p
+                  className="mt-5 font-serif italic"
+                  style={{
+                    fontSize: "clamp(1rem, 1.35vw, 1.1875rem)",
+                    lineHeight: 1.45,
+                    letterSpacing: "-0.005em",
+                    color: "rgba(245,240,230,0.55)",
+                  }}
+                >
+                  Your agent will use this across every output.
+                </p>
+              </motion.div>
 
-        {/* Center-stage glass card */}
-        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-260px)]">
-          <motion.div
-            initial={
-              reduced
-                ? false
-                : { opacity: 0, y: 16, filter: "blur(8px)" }
-            }
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{
-              duration: 0.7,
-              delay: 0.2,
-              ease: [0.2, 0.7, 0.2, 1],
-            }}
-            className="wrks-crystal-border w-full max-w-[720px] mx-auto"
-            style={{
-              borderRadius: 32,
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              backdropFilter: "blur(28px)",
-              WebkitBackdropFilter: "blur(28px)",
-              boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.07), 0 32px 80px -24px rgba(0,0,0,0.7)",
-              padding: "56px 64px 52px",
-            }}
-          >
-            <p
-              className="font-sans text-center"
-              style={{
-                fontSize: 13,
-                letterSpacing: "0.02em",
-                color: "rgba(245,240,230,0.42)",
-                marginBottom: 28,
-              }}
-            >
-              Select a name for your agent
-            </p>
+              <div className="mt-10 min-h-[56px]">
+                <AnimatePresence>
+                  {canContinue && (
+                    <motion.div
+                      key="continue"
+                      initial={
+                        reduced
+                          ? false
+                          : { opacity: 0, y: 10, filter: "blur(4px)" }
+                      }
+                      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                      exit={reduced ? undefined : { opacity: 0, y: -4 }}
+                      transition={{
+                        duration: 0.45,
+                        ease: [0.2, 0.7, 0.2, 1],
+                      }}
+                    >
+                      <ContinueButton onClick={onContinue}>
+                        Continue
+                        <span aria-hidden style={{ marginLeft: "0.7em" }}>
+                          →
+                        </span>
+                      </ContinueButton>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
 
+            {/* RIGHT — typed-name display at hero scale, clickable to focus
+                the hidden input. No glass card wrapper — name floats directly
+                on the canvas, matching the editorial restraint of the voice page. */}
             <div
               className="relative cursor-text"
               onClick={() => inputRef.current?.focus()}
+              style={{ minHeight: 160 }}
             >
               <div
                 aria-hidden
                 className="font-sans select-none pointer-events-none text-center"
                 style={{
-                  fontSize: "clamp(2.25rem, 4.5vw, 4rem)",
+                  fontSize: "clamp(2.5rem, 6vw, 6rem)",
                   fontWeight: 500,
                   lineHeight: 1,
                   letterSpacing: "-0.035em",
@@ -280,7 +300,7 @@ export default function NamePage() {
                 aria-label="Agent name"
                 className="absolute inset-0 w-full h-full bg-transparent border-0 outline-none font-sans text-center"
                 style={{
-                  fontSize: "clamp(2.25rem, 4.5vw, 4rem)",
+                  fontSize: "clamp(2.5rem, 6vw, 6rem)",
                   fontWeight: 500,
                   lineHeight: 1,
                   letterSpacing: "-0.035em",
@@ -289,38 +309,10 @@ export default function NamePage() {
                 }}
               />
             </div>
-
-            <div className="mt-10 flex justify-center min-h-[56px]">
-              <AnimatePresence>
-                {canContinue && (
-                  <motion.div
-                    key="continue"
-                    initial={
-                      reduced
-                        ? false
-                        : { opacity: 0, y: 10, filter: "blur(4px)" }
-                    }
-                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    exit={reduced ? undefined : { opacity: 0, y: -4 }}
-                    transition={{
-                      duration: 0.45,
-                      ease: [0.2, 0.7, 0.2, 1],
-                    }}
-                  >
-                    <ContinueButton onClick={onContinue}>
-                      Continue
-                      <span aria-hidden style={{ marginLeft: "0.7em" }}>
-                        →
-                      </span>
-                    </ContinueButton>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </motion.div>
+          </div>
         </div>
 
-        {/* Back link */}
+        {/* Back link — bottom-left chrome (matches voice page placement). */}
         <motion.button
           type="button"
           onClick={() => router.push("/onboarding/voice")}
