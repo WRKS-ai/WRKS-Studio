@@ -22,7 +22,11 @@
   --color-line-bright: var(--line-bright);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-serif: var(--font-fraunces);
+  /* 2026-06-24 brand shift — repointed from Fraunces to Geist Sans per
+     project_typography_geist.md. Var name kept as --font-serif so
+     existing className="font-serif" across 24 files continues to
+     resolve correctly; a future polish pass can rename to --font-display. */
+  --font-serif: var(--font-geist-sans);
 }
 
 body {
