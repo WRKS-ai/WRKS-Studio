@@ -244,10 +244,12 @@ export default function PersonalityPage() {
                 <h1
                   className="font-serif"
                   style={{
-                    fontSize: "clamp(3.75rem, 8vw, 7.5rem)",
-                    fontWeight: 400,
-                    lineHeight: 0.96,
-                    letterSpacing: "-0.055em",
+                    // Re-tuned 2026-06-24 for Geist Sans (wider letterforms
+                    // than Fraunces — old clamp wrapped to 2 lines).
+                    fontSize: "clamp(2.5rem, 5vw, 4.5rem)",
+                    fontWeight: 500,
+                    lineHeight: 1.0,
+                    letterSpacing: "-0.035em",
                     color: "rgba(245,240,230,0.98)",
                   }}
                 >

@@ -218,10 +218,10 @@ export default function NamePage() {
                 aria-hidden
                 className="font-sans select-none pointer-events-none text-center"
                 style={{
-                  fontSize: "clamp(2.75rem, 5.6vw, 5rem)",
+                  fontSize: "clamp(2.25rem, 4.5vw, 4rem)",
                   fontWeight: 500,
                   lineHeight: 1,
-                  letterSpacing: "-0.04em",
+                  letterSpacing: "-0.035em",
                   color: "rgba(245,240,230,0.98)",
                 }}
               >
@@ -280,10 +280,10 @@ export default function NamePage() {
                 aria-label="Agent name"
                 className="absolute inset-0 w-full h-full bg-transparent border-0 outline-none font-sans text-center"
                 style={{
-                  fontSize: "clamp(2.75rem, 5.6vw, 5rem)",
+                  fontSize: "clamp(2.25rem, 4.5vw, 4rem)",
                   fontWeight: 500,
                   lineHeight: 1,
-                  letterSpacing: "-0.04em",
+                  letterSpacing: "-0.035em",
                   color: "transparent",
                   caretColor: accent,
                 }}
