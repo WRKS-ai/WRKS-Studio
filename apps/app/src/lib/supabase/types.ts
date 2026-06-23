@@ -71,40 +71,124 @@ export type Database = {
       }
       business_profiles: {
         Row: {
+          active_pillars: string[] | null
+          ad_accounts: string[] | null
           agent_name: string | null
+          audience_description: string | null
+          audience_language_samples: string[] | null
+          audience_objections: string[] | null
+          audience_problem: string | null
           brand_name: string | null
+          business_stage: string | null
+          competitor_urls: string[] | null
           created_at: string
+          crm: string | null
+          differentiator: string | null
+          domain: string | null
+          email_platform: string | null
+          existing_materials: string[] | null
+          existing_site_url: string | null
           id: string
+          industry: string | null
+          industry_custom: string | null
           intake_summary: string | null
+          offer_details: string | null
+          offer_summary: string | null
+          onboarding_completed_at: string | null
+          palette: Json | null
+          payment_processor: string | null
           personality_id: string | null
+          price_points: string[] | null
+          revenue_target: string | null
+          scheduling_tool: string | null
           status: string
+          success_metric: string | null
           updated_at: string
           user_id: string
+          voice_guide: Json | null
           voice_id: string | null
+          voice_origin: string | null
+          years_running: number | null
         }
         Insert: {
+          active_pillars?: string[] | null
+          ad_accounts?: string[] | null
           agent_name?: string | null
+          audience_description?: string | null
+          audience_language_samples?: string[] | null
+          audience_objections?: string[] | null
+          audience_problem?: string | null
           brand_name?: string | null
+          business_stage?: string | null
+          competitor_urls?: string[] | null
           created_at?: string
+          crm?: string | null
+          differentiator?: string | null
+          domain?: string | null
+          email_platform?: string | null
+          existing_materials?: string[] | null
+          existing_site_url?: string | null
           id?: string
+          industry?: string | null
+          industry_custom?: string | null
           intake_summary?: string | null
+          offer_details?: string | null
+          offer_summary?: string | null
+          onboarding_completed_at?: string | null
+          palette?: Json | null
+          payment_processor?: string | null
           personality_id?: string | null
+          price_points?: string[] | null
+          revenue_target?: string | null
+          scheduling_tool?: string | null
           status?: string
+          success_metric?: string | null
           updated_at?: string
           user_id: string
+          voice_guide?: Json | null
           voice_id?: string | null
+          voice_origin?: string | null
+          years_running?: number | null
         }
         Update: {
+          active_pillars?: string[] | null
+          ad_accounts?: string[] | null
           agent_name?: string | null
+          audience_description?: string | null
+          audience_language_samples?: string[] | null
+          audience_objections?: string[] | null
+          audience_problem?: string | null
           brand_name?: string | null
+          business_stage?: string | null
+          competitor_urls?: string[] | null
           created_at?: string
+          crm?: string | null
+          differentiator?: string | null
+          domain?: string | null
+          email_platform?: string | null
+          existing_materials?: string[] | null
+          existing_site_url?: string | null
           id?: string
+          industry?: string | null
+          industry_custom?: string | null
           intake_summary?: string | null
+          offer_details?: string | null
+          offer_summary?: string | null
+          onboarding_completed_at?: string | null
+          palette?: Json | null
+          payment_processor?: string | null
           personality_id?: string | null
+          price_points?: string[] | null
+          revenue_target?: string | null
+          scheduling_tool?: string | null
           status?: string
+          success_metric?: string | null
           updated_at?: string
           user_id?: string
+          voice_guide?: Json | null
           voice_id?: string | null
+          voice_origin?: string | null
+          years_running?: number | null
         }
         Relationships: []
       }

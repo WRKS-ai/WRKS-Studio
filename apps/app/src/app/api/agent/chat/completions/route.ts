@@ -121,6 +121,8 @@ export async function POST(req: NextRequest) {
   // For onboarding-stage users (no profile yet), build a minimal
   // synthetic profile so the prompt builder still has something to
   // chew on. The agent will treat them as first-conversation.
+  // Every business_profiles column gets a null/default — keep this in
+  // sync with the schema (see lib/supabase/types.ts).
   const effectiveProfile = profile ?? {
     id: "pending",
     user_id: userId,
@@ -132,6 +134,35 @@ export async function POST(req: NextRequest) {
     status: "active",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    // New business-discovery columns (added 2026-06-24 migration).
+    existing_site_url: null,
+    industry: null,
+    industry_custom: null,
+    business_stage: null,
+    years_running: null,
+    offer_summary: null,
+    offer_details: null,
+    price_points: null,
+    success_metric: null,
+    revenue_target: null,
+    differentiator: null,
+    audience_description: null,
+    audience_problem: null,
+    audience_objections: null,
+    audience_language_samples: null,
+    voice_guide: null,
+    existing_materials: null,
+    competitor_urls: null,
+    voice_origin: null,
+    active_pillars: null,
+    domain: null,
+    crm: null,
+    email_platform: null,
+    payment_processor: null,
+    scheduling_tool: null,
+    ad_accounts: null,
+    palette: null,
+    onboarding_completed_at: null,
   };
 
   // Resolve personality + voice (used for character / voice rules
