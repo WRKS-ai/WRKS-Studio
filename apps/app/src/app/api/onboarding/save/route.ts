@@ -81,6 +81,37 @@ const Body = z
   })
   .strict();
 
+// GET /api/onboarding/save
+// Returns the caller's active business_profile row (or null if they
+// haven't created one yet — e.g. first-time business page load).
+// Used by /onboarding/business on mount to hydrate the picker cards
+// with whatever URL ingest already extracted.
+export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const supabase = createServiceSupabaseClient();
+  const { data, error } = await supabase
+    .from("business_profiles")
+    .select(
+      "id, brand_name, existing_site_url, business_type, primary_goal, traffic_sources, voice_descriptor, active_pillars, offer_summary, audience_description, differentiator, competitor_urls, voice_origin, onboarding_completed_at",
+    )
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error("[api/onboarding/save GET] lookup failed:", error);
+    return NextResponse.json(
+      { error: "Profile lookup failed", detail: error.message },
+      { status: 500 },
+    );
+  }
+  return NextResponse.json({ profile: data ?? null });
+}
+
 export async function PATCH(req: Request) {
   const { userId } = await auth();
   if (!userId) {
