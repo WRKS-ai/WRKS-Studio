@@ -80,6 +80,7 @@ export type Database = {
           audience_problem: string | null
           brand_name: string | null
           business_stage: string | null
+          business_type: string | null
           competitor_urls: string[] | null
           created_at: string
           crm: string | null
@@ -99,12 +100,15 @@ export type Database = {
           payment_processor: string | null
           personality_id: string | null
           price_points: string[] | null
+          primary_goal: string | null
           revenue_target: string | null
           scheduling_tool: string | null
           status: string
           success_metric: string | null
+          traffic_sources: string[] | null
           updated_at: string
           user_id: string
+          voice_descriptor: string | null
           voice_guide: Json | null
           voice_id: string | null
           voice_origin: string | null
@@ -120,6 +124,7 @@ export type Database = {
           audience_problem?: string | null
           brand_name?: string | null
           business_stage?: string | null
+          business_type?: string | null
           competitor_urls?: string[] | null
           created_at?: string
           crm?: string | null
@@ -139,12 +144,15 @@ export type Database = {
           payment_processor?: string | null
           personality_id?: string | null
           price_points?: string[] | null
+          primary_goal?: string | null
           revenue_target?: string | null
           scheduling_tool?: string | null
           status?: string
           success_metric?: string | null
+          traffic_sources?: string[] | null
           updated_at?: string
           user_id: string
+          voice_descriptor?: string | null
           voice_guide?: Json | null
           voice_id?: string | null
           voice_origin?: string | null
@@ -160,6 +168,7 @@ export type Database = {
           audience_problem?: string | null
           brand_name?: string | null
           business_stage?: string | null
+          business_type?: string | null
           competitor_urls?: string[] | null
           created_at?: string
           crm?: string | null
@@ -179,12 +188,15 @@ export type Database = {
           payment_processor?: string | null
           personality_id?: string | null
           price_points?: string[] | null
+          primary_goal?: string | null
           revenue_target?: string | null
           scheduling_tool?: string | null
           status?: string
           success_metric?: string | null
+          traffic_sources?: string[] | null
           updated_at?: string
           user_id?: string
+          voice_descriptor?: string | null
           voice_guide?: Json | null
           voice_id?: string | null
           voice_origin?: string | null

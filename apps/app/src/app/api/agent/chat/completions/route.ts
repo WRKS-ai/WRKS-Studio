@@ -155,6 +155,11 @@ export async function POST(req: NextRequest) {
     competitor_urls: null,
     voice_origin: null,
     active_pillars: null,
+    // Business-discovery routing columns (added 2026-06-24).
+    business_type: null,
+    primary_goal: null,
+    traffic_sources: null,
+    voice_descriptor: null,
     domain: null,
     crm: null,
     email_platform: null,

@@ -27,6 +27,13 @@ export type ComposedMemory = {
     voiceId: string | null;
     personalityId: string | null;
     intakeSummary: string | null;
+    // Business-discovery routing — single-select picker answers from
+    // the new onboarding cards 4-7. Each one biases how the agent
+    // writes (templates picked, CTAs chosen, copy temperature, voice).
+    businessType: string | null;
+    primaryGoal: string | null;
+    trafficSources: string[] | null;
+    voiceDescriptor: string | null;
   };
   semantic: {
     businessFundamentals?: string;
@@ -58,6 +65,47 @@ export type ComposedMemory = {
     harmful: number;
     confidence: number;
   }>;
+};
+
+// Human-readable labels for the new business-discovery picker columns
+// (added 2026-06-24). Each map mirrors the CHECK constraints on
+// business_profiles. Keep in sync if the SQL constraint changes.
+
+const BUSINESS_TYPE_LABEL: Record<string, string> = {
+  service: "Service business",
+  ecommerce: "E-commerce",
+  saas: "SaaS / software",
+  agency: "Agency",
+  personal_brand: "Personal brand / creator",
+  other: "Other",
+};
+
+const PRIMARY_GOAL_LABEL: Record<string, string> = {
+  book_calls: "Book calls / consultations",
+  sell_products: "Sell products online",
+  capture_leads: "Capture leads (lead magnet → nurture)",
+  build_audience: "Build an audience",
+  launch_new: "Launch something new",
+  fix_conversions: "Fix conversions on existing site",
+};
+
+const TRAFFIC_SOURCE_LABEL: Record<string, string> = {
+  paid_ads: "Paid ads (Meta / Google)",
+  seo: "Organic SEO",
+  social: "Social media",
+  email: "Email list",
+  referrals: "Referrals / word of mouth",
+  cold_outreach: "Cold outreach / DMs",
+  press: "Press / podcasts",
+};
+
+const VOICE_DESCRIPTOR_LABEL: Record<string, string> = {
+  professional: "Professional & polished (Stripe, McKinsey vibe)",
+  bold: "Bold & contrarian (Liquid Death vibe)",
+  warm: "Warm & friendly (Mailchimp, Trader Joe's vibe)",
+  expert: "Expert & data-driven (Bloomberg, a16z vibe)",
+  playful: "Playful & creative (Notion, Duolingo vibe)",
+  quiet: "Quiet & minimalist (Aesop, Apple vibe)",
 };
 
 // Sane defaults — capped so the prompt stays under ~6k tokens.
@@ -183,6 +231,10 @@ export async function composeMemoryContext(
       voiceId: profile.voice_id,
       personalityId: profile.personality_id,
       intakeSummary: profile.intake_summary,
+      businessType: profile.business_type,
+      primaryGoal: profile.primary_goal,
+      trafficSources: profile.traffic_sources,
+      voiceDescriptor: profile.voice_descriptor,
     },
     semantic: {
       businessFundamentals: extractText(
@@ -263,6 +315,38 @@ export function renderMemoryForPrompt(memory: ComposedMemory): string {
     lines.push(`Agent name: ${memory.profile.agentName}`);
   }
   lines.push("");
+
+  // Business positioning — picker answers from onboarding cards 4-7.
+  // These are routing decisions every output should reflect (template
+  // chosen, CTA framing, copy temperature, voice).
+  const positioningLines: string[] = [];
+  if (memory.profile.businessType) {
+    const label =
+      BUSINESS_TYPE_LABEL[memory.profile.businessType] ?? memory.profile.businessType;
+    positioningLines.push(`Business type: ${label}`);
+  }
+  if (memory.profile.primaryGoal) {
+    const label =
+      PRIMARY_GOAL_LABEL[memory.profile.primaryGoal] ?? memory.profile.primaryGoal;
+    positioningLines.push(`Primary goal: ${label}`);
+  }
+  if (memory.profile.trafficSources && memory.profile.trafficSources.length > 0) {
+    const labels = memory.profile.trafficSources
+      .map((s) => TRAFFIC_SOURCE_LABEL[s] ?? s)
+      .join(", ");
+    positioningLines.push(`Traffic sources: ${labels}`);
+  }
+  if (memory.profile.voiceDescriptor) {
+    const label =
+      VOICE_DESCRIPTOR_LABEL[memory.profile.voiceDescriptor] ??
+      memory.profile.voiceDescriptor;
+    positioningLines.push(`Brand voice: ${label}`);
+  }
+  if (positioningLines.length > 0) {
+    lines.push("## Business positioning");
+    lines.push(...positioningLines);
+    lines.push("");
+  }
 
   // Semantic — business facts
   const sem = memory.semantic;
@@ -360,11 +444,18 @@ export function renderMemoryForPrompt(memory: ComposedMemory): string {
     lines.push("");
   }
 
-  // Fallback when memory is brand new
+  // Fallback when memory is brand new — the user has nothing at all
+  // in semantic, episodic, procedural, OR business-positioning slots.
+  const hasPositioning =
+    !!memory.profile.businessType ||
+    !!memory.profile.primaryGoal ||
+    (!!memory.profile.trafficSources && memory.profile.trafficSources.length > 0) ||
+    !!memory.profile.voiceDescriptor;
   if (
     !sem.businessFundamentals &&
     !sem.audience &&
     !sem.differentiator &&
+    !hasPositioning &&
     memory.episodic.recentApprovals.length === 0 &&
     memory.playbook.length === 0
   ) {
