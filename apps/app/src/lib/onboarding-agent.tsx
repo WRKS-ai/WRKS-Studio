@@ -109,7 +109,9 @@ function AgentHost({ children }: { children: ReactNode }) {
   // navigations so session state survives the page swap.
   const pathname = usePathname();
   const isOnboardingEntryPage =
-    !!pathname && pathname.startsWith("/onboarding/personality");
+    !!pathname &&
+    (pathname.startsWith("/onboarding/voice") ||
+      pathname.startsWith("/onboarding/personality"));
   const [personalityId, setPersonalityId] = useState<PersonalityId | null>(
     null,
   );

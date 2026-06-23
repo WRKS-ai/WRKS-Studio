@@ -30,7 +30,7 @@ const NAME_ALIASES = [
   "the name",
 ];
 const NEXT_WORDS = ["next", "continue", "intake", "forward", "go", "ready"];
-const BACK_WORDS = ["back", "previous", "personality"];
+const BACK_WORDS = ["back", "previous", "voice", "personality"];
 
 export default function NamePage() {
   const router = useRouter();
@@ -46,7 +46,7 @@ export default function NamePage() {
   useEffect(() => {
     const saved = localStorage.getItem(PERSONALITY_KEY) as PersonalityId | null;
     if (!saved || !PERSONALITIES.some((p) => p.id === saved)) {
-      router.replace("/onboarding/personality");
+      router.replace("/onboarding/voice");
     }
   }, [router]);
 
@@ -115,7 +115,7 @@ export default function NamePage() {
     if (
       BACK_WORDS.some((w) => destination === w || destination.includes(w))
     ) {
-      setTimeout(() => router.push("/onboarding/personality"), 200);
+      setTimeout(() => router.push("/onboarding/voice"), 200);
       return "Going back.";
     }
 
@@ -145,7 +145,7 @@ export default function NamePage() {
   };
 
   return (
-    <OnboardingFrame step={2} totalSteps={5} bloomTint={accent}>
+    <OnboardingFrame step={2} totalSteps={3} bloomTint={accent}>
       <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10">
         {/* Eyebrow */}
         <motion.div
@@ -323,7 +323,7 @@ export default function NamePage() {
         {/* Back link */}
         <motion.button
           type="button"
-          onClick={() => router.push("/onboarding/personality")}
+          onClick={() => router.push("/onboarding/voice")}
           initial={reduced ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.8 }}
