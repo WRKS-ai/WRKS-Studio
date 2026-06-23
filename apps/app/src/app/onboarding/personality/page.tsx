@@ -244,12 +244,16 @@ export default function PersonalityPage() {
                 <h1
                   className="font-serif"
                   style={{
-                    // Re-tuned 2026-06-24 for Geist Sans (wider letterforms
-                    // than Fraunces — old clamp wrapped to 2 lines).
-                    fontSize: "clamp(2.5rem, 5vw, 4.5rem)",
-                    fontWeight: 500,
-                    lineHeight: 1.0,
-                    letterSpacing: "-0.035em",
+                    // Re-tuned 2026-06-24 for Geist Sans hero presence,
+                    // verified empirically via Playwright `getBoundingClientRect`
+                    // at viewports 1440 / 1659. Max 6.5rem (104px) fits
+                    // one line at 1659 with 44px headroom, at 1440 with
+                    // 30px headroom. Mobile min 2.5rem (40px) wraps at
+                    // the natural "Pick your / voice" break.
+                    fontSize: "clamp(2.5rem, 6.25vw, 6.5rem)",
+                    fontWeight: 600,
+                    lineHeight: 0.95,
+                    letterSpacing: "-0.04em",
                     color: "rgba(245,240,230,0.98)",
                   }}
                 >
