@@ -255,20 +255,19 @@ export default function UrlIngestCard({
         </>
       }
     >
-      <div className="flex flex-col" style={{ gap: 18 }}>
+      <div className="flex flex-col" style={{ gap: 32 }}>
         {/* Hero strip — og:image if available, otherwise a typographic
             fallback with favicon + brand name. */}
-        <div
-          className="relative overflow-hidden"
-          style={{
-            borderRadius: 14,
-            border: "1px solid rgba(255,255,255,0.08)",
-            background: "rgba(255,255,255,0.018)",
-            aspectRatio: heroImage ? "16/9" : "auto",
-            minHeight: heroImage ? undefined : 88,
-          }}
-        >
-          {heroImage ? (
+        {heroImage ? (
+          <div
+            className="relative overflow-hidden"
+            style={{
+              borderRadius: 14,
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.018)",
+              aspectRatio: "16/9",
+            }}
+          >
             <Image
               src={heroImage}
               alt={brandName || "Site preview"}
@@ -277,137 +276,186 @@ export default function UrlIngestCard({
               style={{ objectFit: "cover" }}
               unoptimized
             />
-          ) : (
-            <div
-              className="flex items-center w-full h-full"
-              style={{ gap: 14, padding: "20px 22px" }}
-            >
-              {favicon && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={favicon}
-                  alt=""
-                  width={36}
-                  height={36}
-                  style={{
-                    borderRadius: 8,
-                    background: "rgba(255,255,255,0.04)",
-                    objectFit: "contain",
-                  }}
-                />
-              )}
-              <div className="flex flex-col" style={{ gap: 2 }}>
-                <span
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 500,
-                    color: "rgba(245,240,230,0.95)",
-                    letterSpacing: "-0.005em",
-                  }}
-                >
-                  {brandName}
-                </span>
-                <span
-                  style={{
-                    fontSize: 12.5,
-                    color: "rgba(245,240,230,0.5)",
-                    letterSpacing: "0.01em",
-                  }}
-                >
-                  {displayUrl}
-                </span>
-              </div>
-            </div>
+          </div>
+        ) : null}
+
+        {/* Brand identity — favicon (if no hero) + brand name + URL. */}
+        <div className="flex items-center" style={{ gap: 14 }}>
+          {!heroImage && favicon && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={favicon}
+              alt=""
+              width={40}
+              height={40}
+              style={{
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                objectFit: "contain",
+                padding: 6,
+              }}
+            />
           )}
+          <div className="flex flex-col" style={{ gap: 4 }}>
+            <h2
+              style={{
+                fontSize: "clamp(1.375rem, 2.2vw, 1.875rem)",
+                fontWeight: 600,
+                letterSpacing: "-0.022em",
+                lineHeight: 1.05,
+                color: "rgba(245,240,230,0.98)",
+                margin: 0,
+              }}
+            >
+              {brandName}
+            </h2>
+            <a
+              href={result?.url ?? brandState.existing_site_url ?? "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: 13.5,
+                color: "rgba(245,240,230,0.5)",
+                letterSpacing: "-0.003em",
+                textDecoration: "none",
+              }}
+            >
+              {displayUrl} ↗
+            </a>
+          </div>
         </div>
 
-        {/* Extracted fields — structured grid. Empty rows hidden so we
-            only show what Claude was confident enough to return. */}
-        <dl
-          className="grid"
-          style={{
-            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 2fr)",
-            rowGap: 12,
-            columnGap: 18,
-            padding: "16px 18px",
-            borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.06)",
-            background: "rgba(255,255,255,0.012)",
-          }}
-        >
-          {extracted.brand_name && (
-            <Row label="Brand">
-              {extracted.brand_name}
-            </Row>
-          )}
-          {extracted.business_type && (
-            <Row label="Business type">
-              {BUSINESS_TYPE_LABEL[extracted.business_type] ?? extracted.business_type}
-            </Row>
-          )}
-          {extracted.primary_goal && (
-            <Row label="Primary goal">
-              {PRIMARY_GOAL_LABEL[extracted.primary_goal] ?? extracted.primary_goal}
-            </Row>
-          )}
-          {extracted.voice_descriptor && (
-            <Row label="Voice">
-              {VOICE_DESCRIPTOR_LABEL[extracted.voice_descriptor] ?? extracted.voice_descriptor}
-            </Row>
-          )}
-          {extracted.traffic_sources && extracted.traffic_sources.length > 0 && (
-            <Row label="Traffic">
-              {extracted.traffic_sources
-                .map((t) => TRAFFIC_LABEL[t] ?? t)
-                .join(", ")}
-            </Row>
-          )}
-          {extracted.offer_summary && (
-            <Row label="Offer">{extracted.offer_summary}</Row>
-          )}
-          {extracted.audience_description && (
-            <Row label="Audience">{extracted.audience_description}</Row>
-          )}
-          {extracted.differentiator && (
-            <Row label="Edge">{extracted.differentiator}</Row>
-          )}
-          {extracted.competitor_urls && extracted.competitor_urls.length > 0 && (
-            <Row label="Competitors">
-              {extracted.competitor_urls.slice(0, 3).join(" · ")}
-            </Row>
-          )}
-        </dl>
+        {/* Quick-facts pills — type / goal / voice as inline chips so the
+            top-line categorization is scannable in one glance. */}
+        {(extracted.business_type ||
+          extracted.primary_goal ||
+          extracted.voice_descriptor) && (
+          <div className="flex flex-wrap" style={{ gap: 8 }}>
+            {extracted.business_type && (
+              <Pill>
+                {BUSINESS_TYPE_LABEL[extracted.business_type] ??
+                  extracted.business_type}
+              </Pill>
+            )}
+            {extracted.primary_goal && (
+              <Pill>
+                {PRIMARY_GOAL_LABEL[extracted.primary_goal] ??
+                  extracted.primary_goal}
+              </Pill>
+            )}
+            {extracted.voice_descriptor && (
+              <Pill>
+                {VOICE_DESCRIPTOR_LABEL[extracted.voice_descriptor] ??
+                  extracted.voice_descriptor}{" "}
+                voice
+              </Pill>
+            )}
+          </div>
+        )}
+
+        {/* Long-form fields — sentence-case section headlines + prose body.
+            Each section separated by a hairline. Reads as editorial brand
+            study, not a debug grid. */}
+        {(extracted.offer_summary ||
+          extracted.audience_description ||
+          extracted.differentiator ||
+          (extracted.traffic_sources &&
+            extracted.traffic_sources.length > 0) ||
+          (extracted.competitor_urls &&
+            extracted.competitor_urls.length > 0)) && (
+          <div className="flex flex-col" style={{ gap: 20 }}>
+            {extracted.offer_summary && (
+              <Section title="What you do">{extracted.offer_summary}</Section>
+            )}
+            {extracted.audience_description && (
+              <Section title="Who buys it">
+                {extracted.audience_description}
+              </Section>
+            )}
+            {extracted.differentiator && (
+              <Section title="Your edge">{extracted.differentiator}</Section>
+            )}
+            {extracted.traffic_sources &&
+              extracted.traffic_sources.length > 0 && (
+                <Section title="Where customers find you">
+                  {extracted.traffic_sources
+                    .map((t) => TRAFFIC_LABEL[t] ?? t)
+                    .join(" · ")}
+                </Section>
+              )}
+            {extracted.competitor_urls &&
+              extracted.competitor_urls.length > 0 && (
+                <Section title="Watching">
+                  {extracted.competitor_urls.slice(0, 3).join(" · ")}
+                </Section>
+              )}
+          </div>
+        )}
       </div>
     </CardShell>
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <>
-      <dt
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "5px 10px",
+        borderRadius: 999,
+        fontSize: 12.5,
+        fontWeight: 500,
+        letterSpacing: "-0.005em",
+        color: "rgba(245,240,230,0.78)",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="flex flex-col"
+      style={{
+        gap: 6,
+        paddingTop: 16,
+        borderTop: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      <h3
         style={{
-          fontSize: 11.5,
-          fontFamily: "var(--font-mono)",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          color: "rgba(245,240,230,0.4)",
-          paddingTop: 2,
+          fontSize: 13,
+          fontWeight: 500,
+          letterSpacing: "-0.005em",
+          color: "rgba(245,240,230,0.55)",
+          margin: 0,
         }}
       >
-        {label}
-      </dt>
-      <dd
+        {title}
+      </h3>
+      <p
         style={{
-          fontSize: 14,
-          lineHeight: 1.45,
-          color: "rgba(245,240,230,0.85)",
+          fontSize: 15,
+          lineHeight: 1.5,
           letterSpacing: "-0.005em",
+          color: "rgba(245,240,230,0.9)",
           margin: 0,
         }}
       >
         {children}
-      </dd>
-    </>
+      </p>
+    </div>
   );
 }
