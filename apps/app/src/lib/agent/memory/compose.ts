@@ -34,6 +34,14 @@ export type ComposedMemory = {
     primaryGoal: string | null;
     trafficSources: string[] | null;
     voiceDescriptor: string | null;
+    // Narrative fields written by URL ingest (or future editable cards).
+    // The agent reads these as natural-language context — what the
+    // business actually IS, who they serve, what their edge is.
+    existingSiteUrl: string | null;
+    offerSummary: string | null;
+    audienceDescription: string | null;
+    differentiator: string | null;
+    competitorUrls: string[] | null;
   };
   semantic: {
     businessFundamentals?: string;
@@ -235,6 +243,11 @@ export async function composeMemoryContext(
       primaryGoal: profile.primary_goal,
       trafficSources: profile.traffic_sources,
       voiceDescriptor: profile.voice_descriptor,
+      existingSiteUrl: profile.existing_site_url,
+      offerSummary: profile.offer_summary,
+      audienceDescription: profile.audience_description,
+      differentiator: profile.differentiator,
+      competitorUrls: profile.competitor_urls,
     },
     semantic: {
       businessFundamentals: extractText(
@@ -348,18 +361,45 @@ export function renderMemoryForPrompt(memory: ComposedMemory): string {
     lines.push("");
   }
 
-  // Semantic — business facts
+  // Business narrative — prefer brand_state columns (written by the
+  // new URL ingest + business-discovery cards) over memory_entries
+  // (written by the old intake form). Same conceptual fields, just
+  // tracking the newer source-of-truth. Falls back to memory_entries
+  // for users still on legacy intake.
   const sem = memory.semantic;
-  if (sem.businessFundamentals || sem.audience || sem.differentiator) {
+  const businessNarrative =
+    memory.profile.offerSummary ?? sem.businessFundamentals ?? null;
+  const audienceNarrative =
+    memory.profile.audienceDescription ?? sem.audience ?? null;
+  const edgeNarrative =
+    memory.profile.differentiator ?? sem.differentiator ?? null;
+
+  if (
+    businessNarrative ||
+    audienceNarrative ||
+    edgeNarrative ||
+    memory.profile.existingSiteUrl
+  ) {
     lines.push("## What the business is");
-    if (sem.businessFundamentals) {
-      lines.push(`What they do: ${sem.businessFundamentals}`);
+    if (memory.profile.existingSiteUrl) {
+      lines.push(`Site: ${memory.profile.existingSiteUrl}`);
     }
-    if (sem.audience) {
-      lines.push(`Who it's for: ${sem.audience}`);
+    if (businessNarrative) {
+      lines.push(`What they do: ${businessNarrative}`);
     }
-    if (sem.differentiator) {
-      lines.push(`Their edge: ${sem.differentiator}`);
+    if (audienceNarrative) {
+      lines.push(`Who it's for: ${audienceNarrative}`);
+    }
+    if (edgeNarrative) {
+      lines.push(`Their edge: ${edgeNarrative}`);
+    }
+    if (
+      memory.profile.competitorUrls &&
+      memory.profile.competitorUrls.length > 0
+    ) {
+      lines.push(
+        `Competitors watched: ${memory.profile.competitorUrls.slice(0, 5).join(", ")}`,
+      );
     }
     lines.push("");
   }
@@ -451,11 +491,17 @@ export function renderMemoryForPrompt(memory: ComposedMemory): string {
     !!memory.profile.primaryGoal ||
     (!!memory.profile.trafficSources && memory.profile.trafficSources.length > 0) ||
     !!memory.profile.voiceDescriptor;
+  const hasNarrative =
+    !!memory.profile.offerSummary ||
+    !!memory.profile.audienceDescription ||
+    !!memory.profile.differentiator ||
+    !!memory.profile.existingSiteUrl;
   if (
     !sem.businessFundamentals &&
     !sem.audience &&
     !sem.differentiator &&
     !hasPositioning &&
+    !hasNarrative &&
     memory.episodic.recentApprovals.length === 0 &&
     memory.playbook.length === 0
   ) {
