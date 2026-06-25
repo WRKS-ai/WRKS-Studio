@@ -120,51 +120,48 @@ export default function StepperRail({
                   {s.label}
                 </span>
 
-                {/* Icon circle — visual anchor, hugs right edge of the rail.
-                    Active = filled warm cream (NOT purple per chrome rule)
-                    with dark icon. Completed = hairline circle + checkmark.
-                    Upcoming = quiet outline circle + the step's resting icon. */}
+                {/* Icon circle — dark glass disc with the step's icon
+                    inside. Border state varies by phase:
+                    - Active: `wrks-crystal-border-button` class drives a
+                      slow-revolving comet around the rim (per the global
+                      brand crystal-light treatment).
+                    - Completed: solid warm-cream rim "locks" the circle.
+                    - Upcoming: quiet hairline outline. */}
                 <span
                   aria-hidden
-                  className="relative grid place-items-center flex-shrink-0 transition-all duration-200"
+                  className={`relative grid place-items-center flex-shrink-0 transition-colors duration-200 ${
+                    isActive ? "wrks-crystal-border-button" : ""
+                  }`}
                   style={{
                     width: CIRCLE,
                     height: CIRCLE,
                     borderRadius: 999,
-                    background: isActive
-                      ? "rgba(245,240,230,0.94)"
-                      : "rgba(10,10,12,1)",
+                    background:
+                      "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.012) 100%)",
+                    backdropFilter: "blur(20px)",
+                    WebkitBackdropFilter: "blur(20px)",
+                    // Border is the state signal. Active uses no explicit
+                    // border (the comet pseudo-element draws the rim).
+                    // Completed = solid warm cream. Upcoming = faint
+                    // hairline.
                     border: isActive
-                      ? "1px solid rgba(245,240,230,0.94)"
+                      ? "none"
                       : isCompleted
-                        ? "1px solid rgba(255,255,255,0.18)"
+                        ? "1.2px solid rgba(245,240,230,0.78)"
                         : "1px solid rgba(255,255,255,0.07)",
                     color: isActive
-                      ? "rgba(10,10,12,0.95)"
+                      ? "rgba(245,240,230,0.95)"
                       : isCompleted
-                        ? "rgba(245,240,230,0.72)"
+                        ? "rgba(245,240,230,0.85)"
                         : "rgba(245,240,230,0.38)",
                     boxShadow: isActive
-                      ? "0 12px 32px -10px rgba(245,240,230,0.22)"
-                      : "none",
+                      ? "0 0 28px -8px rgba(245,240,230,0.18), inset 0 1px 0 rgba(255,255,255,0.06)"
+                      : isCompleted
+                        ? "0 0 18px -8px rgba(245,240,230,0.18)"
+                        : "none",
                   }}
                 >
-                  {isCompleted ? (
-                    <svg
-                      width="15"
-                      height="15"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  ) : (
-                    s.icon
-                  )}
+                  {s.icon}
                 </span>
               </button>
             </li>
