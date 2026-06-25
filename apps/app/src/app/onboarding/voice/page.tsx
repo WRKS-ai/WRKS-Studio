@@ -205,8 +205,10 @@ export default function PersonalityPage() {
               Grid template only applies at lg+ so mobile naturally
               flows in a single column with reversed flex order. */}
           <div className="flex flex-col-reverse items-center gap-12 lg:grid lg:items-center lg:gap-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-            {/* LEFT — static voice-pick hero + Continue. */}
-            <div className="relative flex flex-col items-start">
+            {/* LEFT — static voice-pick hero + Continue.
+                Mobile: center-aligned (single column composition).
+                Lg+: left-aligned within the asymmetric grid column. */}
+            <div className="relative flex flex-col items-center text-center lg:items-start lg:text-left">
               <motion.div
                 initial={
                   reduced
@@ -276,11 +278,14 @@ export default function PersonalityPage() {
                 Prev / current / next visible at once; side orbs are
                 blurred + scaled-down ghosts in their own accent.
                 Clicking a side orb OR an arrow navigates between
-                agents. Wrapper allows overflow so arrows can sit
-                just outside the side orbs without clipping. */}
-            <div className="relative flex items-center justify-center overflow-visible">
+                agents.
+                Mobile: the inner 660×320 box scales to 0.55 so the
+                full carousel + arrows fit within ~363px (just under
+                375px viewport). Outer wrapper clips any over-bleed
+                so the page doesn't horizontal-scroll. Sm:+ scales up. */}
+            <div className="relative flex items-center justify-center w-full overflow-hidden">
               <div
-                className="relative flex items-center justify-center"
+                className="relative flex items-center justify-center origin-center scale-[0.55] sm:scale-75 lg:scale-100"
                 style={{ width: 660, height: 320 }}
               >
                 <GlassNavArrow
