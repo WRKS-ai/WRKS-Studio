@@ -82,6 +82,24 @@ body {
   display: none;
 }
 
+/* Mobile (< 768px) — hide scrollbars entirely. The body + page scroll
+   on mobile doesn't need a visible thumb; the user knows they can
+   scroll. Per user directive 2026-06-26: "I hate when a thin scroll
+   barr appears at right side on mobile version… I need no scrolling
+   bar on right please." Desktop styled scrollbars above stay intact
+   for scrollable surfaces like the chat panel. */
+@media (max-width: 767px) {
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
 /* ============================================================
    Editable text — inline contentEditable surfaces inside the
    website preview. Subtle hover hint, accent ring when focused.
