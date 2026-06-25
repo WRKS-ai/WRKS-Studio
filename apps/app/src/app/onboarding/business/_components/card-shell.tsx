@@ -38,10 +38,13 @@ export default function CardShell({
       <header className="flex flex-col" style={{ gap: 10 }}>
         <h1
           style={{
-            fontSize: "clamp(1.875rem, 3.25vw, 2.875rem)",
+            // 2026-06-26: card headline scale per `feedback_hero_scale_max_60px.md`.
+            // Max 40px — restrained relative to page-level heroes (52px on
+            // voice/name) since these cards live inside a stepper flow.
+            fontSize: "clamp(1.625rem, 2.8vw, 2.5rem)",
             fontWeight: 600,
-            lineHeight: 1.04,
-            letterSpacing: "-0.03em",
+            lineHeight: 1.08,
+            letterSpacing: "-0.025em",
             color: "rgba(245,240,230,0.98)",
           }}
         >

@@ -174,10 +174,12 @@ export default function NamePage() {
               >
                 <h1
                   style={{
-                    fontSize: "clamp(2.5rem, 6.25vw, 6.5rem)",
+                    // 2026-06-26: product-UI hero scale (max 52px) per
+                    // `feedback_hero_scale_max_60px.md`. Restraint = premium.
+                    fontSize: "clamp(1.875rem, 3.5vw, 3.25rem)",
                     fontWeight: 600,
-                    lineHeight: 0.95,
-                    letterSpacing: "-0.04em",
+                    lineHeight: 1.0,
+                    letterSpacing: "-0.03em",
                     color: "rgba(245,240,230,0.98)",
                   }}
                 >
@@ -237,10 +239,10 @@ export default function NamePage() {
                 aria-hidden
                 className="font-sans select-none pointer-events-none text-center"
                 style={{
-                  fontSize: "clamp(2.5rem, 6vw, 6rem)",
+                  fontSize: "clamp(2rem, 4vw, 4rem)",
                   fontWeight: 500,
                   lineHeight: 1,
-                  letterSpacing: "-0.035em",
+                  letterSpacing: "-0.03em",
                   color: "rgba(245,240,230,0.98)",
                 }}
               >
@@ -299,10 +301,10 @@ export default function NamePage() {
                 aria-label="Agent name"
                 className="absolute inset-0 w-full h-full bg-transparent border-0 outline-none font-sans text-center"
                 style={{
-                  fontSize: "clamp(2.5rem, 6vw, 6rem)",
+                  fontSize: "clamp(2rem, 4vw, 4rem)",
                   fontWeight: 500,
                   lineHeight: 1,
-                  letterSpacing: "-0.035em",
+                  letterSpacing: "-0.03em",
                   color: "transparent",
                   caretColor: accent,
                 }}

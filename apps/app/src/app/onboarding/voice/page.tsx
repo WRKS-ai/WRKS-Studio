@@ -227,16 +227,15 @@ export default function PersonalityPage() {
               >
                 <h1
                   style={{
-                    // Re-tuned 2026-06-24 for Geist Sans hero presence,
-                    // verified empirically via Playwright `getBoundingClientRect`
-                    // at viewports 1440 / 1659. Max 6.5rem (104px) fits
-                    // one line at 1659 with 44px headroom, at 1440 with
-                    // 30px headroom. Mobile min 2.5rem (40px) wraps at
-                    // the natural "Pick your / voice" break.
-                    fontSize: "clamp(2.5rem, 6.25vw, 6.5rem)",
+                    // 2026-06-26: capped to product-UI hero scale (max
+                    // 52px) per `feedback_hero_scale_max_60px.md` — prior
+                    // 104px was editorial-magazine scale, read as "AI
+                    // splash" not premium product. Linear/Vercel/Stripe
+                    // product hero sits 48-60px. Restraint = premium.
+                    fontSize: "clamp(1.875rem, 3.5vw, 3.25rem)",
                     fontWeight: 600,
-                    lineHeight: 0.95,
-                    letterSpacing: "-0.04em",
+                    lineHeight: 1.0,
+                    letterSpacing: "-0.03em",
                     color: "rgba(245,240,230,0.98)",
                   }}
                 >
