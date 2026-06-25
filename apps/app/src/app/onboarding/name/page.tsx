@@ -229,11 +229,13 @@ export default function NamePage() {
 
             {/* RIGHT — typed-name display at hero scale, clickable to focus
                 the hidden input. No glass card wrapper — name floats directly
-                on the canvas, matching the editorial restraint of the voice page. */}
+                on the canvas, matching the editorial restraint of the voice page.
+                Container height = display text height (no minHeight) so the
+                absolutely-positioned input below aligns its caret with the
+                visible text instead of centering in a taller empty box. */}
             <div
               className="relative cursor-text"
               onClick={() => inputRef.current?.focus()}
-              style={{ minHeight: 160 }}
             >
               <div
                 aria-hidden
@@ -241,7 +243,7 @@ export default function NamePage() {
                 style={{
                   fontSize: "clamp(2rem, 4vw, 4rem)",
                   fontWeight: 500,
-                  lineHeight: 1,
+                  lineHeight: 1.05,
                   letterSpacing: "-0.03em",
                   color: "rgba(245,240,230,0.98)",
                 }}
@@ -299,11 +301,14 @@ export default function NamePage() {
                 autoComplete="off"
                 spellCheck={false}
                 aria-label="Agent name"
-                className="absolute inset-0 w-full h-full bg-transparent border-0 outline-none font-sans text-center"
+                className="absolute inset-0 w-full h-full bg-transparent border-0 outline-none p-0 font-sans text-center"
                 style={{
                   fontSize: "clamp(2rem, 4vw, 4rem)",
                   fontWeight: 500,
-                  lineHeight: 1,
+                  // Match the display layer line-height EXACTLY so the
+                  // input's caret sits on the same baseline as the visible
+                  // typed name (otherwise the caret appears below the text).
+                  lineHeight: 1.05,
                   letterSpacing: "-0.03em",
                   color: "transparent",
                   caretColor: accent,
