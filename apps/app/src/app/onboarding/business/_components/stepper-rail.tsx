@@ -1,22 +1,26 @@
 "use client";
 
-// Stepper rail for /onboarding/business — typographic, not graphical.
-// Premium product UI references (Linear, Mercury, Stripe checkout) lean
-// on type hierarchy over numbered-circle widgets. The active step pops
-// via weight + opacity; completed steps mark with a hairline check icon
-// inline left of the label; upcoming steps fade.
+import type { ReactNode } from "react";
+
+// Stepper rail for /onboarding/business — Vibiz-style pattern adapted
+// to WRKS dark aesthetic per user reference 2026-06-26.
 //
-// No vertical connecting line. No numbered-circle widget. No background
-// tint on the rail (blends with the canvas). The whole rail reads as
-// editorial table-of-contents — quiet, confident, no Bootstrap-wizard
-// energy.
+// Per-row layout (left→right): tabular mono step number, then step
+// label, then a circular icon indicator anchored to the right edge of
+// the rail. A hairline vertical line runs through the icon-circle
+// centers, connecting them. The active step's circle is filled in
+// warm cream (NOT purple — chrome rule via `feedback_no_accent_on_chrome_at_all.md`)
+// with the dark icon inside; completed steps get a hairline circle +
+// checkmark inside; upcoming steps get a quiet outline circle + the
+// step's resting icon.
 //
-// Click any past or current step to navigate to it. Future steps are
-// not clickable (you can't skip ahead).
+// Click past or current step to navigate; future steps disabled.
 
 export type StepperStep = {
   readonly id: number;
   readonly label: string;
+  /** Resting icon for the step (rendered inside the circle indicator). */
+  readonly icon: ReactNode;
 };
 
 export type StepperRailProps = {
@@ -26,55 +30,36 @@ export type StepperRailProps = {
   onSelect: (id: number) => void;
 };
 
+const CIRCLE = 36;
+const ROW_GAP = 28;
+
 export default function StepperRail({
   steps,
   currentStep,
   completed,
   onSelect,
 }: StepperRailProps) {
-  const total = steps.length;
-  const activeLabel =
-    steps.find((s) => s.id === currentStep)?.label ?? "";
-
   return (
     <nav
       aria-label="Onboarding progress"
-      className="flex h-full flex-col"
-      style={{ padding: "56px 36px" }}
+      className="relative flex h-full flex-col"
+      style={{ padding: "56px 32px" }}
     >
-      {/* Step counter — tabular mono pair, top of rail. The active section
-          name follows on a second line for context without taking nav space. */}
-      <div
-        className="flex flex-col"
-        style={{ gap: 6, marginBottom: 44 }}
-      >
-        <span
-          className="tabular-nums"
+      <ol className="relative flex flex-col" style={{ gap: ROW_GAP }}>
+        {/* Connecting hairline — runs through the icon-circle centers on
+            the right side. Top/bottom inset to avoid bleeding past the
+            first / last circle. */}
+        <div
+          aria-hidden
+          className="absolute w-px"
           style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 11.5,
-            letterSpacing: "0.14em",
-            color: "rgba(245,240,230,0.42)",
-            textTransform: "uppercase",
+            top: CIRCLE / 2,
+            bottom: CIRCLE / 2,
+            right: CIRCLE / 2,
+            background: "rgba(255,255,255,0.06)",
           }}
-        >
-          {String(currentStep).padStart(2, "0")} / {String(total).padStart(2, "0")}
-        </span>
-        <span
-          style={{
-            fontSize: 13,
-            letterSpacing: "-0.005em",
-            color: "rgba(245,240,230,0.62)",
-          }}
-        >
-          {activeLabel}
-        </span>
-      </div>
+        />
 
-      {/* Steps — typographic. No circles, no vertical line. Active = bigger
-          + full opacity. Completed = checkmark + medium opacity. Upcoming =
-          dim. */}
-      <ol className="flex flex-col" style={{ gap: 14 }}>
         {steps.map((s) => {
           const isActive = s.id === currentStep;
           const isCompleted = completed[s.id] && !isActive;
@@ -88,71 +73,99 @@ export default function StepperRail({
                 onClick={() => canSelect && onSelect(s.id)}
                 disabled={!canSelect}
                 aria-current={isActive ? "step" : undefined}
-                className="flex items-baseline w-full text-left transition-all duration-200"
+                className="relative flex items-center w-full text-left transition-all duration-200"
                 style={{
-                  gap: 12,
+                  gap: 0,
                   padding: 0,
                   background: "transparent",
                   border: "none",
                   cursor: canSelect ? "pointer" : "default",
                 }}
               >
-                {/* Indicator slot — fixed width so labels align. Active
-                    gets nothing (the label weight + size does the work);
-                    completed gets a hairline checkmark; upcoming gets a
-                    quiet bullet. */}
+                {/* Step number — tabular mono, far left. */}
                 <span
-                  aria-hidden
-                  className="inline-flex items-center justify-center flex-shrink-0"
+                  className="tabular-nums flex-shrink-0"
                   style={{
-                    width: 16,
-                    height: 16,
-                    color: isCompleted
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11.5,
+                    letterSpacing: "0.06em",
+                    color: isActive
                       ? "rgba(245,240,230,0.55)"
-                      : "rgba(245,240,230,0.25)",
-                    transform: "translateY(2px)",
+                      : isCompleted
+                        ? "rgba(245,240,230,0.4)"
+                        : "rgba(245,240,230,0.22)",
+                    width: 22,
                   }}
                 >
-                  {isCompleted ? (
-                    <svg
-                      width="13"
-                      height="13"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  ) : isActive ? null : (
-                    <span
-                      style={{
-                        width: 3,
-                        height: 3,
-                        borderRadius: 999,
-                        background: "rgba(245,240,230,0.32)",
-                      }}
-                    />
-                  )}
+                  {String(s.id).padStart(2, "0")}
                 </span>
 
+                {/* Label — fills middle, pushes icon to the right. */}
                 <span
+                  className="flex-1"
                   style={{
-                    fontSize: isActive ? 16 : 14,
+                    fontSize: 14,
                     fontWeight: isActive ? 500 : 400,
                     letterSpacing: "-0.005em",
                     lineHeight: 1.3,
                     color: isActive
                       ? "rgba(245,240,230,0.95)"
                       : isCompleted
-                        ? "rgba(245,240,230,0.62)"
+                        ? "rgba(245,240,230,0.65)"
                         : "rgba(245,240,230,0.32)",
-                    transition: "color 0.2s ease, font-size 0.2s ease",
+                    transition: "color 0.2s ease",
+                    paddingLeft: 4,
+                    paddingRight: 12,
                   }}
                 >
                   {s.label}
+                </span>
+
+                {/* Icon circle — visual anchor, hugs right edge of the rail.
+                    Active = filled warm cream (NOT purple per chrome rule)
+                    with dark icon. Completed = hairline circle + checkmark.
+                    Upcoming = quiet outline circle + the step's resting icon. */}
+                <span
+                  aria-hidden
+                  className="relative grid place-items-center flex-shrink-0 transition-all duration-200"
+                  style={{
+                    width: CIRCLE,
+                    height: CIRCLE,
+                    borderRadius: 999,
+                    background: isActive
+                      ? "rgba(245,240,230,0.94)"
+                      : "rgba(10,10,12,1)",
+                    border: isActive
+                      ? "1px solid rgba(245,240,230,0.94)"
+                      : isCompleted
+                        ? "1px solid rgba(255,255,255,0.16)"
+                        : "1px solid rgba(255,255,255,0.07)",
+                    color: isActive
+                      ? "rgba(10,10,12,0.95)"
+                      : isCompleted
+                        ? "rgba(245,240,230,0.7)"
+                        : "rgba(245,240,230,0.4)",
+                    boxShadow: isActive
+                      ? "0 10px 26px -8px rgba(245,240,230,0.18)"
+                      : "none",
+                  }}
+                >
+                  {isCompleted ? (
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    s.icon
+                  )}
                 </span>
               </button>
             </li>

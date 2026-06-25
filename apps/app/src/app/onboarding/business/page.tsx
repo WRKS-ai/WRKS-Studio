@@ -60,13 +60,58 @@ const EMPTY_STATE: BrandStateSnapshot = {
   onboarding_completed_at: null,
 };
 
+// Lucide-style inline SVG icons for each step indicator. Stroke-based,
+// 1.6 weight, 16x16 in a 36px circle. Kept inline (no external icon
+// dep) so the rail stays self-contained.
+const Icon = {
+  Site: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+    </svg>
+  ),
+  Business: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 21h18" />
+      <path d="M5 21V7l7-4 7 4v14" />
+      <path d="M10 21v-6h4v6" />
+    </svg>
+  ),
+  Goal: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+    </svg>
+  ),
+  Traffic: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 17 9 11 13 15 21 7" />
+      <polyline points="15 7 21 7 21 13" />
+    </svg>
+  ),
+  Voice: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 18V6a2 2 0 0 1 2-2h10l4 4v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <line x1="7" y1="10" x2="15" y2="10" />
+      <line x1="7" y1="14" x2="13" y2="14" />
+    </svg>
+  ),
+  UseCase: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <polyline points="8 12.5 11 15.5 16 9.5" />
+    </svg>
+  ),
+} as const;
+
 const STEPS = [
-  { id: 1, label: "Your site" },
-  { id: 2, label: "Business type" },
-  { id: 3, label: "Main goal" },
-  { id: 4, label: "Traffic" },
-  { id: 5, label: "Brand voice" },
-  { id: 6, label: "What WRKS does" },
+  { id: 1, label: "Your site", icon: Icon.Site },
+  { id: 2, label: "Business type", icon: Icon.Business },
+  { id: 3, label: "Main goal", icon: Icon.Goal },
+  { id: 4, label: "Traffic", icon: Icon.Traffic },
+  { id: 5, label: "Brand voice", icon: Icon.Voice },
+  { id: 6, label: "What WRKS does", icon: Icon.UseCase },
 ] as const;
 
 const TOTAL_STEPS = STEPS.length;
@@ -192,7 +237,7 @@ export default function BusinessPage() {
       <div
         className="relative grid min-h-screen"
         style={{
-          gridTemplateColumns: "minmax(220px, 280px) 1fr",
+          gridTemplateColumns: "minmax(260px, 300px) 1fr",
         }}
       >
         {/* Left rail — typographic, no background tint, blends with canvas.
