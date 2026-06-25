@@ -199,17 +199,10 @@ export default function PersonalityPage() {
               Step context lives in OnboardingFrame chrome (top-left "01 / 03"
               counter + hairline progress bar) — not above the headline. */}
 
-          {/* Hero — asymmetric editorial spread.
-              Text on the left, carousel on the right. Grid columns
-              tuned so the right column is wide enough to hold the
-              full carousel (center + flanking ghosts) without
-              clipping. */}
-          <div
-            className="grid items-center gap-12 lg:gap-16"
-            style={{
-              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.05fr)",
-            }}
-          >
+          {/* Hero — stacked on mobile (type then orb), asymmetric editorial
+              spread on lg+ (type left, orb right). Grid template only
+              applies at lg+ so mobile naturally flows in a single column. */}
+          <div className="flex flex-col items-center gap-10 lg:grid lg:items-center lg:gap-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
             {/* LEFT — static voice-pick hero + Continue. */}
             <div className="relative flex flex-col items-start">
               <motion.div

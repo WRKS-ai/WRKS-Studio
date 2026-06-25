@@ -220,15 +220,14 @@ export default function BusinessPage() {
   return (
     <OnboardingFrame step={3} totalSteps={3}>
       <div
-        className="relative grid"
-        style={{
-          gridTemplateColumns: "minmax(280px, 340px) 1fr",
-          minHeight: "calc(100vh - 80px)",
-        }}
+        className="relative flex flex-col lg:grid lg:grid-cols-[minmax(280px,340px)_1fr]"
+        style={{ minHeight: "calc(100vh - 80px)" }}
       >
-        {/* Left rail — full height, generous spacing, connecting hairlines. */}
+        {/* Left rail — hidden on mobile (OnboardingFrame chrome's top
+            progress bar carries the global progress signal there).
+            On lg+: full height, generous spacing, connecting hairlines. */}
         <aside
-          className="relative"
+          className="hidden lg:block relative"
           style={{
             borderRight: "1px solid rgba(255,255,255,0.05)",
           }}
@@ -241,8 +240,44 @@ export default function BusinessPage() {
           />
         </aside>
 
-        {/* Right pane — centered card with proper top breathing room. */}
-        <section className="relative flex items-center justify-center px-10 sm:px-14 py-16">
+        {/* Mobile-only inline sub-step indicator — small "04 / 06 · Traffic"
+            row at the top of the right pane so users on mobile still know
+            where they are inside the business flow. Hidden on lg+ where the
+            sidebar rail carries the same info. */}
+        <div className="lg:hidden flex items-center px-6 pt-6" style={{ gap: 10 }}>
+          <span
+            className="tabular-nums"
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "rgba(245,240,230,0.42)",
+            }}
+          >
+            {String(subStep).padStart(2, "0")} / {String(STEPS.length).padStart(2, "0")}
+          </span>
+          <span
+            aria-hidden
+            style={{
+              width: 20,
+              height: 1,
+              background: "rgba(245,240,230,0.16)",
+            }}
+          />
+          <span
+            style={{
+              fontSize: 12.5,
+              color: "rgba(245,240,230,0.6)",
+            }}
+          >
+            {STEPS[subStep - 1]?.label}
+          </span>
+        </div>
+
+        {/* Right pane (or only pane on mobile) — centered card with proper
+            breathing room. Padding tightens on mobile so cards aren't cramped. */}
+        <section className="relative flex items-center justify-center px-6 sm:px-10 lg:px-14 py-10 lg:py-16">
           <div className="w-full max-w-[680px]">
             {subStep === 1 && (
               <UrlIngestCard

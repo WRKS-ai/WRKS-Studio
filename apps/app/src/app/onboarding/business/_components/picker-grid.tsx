@@ -59,14 +59,12 @@ export default function PickerGrid<V extends string>(
     props.onChange(next);
   };
 
+  // Responsive: always 1 col on mobile, requested cols (2 or 3) on sm+.
+  // Mobile 1-col avoids 2 options cramping into ~150px each at 375px width.
+  const colsClass = cols === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2";
+
   return (
-    <div
-      className="grid"
-      style={{
-        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-        gap: 10,
-      }}
-    >
+    <div className={`grid grid-cols-1 ${colsClass}`} style={{ gap: 10 }}>
       {options.map((opt) => {
         const selected = isSelected(opt.value);
         return (

@@ -153,12 +153,9 @@ export default function NamePage() {
             Eyebrow + glass card wrapper + redundant "Select a name" label all
             removed 2026-06-24 per the new design rules. */}
         <div className="relative w-full max-w-[1440px]">
-          <div
-            className="grid items-center gap-12 lg:gap-16"
-            style={{
-              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.05fr)",
-            }}
-          >
+          {/* Mobile: stacked single column. Lg+: asymmetric editorial grid
+              (prompt left, typed-name display right). */}
+          <div className="flex flex-col items-center gap-10 lg:grid lg:items-center lg:gap-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
             {/* LEFT — prompt copy + Continue (mirrors voice page Continue
                 column). Continue fades in once a valid name is entered. */}
             <div className="relative flex flex-col items-start">
