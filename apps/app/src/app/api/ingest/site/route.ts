@@ -147,6 +147,18 @@ export async function POST(req: Request) {
   const title = extractTitle(html);
   const ogDescription = extractMetaContent(html, "og:description");
   const metaDescription = extractMetaContent(html, "description");
+  // og:image (or twitter:image) — the hero strip we show in the URL
+  // ingest card's "we read your site" summary. Resolved to absolute URL
+  // so the client can render it directly without dealing with relative
+  // paths. Falls back to favicon if no og:image is present.
+  const ogImageRaw =
+    extractMetaContent(html, "og:image") ||
+    extractMetaContent(html, "twitter:image");
+  const faviconRaw = extractFavicon(html);
+  const heroImage = resolveAbsoluteUrl(target, ogImageRaw);
+  const favicon =
+    resolveAbsoluteUrl(target, faviconRaw) ??
+    new URL("/favicon.ico", target).toString();
 
   // Run Claude Haiku to extract. Haiku is the right call here — fast,
   // cheap, plenty smart for structured extraction.
@@ -254,6 +266,10 @@ export async function POST(req: Request) {
   return NextResponse.json({
     url: target.toString(),
     extracted,
+    heroImage,
+    favicon,
+    pageTitle: title,
+    pageDescription: ogDescription ?? metaDescription,
     persisted: true,
   });
 }
@@ -278,6 +294,25 @@ function stripHtml(html: string): string {
 function extractTitle(html: string): string | null {
   const m = /<title[^>]*>([^<]+)<\/title>/i.exec(html);
   return m && m[1] ? m[1].trim() : null;
+}
+
+function extractFavicon(html: string): string | null {
+  // Look for <link rel="icon" href="..."> or rel="shortcut icon" — pick
+  // the first match. Many sites have multiple sizes; we don't pick the
+  // best one, just the first declared.
+  const m =
+    /<link[^>]+rel=["'](?:shortcut\s+)?icon["'][^>]+href=["']([^"']+)["']/i.exec(html) ||
+    /<link[^>]+href=["']([^"']+)["'][^>]+rel=["'](?:shortcut\s+)?icon["']/i.exec(html);
+  return m && m[1] ? m[1].trim() : null;
+}
+
+function resolveAbsoluteUrl(base: URL, maybePath: string | null): string | null {
+  if (!maybePath) return null;
+  try {
+    return new URL(maybePath, base).toString();
+  } catch {
+    return null;
+  }
 }
 
 function extractMetaContent(html: string, key: string): string | null {
