@@ -388,7 +388,7 @@ function EmptyCanvas({
     <div className="text-center max-w-md">
       <PersonalityIcon personality={personality} size="md" />
       <p
-        className="mt-8 font-serif italic"
+        className="mt-8"
         style={{
           fontSize: "clamp(1.25rem,2vw,1.5rem)",
           color: "rgba(245,245,247,0.6)",

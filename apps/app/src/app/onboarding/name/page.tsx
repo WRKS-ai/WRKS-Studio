@@ -173,7 +173,6 @@ export default function NamePage() {
                 className="w-full"
               >
                 <h1
-                  className="font-serif"
                   style={{
                     fontSize: "clamp(2.5rem, 6.25vw, 6.5rem)",
                     fontWeight: 600,
@@ -185,7 +184,7 @@ export default function NamePage() {
                   What should we call them?
                 </h1>
                 <p
-                  className="mt-5 font-serif italic"
+                  className="mt-5"
                   style={{
                     fontSize: "clamp(1rem, 1.35vw, 1.1875rem)",
                     lineHeight: 1.45,

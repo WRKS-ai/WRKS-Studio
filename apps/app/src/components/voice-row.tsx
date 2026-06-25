@@ -202,7 +202,7 @@ export function VoiceRow({
           </span>
         </div>
         <p
-          className="mt-1.5 font-serif italic"
+          className="mt-1.5"
           style={{
             fontSize: "clamp(0.95rem, 1.2vw, 1.0625rem)",
             color: "rgba(245,240,230,0.5)",

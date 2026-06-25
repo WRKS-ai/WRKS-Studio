@@ -227,7 +227,7 @@ function EmptyPage({ accent }: { accent: string }) {
   return (
     <div className="px-10 py-16 text-center">
       <p
-        className="font-serif italic text-[16px] mb-2"
+        className="text-[16px] mb-2"
         style={{ color: "#827a6e" }}
       >
         Empty page.

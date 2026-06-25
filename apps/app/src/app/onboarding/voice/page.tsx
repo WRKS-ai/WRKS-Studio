@@ -226,7 +226,6 @@ export default function PersonalityPage() {
                 className="w-full"
               >
                 <h1
-                  className="font-serif"
                   style={{
                     // Re-tuned 2026-06-24 for Geist Sans hero presence,
                     // verified empirically via Playwright `getBoundingClientRect`
@@ -244,7 +243,7 @@ export default function PersonalityPage() {
                   Pick your voice
                 </h1>
                 <p
-                  className="mt-5 font-serif italic"
+                  className="mt-5"
                   style={{
                     fontSize: "clamp(1rem, 1.35vw, 1.1875rem)",
                     lineHeight: 1.45,

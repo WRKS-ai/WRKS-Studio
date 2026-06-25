@@ -179,7 +179,7 @@ export default function ProfilePage() {
               ))}
             </div>
             <p
-              className="mt-5 font-serif italic text-[15px] leading-relaxed"
+              className="mt-5 text-[15px] leading-relaxed"
               style={{ color: "rgba(245,240,230,0.78)" }}
             >
               &ldquo;{personality.sample}&rdquo;

@@ -143,7 +143,6 @@ export default function UrlIngestCard({
         )}
         {status === "loading" && (
           <p
-            className="font-serif italic"
             style={{
               fontSize: 13.5,
               color: "rgba(245,240,230,0.5)",

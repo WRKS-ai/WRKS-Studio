@@ -91,7 +91,7 @@ function Hero({
           onCommit={(v) => onEdit("subhead", v)}
           as="p"
           multiline
-          className="mt-4 font-serif italic text-[clamp(0.875rem,1.1vw,1rem)] text-[#4a443c] max-w-[42ch] leading-relaxed shrink-0"
+          className="mt-4 font-serif text-[clamp(0.875rem,1.1vw,1rem)] text-[#4a443c] max-w-[42ch] leading-relaxed shrink-0"
         />
         <div className="mt-5 flex items-center gap-4 shrink-0">
           <span className="inline-flex items-center gap-2 text-[#0e0c08] font-serif border-b border-[#0e0c08] pb-1 text-[14px]">
@@ -107,7 +107,7 @@ function Hero({
               value={section.secondaryCta}
               onCommit={(v) => onEdit("secondaryCta", v)}
               as="span"
-              className="text-[13px] font-serif italic"
+              className="text-[13px] font-serif"
               style={{ color: "#827a6e" }}
             />
           )}
@@ -181,7 +181,7 @@ function FeatureGrid({
           onCommit={(v) => onEdit("subhead", v)}
           as="p"
           multiline
-          className="mt-3 font-serif italic text-[14px] max-w-[48ch]"
+          className="mt-3 font-serif text-[14px] max-w-[48ch]"
           style={{ color: "#4a443c" }}
         />
       )}
@@ -256,7 +256,7 @@ function Pricing({
           onCommit={(v) => onEdit("subhead", v)}
           as="p"
           multiline
-          className="mt-3 font-serif italic text-[14px] max-w-[48ch]"
+          className="mt-3 font-serif text-[14px] max-w-[48ch]"
           style={{ color: "#4a443c" }}
         />
       )}
@@ -392,10 +392,10 @@ function Testimonials({
               onCommit={(v) => onEdit(`quotes.${i}.text`, v)}
               as="p"
               multiline
-              className="italic text-[#0e0c08] text-[14.5px] leading-relaxed"
+              className="text-[#0e0c08] text-[14.5px] leading-relaxed"
             />
             <footer
-              className="mt-3 text-[11.5px] font-sans not-italic"
+              className="mt-3 text-[11.5px] font-sans"
               style={{ color: "#827a6e" }}
             >
               <EditableText
@@ -519,7 +519,7 @@ function CtaBand({
           onCommit={(v) => onEdit("subhead", v)}
           as="p"
           multiline
-          className="mt-3 font-serif italic text-[14px] max-w-[42ch] mx-auto"
+          className="mt-3 font-serif text-[14px] max-w-[42ch] mx-auto"
           style={{ color: "#4a443c" }}
         />
       )}
@@ -576,7 +576,7 @@ function Footer({
               onCommit={(v) => onEdit("tagline", v)}
               as="p"
               multiline
-              className="text-[11.5px] font-serif italic leading-relaxed"
+              className="text-[11.5px] font-serif leading-relaxed"
               style={{ color: "rgba(251,247,238,0.65)" }}
             />
           )}

@@ -1629,7 +1629,7 @@ function AmbientAura({
  * Replaces ChatBubble + EmptyTranscript with templated chips. When
  * there's no history we show three quiet starter prompts. When there's
  * history we show each turn as a compact entry — agent in normal text,
- * user in muted italic, with timestamps inline. Past actions are
+ * user in muted upright, with timestamps inline. Past actions are
  * one-click re-runnable (handled by parent via onPickSuggestion when
  * the user clicks a chip, transcript click re-run is a Phase 4 add).
  * ---------------------------------------------------------- */
@@ -1755,7 +1755,7 @@ function FeedEmpty({
         ))}
       </div>
       <p
-        className="mt-5 font-serif italic"
+        className="mt-5"
         style={{
           fontSize: 12.5,
           color: "rgba(245,245,247,0.4)",

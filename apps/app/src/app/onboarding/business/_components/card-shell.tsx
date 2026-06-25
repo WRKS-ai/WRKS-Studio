@@ -37,7 +37,6 @@ export default function CardShell({
     >
       <header className="flex flex-col" style={{ gap: 10 }}>
         <h1
-          className="font-serif"
           style={{
             fontSize: "clamp(1.875rem, 3.25vw, 2.875rem)",
             fontWeight: 600,
@@ -50,7 +49,6 @@ export default function CardShell({
         </h1>
         {subhead && (
           <p
-            className="font-serif italic"
             style={{
               fontSize: "clamp(0.9375rem, 1.15vw, 1.0625rem)",
               lineHeight: 1.5,

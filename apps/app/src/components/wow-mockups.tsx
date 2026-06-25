@@ -209,8 +209,7 @@ export function InstagramMini({
         style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}
       >
         <span
-          className="font-serif italic font-medium text-[18px] tracking-tight"
-          style={{ fontFamily: "Fraunces, serif" }}
+          className="font-medium text-[18px] tracking-tight"
         >
           Instagram
         </span>
