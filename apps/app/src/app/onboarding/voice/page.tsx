@@ -204,7 +204,7 @@ export default function PersonalityPage() {
               On lg+: asymmetric editorial spread (type LEFT, orb RIGHT).
               Grid template only applies at lg+ so mobile naturally
               flows in a single column with reversed flex order. */}
-          <div className="flex flex-col-reverse items-center gap-12 lg:grid lg:items-center lg:gap-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+          <div className="flex flex-col-reverse items-center gap-6 lg:grid lg:items-center lg:gap-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
             {/* LEFT — static voice-pick hero + Continue.
                 Mobile: center-aligned (single column composition).
                 Lg+: left-aligned within the asymmetric grid column. */}
@@ -274,25 +274,26 @@ export default function PersonalityPage() {
               )}
             </div>
 
-            {/* RIGHT — orb carousel with glass nav arrows.
-                Prev / current / next visible at once; side orbs are
-                blurred + scaled-down ghosts in their own accent.
-                Clicking a side orb OR an arrow navigates between
-                agents.
-                Mobile: the inner 660×320 box scales to 0.55 so the
-                full carousel + arrows fit within ~363px (just under
-                375px viewport). Outer wrapper clips any over-bleed
-                so the page doesn't horizontal-scroll. Sm:+ scales up. */}
-            <div className="relative flex items-center justify-center w-full overflow-hidden">
+            {/* RIGHT — orb carousel + nav arrows.
+                Mobile: only the central orb is visible (ghost side orbs
+                hidden via the lg:visible/lg:opacity-100 classes inside
+                OrbCarousel). Nav arrows render BELOW the orb in a row.
+                Desktop: full carousel (prev / current / next) with arrows
+                flanking left + right of the 660px container. */}
+            <div className="relative flex flex-col items-center w-full" style={{ gap: 14 }}>
               <div
-                className="relative flex items-center justify-center origin-center scale-[0.55] sm:scale-75 lg:scale-100"
-                style={{ width: 660, height: 320 }}
+                className="relative flex items-center justify-center origin-center w-[300px] h-[300px] lg:w-[660px] lg:h-[320px]"
               >
                 <GlassNavArrow
                   direction="left"
                   accent={accent}
                   onClick={goPrev}
-                  style={{ position: "absolute", left: -28, zIndex: 20 }}
+                  style={{
+                    position: "absolute",
+                    left: -28,
+                    zIndex: 20,
+                  }}
+                  className="hidden lg:grid"
                 />
                 <OrbCarousel
                   currentIndex={index}
@@ -307,6 +308,32 @@ export default function PersonalityPage() {
                   accent={accent}
                   onClick={goNext}
                   style={{ position: "absolute", right: -28, zIndex: 20 }}
+                  className="hidden lg:grid"
+                />
+              </div>
+              {/* Mobile-only inline nav row below the orb. Lg+ uses the
+                  flanking arrows inside the carousel container instead. */}
+              <div className="flex items-center lg:hidden" style={{ gap: 20 }}>
+                <GlassNavArrow
+                  direction="left"
+                  accent={accent}
+                  onClick={goPrev}
+                />
+                <span
+                  className="tabular-nums"
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11.5,
+                    letterSpacing: "0.14em",
+                    color: "rgba(245,240,230,0.55)",
+                  }}
+                >
+                  {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
+                </span>
+                <GlassNavArrow
+                  direction="right"
+                  accent={accent}
+                  onClick={goNext}
                 />
               </div>
             </div>
@@ -656,7 +683,12 @@ function OrbCarousel({
         return (
           <motion.div
             key={p.id}
-            className="absolute"
+            // Side ghost orbs hidden on mobile (only the current orb
+            // shows + the inline nav arrow row handles switching).
+            // Lg+: all three render as the carousel.
+            className={`absolute ${
+              isCurrent ? "" : "hidden lg:block"
+            }`}
             animate={{ x, scale, opacity, filter: `blur(${blur}px)` }}
             transition={{
               type: "spring",
@@ -749,11 +781,13 @@ function GlassNavArrow({
   accent,
   onClick,
   style,
+  className,
 }: {
   direction: "left" | "right";
   accent: string;
   onClick: () => void;
   style?: React.CSSProperties;
+  className?: string;
 }) {
   const reduced = useReducedMotion();
   const [hovered, setHovered] = useState(false);
@@ -767,7 +801,7 @@ function GlassNavArrow({
       whileTap={{ scale: 0.92 }}
       whileHover={reduced ? undefined : { scale: 1.08, y: -1 }}
       transition={{ type: "spring", stiffness: 280, damping: 22 }}
-      className="grid place-items-center rounded-full"
+      className={`grid place-items-center rounded-full ${className ?? ""}`}
       style={{
         width: 46,
         height: 46,
