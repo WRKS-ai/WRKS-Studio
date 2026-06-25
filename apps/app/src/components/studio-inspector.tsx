@@ -778,7 +778,7 @@ function StudioFloatingAgent({
       className="fixed grid place-items-center rounded-full z-40"
       style={{
         bottom: 28,
-        right: 28,
+        left: 28,
         width: 64,
         height: 64,
         background: `linear-gradient(180deg, rgba(255,255,255,0.08) 0%, ${accent}1a 100%)`,

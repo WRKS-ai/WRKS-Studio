@@ -126,7 +126,11 @@ function AgentHost({ children }: { children: ReactNode }) {
   // User can close the transcript panel to free the screen without
   // ending the voice session. A small restore button appears in
   // its place so they can bring it back when they want.
-  const [panelDismissed, setPanelDismissed] = useState(false);
+  // 2026-06-26: default DISMISSED so the panel doesn't pop on every
+  // page load. User opens it via the icon button bottom-left when they
+  // want to type or read the transcript. Auto-opens on first agent
+  // message (handled in the onMessage handler).
+  const [panelDismissed, setPanelDismissed] = useState(true);
   const messageIdRef = useRef(0);
   const startAttempted = useRef(false);
   // Stable conversation id for the lifetime of this provider mount —
@@ -366,11 +370,12 @@ function AgentHost({ children }: { children: ReactNode }) {
           <ConversationPanel
             messages={messages}
             agentName={displayName}
-            visible={messages.length > 0 && !panelDismissed}
+            visible={!panelDismissed}
             accent={accent}
             onClose={() => setPanelDismissed(true)}
+            onSendText={(text) => conversation.sendUserMessage(text)}
           />
-          {messages.length > 0 && panelDismissed && (
+          {panelDismissed && (
             <RestoreTranscriptButton
               count={messages.length}
               accent={accent}
@@ -389,9 +394,9 @@ function AgentHost({ children }: { children: ReactNode }) {
 }
 
 /* ============================================================
- * FloatingAgent — Siri orb pinned bottom-right. Animation speed
- * varies with voice state (faster while speaking). Doubles as
- * the start/stop control.
+ * FloatingAgent — Siri orb pinned bottom-LEFT (moved 2026-06-26
+ * per user direction). Animation speed varies with voice state
+ * (faster while speaking). Doubles as the start/stop control.
  * ============================================================ */
 function FloatingAgent({
   voiceState,
@@ -431,7 +436,7 @@ function FloatingAgent({
       className="fixed grid place-items-center rounded-full z-40"
       style={{
         bottom: 32,
-        right: 32,
+        left: 32,
         width: 64,
         height: 64,
         background: `linear-gradient(180deg, rgba(255,255,255,0.08) 0%, ${accent}1a 100%)`,
@@ -548,15 +553,25 @@ function ConversationPanel({
   visible,
   accent,
   onClose,
+  onSendText,
 }: {
   messages: OnboardingMessage[];
   agentName: string;
   visible: boolean;
   accent: string;
   onClose: () => void;
+  onSendText: (text: string) => void;
 }) {
   const reduced = useReducedMotion();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [draft, setDraft] = useState("");
+
+  const submit = () => {
+    const text = draft.trim();
+    if (!text) return;
+    onSendText(text);
+    setDraft("");
+  };
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -586,9 +601,9 @@ function ConversationPanel({
           className="fixed z-30 flex flex-col"
           style={{
             bottom: 112,
-            right: 32,
+            left: 32,
             width: 400,
-            maxHeight: 360,
+            maxHeight: 420,
             borderRadius: 26,
             background:
               "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.018) 50%, rgba(255,255,255,0.01) 100%)",
@@ -598,7 +613,7 @@ function ConversationPanel({
             boxShadow:
               "inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(255,255,255,0.02), 0 32px 64px -16px rgba(0,0,0,0.7), 0 8px 24px -8px rgba(0,0,0,0.5)",
             overflow: "hidden",
-            transformOrigin: "bottom right",
+            transformOrigin: "bottom left",
           }}
         >
           <div
@@ -710,7 +725,21 @@ function ConversationPanel({
           <div
             ref={scrollRef}
             className="relative flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3"
+            style={{ minHeight: messages.length === 0 ? 80 : undefined }}
           >
+            {messages.length === 0 && (
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "rgba(245,240,230,0.45)",
+                  letterSpacing: "-0.003em",
+                  textAlign: "center",
+                  paddingTop: 18,
+                }}
+              >
+                Speak or type — {agentName} is listening.
+              </p>
+            )}
             {messages.map((msg) => {
               const isAgent = msg.role === "agent";
               return (
@@ -763,6 +792,81 @@ function ConversationPanel({
               );
             })}
           </div>
+
+          {/* Text input row — user can type when voice isn't convenient.
+              Sends via conversation.sendUserMessage so the agent treats
+              the text as a voice turn. */}
+          <div
+            className="relative flex items-center"
+            style={{
+              gap: 8,
+              padding: "10px 12px",
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <input
+              type="text"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  submit();
+                }
+              }}
+              placeholder={`Message ${agentName}…`}
+              aria-label="Message the agent"
+              className="flex-1 bg-transparent outline-none font-sans"
+              style={{
+                padding: "8px 10px",
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.06)",
+                background: "rgba(255,255,255,0.018)",
+                color: "rgba(245,240,230,0.95)",
+                fontSize: 13.5,
+                letterSpacing: "-0.005em",
+              }}
+            />
+            <button
+              type="button"
+              onClick={submit}
+              disabled={draft.trim().length === 0}
+              aria-label="Send"
+              className="grid place-items-center transition-colors duration-150 disabled:cursor-not-allowed"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 999,
+                background:
+                  draft.trim().length === 0
+                    ? "rgba(255,255,255,0.04)"
+                    : "rgba(245,240,230,0.92)",
+                color:
+                  draft.trim().length === 0
+                    ? "rgba(245,240,230,0.3)"
+                    : "rgba(10,10,12,0.95)",
+                border:
+                  draft.trim().length === 0
+                    ? "1px solid rgba(255,255,255,0.06)"
+                    : "1px solid rgba(245,240,230,0.92)",
+                cursor: draft.trim().length === 0 ? "not-allowed" : "pointer",
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            </button>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -770,9 +874,10 @@ function ConversationPanel({
 }
 
 /* ============================================================
- * RestoreTranscriptButton — small pill that sits above the orb
- * when the user has dismissed the conversation panel. Click to
- * bring the panel back. Shows the unread-message count subtly.
+ * RestoreTranscriptButton — small icon-only chat bubble that sits
+ * above the orb (bottom-LEFT, 2026-06-26) when the user has dismissed
+ * the conversation panel. Click to bring the panel back. Shows the
+ * unread-message count as a tiny dot badge when > 0.
  * ============================================================ */
 function RestoreTranscriptButton({
   count,
@@ -792,12 +897,14 @@ function RestoreTranscriptButton({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={reduced ? undefined : { opacity: 0, y: 6, scale: 0.94 }}
       transition={{ duration: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
-      whileHover={reduced ? undefined : { y: -1 }}
-      whileTap={{ scale: 0.97 }}
-      className="fixed z-30 inline-flex items-center gap-2 px-3 py-1.5"
+      whileHover={reduced ? undefined : { y: -1, scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      className="fixed z-30 grid place-items-center"
       style={{
         bottom: 116,
-        right: 32,
+        left: 32,
+        width: 36,
+        height: 36,
         borderRadius: 999,
         background:
           "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.018) 100%)",
@@ -806,43 +913,42 @@ function RestoreTranscriptButton({
         WebkitBackdropFilter: "blur(20px) saturate(160%)",
         boxShadow:
           "inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 28px -10px rgba(0,0,0,0.6)",
+        color: "rgba(245,240,230,0.85)",
       }}
-      aria-label={`Open transcript (${count} messages)`}
+      aria-label={
+        count > 0
+          ? `Open chat (${count} new message${count === 1 ? "" : "s"})`
+          : "Open chat"
+      }
     >
       <svg
-        width="11"
-        height="11"
-        viewBox="0 0 12 12"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
         fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
         aria-hidden
-        style={{ color: "rgba(245,240,230,0.85)" }}
       >
-        <path
-          d="M3 7l3-3 3 3"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
       </svg>
-      <span
-        className="text-[10px] tracking-[0.28em] uppercase"
-        style={{
-          color: "rgba(245,240,230,0.78)",
-          fontFamily: "var(--font-mono)",
-        }}
-      >
-        Transcript
-      </span>
-      <span
-        className="text-[10px] tabular-nums"
-        style={{
-          color: `${accent}cc`,
-          fontFamily: "var(--font-mono)",
-        }}
-      >
-        {count}
-      </span>
+      {count > 0 && (
+        <span
+          aria-hidden
+          className="absolute"
+          style={{
+            top: 4,
+            right: 4,
+            width: 8,
+            height: 8,
+            borderRadius: 999,
+            background: accent,
+            boxShadow: `0 0 8px ${accent}, 0 0 0 2px rgba(10,10,12,1)`,
+          }}
+        />
+      )}
     </motion.button>
   );
 }
