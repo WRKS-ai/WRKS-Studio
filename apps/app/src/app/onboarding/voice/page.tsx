@@ -199,10 +199,12 @@ export default function PersonalityPage() {
               Step context lives in OnboardingFrame chrome (top-left "01 / 03"
               counter + hairline progress bar) — not above the headline. */}
 
-          {/* Hero — stacked on mobile (type then orb), asymmetric editorial
-              spread on lg+ (type left, orb right). Grid template only
-              applies at lg+ so mobile naturally flows in a single column. */}
-          <div className="flex flex-col items-center gap-10 lg:grid lg:items-center lg:gap-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+          {/* Hero — on mobile stack ORB FIRST (the interaction the page
+              centers on), then the headline + Continue below it.
+              On lg+: asymmetric editorial spread (type LEFT, orb RIGHT).
+              Grid template only applies at lg+ so mobile naturally
+              flows in a single column with reversed flex order. */}
+          <div className="flex flex-col-reverse items-center gap-12 lg:grid lg:items-center lg:gap-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
             {/* LEFT — static voice-pick hero + Continue. */}
             <div className="relative flex flex-col items-start">
               <motion.div

@@ -95,7 +95,11 @@ export function LiquidAurora({
   return (
     <div
       aria-hidden
-      className="fixed inset-0 pointer-events-none overflow-hidden"
+      // Mobile dims the aurora to ~45% — each blob is 600-800px wide so on
+      // a 375px viewport they otherwise fill the entire screen and read
+      // as a heavy purple wash. Desktop has room for the blobs to breathe
+      // around content. Threshold at sm: (640px) so tablets get full.
+      className="fixed inset-0 pointer-events-none overflow-hidden opacity-45 sm:opacity-100"
       style={{ zIndex: 0, mixBlendMode: "screen" }}
     >
       {blobs.map((blob, i) => (
