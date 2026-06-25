@@ -195,12 +195,13 @@ export default function BusinessPage() {
           gridTemplateColumns: "minmax(220px, 280px) 1fr",
         }}
       >
-        {/* Left rail */}
+        {/* Left rail — typographic, no background tint, blends with canvas.
+            Single hairline border on the right edge separates it from the
+            card pane without making it feel like a "panel". */}
         <aside
-          className="relative border-r"
+          className="relative"
           style={{
-            borderColor: "rgba(255,255,255,0.06)",
-            background: "rgba(255,255,255,0.012)",
+            borderRight: "1px solid rgba(255,255,255,0.05)",
           }}
         >
           <StepperRail
