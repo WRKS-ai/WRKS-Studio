@@ -243,8 +243,10 @@ export default function BusinessPage() {
         {/* Mobile-only inline sub-step indicator — small "04 / 06 · Traffic"
             row at the top of the right pane so users on mobile still know
             where they are inside the business flow. Hidden on lg+ where the
-            sidebar rail carries the same info. */}
-        <div className="lg:hidden flex items-center px-6 pt-6" style={{ gap: 10 }}>
+            sidebar rail carries the same info. pt-14 to match the voice
+            and name pages' mobile top padding for consistency across the
+            onboarding flow. */}
+        <div className="lg:hidden flex items-center px-6 pt-14" style={{ gap: 10 }}>
           <span
             className="tabular-nums"
             style={{
@@ -276,8 +278,10 @@ export default function BusinessPage() {
         </div>
 
         {/* Right pane (or only pane on mobile) — centered card with proper
-            breathing room. Padding tightens on mobile so cards aren't cramped. */}
-        <section className="relative flex items-center justify-center px-6 sm:px-10 lg:px-14 py-10 lg:py-16">
+            breathing room. On mobile pt is small because the breadcrumb
+            above already provides the chrome breathing room. On lg+ no
+            breadcrumb exists, so full py applies. */}
+        <section className="relative flex items-center justify-center px-6 sm:px-10 lg:px-14 pt-6 pb-10 lg:py-16">
           <div className="w-full max-w-[680px]">
             {subStep === 1 && (
               <UrlIngestCard
