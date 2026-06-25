@@ -38,13 +38,16 @@ export default function CardShell({
       <header className="flex flex-col" style={{ gap: 10 }}>
         <h1
           style={{
-            // 2026-06-26: card headline scale per `feedback_hero_scale_max_60px.md`.
-            // Max 40px — restrained relative to page-level heroes (52px on
-            // voice/name) since these cards live inside a stepper flow.
-            fontSize: "clamp(1.625rem, 2.8vw, 2.5rem)",
+            // 2026-06-26 (revised): matches voice + name page hero scale
+            // exactly (clamp 1.875rem, 3.5vw, 3.25rem — max 52px). The
+            // earlier 40px-max "card" sizing read inconsistent next to
+            // the voice/name pages even though these cards live inside
+            // a stepper. Onboarding flow uses ONE hero scale across all
+            // pages.
+            fontSize: "clamp(1.875rem, 3.5vw, 3.25rem)",
             fontWeight: 600,
-            lineHeight: 1.08,
-            letterSpacing: "-0.025em",
+            lineHeight: 1.04,
+            letterSpacing: "-0.03em",
             color: "rgba(245,240,230,0.98)",
           }}
         >
