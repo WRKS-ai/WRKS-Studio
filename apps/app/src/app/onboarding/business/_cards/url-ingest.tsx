@@ -144,7 +144,7 @@ export default function UrlIngestCard({
   if (status === "input" || status === "loading" || status === "error") {
     return (
       <CardShell
-        headline="Got a website we can learn from?"
+        headline="Got a website?"
         subhead="Drop the URL and we'll read it — industry, offer, audience, voice. Saves you most of the typing on the next cards. No site? Skip it."
         actions={
           <>
@@ -243,7 +243,7 @@ export default function UrlIngestCard({
 
   return (
     <CardShell
-      headline="Here's what I learned from your site."
+      headline="Here's what I learned."
       subhead="Review what I pulled. Anything off? You can edit it on the next cards. Pasting a different URL re-reads from scratch."
       actions={
         <>

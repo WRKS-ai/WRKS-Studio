@@ -79,7 +79,7 @@ export default function BrandVoiceCard({ brandState, advance, goBack }: Props) {
 
   return (
     <CardShell
-      headline="What does your brand sound like?"
+      headline="How does your brand sound?"
       subhead="Picks the tone register the agent writes in across every output."
       actions={
         <>

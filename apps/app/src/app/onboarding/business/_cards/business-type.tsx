@@ -54,7 +54,7 @@ export default function BusinessTypeCard({ brandState, advance, goBack }: Props)
 
   return (
     <CardShell
-      headline="What kind of business are you running?"
+      headline="What kind of business?"
       subhead="Picks which templates the agent reaches for when building your site."
       actions={
         <>

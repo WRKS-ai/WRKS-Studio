@@ -57,7 +57,7 @@ export default function TrafficSourcesCard({ brandState, advance, goBack }: Prop
 
   return (
     <CardShell
-      headline="Where do your customers come from?"
+      headline="How do customers find you?"
       subhead="Pick everything that drives real traffic today. Multi-select — cold paid ads and warm SEO need very different copy."
       actions={
         <>
