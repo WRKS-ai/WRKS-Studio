@@ -187,7 +187,7 @@ export default function PersonalityPage() {
 
   return (
     <OnboardingFrame step={1} totalSteps={3} bloomTint={accent}>
-      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center overflow-hidden">
+      <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 pt-16 pb-10 sm:py-10 flex flex-col items-center justify-center overflow-hidden">
         {/* LiquidAurora now lives on the shared onboarding provider
             (apps/app/src/lib/onboarding-agent.tsx) so every act gets
             the same purple morphing backdrop. Keyed to the saved
@@ -282,7 +282,7 @@ export default function PersonalityPage() {
                 flanking left + right of the 660px container. */}
             <div className="relative flex flex-col items-center w-full" style={{ gap: 14 }}>
               <div
-                className="relative flex items-center justify-center origin-center w-[300px] h-[300px] lg:w-[660px] lg:h-[320px]"
+                className="relative flex items-center justify-center origin-center scale-[0.8] sm:scale-100 w-[240px] h-[240px] lg:w-[660px] lg:h-[320px]"
               >
                 <GlassNavArrow
                   direction="left"
@@ -470,14 +470,15 @@ function GlassPlayButton({
         </>
       )}
 
-      {/* Glass body */}
+      {/* Glass body — backdrop-blur reduced on mobile (40px → 12px) and
+          dropped entirely on iOS-class viewports where it kills scroll
+          framerate. The Tailwind `backdrop-blur-[12px] md:backdrop-blur-[40px]`
+          class wins over the absent inline style. */}
       <motion.div
         aria-hidden
-        className="absolute inset-0 rounded-full"
+        className="absolute inset-0 rounded-full backdrop-blur-[12px] md:backdrop-blur-[40px]"
         style={{
           background: `linear-gradient(180deg, rgba(255,255,255,0.06) 0%, ${accent}12 100%)`,
-          backdropFilter: "blur(40px)",
-          WebkitBackdropFilter: "blur(40px)",
         }}
         animate={{
           borderColor: hovered

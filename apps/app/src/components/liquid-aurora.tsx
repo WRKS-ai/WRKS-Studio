@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { useEffect, useState } from "react";
 
 // LiquidAurora — slow morphing accent-color clouds that drift across
 // the page as a backdrop. Five large radial gradients, each translating
@@ -25,6 +26,20 @@ export function LiquidAurora({
   accentDeep: string;
 }) {
   const reduced = useReducedMotion();
+  // On mobile (and inside reduced-motion) the blob animations + 5 large
+  // backdrop-blurred + mix-blend-mode elements cause major scroll jank
+  // on iOS Safari. Disable the animation loops on viewports < 768px —
+  // blobs still render statically as ambient color, just no infinite
+  // keyframe animation eating frame budget.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  const staticMode = reduced || isMobile;
 
   // Five blobs with hand-tuned positions, sizes, durations, and color
   // stops. Mismatched durations (24/29/35/19/41 seconds) mean the
@@ -117,7 +132,7 @@ export function LiquidAurora({
             filter: "blur(90px)",
           }}
           animate={
-            reduced
+            staticMode
               ? { opacity: 0.55 }
               : {
                   x: blob.path.x,
@@ -126,7 +141,7 @@ export function LiquidAurora({
                 }
           }
           transition={
-            reduced
+            staticMode
               ? { duration: 0.5 }
               : {
                   duration: blob.duration,
