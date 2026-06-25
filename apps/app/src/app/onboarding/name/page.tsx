@@ -145,7 +145,7 @@ export default function NamePage() {
   };
 
   return (
-    <OnboardingFrame step={2} totalSteps={3} bloomTint={accent}>
+    <OnboardingFrame step={2} totalSteps={8} bloomTint={accent}>
       <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center overflow-hidden">
         {/* Asymmetric editorial spread — prompt on left, typed-name display
             on right. Echoes the /onboarding/voice grammar (type LEFT / hero
