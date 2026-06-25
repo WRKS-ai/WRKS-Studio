@@ -186,7 +186,7 @@ export default function PersonalityPage() {
   const progressRatio = duration > 0 ? currentTime / duration : 0;
 
   return (
-    <OnboardingFrame step={1} totalSteps={8} bloomTint={accent}>
+    <OnboardingFrame step={1} totalSteps={3} bloomTint={accent}>
       <div className="relative min-h-[calc(100vh-120px)] px-10 sm:px-14 py-10 flex flex-col items-center justify-center overflow-hidden">
         {/* LiquidAurora now lives on the shared onboarding provider
             (apps/app/src/lib/onboarding-agent.tsx) so every act gets
