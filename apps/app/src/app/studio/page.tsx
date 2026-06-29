@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import DarkVeil from "@/components/dark-veil";
 
 // /studio — daily-driver dashboard.
 //
@@ -119,18 +120,46 @@ export default function StudioPage() {
 
   return (
     <main
-      className="relative size-full overflow-y-auto"
+      className="relative size-full overflow-hidden"
       style={{ background: "#0a0a0c" }}
     >
+      {/* DarkVeil — React Bits CPPN-noise WebGL bg. Slow speed + zero
+          scanline/noise/warp = quiet ambient sweep. */}
+      <div className="absolute inset-0">
+        <DarkVeil
+          hueShift={0}
+          noiseIntensity={0}
+          scanlineIntensity={0}
+          speed={0.4}
+          scanlineFrequency={0}
+          warpAmount={0}
+        />
+      </div>
+
+      {/* Soft dark vignette so dashboard text reads cleanly over the
+          bg without losing the atmospheric color bleed. */}
       <div
-        className="mx-auto"
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
         style={{
-          maxWidth: 1200,
-          padding: "72px 40px 96px",
+          background:
+            "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(10,10,12,0.25) 0%, rgba(10,10,12,0.65) 70%, rgba(10,10,12,0.85) 100%)",
         }}
-      >
-          {/* Zone 1 — Hero header */}
-          <header className="flex flex-col" style={{ gap: 10 }}>
+      />
+
+      <div className="relative z-10 size-full overflow-y-auto">
+        <div
+          className="mx-auto"
+          style={{
+            maxWidth: 1100,
+            padding: "72px 40px 96px",
+          }}
+        >
+          {/* Zone 1 — Hero header (centered per user 2026-06-30). */}
+          <header
+            className="flex flex-col items-center text-center"
+            style={{ gap: 10 }}
+          >
             <h1
               style={{
                 fontSize: "clamp(1.875rem, 3.5vw, 3.25rem)",
@@ -195,6 +224,7 @@ export default function StudioPage() {
               }
             />
           </section>
+        </div>
       </div>
     </main>
   );
