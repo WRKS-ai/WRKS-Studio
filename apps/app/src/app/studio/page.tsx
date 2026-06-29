@@ -1,30 +1,122 @@
 "use client";
 
-import { useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import PixelBlast from "@/components/pixel-blast";
 
-// /studio — composer-first welcome canvas.
-// Implementing project_studio_master_plan.md §E (revised 2026-06-20):
-//   - Background: React Bits PixelBlast (Bayer-dither WebGL field) in
-//     WRKS violet — replaces the dotted grid + mouse-spotlight overlay.
-//     Ripples-on-click are the interactive moment; pointer events on
-//     uncovered canvas trigger them. patternDensity tuned down + edgeFade
-//     bumped so it reads as ambient texture, not a loud pattern.
-//   - Personalized headline: "What's next, {agentName}?" Fraunces 480.
-//   - ONE rounded composer (~860px) — dark glass + crystal-light border,
-//     ~220px tall, with Site/Post mode tabs LEFT + mic/send icons RIGHT.
-//   - (Brand-system mini-card LEFT + work strip + status line — next pass)
-// {agentName} falls back to Clerk first name until agent-name state wires.
+// /studio — daily-driver dashboard.
+//
+// 2026-06-30 redesign per user direction + dashboard UX research:
+// progressive disclosure (state at a glance, action affordances on
+// demand), F-pattern reading (priority top-left), AI-native shape
+// (the dashboard tells you what's happening, doesn't ask you to
+// build it). Three vertical zones:
+//
+//   1. Hero header — "What's next, {agentName}?" + one-line status
+//      pulled from brand_state + deliverable counts.
+//   2. Recent work feed — last 10 deliverables (drafts + published)
+//      ordered by updated_at. Empty state for first-time users says
+//      brand setup is complete and points at the pillar cards.
+//   3. Pillar cards — Sites + Copywriting, ALWAYS both visible
+//      (per user 2026-06-30: "the user will see both options no
+//      matter if they choose 1 or two"). active_pillars only adds
+//      a subtle crystal-light comet on the preferred card; both
+//      remain clickable + equal weight.
+//
+// PixelBlast bg stays (approved WRKS canon per
+// `feedback_studio_bg_progression_rejected.md`).
 
-type Mode = "site" | "post";
+type DeliverableRow = {
+  id: string;
+  kind: string;
+  content: Record<string, unknown> | null;
+  status: string;
+  framework: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
-export default function StudioWelcomePage() {
-  const { user, isLoaded } = useUser();
-  const firstName =
-    user?.firstName || user?.username || (isLoaded ? "there" : "");
+type StudioHome = {
+  profile: {
+    id: string;
+    brand_name: string | null;
+    agent_name: string | null;
+    business_type: string | null;
+    primary_goal: string | null;
+    active_pillars: string[] | null;
+    voice_descriptor: string | null;
+    offer_summary: string | null;
+    audience_description: string | null;
+    differentiator: string | null;
+    existing_site_url: string | null;
+    onboarding_completed_at: string | null;
+  } | null;
+  deliverables: DeliverableRow[];
+  counts: { sites: number; copy: number };
+};
 
-  const [mode, setMode] = useState<Mode>("site");
+export default function StudioPage() {
+  const router = useRouter();
+  const [state, setState] = useState<StudioHome | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/studio/home", {
+          method: "GET",
+          headers: { "content-type": "application/json" },
+        });
+        if (!res.ok) {
+          if (!cancelled) setLoaded(true);
+          return;
+        }
+        const json = (await res.json()) as StudioHome;
+        if (cancelled) return;
+        setState(json);
+        setLoaded(true);
+        // If the user hasn't completed onboarding, send them back to it.
+        if (!json.profile) router.replace("/onboarding/voice");
+      } catch {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  const agentName = state?.profile?.agent_name?.trim() || "there";
+  const brandName = state?.profile?.brand_name?.trim() || null;
+  const activePillars = state?.profile?.active_pillars ?? [];
+  const sitesPreferred = activePillars.includes("sites");
+  const copyPreferred = activePillars.includes("copy");
+  const siteCount = state?.counts.sites ?? 0;
+  const copyCount = state?.counts.copy ?? 0;
+  const lastTouched = state?.deliverables[0]?.updated_at ?? null;
+
+  const statusLine = useMemo(() => {
+    if (!loaded) return "Loading your workspace…";
+    if (!state?.profile) return "";
+    const parts: string[] = [];
+    if (brandName) parts.push(brandName);
+    parts.push(`${siteCount} site${siteCount === 1 ? "" : "s"}`);
+    parts.push(`${copyCount} draft${copyCount === 1 ? "" : "s"}`);
+    if (lastTouched) parts.push(`last edit ${formatRelative(lastTouched)}`);
+    else if (state.profile.onboarding_completed_at)
+      parts.push("brand ready, nothing built yet");
+    return parts.join(" · ");
+  }, [
+    loaded,
+    state?.profile,
+    brandName,
+    siteCount,
+    copyCount,
+    lastTouched,
+    state?.profile?.onboarding_completed_at,
+  ]);
 
   return (
     <main
@@ -38,241 +130,459 @@ export default function StudioWelcomePage() {
           color="#7c3aed"
           patternScale={2}
           patternDensity={0.9}
-          pixelSizeJitter={0}
-          enableRipples
-          rippleSpeed={0.4}
-          rippleThickness={0.12}
-          rippleIntensityScale={1.5}
-          liquid={false}
-          speed={0.45}
           edgeFade={0.28}
+          speed={0.45}
           transparent
         />
       </div>
 
       <div
-        className="relative z-10 size-full flex flex-col items-center justify-center px-8 pointer-events-none"
-        style={{ gap: 36 }}
+        className="relative z-10 size-full overflow-y-auto pointer-events-none"
       >
-        {firstName && (
-          <h1
-            className="font-serif"
-            style={{
-              fontSize: "clamp(36px, 4vw, 54px)",
-              fontWeight: 480,
-              letterSpacing: "-0.028em",
-              color: "rgba(248,247,252,0.97)",
-              lineHeight: 1.04,
-              textAlign: "center",
-              margin: 0,
-            }}
-          >
-            What&apos;s next, {firstName}?
-          </h1>
-        )}
-
         <div
-          className="wrks-crystal-border pointer-events-auto"
+          className="mx-auto pointer-events-auto"
           style={{
-            width: "min(860px, 92vw)",
-            borderRadius: 18,
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            maxWidth: 1200,
+            padding: "72px 40px 96px",
           }}
         >
-          <div
-            className="flex flex-col"
-            style={{ padding: "18px 18px 14px 22px", minHeight: 220 }}
-          >
-            <textarea
-              placeholder="Tell your agent what to build or refine…"
-              className="w-full flex-1 resize-none bg-transparent outline-none"
+          {/* Zone 1 — Hero header */}
+          <header className="flex flex-col" style={{ gap: 10 }}>
+            <h1
               style={{
-                color: "rgba(245,245,247,0.95)",
-                fontSize: 15,
-                fontFamily: "var(--font-sans)",
-                letterSpacing: "-0.005em",
-                lineHeight: 1.55,
-                caretColor: "rgba(245,245,247,0.95)",
-                minHeight: 132,
+                fontSize: "clamp(1.875rem, 3.5vw, 3.25rem)",
+                fontWeight: 600,
+                lineHeight: 1.04,
+                letterSpacing: "-0.03em",
+                color: "rgba(248,247,252,0.97)",
+                margin: 0,
               }}
-            />
-
-            <div
-              className="flex items-center justify-between"
-              style={{ marginTop: 8 }}
             >
-              <div className="flex items-center" style={{ gap: 4 }}>
-                <ModeTab
-                  label="Site"
-                  icon={<SiteIcon />}
-                  selected={mode === "site"}
-                  onClick={() => setMode("site")}
-                />
-                <ModeTab
-                  label="Post"
-                  icon={<PostIcon />}
-                  selected={mode === "post"}
-                  onClick={() => setMode("post")}
-                />
-              </div>
+              What&apos;s next, {agentName}?
+            </h1>
+            {statusLine && (
+              <p
+                style={{
+                  fontSize: 14,
+                  color: "rgba(245,240,230,0.5)",
+                  letterSpacing: "-0.003em",
+                  margin: 0,
+                }}
+              >
+                {statusLine}
+              </p>
+            )}
+          </header>
 
-              <div className="flex items-center" style={{ gap: 6 }}>
-                <IconButton aria-label="Speak to your agent">
-                  <MicIcon />
-                </IconButton>
-                <IconButton primary aria-label="Send">
-                  <ArrowUpIcon />
-                </IconButton>
-              </div>
-            </div>
-          </div>
+          {/* Zone 2 — Recent work feed */}
+          <section style={{ marginTop: 48 }}>
+            <RecentWorkFeed
+              deliverables={state?.deliverables ?? []}
+              loaded={loaded}
+              hasProfile={!!state?.profile}
+              onboardingCompletedAt={
+                state?.profile?.onboarding_completed_at ?? null
+              }
+            />
+          </section>
+
+          {/* Zone 3 — Pillar cards (both always visible) */}
+          <section
+            className="grid grid-cols-1 lg:grid-cols-2"
+            style={{ gap: 18, marginTop: 36 }}
+          >
+            <PillarCard
+              pillar="sites"
+              count={siteCount}
+              preferred={sitesPreferred}
+              lastTouchedAt={
+                state?.deliverables.find((d) =>
+                  d.kind?.startsWith("site"),
+                )?.updated_at ?? null
+              }
+            />
+            <PillarCard
+              pillar="copy"
+              count={copyCount}
+              preferred={copyPreferred}
+              lastTouchedAt={
+                state?.deliverables.find((d) =>
+                  d.kind?.startsWith("copy"),
+                )?.updated_at ?? null
+              }
+            />
+          </section>
         </div>
       </div>
     </main>
   );
 }
 
-function ModeTab({
-  label,
-  icon,
-  selected,
-  onClick,
+// ============================================================
+// RecentWorkFeed — Linear-style chronological list of recent
+// drafts + agent activity. Empty state for first-time users
+// acknowledges the brand setup + points to the pillar cards below.
+// ============================================================
+function RecentWorkFeed({
+  deliverables,
+  loaded,
+  hasProfile,
+  onboardingCompletedAt,
 }: {
-  label: string;
-  icon: React.ReactNode;
-  selected: boolean;
-  onClick: () => void;
+  deliverables: DeliverableRow[];
+  loaded: boolean;
+  hasProfile: boolean;
+  onboardingCompletedAt: string | null;
 }) {
+  if (!loaded) {
+    return (
+      <p
+        style={{
+          fontSize: 13,
+          color: "rgba(245,240,230,0.4)",
+          letterSpacing: "-0.003em",
+        }}
+      >
+        Loading…
+      </p>
+    );
+  }
+
+  if (deliverables.length === 0) {
+    return (
+      <div
+        className="flex flex-col"
+        style={{
+          gap: 14,
+          padding: "20px 22px",
+          borderRadius: 14,
+          border: "1px solid rgba(255,255,255,0.06)",
+          background: "rgba(255,255,255,0.012)",
+        }}
+      >
+        <div className="flex items-center" style={{ gap: 12 }}>
+          <span
+            aria-hidden
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 999,
+              background: "rgba(245,240,230,0.55)",
+              flexShrink: 0,
+            }}
+          />
+          <p
+            style={{
+              fontSize: 14,
+              color: "rgba(245,240,230,0.85)",
+              letterSpacing: "-0.003em",
+              margin: 0,
+            }}
+          >
+            {hasProfile
+              ? "Your brand is set up. Pick a pillar below to start your first piece."
+              : "Welcome — finish onboarding to start building."}
+          </p>
+        </div>
+        {onboardingCompletedAt && (
+          <p
+            style={{
+              fontSize: 12.5,
+              color: "rgba(245,240,230,0.4)",
+              paddingLeft: 18,
+              margin: 0,
+            }}
+          >
+            Brand setup completed {formatRelative(onboardingCompletedAt)}.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex items-center transition-colors duration-150"
+    <ul
+      className="flex flex-col"
       style={{
-        gap: 6,
-        padding: "6px 12px",
-        borderRadius: 999,
-        fontSize: 12.5,
-        fontFamily: "var(--font-sans)",
-        letterSpacing: "-0.005em",
-        background: selected ? "rgba(255,255,255,0.06)" : "transparent",
-        color: selected
-          ? "rgba(245,245,247,0.95)"
-          : "rgba(245,245,247,0.55)",
-        border: "1px solid",
-        borderColor: selected ? "rgba(255,255,255,0.09)" : "transparent",
-        cursor: "pointer",
+        gap: 1,
+        borderRadius: 14,
+        border: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(255,255,255,0.012)",
+        overflow: "hidden",
       }}
     >
-      {icon}
-      {label}
-    </button>
+      {deliverables.map((d, i) => {
+        const isSite = d.kind?.startsWith("site");
+        const pillar = isSite ? "Sites" : "Copy";
+        const title = extractTitle(d.content) ?? d.kind;
+        return (
+          <li
+            key={d.id}
+            style={{
+              padding: "14px 22px",
+              borderTop:
+                i === 0 ? "none" : "1px solid rgba(255,255,255,0.04)",
+            }}
+            className="flex items-center justify-between"
+          >
+            <div className="flex items-center" style={{ gap: 14 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "rgba(245,240,230,0.42)",
+                  minWidth: 44,
+                }}
+              >
+                {pillar}
+              </span>
+              <span
+                style={{
+                  fontSize: 14,
+                  color: "rgba(245,240,230,0.92)",
+                  letterSpacing: "-0.005em",
+                }}
+              >
+                {title}
+              </span>
+            </div>
+            <span
+              style={{
+                fontSize: 12.5,
+                color: "rgba(245,240,230,0.42)",
+                letterSpacing: "-0.003em",
+              }}
+            >
+              {formatRelative(d.updated_at)}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
-function IconButton({
-  children,
-  primary,
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { primary?: boolean }) {
+// ============================================================
+// PillarCard — Sites or Copy entry point. Always visible. Preferred
+// pillar gets a wrks-crystal-border-button rim (subtle comet) but
+// both are equally clickable + equally weighted in the grid.
+// ============================================================
+function PillarCard({
+  pillar,
+  count,
+  preferred,
+  lastTouchedAt,
+}: {
+  pillar: "sites" | "copy";
+  count: number;
+  preferred: boolean;
+  lastTouchedAt: string | null;
+}) {
+  const config =
+    pillar === "sites"
+      ? {
+          name: "Sites",
+          descriptor: "Landing pages, funnels, full websites — in your voice.",
+          href: "/studio/sites",
+          newHref: "/studio/sites?new=1",
+          icon: SiteIcon,
+          unit: count === 1 ? "site" : "sites",
+        }
+      : {
+          name: "Copywriting",
+          descriptor:
+            "Emails, ads, social posts, page copy — written in your voice.",
+          href: "/studio/copy",
+          newHref: "/studio/copy?new=1",
+          icon: CopyIcon,
+          unit: count === 1 ? "draft" : "drafts",
+        };
+
+  const Icon = config.icon;
+
   return (
-    <button
-      type="button"
-      {...rest}
-      className="flex items-center justify-center transition-colors duration-150"
+    <div
+      className={`relative flex flex-col ${
+        preferred ? "wrks-crystal-border-button" : ""
+      }`}
       style={{
-        width: 32,
-        height: 32,
-        borderRadius: 999,
-        background: primary ? "rgba(255,255,255,0.08)" : "transparent",
-        color: primary
-          ? "rgba(245,245,247,0.95)"
-          : "rgba(245,245,247,0.6)",
-        border: primary
-          ? "1px solid rgba(255,255,255,0.1)"
-          : "1px solid transparent",
-        cursor: "pointer",
+        gap: 18,
+        padding: "24px 24px 22px",
+        borderRadius: 16,
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.012) 100%)",
+        border: preferred ? "none" : "1px solid rgba(255,255,255,0.06)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
       }}
     >
-      {children}
-    </button>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center" style={{ gap: 12 }}>
+          <span
+            aria-hidden
+            className="grid place-items-center"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              color: "rgba(245,240,230,0.82)",
+            }}
+          >
+            <Icon />
+          </span>
+          <h2
+            style={{
+              fontSize: 22,
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
+              color: "rgba(245,240,230,0.96)",
+              margin: 0,
+            }}
+          >
+            {config.name}
+          </h2>
+        </div>
+        <span
+          style={{
+            fontSize: 12.5,
+            color: "rgba(245,240,230,0.55)",
+            letterSpacing: "-0.003em",
+          }}
+        >
+          {count} {config.unit}
+          {lastTouchedAt && (
+            <span style={{ color: "rgba(245,240,230,0.35)" }}>
+              {" · "}
+              {formatRelative(lastTouchedAt)}
+            </span>
+          )}
+        </span>
+      </div>
+      <p
+        style={{
+          fontSize: 14,
+          lineHeight: 1.5,
+          color: "rgba(245,240,230,0.62)",
+          letterSpacing: "-0.003em",
+          margin: 0,
+        }}
+      >
+        {config.descriptor}
+      </p>
+      <div className="flex items-center" style={{ gap: 10, marginTop: 4 }}>
+        <Link
+          href={config.href}
+          className="inline-flex items-center transition-colors duration-150"
+          style={{
+            padding: "9px 14px",
+            gap: 8,
+            borderRadius: 999,
+            fontSize: 13,
+            fontWeight: 500,
+            letterSpacing: "-0.003em",
+            background: "rgba(245,240,230,0.92)",
+            color: "rgba(10,10,12,0.95)",
+            border: "1px solid rgba(245,240,230,0.92)",
+          }}
+        >
+          Open workspace
+          <span aria-hidden>→</span>
+        </Link>
+        <Link
+          href={config.newHref}
+          className="inline-flex items-center transition-colors duration-150"
+          style={{
+            padding: "9px 14px",
+            gap: 6,
+            borderRadius: 999,
+            fontSize: 13,
+            fontWeight: 500,
+            letterSpacing: "-0.003em",
+            background: "transparent",
+            color: "rgba(245,240,230,0.78)",
+            border: "1px solid rgba(255,255,255,0.1)",
+          }}
+        >
+          <span aria-hidden style={{ fontSize: 15, lineHeight: 1 }}>
+            +
+          </span>
+          New {pillar === "sites" ? "site" : "draft"}
+        </Link>
+      </div>
+    </div>
   );
+}
+
+// ============================================================
+// helpers
+// ============================================================
+
+function extractTitle(content: Record<string, unknown> | null): string | null {
+  if (!content) return null;
+  const c = content;
+  const candidates = ["headline", "title", "name", "subject"];
+  for (const key of candidates) {
+    const v = c[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  const text = c.text;
+  if (typeof text === "string" && text.trim()) {
+    return text.trim().slice(0, 80);
+  }
+  return null;
+}
+
+function formatRelative(iso: string): string {
+  const then = new Date(iso).getTime();
+  const now = Date.now();
+  const diff = now - then;
+  const min = 60_000;
+  const hour = 60 * min;
+  const day = 24 * hour;
+  if (diff < 60_000) return "just now";
+  if (diff < hour) return `${Math.floor(diff / min)}m ago`;
+  if (diff < day) return `${Math.floor(diff / hour)}h ago`;
+  if (diff < 7 * day) return `${Math.floor(diff / day)}d ago`;
+  return new Date(iso).toLocaleDateString();
 }
 
 function SiteIcon() {
   return (
     <svg
-      width="13"
-      height="13"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <rect x="3" y="5" width="18" height="14" rx="1.5" />
+      <rect x="3" y="5" width="18" height="14" rx="2" />
       <line x1="3" y1="9" x2="21" y2="9" />
     </svg>
   );
 }
 
-function PostIcon() {
+function CopyIcon() {
   return (
     <svg
-      width="13"
-      height="13"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <rect x="5" y="3" width="14" height="18" rx="2" />
-      <line x1="9" y1="9" x2="15" y2="9" />
-      <line x1="9" y1="13" x2="15" y2="13" />
-    </svg>
-  );
-}
-
-function MicIcon() {
-  return (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="9" y="2" width="6" height="13" rx="3" />
-      <path d="M5 11a7 7 0 0 0 14 0" />
-      <line x1="12" y1="18" x2="12" y2="22" />
-    </svg>
-  );
-}
-
-function ArrowUpIcon() {
-  return (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="12" y1="19" x2="12" y2="5" />
-      <polyline points="5 12 12 5 19 12" />
+      <path d="M4 6h14" />
+      <path d="M4 12h14" />
+      <path d="M4 18h9" />
     </svg>
   );
 }
