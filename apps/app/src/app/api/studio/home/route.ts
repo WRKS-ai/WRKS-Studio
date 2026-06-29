@@ -52,10 +52,17 @@ export async function GET() {
     });
   }
 
+  // Only fetch deliverables whose kind belongs to the new pillar
+  // taxonomy (site_* / copy_*). Older rows from the legacy intake-agent
+  // (kinds like 'fact' / 'audience' / 'differentiator') are excluded so
+  // they don't surface in the dashboard as stale "drafts" — per
+  // `feedback_no_dummy_no_disconnected.md`, the feed shows REAL pillar
+  // work only.
   const { data: deliverables, error: delErr } = await supabase
     .from("deliverables")
     .select("id, kind, content, status, framework, created_at, updated_at")
     .eq("business_profile_id", profile.id)
+    .or("kind.like.site%,kind.like.copy%")
     .order("updated_at", { ascending: false })
     .limit(RECENT_LIMIT);
   if (delErr) {
@@ -68,10 +75,8 @@ export async function GET() {
 
   const rows = deliverables ?? [];
 
-  // Per-pillar counts so the pillar cards can show state at a glance.
-  // Kind taxonomy: anything starting with "site" → sites pillar; anything
-  // starting with "copy" → copy pillar. Any other kinds are ignored for
-  // counts but still surface in the recent-work feed.
+  // Per-pillar counts. The query already filters to site_* / copy_*
+  // kinds, so a single pass classifying each row is enough.
   const counts = rows.reduce(
     (acc, row) => {
       if (typeof row.kind === "string") {
