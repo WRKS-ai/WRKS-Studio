@@ -263,45 +263,32 @@ function RecentWorkFeed({
   if (deliverables.length === 0) {
     return (
       <div
-        className="flex flex-col"
+        className="flex flex-col items-center text-center"
         style={{
-          gap: 14,
-          padding: "20px 22px",
+          gap: 10,
+          padding: "22px 22px 20px",
           borderRadius: 14,
           border: "1px solid rgba(255,255,255,0.06)",
           background: "rgba(255,255,255,0.012)",
         }}
       >
-        <div className="flex items-center" style={{ gap: 12 }}>
-          <span
-            aria-hidden
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: 999,
-              background: "rgba(245,240,230,0.55)",
-              flexShrink: 0,
-            }}
-          />
-          <p
-            style={{
-              fontSize: 14,
-              color: "rgba(245,240,230,0.85)",
-              letterSpacing: "-0.003em",
-              margin: 0,
-            }}
-          >
-            {hasProfile
-              ? "Your brand is set up. Pick a pillar below to start your first piece."
-              : "Welcome — finish onboarding to start building."}
-          </p>
-        </div>
+        <p
+          style={{
+            fontSize: 14,
+            color: "rgba(245,240,230,0.85)",
+            letterSpacing: "-0.003em",
+            margin: 0,
+          }}
+        >
+          {hasProfile
+            ? "Your brand is set up. Pick a pillar below to start your first piece."
+            : "Welcome — finish onboarding to start building."}
+        </p>
         {onboardingCompletedAt && (
           <p
             style={{
               fontSize: 12.5,
               color: "rgba(245,240,230,0.4)",
-              paddingLeft: 18,
               margin: 0,
             }}
           >
@@ -416,12 +403,12 @@ function PillarCard({
 
   return (
     <div
-      className={`relative flex flex-col ${
+      className={`relative flex flex-col items-center text-center ${
         preferred ? "wrks-crystal-border-button" : ""
       }`}
       style={{
-        gap: 18,
-        padding: "24px 24px 22px",
+        gap: 16,
+        padding: "26px 24px 24px",
         borderRadius: 16,
         background:
           "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.012) 100%)",
@@ -430,38 +417,36 @@ function PillarCard({
         WebkitBackdropFilter: "blur(20px)",
       }}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center" style={{ gap: 12 }}>
-          <span
-            aria-hidden
-            className="grid place-items-center"
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.07)",
-              color: "rgba(245,240,230,0.82)",
-            }}
-          >
-            <Icon />
-          </span>
-          <h2
-            style={{
-              fontSize: 22,
-              fontWeight: 600,
-              letterSpacing: "-0.02em",
-              color: "rgba(245,240,230,0.96)",
-              margin: 0,
-            }}
-          >
-            {config.name}
-          </h2>
-        </div>
+      <span
+        aria-hidden
+        className="grid place-items-center"
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 999,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          color: "rgba(245,240,230,0.82)",
+        }}
+      >
+        <Icon />
+      </span>
+      <div className="flex flex-col items-center" style={{ gap: 4 }}>
+        <h2
+          style={{
+            fontSize: 22,
+            fontWeight: 600,
+            letterSpacing: "-0.02em",
+            color: "rgba(245,240,230,0.96)",
+            margin: 0,
+          }}
+        >
+          {config.name}
+        </h2>
         <span
           style={{
             fontSize: 12.5,
-            color: "rgba(245,240,230,0.55)",
+            color: "rgba(245,240,230,0.5)",
             letterSpacing: "-0.003em",
           }}
         >
@@ -480,12 +465,16 @@ function PillarCard({
           lineHeight: 1.5,
           color: "rgba(245,240,230,0.62)",
           letterSpacing: "-0.003em",
+          maxWidth: "36ch",
           margin: 0,
         }}
       >
         {config.descriptor}
       </p>
-      <div className="flex items-center" style={{ gap: 10, marginTop: 4 }}>
+      <div
+        className="flex flex-wrap items-center justify-center"
+        style={{ gap: 10, marginTop: 4 }}
+      >
         <Link
           href={config.href}
           className="inline-flex items-center transition-colors duration-150"
