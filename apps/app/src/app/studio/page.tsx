@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -58,6 +59,7 @@ type StudioHome = {
 
 export default function StudioPage() {
   const router = useRouter();
+  const { user } = useUser();
   const [state, setState] = useState<StudioHome | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -88,7 +90,13 @@ export default function StudioPage() {
     };
   }, [router]);
 
-  const agentName = state?.profile?.agent_name?.trim() || "there";
+  // The HUMAN's first name from Clerk — they're the one being greeted.
+  // The agent's name lives in brand_state.agent_name and is the agent
+  // the user has set up; it gets surfaced in the status line as context,
+  // not as the addressee of the greeting.
+  const userFirstName =
+    user?.firstName?.trim() || user?.username?.trim() || "there";
+  const agentName = state?.profile?.agent_name?.trim() || null;
   const brandName = state?.profile?.brand_name?.trim() || null;
   const activePillars = state?.profile?.active_pillars ?? [];
   const sitesPreferred = activePillars.includes("sites");
@@ -102,21 +110,10 @@ export default function StudioPage() {
     if (!state?.profile) return "";
     const parts: string[] = [];
     if (brandName) parts.push(brandName);
-    parts.push(`${siteCount} site${siteCount === 1 ? "" : "s"}`);
-    parts.push(`${copyCount} draft${copyCount === 1 ? "" : "s"}`);
+    if (agentName) parts.push(`${agentName} ready`);
     if (lastTouched) parts.push(`last edit ${formatRelative(lastTouched)}`);
-    else if (state.profile.onboarding_completed_at)
-      parts.push("brand ready, nothing built yet");
     return parts.join(" · ");
-  }, [
-    loaded,
-    state?.profile,
-    brandName,
-    siteCount,
-    copyCount,
-    lastTouched,
-    state?.profile?.onboarding_completed_at,
-  ]);
+  }, [loaded, state?.profile, brandName, agentName, lastTouched]);
 
   return (
     <main
@@ -170,7 +167,7 @@ export default function StudioPage() {
                 margin: 0,
               }}
             >
-              What&apos;s next, {agentName}?
+              What&apos;s next, {userFirstName}?
             </h1>
             {statusLine && (
               <p
