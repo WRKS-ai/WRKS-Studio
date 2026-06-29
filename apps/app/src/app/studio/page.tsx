@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import PixelBlast from "@/components/pixel-blast";
 
 // /studio — daily-driver dashboard.
 //
@@ -120,32 +119,16 @@ export default function StudioPage() {
 
   return (
     <main
-      className="relative size-full overflow-hidden"
+      className="relative size-full overflow-y-auto"
       style={{ background: "#0a0a0c" }}
     >
-      <div className="absolute inset-0">
-        <PixelBlast
-          variant="square"
-          pixelSize={4}
-          color="#7c3aed"
-          patternScale={2}
-          patternDensity={0.9}
-          edgeFade={0.28}
-          speed={0.45}
-          transparent
-        />
-      </div>
-
       <div
-        className="relative z-10 size-full overflow-y-auto pointer-events-none"
+        className="mx-auto"
+        style={{
+          maxWidth: 1200,
+          padding: "72px 40px 96px",
+        }}
       >
-        <div
-          className="mx-auto pointer-events-auto"
-          style={{
-            maxWidth: 1200,
-            padding: "72px 40px 96px",
-          }}
-        >
           {/* Zone 1 — Hero header */}
           <header className="flex flex-col" style={{ gap: 10 }}>
             <h1
@@ -212,7 +195,6 @@ export default function StudioPage() {
               }
             />
           </section>
-        </div>
       </div>
     </main>
   );
