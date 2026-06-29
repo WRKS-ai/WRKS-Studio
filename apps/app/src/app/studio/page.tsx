@@ -120,29 +120,21 @@ export default function StudioPage() {
       className="relative size-full overflow-hidden"
       style={{ background: "#0a0a0c" }}
     >
-      {/* DarkVeil — React Bits CPPN-noise WebGL bg. Slow speed + zero
-          scanline/noise/warp = quiet ambient sweep. */}
+      {/* DarkVeil — React Bits CPPN-noise WebGL bg, default params
+          (speed=0.5, everything else 0). Per user 2026-06-30: keep
+          the full vibrant React Bits look; no vignette overlay
+          flattening the color. Text contrast is handled at the
+          content level (the feed card has its own glass surface). */}
       <div className="absolute inset-0">
         <DarkVeil
           hueShift={0}
           noiseIntensity={0}
           scanlineIntensity={0}
-          speed={0.4}
+          speed={0.5}
           scanlineFrequency={0}
           warpAmount={0}
         />
       </div>
-
-      {/* Soft dark vignette so dashboard text reads cleanly over the
-          bg without losing the atmospheric color bleed. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(10,10,12,0.25) 0%, rgba(10,10,12,0.65) 70%, rgba(10,10,12,0.85) 100%)",
-        }}
-      />
 
       <div className="relative z-10 size-full overflow-y-auto">
         {/* min-h-full + flex centers the content vertically when shorter
