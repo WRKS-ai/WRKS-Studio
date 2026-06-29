@@ -401,109 +401,128 @@ function PillarCard({
 
   return (
     <div
-      className={`relative flex flex-col items-center text-center ${
+      className={`pillar-card group relative flex flex-col ${
         preferred ? "wrks-crystal-border-button" : ""
       }`}
       style={{
-        gap: 16,
-        padding: "26px 24px 24px",
+        gap: 18,
+        padding: "26px 26px 24px",
         borderRadius: 16,
         background:
           "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.012) 100%)",
         border: preferred ? "none" : "1px solid rgba(255,255,255,0.06)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
+        transition:
+          "transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1), border-color 220ms ease, box-shadow 220ms ease",
       }}
     >
-      <span
-        aria-hidden
-        className="grid place-items-center"
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 999,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.07)",
-          color: "rgba(245,240,230,0.82)",
-        }}
-      >
-        <Icon />
-      </span>
-      <div className="flex flex-col items-center" style={{ gap: 4 }}>
-        <h2
-          style={{
-            fontSize: 22,
-            fontWeight: 600,
-            letterSpacing: "-0.02em",
-            color: "rgba(245,240,230,0.96)",
-            margin: 0,
-          }}
-        >
-          {config.name}
-        </h2>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center" style={{ gap: 12 }}>
+          <span
+            aria-hidden
+            className="grid place-items-center transition-colors duration-200"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "rgba(245,240,230,0.85)",
+            }}
+          >
+            <Icon />
+          </span>
+          <h2
+            style={{
+              fontSize: 22,
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
+              color: "rgba(245,240,230,0.96)",
+              margin: 0,
+            }}
+          >
+            {config.name}
+          </h2>
+        </div>
         <span
           style={{
-            fontSize: 12.5,
-            color: "rgba(245,240,230,0.5)",
-            letterSpacing: "-0.003em",
+            fontSize: 12,
+            fontFamily: "var(--font-mono)",
+            letterSpacing: "0.06em",
+            color: "rgba(245,240,230,0.42)",
+            textTransform: "uppercase",
           }}
         >
           {count} {config.unit}
-          {lastTouchedAt && (
-            <span style={{ color: "rgba(245,240,230,0.35)" }}>
-              {" · "}
-              {formatRelative(lastTouchedAt)}
-            </span>
-          )}
         </span>
       </div>
+
       <p
         style={{
-          fontSize: 14,
+          fontSize: 14.5,
           lineHeight: 1.5,
-          color: "rgba(245,240,230,0.62)",
+          color: "rgba(245,240,230,0.65)",
           letterSpacing: "-0.003em",
-          maxWidth: "36ch",
           margin: 0,
+          maxWidth: "42ch",
         }}
       >
         {config.descriptor}
       </p>
+
       <div
-        className="flex flex-wrap items-center justify-center"
-        style={{ gap: 10, marginTop: 4 }}
-      >
+        aria-hidden
+        style={{
+          height: 1,
+          background:
+            "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 30%, rgba(255,255,255,0.06) 70%, transparent 100%)",
+          marginTop: 2,
+        }}
+      />
+
+      <div className="flex items-center" style={{ gap: 10 }}>
         <Link
           href={config.href}
-          className="inline-flex items-center transition-colors duration-150"
+          className="pillar-primary wrks-crystal-border-button inline-flex items-center transition-all duration-200"
           style={{
-            padding: "9px 14px",
+            padding: "10px 16px",
             gap: 8,
             borderRadius: 999,
             fontSize: 13,
             fontWeight: 500,
             letterSpacing: "-0.003em",
-            background: "rgba(245,240,230,0.92)",
-            color: "rgba(10,10,12,0.95)",
-            border: "1px solid rgba(245,240,230,0.92)",
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.018) 100%)",
+            color: "rgba(245,240,230,0.95)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            boxShadow:
+              "inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 22px -10px rgba(0,0,0,0.5)",
           }}
         >
           Open workspace
-          <span aria-hidden>→</span>
+          <span
+            aria-hidden
+            className="transition-transform duration-200"
+            style={{ display: "inline-block" }}
+          >
+            →
+          </span>
         </Link>
         <Link
           href={config.newHref}
-          className="inline-flex items-center transition-colors duration-150"
+          className="pillar-secondary inline-flex items-center transition-all duration-200"
           style={{
-            padding: "9px 14px",
+            padding: "10px 14px",
             gap: 6,
             borderRadius: 999,
             fontSize: 13,
             fontWeight: 500,
             letterSpacing: "-0.003em",
             background: "transparent",
-            color: "rgba(245,240,230,0.78)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            color: "rgba(245,240,230,0.7)",
+            border: "1px solid rgba(255,255,255,0.08)",
           }}
         >
           <span aria-hidden style={{ fontSize: 15, lineHeight: 1 }}>

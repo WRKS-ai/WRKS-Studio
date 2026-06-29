@@ -392,3 +392,47 @@ body {
     animation: none;
   }
 }
+
+/* ============================================================
+   /studio pillar cards — hover states for the Sites + Copy entry
+   points. Lift + brightened rim on the card, brightened glass +
+   arrow nudge on the primary button, brightened outline on the
+   secondary. Targeted by .pillar-card / .pillar-primary /
+   .pillar-secondary added in studio/page.tsx.
+   ============================================================ */
+.pillar-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 56px -24px rgba(0, 0, 0, 0.6);
+}
+
+.pillar-card:hover .pillar-primary {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  color: rgba(245, 240, 230, 1);
+}
+
+.pillar-primary:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  color: rgba(245, 240, 230, 1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 12px 28px -10px rgba(0, 0, 0, 0.6);
+}
+
+.pillar-primary:hover span[aria-hidden] {
+  transform: translateX(3px);
+}
+
+.pillar-secondary:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(245, 240, 230, 0.92);
+}
