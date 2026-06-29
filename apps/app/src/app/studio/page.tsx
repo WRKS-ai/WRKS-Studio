@@ -148,13 +148,13 @@ export default function StudioPage() {
       />
 
       <div className="relative z-10 size-full overflow-y-auto">
-        <div
-          className="mx-auto"
-          style={{
-            maxWidth: 1100,
-            padding: "72px 40px 96px",
-          }}
-        >
+        {/* min-h-full + flex centers the content vertically when shorter
+            than the viewport, and lets it scroll naturally when taller. */}
+        <div className="min-h-full flex items-center justify-center px-10 py-16">
+          <div
+            className="w-full"
+            style={{ maxWidth: 1100 }}
+          >
           {/* Zone 1 — Hero header (centered per user 2026-06-30). */}
           <header
             className="flex flex-col items-center text-center"
@@ -224,6 +224,7 @@ export default function StudioPage() {
               }
             />
           </section>
+          </div>
         </div>
       </div>
     </main>
