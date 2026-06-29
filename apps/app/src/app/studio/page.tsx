@@ -484,27 +484,20 @@ function PillarCard({
       <div className="flex items-center" style={{ gap: 10 }}>
         <Link
           href={config.href}
-          className="pillar-primary wrks-crystal-border-button inline-flex items-center transition-all duration-200"
+          className="pillar-primary inline-flex items-center"
           style={{
-            padding: "10px 16px",
+            padding: "10px 18px",
             gap: 8,
             borderRadius: 999,
-            fontSize: 13,
+            fontSize: 13.5,
             fontWeight: 500,
-            letterSpacing: "-0.003em",
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.018) 100%)",
-            color: "rgba(245,240,230,0.95)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            boxShadow:
-              "inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 22px -10px rgba(0,0,0,0.5)",
+            letterSpacing: "-0.01em",
           }}
         >
           Open workspace
           <span
             aria-hidden
-            className="transition-transform duration-200"
+            className="pillar-primary-arrow"
             style={{ display: "inline-block" }}
           >
             →
