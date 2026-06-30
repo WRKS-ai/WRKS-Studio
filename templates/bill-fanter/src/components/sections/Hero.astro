@@ -1,8 +1,15 @@
 ---
-// Homepage hero — clean rewrite of the legacy Webflow .section_home-hero.
-// Dark stage with a React Bits DotGrid background (mounted by BaseLayout's
-// global [data-dotgrid] script), headline + dual CTA + trust row on the left
-// rail, and a right-anchored portrait that lines up with the bento split below.
+// Homepage hero — dark stage with a React Bits DotGrid background
+// (mounted by BaseLayout's global [data-dotgrid] script), headline +
+// dual CTA + trust row on the left rail, right-anchored portrait that
+// lines up with the bento split below.
+//
+// WRKS template refactor (2026-06-30): all editable copy now reads from
+// `content.hero` slots (see ../../data/content.schema.ts). Layout,
+// classnames, and visual behavior are unchanged — only string literals
+// moved out of the markup.
+import { content } from '../../data/content.sample';
+const hero = content.hero;
 const star = '<path d="M12 2l3 7 7 .8-5 5 1.5 7-6.5-3.5L5 22l1.5-7-5-5L8.5 9z"/>';
 ---
 <section class="bf-hero2026">
@@ -19,33 +26,33 @@ const star = '<path d="M12 2l3 7 7 .8-5 5 1.5 7-6.5-3.5L5 22l1.5-7-5-5L8.5 9z"/>
   <div class="bf-hero2026__scrim" aria-hidden="true"></div>
 
   <div class="bf-container bf-hero2026__inner">
-    <h1 class="bf-hero2026__h1">Learn options trading and build income you control</h1>
-    <p class="bf-hero2026__sub">Bill Fanter teaches new and experienced traders how to read the options market, time entries, and place trades with a clear plan.</p>
+    <h1 class="bf-hero2026__h1">{hero.headline}</h1>
+    <p class="bf-hero2026__sub">{hero.subhead}</p>
     <div class="bf-hero2026__cta">
-      <a href="/masterclass" class="bf-btn bf-btn--primary is-on-dark">Get the masterclass</a>
-      <a href="/community" class="bf-btn bf-btn--secondary is-on-dark">Join the community</a>
+      <a href={hero.primaryCta.href} class="bf-btn bf-btn--primary is-on-dark">{hero.primaryCta.label}</a>
+      <a href={hero.secondaryCta.href} class="bf-btn bf-btn--secondary is-on-dark">{hero.secondaryCta.label}</a>
     </div>
     <div class="bf-hero2026__trust">
-      <span class="bf-hero2026__trust-label">Recommended by</span>
+      <span class="bf-hero2026__trust-label">{hero.trust.label}</span>
       <span class="bf-hero2026__trust-stars">
-        {Array.from({ length: 5 }).map(() => (
+        {Array.from({ length: hero.trust.rating }).map(() => (
           <svg class="bf-star" viewBox="0 0 24 24" set:html={star} />
         ))}
       </span>
-      <span class="bf-hero2026__trust-count">1,600+ Students</span>
+      <span class="bf-hero2026__trust-count">{hero.trust.count}</span>
     </div>
   </div>
 
   <div class="bf-hero2026__image">
     <img
-      src="/assets/664a5b263659c7265be280ad/68eeba02f9fafe342cd54b44_Gemini_Generated_Image_6ut8i56ut8i56ut8.webp"
+      src={hero.portrait.src}
       fetchpriority="high"
-      alt="Bill Fanter"
+      alt={hero.portrait.alt}
     />
     {/* Introduces the man in the photo: name + one credential. */}
     <div class="bf-hero2026__namecard">
-      <span class="bf-hero2026__namecard-name">Bill Fanter</span>
-      <span class="bf-hero2026__namecard-role">Former banker, options mentor</span>
+      <span class="bf-hero2026__namecard-name">{hero.namecard.name}</span>
+      <span class="bf-hero2026__namecard-role">{hero.namecard.role}</span>
     </div>
   </div>
 </section>
