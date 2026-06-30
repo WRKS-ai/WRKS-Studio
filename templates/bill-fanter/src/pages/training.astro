@@ -1,0 +1,385 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Reviews from '../components/sections/Reviews.astro';
+// Bill's VSL ad funnel: training (this page) -> /booking -> /guide.
+// READY FOR ADS once you drop in three things:
+//   1. VIMEO — replace the .vsl-video placeholder below with Bill's <iframe>.
+//   2. PIXEL — add the Meta/GHL pixel <script> into extraHeadHtml below.
+//   3. GHL API — the form currently just redirects to /booking; POST the lead
+//      to your GHL endpoint at the marked TODO in the submit handler.
+---
+
+<BaseLayout
+  title="Free Options Training | Bill Fanter"
+  description="Watch the free training, then book a call with Bill."
+  wfPageId="funnel-training"
+  noindex
+  extraHeadHtml={`
+    <!-- TODO(ads): paste the Meta / GHL tracking pixel <script> here. -->
+  `}
+>
+
+<style is:global>
+/* WRKS funnel design tokens (ported — reconfigure for Bill). */
+:root{
+  --bg:#0a0a0a;--bg1:#15161a;--t0:#ffffff;--t1:#ffffff;--t2:rgba(255,255,255,.6);
+  --pu:#1754d8;--pu3:#3b82f6;
+  --sans:'Geist',system-ui,sans-serif;--ease:cubic-bezier(0.22,1,0.36,1);
+  /* Define here too so the Reviews .bf-container constrains on this non-.bf-page page. */
+  --bf-container:1440px;
+}
+/* Restore border-box: BaseLayout's scoped `*` reset doesn't reach this page's
+   own elements, so without this their padding overflows the viewport (horizontal
+   scroll) on mobile. */
+*,*::before,*::after{box-sizing:border-box}
+/* !important overrides BaseLayout's scoped body reset (#fff), which otherwise wins
+   on specificity and turns this dark VSL page white (hiding all the white text). */
+body{background:var(--bg) !important;color:var(--t0)}
+/* Reviews on this funnel page: pull up close to the video, 100px breathing room below. */
+.vsl-reviews .bf-reviews{padding-top:0;padding-bottom:100px}
+
+/* ── Layout ─────────────────────────────────────────────── */
+.vsl-page{min-height:100vh;display:flex;flex-direction:column}
+.vsl-wrap{flex:1;width:100%;max-width:1180px;margin:0 auto;padding:32px 56px 56px;text-align:center;display:flex;flex-direction:column;justify-content:center}
+@media(max-width:1024px){.vsl-page{min-height:90vh;min-height:90dvh}.vsl-wrap{padding:32px 32px 32px}}
+@media(max-width:640px){.vsl-page{min-height:88vh;min-height:88dvh}.vsl-wrap{padding:24px 24px 50px}}
+
+/* ── Hero typography (matches blas-guide / discover conventions) ── */
+.vsl-eyebrow{display:inline-flex;align-self:center;align-items:center;gap:10px;font-size:22px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--pu3);margin-bottom:20px}
+.vsl-eyebrow::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--pu3);box-shadow:0 0 8px rgba(59,130,246,.8);animation:pulse 2.5s ease-in-out infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.55)}}
+.vsl-h1{font-size:clamp(32px,4vw,52px);font-weight:700;line-height:1.06;letter-spacing:-.038em;color:var(--t0);margin:14px 0 50px}
+.vsl-h1 em{font-style:normal;font-size:1.06em;color:var(--pu3)}
+.vsl-sub{font-size:clamp(16px,1.4vw,18px);color:var(--t1);line-height:1.6;max-width:680px;margin:0 auto 44px}
+
+/* ── Video ─────────────────────────────────────────────── */
+.vsl-video{position:relative;width:100%;max-width:1140px;margin:0 auto 50px;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#0a0a0a;box-shadow:0 30px 90px rgba(0,0,0,.5)}
+.vsl-video iframe{position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px);border:0;z-index:0}
+/* Empty-state placeholder shown until Bill's video embed is added. */
+.vsl-video-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(120% 120% at 50% 40%,#15161a 0%,#0a0a0a 100%);border:1px dashed rgba(255,255,255,.18)}
+.vsl-ph-play{width:74px;height:74px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--pu),var(--pu3));box-shadow:0 14px 40px rgba(23,84,216,.4)}
+.vsl-ph-play svg{width:30px;height:30px;margin-left:4px;color:#fff}
+.vsl-ph-txt{font-family:var(--sans);font-size:13px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.6)}
+
+/* Click-to-pause layer, covers video above Vimeo's control bar so clicking the center toggles play/pause */
+.vsl-click-catch{position:absolute;left:0;right:0;top:0;bottom:140px;z-index:1;cursor:pointer;display:none}
+.vsl-click-catch.active{display:block}
+@media(max-width:1024px){.vsl-click-catch.active{top:40px;bottom:80px}}
+
+/* Click-to-unmute overlay */
+.vsl-video-overlay{position:absolute;inset:-4px;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;cursor:pointer;color:var(--t0);background:transparent;transition:opacity .3s var(--ease)}
+.vsl-video-overlay:hover{}
+.vsl-video-overlay.hidden{opacity:0;pointer-events:none}
+.vsl-play-btn{display:none}
+.vsl-video-overlay:hover .vsl-play-btn{transform:scale(1.08);background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.55)}
+.vsl-play-btn svg{width:32px;height:32px;margin-left:4px;color:#fff}
+.vsl-overlay-txt{font-family:var(--sans);font-size:14px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.5);display:flex;align-items:center;gap:10px}
+.vsl-overlay-txt svg{width:18px;height:18px}
+@media(max-width:640px){.vsl-play-btn{width:68px;height:68px}.vsl-play-btn svg{width:26px;height:26px}.vsl-overlay-txt{font-size:12px}}
+
+/* ── Mobile refinements ── */
+@media(max-width:640px){
+  .vsl-eyebrow::before{display:none}
+  .vsl-eyebrow{font-size:16px;letter-spacing:.12em;justify-content:center;text-align:center;margin-bottom:20px}
+  .vsl-h1{margin:0 0 28px}
+  .vsl-video{margin-bottom:28px}
+}
+@media(max-width:1024px){
+  .vsl-eyebrow{justify-content:center;text-align:center}
+}
+
+/* ── Big CTA button (matches site gradient convention) ── */
+.vsl-cta-btn{display:inline-flex;align-items:center;justify-content:center;gap:14px;padding:26px 64px;min-width:360px;border:0;border-radius:14px;background:linear-gradient(135deg,var(--pu),var(--pu3));color:#fff;font-family:var(--sans);font-size:22px;font-weight:700;letter-spacing:-.005em;cursor:pointer;text-decoration:none;transition:transform .2s var(--ease),box-shadow .2s var(--ease);box-shadow:0 14px 40px rgba(23,84,216,.4)}
+.vsl-cta-btn:hover{transform:translateY(-2px);box-shadow:0 20px 50px rgba(23,84,216,.55)}
+.vsl-cta-btn svg{width:22px;height:22px}
+.vsl-cta-hint{margin-top:16px;font-size:12px;color:var(--t2);letter-spacing:.04em;font-weight:500}
+
+/* ── Modal ─────────────────────────────────────────────── */
+.vsl-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;transition:opacity .2s}
+.vsl-modal.open{display:flex;opacity:1}
+.vsl-modal-card{position:relative;width:100%;max-width:540px;background:var(--bg1);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:38px 36px 32px;text-align:left;box-shadow:0 30px 90px rgba(0,0,0,.7);transform:translateY(12px);transition:transform .25s var(--ease);max-height:calc(100vh - 48px);overflow-y:auto}
+.vsl-modal.open .vsl-modal-card{transform:translateY(0)}
+.vsl-modal-close{position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--t0);font-family:var(--sans);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;padding:0;line-height:1}
+.vsl-modal-close:hover{background:rgba(255,255,255,.12);transform:rotate(90deg)}
+@media(max-width:640px){.vsl-modal-card{padding:30px 22px 26px}}
+
+/* Progress */
+.vsl-prog{display:flex;align-items:center;gap:12px;margin-bottom:22px;padding-right:38px}
+.vsl-prog-bar{flex:1;height:5px;background:rgba(255,255,255,.08);border-radius:100px;overflow:hidden}
+.vsl-prog-fill{height:100%;width:50%;background:linear-gradient(90deg,var(--pu),var(--pu3));border-radius:100px;transition:width .3s var(--ease)}
+.vsl-prog-txt{font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--t1);white-space:nowrap}
+
+/* Modal heading (Outfit via global h2) */
+.vsl-cta-h{font-size:24px;font-weight:700;line-height:1.1;letter-spacing:-.02em;color:var(--t0);margin:0 0 8px}
+.vsl-cta-sub{font-size:16px;color:var(--t1);line-height:1.6;margin:0 0 22px}
+
+/* Steps */
+.vsl-step{display:none;flex-direction:column;gap:14px}
+.vsl-step.active{display:flex}
+
+.vsl-form{display:flex;flex-direction:column;gap:14px}
+.vsl-field{display:flex;flex-direction:column;gap:7px}
+.vsl-field label{font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--t1)}
+.vsl-field input{appearance:none;background:var(--bg);border:1px solid rgba(255,255,255,.12);color:var(--t0);font-family:var(--sans);font-size:16px;padding:14px 16px;border-radius:10px;outline:none;transition:border-color .15s,background .15s}
+.vsl-field input::placeholder{color:var(--t2)}
+.vsl-field input:focus{border-color:var(--pu3);background:#0d0d0d}
+
+.vsl-radio-group{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.vsl-radio{position:relative;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 16px;background:var(--bg);border:1px solid rgba(255,255,255,.12);border-radius:10px;cursor:pointer;transition:all .15s;font-size:15px;font-weight:500;color:var(--t0)}
+.vsl-radio:hover{border-color:rgba(59,130,246,.5);background:#0d0d0d}
+.vsl-radio input{position:absolute;opacity:0;pointer-events:none}
+.vsl-radio .vsl-dot{width:18px;height:18px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35);position:relative;flex-shrink:0;transition:all .15s}
+.vsl-radio input:checked + .vsl-dot{border-color:var(--pu3)}
+.vsl-radio input:checked + .vsl-dot::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--pu3)}
+.vsl-radio:has(input:checked){border-color:var(--pu3);background:rgba(59,130,246,.08)}
+
+/* Modal buttons */
+.vsl-step-actions{display:flex;gap:10px;margin-top:10px}
+.vsl-submit{flex:1;padding:16px 22px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--pu),var(--pu3));color:#fff;font-family:var(--sans);font-size:15px;font-weight:700;letter-spacing:-.005em;cursor:pointer;transition:transform .2s var(--ease),box-shadow .2s var(--ease);box-shadow:0 8px 24px rgba(23,84,216,.35)}
+.vsl-submit:hover{transform:translateY(-1px);box-shadow:0 12px 32px rgba(23,84,216,.5)}
+.vsl-submit:disabled{opacity:.6;cursor:wait;transform:none}
+.vsl-back{padding:16px 22px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:transparent;color:var(--t1);font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s}
+.vsl-back:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.28);color:var(--t0)}
+.vsl-error{margin-top:10px;color:#ff6b6b;font-size:13px;text-align:center;display:none}
+
+body.vsl-locked{overflow:hidden}
+
+@media(max-width:640px){
+  .vsl-cta-btn{min-width:0;width:100%;padding:22px 28px;font-size:19px}
+  .vsl-cta-btn svg{width:20px;height:20px}
+}
+
+.pg-foot{padding:24px 0;border-top:1px solid rgba(255,255,255,.05);background:var(--bg)}
+.pg-foot-inner{display:flex;align-items:center;justify-content:space-between;gap:20px;max-width:1200px;margin:0 auto;padding:0 56px;width:100%}
+.pg-foot-legal{font-size:12px;color:rgba(255,255,255,.45)}
+.pg-foot-links{display:flex;align-items:center;gap:20px}
+.pg-foot-links a{font-size:12px;color:rgba(255,255,255,.45);text-decoration:none;transition:color .15s}
+.pg-foot-links a:hover{color:var(--t0)}
+@media(max-width:1024px){.pg-foot-inner{padding:0 32px}}
+@media(max-width:760px){.pg-foot-inner{padding:0 24px}}
+</style>
+
+<div class="vsl-page">
+<section class="vsl-wrap">
+  <span class="vsl-eyebrow">Free training:</span>
+  <h1 class="vsl-h1">Watch how everyday people are learning to trade options with a <em>clear, repeatable plan</em>.</h1>
+
+  <!-- Video placeholder — drop Bill's VSL embed in here when ready. -->
+  <div class="vsl-video">
+    <div class="vsl-video-placeholder">
+      <div class="vsl-ph-play">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+      <span class="vsl-ph-txt">Bill's video goes here</span>
+    </div>
+  </div>
+
+  <button type="button" class="vsl-cta-btn" id="vsl-open">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+    Schedule A Call Here
+  </button>
+  <p class="vsl-cta-hint">Takes less than 30 seconds</p>
+</section>
+</div><!-- /.vsl-page (hero fills the first screen) -->
+
+<!-- Primary social-proof review section, shown below the VSL + CTA. Wrapped in
+     .bf-page so the Reviews component gets the design-system tokens it needs
+     (--bf-bg-2 light background, --bf-container width, text colors) — without it,
+     this non-.bf-page funnel page left the section transparent (dark headline
+     invisible on black) and the container unconstrained (mobile overflow). -->
+<div class="bf-page vsl-reviews">
+<Reviews showCta={false} />
+</div>
+
+<!-- ══ MODAL ═══════════════════════════════════════════════════ -->
+<div class="vsl-modal" id="vsl-modal" role="dialog" aria-modal="true" aria-labelledby="vsl-modal-title">
+  <div class="vsl-modal-card">
+    <button type="button" class="vsl-modal-close" id="vsl-close" aria-label="Close">×</button>
+
+    <div class="vsl-prog">
+      <div class="vsl-prog-bar"><div class="vsl-prog-fill" id="vsl-prog-fill"></div></div>
+      <span class="vsl-prog-txt" id="vsl-prog-txt">Step 1 of 2</span>
+    </div>
+
+    <form id="vsl-form" class="vsl-form" novalidate>
+
+      <!-- STEP 1: Contact info -->
+      <div class="vsl-step active" data-step="1">
+        <h2 class="vsl-cta-h" id="vsl-modal-title">Let's get you booked</h2>
+        <p class="vsl-cta-sub">Enter your contact info to continue.</p>
+
+        <div class="vsl-field">
+          <label for="vsl-name">Full Name</label>
+          <input id="vsl-name" name="name" type="text" required autocomplete="name" placeholder="Jane Smith" />
+        </div>
+        <div class="vsl-field">
+          <label for="vsl-email">Email</label>
+          <input id="vsl-email" name="email" type="email" required autocomplete="email" placeholder="jane@firm.com" />
+        </div>
+        <div class="vsl-field">
+          <label for="vsl-phone">Phone Number</label>
+          <input id="vsl-phone" name="phone" type="tel" required autocomplete="tel" placeholder="(555) 555-5555" />
+        </div>
+
+        <div class="vsl-step-actions">
+          <button type="button" class="vsl-submit" id="vsl-next">Continue →</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Revenue qualification -->
+      <div class="vsl-step" data-step="2">
+        <h2 class="vsl-cta-h">One last question</h2>
+        <p class="vsl-cta-sub">What is your average annual revenue?</p>
+
+        <div class="vsl-radio-group">
+          <label class="vsl-radio">
+            <span>$0–$300K/year</span>
+            <input type="radio" name="revenue" value="0-300k" />
+            <span class="vsl-dot"></span>
+          </label>
+          <label class="vsl-radio">
+            <span>$300K–$1M/year</span>
+            <input type="radio" name="revenue" value="300k-1m" />
+            <span class="vsl-dot"></span>
+          </label>
+          <label class="vsl-radio">
+            <span>$1M/year or more</span>
+            <input type="radio" name="revenue" value="1m-plus" />
+            <span class="vsl-dot"></span>
+          </label>
+        </div>
+
+        <div class="vsl-step-actions">
+          <button type="button" class="vsl-back" id="vsl-back">← Back</button>
+          <button type="submit" class="vsl-submit">Submit →</button>
+        </div>
+      </div>
+
+      <div id="vsl-err" class="vsl-error">Something went wrong. Please try again.</div>
+    </form>
+  </div>
+</div>
+
+<footer class="pg-foot">
+  <div class="pg-foot-inner">
+    <p class="pg-foot-legal">&copy; 2026 Bill Fanter. All Rights Reserved.</p>
+    <div class="pg-foot-links">
+      <a href="/privacy-policy">Privacy</a>
+      <a href="/terms-conditions">Terms</a>
+    </div>
+  </div>
+</footer>
+
+<!-- Vimeo player + click-to-unmute logic removed with the embed; re-add when Bill's video is in. -->
+
+<script is:inline>
+(function(){
+  var modal    = document.getElementById('vsl-modal');
+  var openBtn  = document.getElementById('vsl-open');
+  var closeBtn = document.getElementById('vsl-close');
+  var form     = document.getElementById('vsl-form');
+  var err      = document.getElementById('vsl-err');
+  var nextBtn  = document.getElementById('vsl-next');
+  var backBtn  = document.getElementById('vsl-back');
+  var progFill = document.getElementById('vsl-prog-fill');
+  var progTxt  = document.getElementById('vsl-prog-txt');
+  var steps    = form.querySelectorAll('.vsl-step');
+  var TOTAL    = steps.length;
+  var current  = 1;
+
+  // ── Modal open/close ──────────────────────────────────────────────────────
+  function openModal(){
+    modal.classList.add('open');
+    document.body.classList.add('vsl-locked');
+    setTimeout(function(){
+      var first = form.querySelector('.vsl-step.active input');
+      if (first) first.focus();
+    }, 120);
+  }
+  function closeModal(){
+    modal.classList.remove('open');
+    document.body.classList.remove('vsl-locked');
+  }
+  openBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', function(e){ if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
+
+  // ── Step navigation ───────────────────────────────────────────────────────
+  function showStep(n){
+    current = n;
+    steps.forEach(function(s){
+      s.classList.toggle('active', Number(s.dataset.step) === n);
+    });
+    progFill.style.width = (n / TOTAL * 100) + '%';
+    progTxt.textContent = 'Step ' + n + ' of ' + TOTAL;
+    err.style.display = 'none';
+  }
+
+  function validateEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+  nextBtn.addEventListener('click', function(){
+    var name  = form.name.value.trim();
+    var email = form.email.value.trim();
+    var phone = form.phone.value.trim();
+
+    if (!name || !email || !phone) {
+      err.textContent = 'Please fill in every field.';
+      err.style.display = 'block';
+      return;
+    }
+    if (!validateEmail(email)) {
+      err.textContent = 'Please enter a valid email address.';
+      err.style.display = 'block';
+      return;
+    }
+    if (phone.replace(/\D/g,'').length < 7) {
+      err.textContent = 'Please enter a valid phone number.';
+      err.style.display = 'block';
+      return;
+    }
+    showStep(2);
+  });
+
+  backBtn.addEventListener('click', function(){ showStep(1); });
+
+  // ── Final submit ──────────────────────────────────────────────────────────
+  form.addEventListener('submit', async function(e){
+    e.preventDefault();
+    err.style.display = 'none';
+
+    var name    = form.name.value.trim();
+    var email   = form.email.value.trim();
+    var phone   = form.phone.value.trim();
+    var revenue = (form.querySelector('input[name="revenue"]:checked') || {}).value || '';
+
+    if (!revenue) {
+      err.textContent = 'Please select your revenue range.';
+      err.style.display = 'block';
+      return;
+    }
+
+    var btn = form.querySelector('.vsl-step[data-step="2"] .vsl-submit');
+    var orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    // TODO(ads/GHL): POST the lead to your GHL endpoint before redirecting, e.g.
+    //   await fetch('<YOUR_GHL_WEBHOOK_OR_API>', {
+    //     method:'POST', headers:{'Content-Type':'application/json'},
+    //     body: JSON.stringify({ name, email, phone, revenue })
+    //   });
+    // For now it just carries the lead to /booking via query params.
+    var params = new URLSearchParams();
+    if (name)    params.set('name', name);
+    if (email)   params.set('email', email);
+    if (phone)   params.set('phone', phone);
+    if (revenue) params.set('revenue', revenue);
+    window.location.href = '/booking?' + params.toString();
+  });
+
+  showStep(1);
+})();
+</script>
+
+</BaseLayout>

@@ -1,0 +1,13 @@
+node_modules/
+.vercel/
+.agent/
+.DS_Store
+Thumbs.db
+*.log
+
+# Astro
+dist/
+.astro/
+
+# Local agent state
+.claude/

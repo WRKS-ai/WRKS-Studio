@@ -1,0 +1,26 @@
+---
+// /refund-policy — componentized 2026 redesign (clean bf-* sections + shared
+// CardNav / Footer / Islands chrome). Replaced the classic-modernized page.
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ReactReady from '../../components/ReactReady.jsx';
+import Islands from '../../components/Islands.astro';
+import Footer from '../../components/Footer.astro';
+import RefundPolicyContent from '../../components/pages/RefundPolicyContent.astro';
+---
+<BaseLayout
+  title="Refund Policy | Bill Fanter"
+  description="Bill Fanter refund policy."
+  ogImage="/assets/664a5b263659c7265be280ad/664d79eba5d00231744cc9dd_opengraph.webp"
+  wfPageId="66f27b3dba83a3e796420afd"
+>
+  <ReactReady client:only="react" />
+  <main class="bf-page" data-cardnav-host>
+    <RefundPolicyContent />
+  </main>
+  <Footer />
+  <Islands />
+</BaseLayout>
+
+<style is:global>
+  main.bf-page[data-cardnav-host] { position: relative; }
+</style>

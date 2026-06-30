@@ -1,0 +1,509 @@
+---
+import headBoilerplate from './_head-boilerplate.html?raw';
+import footerBoilerplate from './_footer-boilerplate.html?raw';
+import designSystemCSS from '../styles/bf-design-system.css?raw';
+import { SITE } from '../data/site';
+import { entityGraph, breadcrumbList } from '../lib/seo';
+
+interface Props {
+  title: string;
+  description: string;
+  ogImage?: string;
+  wfPageId: string;
+  extraHeadHtml?: string;
+  /** Keep this page out of the search index (funnel / confirmation pages). */
+  noindex?: boolean;
+  /** Open Graph type. Defaults to 'website'. */
+  ogType?: string;
+  /** Per-page JSON-LD node(s) merged into the sitewide @graph (Course, FAQPage, etc). */
+  jsonLd?: object | object[];
+}
+
+const {
+  title,
+  description,
+  ogImage = SITE.ogImage,
+  wfPageId,
+  extraHeadHtml,
+  noindex = false,
+  ogType = 'website',
+  jsonLd,
+} = Astro.props;
+
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin).href.replace(/\/$/, '') || (Astro.site ?? Astro.url.origin).toString().replace(/\/$/, '');
+const ogImageAbs = /^https?:\/\//i.test(ogImage) ? ogImage : SITE.url.replace(/\/$/, '') + ogImage;
+
+// Build the JSON-LD graph: sitewide entities + auto breadcrumb + any per-page
+// nodes the page passed in. Serialized once into a single script tag.
+const crumb = breadcrumbList(Astro.url.pathname);
+const pageNodes = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
+const graph = [...entityGraph(), ...(crumb ? [crumb] : []), ...pageNodes];
+const jsonLdString = JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c');
+const fontHref = 'https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&family=Great+Vibes&display=swap';
+---
+<!DOCTYPE html>
+<html
+  data-wf-domain="www.billfanter.com"
+  data-wf-site="664a5b263659c7265be280ad"
+  data-wf-page={wfPageId}
+  lang="en"
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {noindex
+      ? <meta name="robots" content="noindex, follow" />
+      : <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />}
+    <link rel="canonical" href={canonicalUrl} />
+    {SITE.verification.google && <meta name="google-site-verification" content={SITE.verification.google} />}
+    {SITE.verification.bing && <meta name="msvalidate.01" content={SITE.verification.bing} />}
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImageAbs} />
+    <meta property="og:image:alt" content={title} />
+    <meta property="og:type" content={ogType} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageAbs} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <Fragment set:html={`<script type="application/ld+json">${jsonLdString}</script>`} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    {/* Load fonts without blocking first paint: apply as print, swap to all on load. */}
+    <link rel="stylesheet" href={fontHref} media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href={fontHref} /></noscript>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        background: #ffffff;
+        font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+        color: #0a0a0a;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        line-height: 1.5;
+      }
+      img, svg, video { display: block; max-width: 100%; }
+      a { color: inherit; text-decoration: none; }
+      button, input, textarea, select { font: inherit; color: inherit; }
+      .bf-skip-link {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        z-index: 100000;
+        padding: 12px 18px;
+        background: #0a0a0a;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 0 0 12px 0;
+      }
+      .bf-skip-link:focus { left: 0; }
+      /* Phones: DotGrid (WebGL) is skipped for performance; show a lightweight
+         static CSS dot pattern in its place so the dot-grid look is preserved. */
+      @media (max-width: 767px) {
+        :global([data-dotgrid]) {
+          /* Smaller, denser dots than the desktop grid so the pattern reads as a
+             subtle fine-grain texture on phones rather than chunky dots. */
+          background-image: radial-gradient(circle, #454545 0.6px, transparent 1px);
+          background-size: 6px 6px;
+          background-position: center;
+        }
+      }
+    </style>
+    <Fragment set:html={headBoilerplate} />
+    {extraHeadHtml && <Fragment set:html={extraHeadHtml} />}
+    <style set:html={designSystemCSS}></style>
+  </head>
+  <body>
+    <a href="#bf-main" class="bf-skip-link">Skip to content</a>
+    <span id="bf-main" tabindex="-1"></span>
+    <slot />
+
+    <!-- bf-vreel modal — Vimeo iframe activated when a .bf-vreel button is clicked.
+         iframe stays at about:blank until needed so no video network requests happen on idle. -->
+    <div class="bf-vreel-modal" id="bf-vreel-modal" aria-hidden="true">
+      <button class="bf-vreel-modal__close" id="bf-vreel-modal-close" aria-label="Close video"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+      <iframe id="bf-vreel-modal-iframe" src="about:blank" title="Video player" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+    </div>
+
+    <Fragment set:html={footerBoilerplate} />
+
+    <script is:inline>
+      (function () {
+        const FORMS = {
+          'wf-form-Webinar-form': {
+            kajabiFormId: '2148612292',
+            redirect: '/watch-webinar',
+            nameField: 'LM-name',
+            emailField: 'LM-email',
+          },
+          'wf-form-Watchlist-form': {
+            kajabiFormId: '2148612296',
+            redirect: '/watchlist-confirmed',
+            nameField: 'Watchlist-name',
+            emailField: 'Watchlist-email',
+          },
+          'wf-form-Newsletter-form': {
+            kajabiFormId: '2148612296',
+            redirect: '/watchlist-confirmed',
+            nameField: 'Newsletter-Name',
+            emailField: 'Newsletter-Email',
+          },
+          'wf-form-Contact-form': {
+            kajabiFormId: '2148612290',
+            inlineSuccess: true,
+            nameField: 'contact-form-name',
+            emailField: 'contact-form-email',
+            extraFields: { custom_1: 'contact-form-message' }, // Kajabi form 2148612290's Message field is form_submission[custom_1], not [message] (verified via the form's embed.js)
+          },
+        };
+        function valueOf(form, fieldName) {
+          if (!fieldName) return '';
+          const el = form.querySelector('[name="' + fieldName + '"]');
+          return el ? el.value : '';
+        }
+        function showInlineSuccess(form) {
+          const wrapper = form.closest('.w-form') || form.parentElement;
+          if (!wrapper) return;
+          form.style.display = 'none';
+          const done = wrapper.querySelector('.w-form-done');
+          const fail = wrapper.querySelector('.w-form-fail');
+          if (done) done.style.display = 'block';
+          if (fail) fail.style.display = 'none';
+        }
+        function wire(form, cfg) {
+          form.addEventListener(
+            'submit',
+            function (e) {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              const name = valueOf(form, cfg.nameField);
+              const email = valueOf(form, cfg.emailField);
+              const btn = form.querySelector('input[type="submit"], button[type="submit"]');
+              if (btn) {
+                btn.disabled = true;
+                if (btn.tagName === 'INPUT') {
+                  btn.value = btn.dataset.wait || 'Please wait...';
+                } else {
+                  btn.textContent = 'Submitting...';
+                }
+              }
+              const fd = new FormData();
+              fd.append('utf8', '✓');
+              fd.append('form_submission[name]', name);
+              fd.append('form_submission[email]', email);
+              if (cfg.extraFields) {
+                Object.keys(cfg.extraFields).forEach(function (key) {
+                  fd.append('form_submission[' + key + ']', valueOf(form, cfg.extraFields[key]));
+                });
+              }
+              if (cfg.redirect) {
+                fd.append('form_submission[redirect_url]', 'https://www.billfanter.com' + cfg.redirect);
+              }
+              const finish = function () {
+                if (cfg.redirect) {
+                  window.location.href = cfg.redirect;
+                } else if (cfg.inlineSuccess) {
+                  showInlineSuccess(form);
+                }
+              };
+              fetch('https://members.billfanter.com/forms/' + cfg.kajabiFormId + '/form_submissions', {
+                method: 'POST',
+                body: fd,
+                mode: 'no-cors',
+              })
+                .then(finish)
+                .catch(finish);
+            },
+            true
+          );
+        }
+        function init() {
+          Object.keys(FORMS).forEach(function (id) {
+            document.querySelectorAll('#' + id).forEach(function (form) {
+              wire(form, FORMS[id]);
+            });
+          });
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', init);
+        } else {
+          init();
+        }
+      })();
+    </script>
+    <script>
+      /* React island mounts. The .jsx component modules carry @vitejs/plugin-react's
+         preamble check, so they're imported LAZILY (below) only once the preamble
+         injected by <ReactReady client:only> is installed — otherwise they raced
+         it on navigation/refresh and threw "can't detect preamble", leaving the
+         DotGrid / Grainient islands unmounted. React/ReactDOM are deps → static. */
+      import * as React from 'react';
+      import { createRoot } from 'react-dom/client';
+
+      let Grainient, DotGrid;
+
+      const waitForDimensions = (el) =>
+        new Promise((resolve) => {
+          const check = () => {
+            const r = el.getBoundingClientRect();
+            if (r.width > 0 && r.height > 0) resolve();
+            else requestAnimationFrame(check);
+          };
+          check();
+        });
+
+      // Mount ONE grainient (a WebGL canvas: context + shader compile). Heavy,
+      // so it's deferred until the host is near the viewport (see lazyMount).
+      const mountGrainientEl = async (el) => {
+        if (el.dataset.gMounted === '1') return;
+        // Skip hidden mounts (mobile-disabled via display:none).
+        const r0 = el.getBoundingClientRect();
+        if (r0.width === 0 || r0.height === 0) return;
+        el.dataset.gMounted = '1';
+        await waitForDimensions(el);
+        const props = {
+          color1: el.dataset.color1 || '#FF8308',
+          color2: el.dataset.color2 || '#EF4444',
+          color3: el.dataset.color3 || '#6B3BD5',
+          timeSpeed: 0.65,
+          warpStrength: 2.4,
+          warpFrequency: 1.1,
+          warpAmplitude: 130,
+          blendSoftness: 0.38,
+          noiseScale: 1.6,
+          grainAmount: 0.12,
+          contrast: 1.28,
+          saturation: 1.18,
+          zoom: 0.75,
+        };
+        try {
+          createRoot(el).render(React.createElement(Grainient, props));
+        } catch (e) { console.error('[bf-grainient] render error', e); }
+      };
+
+      const mountDotGridEl = async (el) => {
+        if (!DotGrid) return; // skipped on phones; static CSS dots show instead
+        if (el.dataset.dgMounted === '1') return;
+        el.dataset.dgMounted = '1';
+        await waitForDimensions(el);
+        const num = (k, d) => {
+          const v = el.dataset[k];
+          return v != null && v !== '' ? Number(v) : d;
+        };
+        const str = (k, d) => el.dataset[k] || d;
+        const props = {
+          dotSize: num('dotSize', 4),
+          gap: num('gap', 18),
+          baseColor: str('baseColor', '#2a3441'),
+          activeColor: str('activeColor', '#75B5FF'),
+          proximity: num('proximity', 140),
+          shockRadius: num('shockRadius', 220),
+          shockStrength: num('shockStrength', 5),
+          resistance: num('resistance', 750),
+          returnDuration: num('returnDuration', 1.5),
+        };
+        try {
+          createRoot(el).render(React.createElement(DotGrid, props));
+        } catch (e) { console.error('[bf-dotgrid] render error', e); }
+      };
+
+      // Lazy-mount: only spin up a WebGL canvas when its host scrolls within
+      // 300px of the viewport. Above-the-fold canvases mount right away (already
+      // intersecting); below-the-fold ones wait. Mounting every grainient on
+      // DOMContentLoaded was the main Total-Blocking-Time driver on long pages
+      // (each canvas = a synchronous context + shader compile). Falls back to
+      // eager mount where IntersectionObserver is unavailable.
+      const lazyMount = (selector, mountOne) => {
+        const targets = document.querySelectorAll(selector);
+        if (!targets.length) return;
+        if (!('IntersectionObserver' in window)) { targets.forEach(mountOne); return; }
+        const io = new IntersectionObserver((entries, obs) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) { obs.unobserve(e.target); mountOne(e.target); }
+          });
+        }, { rootMargin: '300px 0px' });
+        targets.forEach((el) => io.observe(el));
+      };
+
+      const mountAll = () => {
+        lazyMount('[data-grainient]', mountGrainientEl);
+        if (DotGrid) lazyMount('[data-dotgrid]', mountDotGridEl);
+      };
+
+      // The .jsx components carry @vitejs/plugin-react's preamble guard. In dev we
+      // install the Fast-Refresh preamble OURSELVES rather than polling for the
+      // flag that <ReactReady client:only> sets — that island hydration was
+      // deferred, so the old polling waited (up to ~3s) before mounting. Prod has
+      // no guard → this is a no-op (DEV is false → early return; the import is
+      // @vite-ignore'd so the build never tries to resolve it).
+      async function ensureReactPreamble() {
+        if (!import.meta.env.DEV) return;
+        if (window.__vite_plugin_react_preamble_installed__) return;
+        try {
+          const RefreshRuntime = (await import(/* @vite-ignore */ '/@react-refresh')).default;
+          RefreshRuntime.injectIntoGlobalHook(window);
+          window.$RefreshReg$ = () => {};
+          window.$RefreshSig$ = () => (type) => type;
+          window.__vite_plugin_react_preamble_installed__ = true;
+        } catch (e) { console.warn('[bf] react preamble self-install failed', e); }
+      }
+      (async () => {
+        await ensureReactPreamble();
+        // DotGrid (WebGL) is CPU-heavy and its cursor interaction is imperceptible
+        // on touch, so skip it on phones — static CSS dots ([data-dotgrid]
+        // background, below) show instead. Grainient still mounts everywhere.
+        const isPhone = window.matchMedia('(max-width: 767px)').matches;
+        const [grMod, dgMod] = await Promise.all([
+          import('../components/Grainient/Grainient.jsx'),
+          isPhone ? Promise.resolve(null) : import('../components/DotGrid/DotGrid.jsx'),
+        ]);
+        Grainient = grMod.default;
+        DotGrid = dgMod && dgMod.default;
+        // Mount as soon as the DOM is parsed — NOT on `load` (which waits for all
+        // images/fonts and delayed the islands by seconds on heavy pages).
+        if (document.readyState !== 'loading') mountAll();
+        else document.addEventListener('DOMContentLoaded', mountAll);
+      })();
+    </script>
+    <script is:inline>
+      /* Subtle parallax for spotlight backgrounds. Sets --bf-parallax-y on
+         each .bf-spotlight__bg based on the card's distance from viewport
+         center. Guarded by requestAnimationFrame so scroll stays smooth. */
+      (function () {
+        var bgs = document.querySelectorAll('.bf-spotlight__bg');
+        if (!bgs.length) return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        var ticking = false;
+        function update() {
+          var vh = window.innerHeight || document.documentElement.clientHeight;
+          bgs.forEach(function (bg) {
+            var card = bg.parentElement;
+            if (!card) return;
+            var r = card.getBoundingClientRect();
+            if (r.bottom < 0 || r.top > vh) return;
+            // -1 → above viewport, 0 → centered, +1 → below viewport
+            var progress = ((r.top + r.height / 2) - vh / 2) / vh;
+            var y = -progress * 36; // px range; subtle
+            bg.style.setProperty('--bf-parallax-y', y.toFixed(1) + 'px');
+          });
+          ticking = false;
+        }
+        function onScroll() {
+          if (!ticking) {
+            ticking = true;
+            requestAnimationFrame(update);
+          }
+        }
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onScroll);
+        update();
+      })();
+    </script>
+    <script is:inline>
+      /* bf-vreel — lazy-promote <video data-lazy-video> sources + open Vimeo modal on click.
+         Ported from WRKS-site /offer/law-firms.astro. */
+      (function () {
+        var lazyVideos = document.querySelectorAll('video[data-lazy-video]');
+        function promote(v) {
+          v.querySelectorAll('source[data-src]').forEach(function (s) {
+            s.src = s.getAttribute('data-src');
+            s.removeAttribute('data-src');
+          });
+          v.load();
+          var p = v.play();
+          if (p && p.catch) p.catch(function(){});
+        }
+        if (lazyVideos.length) {
+          if ('IntersectionObserver' in window) {
+            var lvIO = new IntersectionObserver(function (entries) {
+              entries.forEach(function (e) {
+                if (e.isIntersecting) { promote(e.target); lvIO.unobserve(e.target); }
+              });
+            }, { rootMargin: '200px 0px' });
+            lazyVideos.forEach(function (v) { lvIO.observe(v); });
+          } else {
+            lazyVideos.forEach(promote);
+          }
+        }
+        /* Lazy-load decorative background <iframe> reels (Vimeo) only when near
+           the viewport, so the player JS + third-party cookies stay off the
+           initial load. The reels autoplay as soon as the user scrolls near. */
+        var lazyFrames = document.querySelectorAll('iframe[data-bf-lazysrc]');
+        function promoteFrame(f) {
+          var s = f.getAttribute('data-bf-lazysrc');
+          if (s) { f.src = s; f.removeAttribute('data-bf-lazysrc'); }
+        }
+        if (lazyFrames.length) {
+          if ('IntersectionObserver' in window) {
+            var ifIO = new IntersectionObserver(function (entries) {
+              entries.forEach(function (e) {
+                if (e.isIntersecting) { promoteFrame(e.target); ifIO.unobserve(e.target); }
+              });
+            }, { rootMargin: '300px 0px' });
+            lazyFrames.forEach(function (f) { ifIO.observe(f); });
+          } else {
+            lazyFrames.forEach(promoteFrame);
+          }
+        }
+        var modal = document.getElementById('bf-vreel-modal');
+        var modalIframe = document.getElementById('bf-vreel-modal-iframe');
+        var modalClose = document.getElementById('bf-vreel-modal-close');
+        function buildVimeoURL(id) {
+          var params = [
+            'autoplay=1','muted=1','controls=1','playsinline=1','dnt=1',
+            'badge=0','byline=0','title=0','speed=0',
+            'airplay=0','chromecast=0','pip=0',
+            'vimeo_logo=0','share=0','like=0','watchlater=0'
+          ].join('&');
+          /* cache-bust on every open so the iframe reloads from scratch and
+             autoplay restarts from 00:00 even on a repeat click. */
+          return 'https://player.vimeo.com/video/' + id + '?' + params + '#t=0&_=' + Date.now();
+        }
+        function buildYouTubeURL(id) {
+          return 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&modestbranding=1&playsinline=1';
+        }
+        function open(src, wide) {
+          if (!modal || !modalIframe || !src) return;
+          /* Widescreen (16:9) videos — roundtables + testimonials — vs the default
+             vertical 9:16 reel shape. */
+          modal.classList.toggle('bf-vreel-modal--wide', !!wide);
+          /* clear → next frame → assign. browsers need a tick to actually
+             release the previous player before we point at the same video. */
+          modalIframe.src = 'about:blank';
+          requestAnimationFrame(function () {
+            modalIframe.src = src;
+          });
+          modal.classList.add('is-open');
+          modal.setAttribute('aria-hidden', 'false');
+        }
+        function close() {
+          if (!modal || !modalIframe) return;
+          modalIframe.src = 'about:blank';
+          modal.classList.remove('is-open');
+          modal.setAttribute('aria-hidden', 'true');
+        }
+        /* Any element carrying data-bf-vimeo / data-bf-youtube opens the lightbox
+           (the .bf-vreel tiles, the reviews-page roundtable + testimonial cards). */
+        document.querySelectorAll('[data-bf-vimeo], [data-bf-youtube]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var vimeo = btn.getAttribute('data-bf-vimeo');
+            var yt = btn.getAttribute('data-bf-youtube');
+            var wide = btn.hasAttribute('data-bf-wide');
+            if (vimeo) open(buildVimeoURL(vimeo), wide);
+            else if (yt) open(buildYouTubeURL(yt), wide);
+          });
+        });
+        if (modalClose) modalClose.addEventListener('click', close);
+        if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+      })();
+    </script>
+  </body>
+</html>

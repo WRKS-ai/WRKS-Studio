@@ -1,0 +1,43 @@
+---
+// YouTube CTA — black card (app-store-CTA inspired). The grainient is now a
+// contained gradient card BEHIND the autoplaying reel (not a full-bleed bg),
+// with the vertical reel floating over it like a device on a gradient panel.
+// Tighter than the old full-bleed gradient version.
+---
+<section class="bf-section">
+  <div class="bf-container">
+    <div class="bf-darkcta bf-darkcta--black">
+      <div class="bf-darkcta__grid">
+        <div>
+          <h2 class="bf-darkcta__h2">Get options trading insights on my YouTube channel</h2>
+          <p class="bf-darkcta__lead">Watch free breakdowns of real trades, market setups, and options trading strategies. Subscribe to learn something new each week.</p>
+          <div class="bf-darkcta__buttons">
+            <a class="bf-darkcta__btn" href="https://www.youtube.com/@BillFanter" target="_blank" rel="noopener">
+              <span class="bf-darkcta__btn-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></span>
+              Watch on YouTube
+            </a>
+          </div>
+        </div>
+        <div class="bf-darkcta__media" aria-hidden="true">
+          <div class="bf-darkcta__grain-card">
+            <div class="bf-grainient-mount" data-grainient="youtube" data-color1="#FF8308" data-color2="#EF4444" data-color3="#6B3BD5"></div>
+            <div class="bf-darkcta__reel">
+              <img
+                src="/assets/664a5b263659c7265be280ad/bf-youtube-channel.webp"
+                alt="Bill Fanter's YouTube channel"
+                loading="lazy"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* Larger gradient box + larger YouTube screenshot (scoped to this CTA only) so
+     the channel preview reads bigger and crisper. */
+  .bf-darkcta--black .bf-darkcta__media { max-width: 440px; }
+  .bf-darkcta--black .bf-darkcta__reel { top: 12%; height: 92%; max-width: 62%; }
+</style>
