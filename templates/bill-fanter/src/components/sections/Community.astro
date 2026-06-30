@@ -1,26 +1,18 @@
 ---
 // Trading community — Discord screenshot beside an animated benefits list.
-// The React Bits AnimatedList island re-renders the .bf-benefit rows in place
-// (read from the static markup, so HTML stays the source of truth and the list
-// still renders if JS is off / pre-hydration).
-const benefits = [
-  { num: '01', title: 'Get instant Discord access', body: 'Join active options traders who share trades, answer questions, and help you start fast.' },
-  { num: '02', title: 'See live trade alerts', body: 'Get buy and sell signals from working market analysts as setups form.' },
-  { num: '03', title: 'Get daily market analysis', body: 'See Bill break down the market each day so you know what to watch and why.' },
-  { num: '04', title: 'Trade in a focused community', body: 'Share setups, wins, and lessons with traders working the same strategies.' },
-  { num: '05', title: 'Reach Bill directly', body: 'Ask questions and get answers straight from Bill.' },
-];
-// Density srcset: serve a 720px variant to DPR-1 screens, full-res to retina.
-const ssSrc = '/assets/664a5b263659c7265be280ad/68540f8f0903fae1504f6a44_SS.webp';
+// WRKS template: defaults read from content.community. Pages that reuse
+// this block can still override via Astro.props (e.g. masterclass page
+// uses a different CTA label).
+import { content } from '../../data/content.sample';
+const community = content.community;
+const benefits = community.benefits;
+const ssSrc = community.screenshot.src;
 const ssSrcset = `${ssSrc.replace(/\.webp$/, '-720.webp')} 1x, ${ssSrc} 2x`;
-// CTA target + label default to the community join; pages that reuse this block
-// can point it elsewhere (e.g. the masterclass page routes its CTA to #pricing
-// with a "Reserve Your Seat" label, since the community is part of that offer).
 const {
-  ctaHref = '/community',
-  ctaLabel = 'Join the community',
-  heading = 'Join my options trading community',
-  lead = 'Trade alongside active options traders who share setups, alerts, and feedback in real time.',
+  ctaHref = community.cta.href,
+  ctaLabel = community.cta.label,
+  heading = community.heading,
+  lead = community.lead,
 } = Astro.props;
 ---
 <section class="bf-section" id="community-2026">
@@ -31,7 +23,7 @@ const {
     </div>
     <div class="bf-community-grid">
       <div class="bf-community__media">
-        <img src={ssSrc} srcset={ssSrcset} alt="Bill Fanter's Discord community" />
+        <img src={ssSrc} srcset={ssSrcset} alt={community.screenshot.alt} />
       </div>
       <div class="bf-community__benefits">
         <div data-benefits-list style="display:contents">

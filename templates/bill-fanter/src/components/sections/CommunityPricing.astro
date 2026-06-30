@@ -1,42 +1,17 @@
 ---
-// Community membership pricing — restored from the production /community page
-// (the /2026 blueprint dropped it). Two plans, each linking straight to its live
-// Whop checkout. Prices + checkout URLs are ported verbatim from production.
-// "What you get as a member" benefits folded in here (that standalone section was
-// redundant), so the pricing cards carry the full membership feature list.
-const plans = [
-  {
-    name: 'Monthly', price: '$150', period: '/month', featured: false, badge: null,
-    url: 'https://whop.com/checkout/iRQgha92Uek2tWWhX-LAQH-OC2f-p8gz-VdmsucJo7FSM/',
-    desc: 'Full community access, billed monthly. Cancel anytime.',
-    features: [
-      'Real-time trade alerts from Bill and the analyst team',
-      "Live buy and sell signals with Bill's notes",
-      'Instant Discord access to 1,000+ members',
-      'Daily market analysis and watchlist',
-      'Risk rules and position sizing guidance',
-      'Direct access to Bill in the community',
-    ],
-  },
-  {
-    name: 'Yearly', price: '$1,500', period: '/year', featured: true, badge: 'Best value',
-    url: 'https://whop.com/checkout/Vh9cSagj8l5fRZFgR-eKu5-10rf-wqwM-pT6GfoEaA0Zh/',
-    desc: 'Everything in Monthly, billed yearly, with two months free. Cancel anytime.',
-    features: [
-      'Everything in the Monthly plan',
-      'Two months free vs paying monthly',
-      'Members-only sessions and events',
-    ],
-  },
-];
+// Community membership pricing. WRKS template: reads from
+// content.communityPricing.
+import { content } from '../../data/content.sample';
+const pricing = content.communityPricing;
+const plans = pricing.plans;
 ---
 <section class="bf-section comm-pricing-band" id="pricing">
   <div class="comm-pricing-dots" data-dotgrid data-dot-size="2" data-gap="10" data-base-color="#454545" data-active-color="#75B5FF" data-proximity="140" data-return-duration="0.6"></div>
   <div class="bf-container">
     <div class="bf-pricing__intro">
-      <span class="bf-eyebrow">Membership</span>
-      <h2 class="bf-h2">Join the community</h2>
-      <p class="bf-lead">Pick a plan and you are in. Download Discord, connect your accounts, and start trading with the community.</p>
+      <span class="bf-eyebrow">{pricing.eyebrow}</span>
+      <h2 class="bf-h2">{pricing.heading}</h2>
+      <p class="bf-lead">{pricing.lead}</p>
     </div>
     <div class="bf-blueprint-grid">
       {plans.map((p) => (

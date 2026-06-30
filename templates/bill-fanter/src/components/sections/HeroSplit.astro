@@ -1,23 +1,18 @@
 ---
-// "Welcome to Bill Fanter" split — media on the LEFT (autoplay video reel +
-// grainient testimonial tile / portrait), copy on the RIGHT. Clean Astro;
-// grainient fill is mounted by the [data-grainient] island script, and the
-// .bf-vreel click-to-expand is wired by BaseLayout's global Vimeo handler.
+// "Welcome to Bill Fanter" split — media LEFT, copy RIGHT. WRKS template:
+// defaults read from content.heroSplit. Pages can override via Astro.props
+// (masterclass page passes its own copy).
+import { content } from '../../data/content.sample';
+const hs = content.heroSplit;
 const star = '<path d="M12 2l3 7 7 .8-5 5 1.5 7-6.5-3.5L5 22l1.5-7-5-5L8.5 9z"/>';
-// Density srcset: this photo tile renders small here, so serve a 720px variant
-// to DPR-1 screens and the full-res original only to retina (the original file
-// stays the hero on other pages, untouched).
 const dsrc = (p) => `${p.replace(/\.webp$/, '-720.webp')} 1x, ${p} 2x`;
-const photoSrc = '/assets/664a5b263659c7265be280ad/664a67e595a23dde11b862af_home%20images-5.webp';
-// Copy is configurable so the same media bento can be reused with different copy
-// (e.g. the masterclass page). Defaults reproduce the homepage version. Pass
-// eyebrow={null} to drop the eyebrow.
+const photoSrc = hs.photo.src;
 const {
-  eyebrow = 'Welcome to Bill Fanter',
-  heading = 'Learn proven options trading strategies that work in any market',
-  lead = 'Go past random tips and learn a repeatable options trading system. Bill shows you how to read setups, manage risk, and trade with a plan you can run on your own.',
-  ctaLabel = 'Join the masterclass',
-  ctaHref = '/masterclass',
+  eyebrow = hs.eyebrow,
+  heading = hs.heading,
+  lead = hs.lead,
+  ctaLabel = hs.cta.label,
+  ctaHref = hs.cta.href,
 } = Astro.props;
 ---
 <section class="bf-section bf-hero-split-wrap">
@@ -32,21 +27,21 @@ const {
             <a class="bf-btn bf-btn--primary" href={ctaHref}>{ctaLabel}</a>
           </div>
           <div class="bf-hero__trust">
-            <span class="bf-hero__trust-source">Recommended by</span>
+            <span class="bf-hero__trust-source">{hs.trust.label}</span>
             <span class="bf-hero__trust-stars">
-              {Array.from({ length: 5 }).map(() => (
+              {Array.from({ length: hs.trust.rating }).map(() => (
                 <svg class="bf-star" viewBox="0 0 24 24" set:html={star} />
               ))}
             </span>
-            <span>1,600+ Students</span>
+            <span>{hs.trust.count}</span>
           </div>
         </div>
 
         <div class="bf-hero-split__bento">
           <div class="bf-hero-split__video">
-            <button type="button" class="bf-vreel" data-bf-vimeo="1202056894" aria-label="Watch Bill's intro short">
+            <button type="button" class="bf-vreel" data-bf-vimeo={hs.videoVimeoId} aria-label="Watch Bill's intro short">
               <span class="bf-vreel__frame">
-                <iframe class="bf-vreel__video" data-bf-lazysrc="https://player.vimeo.com/video/1202056894?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1" allow="autoplay; fullscreen" loading="lazy" title="Bill Fanter intro video"></iframe>
+                <iframe class="bf-vreel__video" data-bf-lazysrc={`https://player.vimeo.com/video/${hs.videoVimeoId}?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1`} allow="autoplay; fullscreen" loading="lazy" title="Intro video"></iframe>
                 <span class="bf-vreel__overlay"></span>
                 <span class="bf-vreel__play" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><polygon points="8 5 19 12 8 19 8 5" fill="currentColor"/></svg>
@@ -57,18 +52,18 @@ const {
           <div class="bf-hero-split__tile bf-hero-split__tile--quote-on-gradient">
             <div class="bf-grainient-mount" data-grainient="split-hero" data-color1="#FF8308" data-color2="#EF4444" data-color3="#6B3BD5"></div>
             <div class="bf-hero-split__tile-content">
-              <p class="bf-hero-split__tile-quote">&ldquo;Bill's Masterclass was incredibly informative and fun. He makes every lesson accessible to complete beginners. Well worth it.&rdquo;</p>
+              <p class="bf-hero-split__tile-quote">&ldquo;{hs.quote.text}&rdquo;</p>
               <div class="bf-hero-split__tile-footer">
                 <div class="bf-hero-split__tile-author">
-                  <div class="bf-hero-split__tile-author-name">Rob Stalkie</div>
-                  <div class="bf-hero-split__tile-author-title">Account Manager</div>
+                  <div class="bf-hero-split__tile-author-name">{hs.quote.name}</div>
+                  <div class="bf-hero-split__tile-author-title">{hs.quote.title}</div>
                 </div>
-                <a class="bf-hero-split__tile-link" href="/student-comments">Read more reviews <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+                <a class="bf-hero-split__tile-link" href={hs.quoteLink.href}>{hs.quoteLink.label} <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
               </div>
             </div>
           </div>
           <div class="bf-hero-split__tile bf-hero-split__tile--photo">
-            <img src={photoSrc} srcset={dsrc(photoSrc)} alt="Bill Fanter at his trading desk" />
+            <img src={photoSrc} srcset={dsrc(photoSrc)} alt={hs.photo.alt} />
           </div>
         </div>
       </div>

@@ -1,25 +1,25 @@
 ---
-// About Bill — "Meet your mentor" section. Clean Astro, no Webflow classes.
-// Styling comes from bf-design-system.css (bf-about-*, loaded globally).
+// About Bill — "Meet your mentor" section. WRKS template: reads copy
+// from content.aboutBill (see ../../data/content.schema.ts).
 import Signature from '../Signature.astro';
+import { content } from '../../data/content.sample';
+const about = content.aboutBill;
 ---
 <section class="bf-section">
   <div class="bf-container">
     <div class="bf-about-grid">
       <div class="bf-about__media">
-        <img src="/assets/664a5b263659c7265be280ad/664c28db6c354e4acb60d5b7_masterclass%20image-13.webp" alt="Bill Fanter" />
+        <img src={about.photo.src} alt={about.photo.alt} />
         <Signature class="bf-about__sig" />
       </div>
       <div class="bf-about__copy">
-        <span class="bf-eyebrow">Meet your mentor</span>
-        <h2 class="bf-h2">Hi, I'm Bill Fanter. I'm excited to get to know you.</h2>
-        <p style="margin-top:28px">Over a 35-year career, I became one of the most sought-after executive-level bankers in the industry. I spearheaded the management of some of the largest multi-billion-dollar banks in America, and also taught at the CBA Executive Banking School.</p>
-        <p>I've spent thousands of hours and thousands of dollars learning the art of trading and testing the best tools for the job. After building my own trading income from scratch, I decided to combine my expertise with my passion and experience in teaching and leadership to help others learn this skill.</p>
-        <p>I will teach you the exact same strategies that helped me build my wealth from the ground up.</p>
-        <p>And the best part of all?</p>
-        <p>I'll make it easy on you. As I like to say&hellip; This ain't rocket science!</p>
+        <span class="bf-eyebrow">{about.eyebrow}</span>
+        <h2 class="bf-h2">{about.heading}</h2>
+        {about.paragraphs.map((p, i) => (
+          <p style={i === 0 ? 'margin-top:28px' : undefined} set:html={p}></p>
+        ))}
         <div class="bf-about__actions">
-          <a class="bf-btn bf-btn--primary" href="/contact">Book a call</a>
+          <a class="bf-btn bf-btn--primary" href={about.cta.href}>{about.cta.label}</a>
         </div>
       </div>
     </div>

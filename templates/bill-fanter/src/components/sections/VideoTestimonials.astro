@@ -1,22 +1,15 @@
 ---
-// Reusable video-testimonials section — click-to-play Vimeo reels (landscape).
-// Used across homepage / masterclass / community / student-comments so the
-// testimonial videos stay consistent everywhere. Poster comes from vumbnail
-// (Vimeo thumbnail service) with a brand-gradient fallback if it can't load;
-// clicking swaps in an autoplaying, fullscreen-capable Vimeo iframe.
-const videos = [
-  { id: '1173480173' },
-  { id: '1173480185' },
-  { id: '1173480159' },
-  { id: '1173480212' },
-  { id: '1173480196' },
-];
+// Reusable video-testimonials section. WRKS template: reads from
+// content.videoTestimonials.
+import { content } from '../../data/content.sample';
+const vt = content.videoTestimonials;
+const videos = vt.videoVimeoIds.map((id) => ({ id }));
 ---
 <section class="bf-section bf-vidtest">
   <div class="bf-container">
     <div class="bf-section-header is-center">
-      <h2 class="bf-h2">Hear it straight from students</h2>
-      <p class="bf-lead">Real students on what the masterclass and community changed for their trading.</p>
+      <h2 class="bf-h2">{vt.heading}</h2>
+      <p class="bf-lead">{vt.lead}</p>
     </div>
     <div class="bf-vidtest-slider" data-vidtest-slider>
       <button class="bf-vidtest-nav bf-vidtest-nav--prev" type="button" aria-label="Previous" data-vidtest-prev>

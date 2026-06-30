@@ -1,23 +1,20 @@
 ---
-// Webinar spotlight — full-bleed card with a React Bits GridDistortion abstract
-// behind the copy (mounted by the Islands script on [data-griddistortion]).
-// The design system already rails .bf-spotlight__content--simple to the
-// container, so the copy lines up with the other sections automatically.
-//
-// CTA is configurable so the same spotlight can be reused with a different call
-// to action (e.g. the masterclass page swaps "Watch webinar" for "Join the
-// masterclass"). Defaults reproduce the homepage webinar CTA.
+// Webinar spotlight — full-bleed card with GridDistortion bg. WRKS template:
+// defaults read from content.spotlight. Pages can override via props
+// (e.g. masterclass page uses "Join the masterclass" CTA).
+import { content } from '../../data/content.sample';
+const sp = content.spotlight;
 const {
-  heading = 'Learn options trading in my free demo webinar',
-  lead = 'Whether you are new to options or sharpening your skills, this free webinar shows how the options market works and how to place your first trade with a plan.',
-  ctaLabel = 'Watch webinar',
-  ctaHref = '/webinar',
-  ctaIcon = true,
+  heading = sp.heading,
+  lead = sp.lead,
+  ctaLabel = sp.cta.label,
+  ctaHref = sp.cta.href,
+  ctaIcon = sp.ctaIcon,
 } = Astro.props;
 ---
 <section class="bf-spotlight">
   <div class="bf-spotlight__card bf-spotlight__card--simple">
-    <div data-griddistortion data-image="/assets/sandbox/webinar-distortion.webp?v=2" class="bf-spotlight__distortion"></div>
+    <div data-griddistortion data-image={sp.distortionImage} class="bf-spotlight__distortion"></div>
     <div class="bf-spotlight__overlay"></div>
     <div class="bf-spotlight__content bf-spotlight__content--simple">
       <h2 class="bf-spotlight__h2">{heading}</h2>

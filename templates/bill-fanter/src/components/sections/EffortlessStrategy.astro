@@ -1,35 +1,26 @@
 ---
-// "Effortless trading. Real strategy." — split section rebuilt CLEAN against the
-// 2026 bf-* design system (homepage quality). Copy is ported VERBATIM from the
-// legacy /2026 page (src/pages/2026/_body.html): headline, subhead, the Rob
-// Stalkie review card, and the 3 feature columns below.
-//
-// Self-contained: all styling lives in the scoped <style> below; only the
-// shared .bf-container / .bf-btn--primary classes come from the design system.
-const A = '/assets/664a5b263659c7265be280ad/';
+// "Effortless trading. Real strategy." — split section. WRKS template:
+// defaults read from content.effortlessStrategy. Pages can still pass
+// Astro.props to override (e.g. /free-watchlist "Why join the weekly
+// watchlist?" with different copy).
+import { content } from '../../data/content.sample';
+const es = content.effortlessStrategy;
 const star = '<path d="M12 2l3 7 7 .8-5 5 1.5 7-6.5-3.5L5 22l1.5-7-5-5L8.5 9z"/>';
-
-// Defaults reproduce the masterclass content; pass props to reuse this exact
-// layout elsewhere (e.g. /free-watchlist "Why join the weekly watchlist?").
 const {
-  heading = 'Effortless trading.<br />Real strategy.',
-  lead = "Bill's unified system transforms scattered market noise into a clear, repeatable strategy. No prior trading experience required.",
-  ctaHref = '/contact',
-  ctaLabel = 'Book a call',
+  heading = es.heading,
+  lead = es.lead,
+  ctaHref = es.cta.href,
+  ctaLabel = es.cta.label,
   ctaTarget,
-  image = `${A}664c28d76c354e4acb60d3d4_masterclass%20image.webp`,
-  imageAlt = 'Bill Fanter working at his laptop',
+  image = es.image.src,
+  imageAlt = es.image.alt,
   review = {
-    quote: "Bill's Masterclass was incredibly informative and fun. He weaves in and out of topics from trading psychology to charting and makes every lesson accessible to complete beginners. Well worth it!",
-    name: 'Rob Stalkie',
-    title: 'Account Manager',
-    avatar: `${A}679c51ea7d9046f26ec04264_rob-stalkie.webp`,
+    quote: es.review.quote,
+    name: es.review.name,
+    title: es.review.title,
+    avatar: es.review.img,
   },
-  features = [
-    { lead: 'Automate the boring stuff', rest: ' with proven setups and alert systems so you spend less time hunting and more time executing.' },
-    { lead: 'Trade with conviction', rest: ' alongside a community of serious traders and real-time signals from 5 professional analysts.' },
-    { lead: 'Build long-term wealth', rest: ' with risk-managed strategies designed for sustained results, not lottery-ticket bets.' },
-  ],
+  features = es.features,
 } = Astro.props;
 ---
 <section class="es-section">

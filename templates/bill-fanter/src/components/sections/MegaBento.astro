@@ -1,101 +1,17 @@
 ---
-// "Everything you need" — a Stripe-inspired mega bento. A grid of varying-size
-// tiles that surface the site's major destinations as large, clickable cards.
-// Each tile is a single <a> with a title, one-line description, an up-right
-// arrow, and a visual (real photo/screenshot with a dark scrim, or a tasteful
-// gradient + stroked SVG icon). Self-contained: all styles scoped below.
-const ASSET = '/assets/664a5b263659c7265be280ad';
-// These tile visuals are decorative (aria-hidden, behind a scrim/grain) and never
-// render larger than ~600px here, yet the shared source files are ~1.4k wide for
-// their hero use on other pages. Serve a 720px variant to DPR-1 screens and the
-// full-res original only to retina screens (density descriptors) — banks the
-// image bytes without softening the heroes (separate <img> tags) elsewhere.
-const v720 = (p) => p.replace(/\.webp$/, '-720.webp');
-const dsrc = (p) => `${v720(p)} 1x, ${p} 2x`;
-
-// Tiles, in 3 rows on a 6-col grid (`span` = column width class):
-//   Row 1  Masterclass (w4) + Community (w2)
-//   Row 2  Watchlist (w2) + Webinar (w2) + YouTube (w2)
-//   Row 3  Reviews (w6, full width)  — Blog added later once it has content.
-// `image` tiles cover with a dark scrim; `gradient` tiles use a grainient bg
-// (+ optional inline icon / floated pick image).
-const tiles = [
-  {
-    kind: 'image',
-    featured: true,
-    span: 'w4',
-    href: '/masterclass',
-    title: 'The options masterclass',
-    desc: 'Go from beginner to confident options trader in 6 live sessions.',
-    img: `${ASSET}/664a67e526974fa9873cf4b0_home%20images-6.webp`,
-    aria: 'Explore the Masterclass: go from beginner to confident options trader in 6 live sessions',
-  },
-  {
-    kind: 'gradient',
-    span: 'w2',
-    grad: 'linear-gradient(135deg, #FF8308 0%, #EF4444 52%, #6B3BD5 100%)',
-    g1: '#FF8308', g2: '#EF4444', g3: '#6B3BD5',
-    device: `${ASSET}/68554a4edca41e9e9ce967e7_Build-Your-Skill-and-Confidence-(1).webp`,
-    href: '/community',
-    title: 'The trading community',
-    desc: 'Live Discord with real-time trade alerts & 1,000+ traders.',
-    aria: 'Join the Community: live Discord with real-time trade alerts and 1,000+ traders',
-  },
-  {
-    kind: 'gradient',
-    span: 'w2',
-    square: true,
-    grad: 'linear-gradient(135deg, #1754d8 0%, #3b82f6 55%, #0b1f5c 100%)',
-    g1: '#1754d8', g2: '#3b82f6', g3: '#0b1f5c',
-    pick: `${ASSET}/664c28d96e93d6cd1148821f_masterclass%20image-11.webp`,
-    href: '/free-watchlist',
-    title: 'Free stock watchlist',
-    desc: "A curated weekly list of stocks I'm watching, every Sunday.",
-    aria: "Get the free watchlist: a curated weekly list of stocks Bill is watching, delivered every Sunday",
-  },
-  {
-    kind: 'image',
-    span: 'w2',
-    href: '/webinar',
-    title: 'Free trading webinar',
-    desc: 'Free 60-min training on how I find, manage & close trades.',
-    img: `${ASSET}/664c28d7ea8baa25095372ee_masterclass%20image-1.webp`,
-    aria: 'Watch the free webinar: a 60-minute training on how Bill finds, manages, and closes trades',
-  },
-  {
-    kind: 'gradient',
-    span: 'w2',
-    tall: true,
-    grad: '#0a0a0a',
-    video: 'https://player.vimeo.com/video/1201304705?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1',
-    href: 'https://www.youtube.com/@BillFanter',
-    target: '_blank',
-    title: 'YouTube',
-    desc: 'Free trading insights & breakdowns on my channel.',
-    icon: '<path d="M2 8.5a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v7a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4z"/><path d="M10.5 9.2l4.5 2.8-4.5 2.8z"/>',
-    aria: "Watch trading insights on Bill Fanter's YouTube channel",
-  },
-  {
-    kind: 'reviews',
-    span: 'w4',
-    href: '/student-comments',
-    title: 'Student reviews',
-    testimonials: [
-      { quote: "Thank you Bill for your mentorship! I'm a huge advocate of your patient & disciplined approach to trading. Learning the correct way to identify & trade liquidity while managing risk is a valuable skill that can be lifechanging when executed properly!", name: 'John Gordy', title: 'Chief Financial Officer at DroneUp', img: `${ASSET}/678e77c8a0abd734e3415731_jogn-gordy.avif` },
-      { quote: "It was an absolute joy learning from Bill. The brightest people can take complex ideas and explain them with simplicity. Bill certainly exemplifies this. I'm very much looking forward to continuing to grow my knowledge alongside the great community Bill has created.", name: 'Riley H', title: 'Sales Specialist at AB Laboratories Inc.', img: `${ASSET}/678e7871274732ce809d928f_riley-h.avif` },
-      { quote: "I just completed Bill Fanter's Options Masterclass; it was a great introduction to trading options and an overall enjoyable experience. If you want to learn about the options market from someone who is a successful trader and passionate to share his skills, I highly recommend Bill's Masterclass.", name: 'Alex Pitcaithly', title: 'Dynamic People Leader', img: `${ASSET}/679c4c1c4e9c2e629f9dabd4_alex-pitcaithly.webp` },
-      { quote: "I can't say enough about Bill Fanter! This masterclass was a true eye-opener. As a former financial advisor in a previous life, I learned things in Bill's class that I never had before. And the education doesn't stop with the class; there is a community of like-minded traders, all ready and willing to help.", name: 'Dan Funderburk', title: 'Executive Recruiting at H-E-B', img: `${ASSET}/679c4f04407a54b6277c94f3_dan-funderburk.webp` },
-    ],
-    aria: 'Read student reviews: real results from 500+ students',
-  },
-];
-
+// "Everything you need" — Stripe-inspired mega bento. WRKS template:
+// reads heading + tiles from content.megaBento.
+import { content } from '../../data/content.sample';
+const mega = content.megaBento;
+const tiles = mega.tiles;
+const v720 = (p: string) => p.replace(/\.webp$/, '-720.webp');
+const dsrc = (p: string) => `${v720(p)} 1x, ${p} 2x`;
 const arrow = '<path d="M5 13L13 5M13 5H6M13 5V12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
 ---
 <section class="bf-section bf-mega">
   <div class="bf-container">
     <div class="bf-section-header bf-mega__header">
-      <h2 class="bf-h2">Everything you need to trade options with confidence</h2>
+      <h2 class="bf-h2">{mega.heading}</h2>
     </div>
 
     <div class="bf-mega__grid">

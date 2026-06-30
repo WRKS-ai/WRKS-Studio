@@ -1,35 +1,18 @@
 ---
-// "Your path to proficient trading" — three value-proposition cards carrying the
-// legacy financial-mastery copy (reconfigured from the old "How can we help?"
-// nav grid). Clean Astro, no Webflow classes.
-const cards = [
-  {
-    title: 'Earn beyond your paycheck',
-    body: 'Take control of your income and lean less on your 9 to 5.',
-    icon: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.4"/><path d="M6 12h.01M18 12h.01"/>',
-  },
-  {
-    title: 'Trade with independence',
-    body: 'Learn to read the options market and trade with a plan, not guesses.',
-    icon: '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
-  },
-  {
-    title: 'Build long-term wealth',
-    body: 'Use proven options trading strategies to grow and keep wealth over time.',
-    icon: '<path d="m3 20 6-11 4 6 2-3 6 8z"/><path d="M3 20h18"/>',
-  },
-];
+// Value-proposition icon grid. WRKS template: reads from content.helpGrid.
+import { content } from '../../data/content.sample';
+const help = content.helpGrid;
 ---
 <section class="bf-section">
   <div class="bf-container">
     <div class="bf-section-header is-center">
-      <h2 class="bf-h2">Trade options with confidence and grow your income</h2>
+      <h2 class="bf-h2">{help.heading}</h2>
     </div>
     <div class="bf-help-grid bf-help-grid--three">
-      {cards.map((c) => (
+      {help.cards.map((c) => (
         <div class="bf-help-card">
           <div class="bf-help-card__icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" set:html={c.icon} />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" set:html={c.iconPaths} />
           </div>
           <div class="bf-help-card__title">{c.title}</div>
           <p class="bf-body">{c.body}</p>
