@@ -11,19 +11,22 @@ import type { DesignSystem } from "./design-system";
 // v2 (2026-06-30, Ship 2): single-page generation. Multi-page baton
 // pattern lands in Ship 3 when we have real cross-page context.
 
+// All maxes are generous — Sonnet writes richer copy than expected
+// and we'd rather accept a long headline and let the artboard truncate
+// than fail generation. Real cap on total tokens comes from max_tokens.
 const HeroSection = z.object({
   kind: z.literal("hero"),
-  eyebrow: z.string().max(120).nullable().optional(),
-  headline: z.string().min(1).max(240),
-  subhead: z.string().min(1).max(400),
+  eyebrow: z.string().max(200).nullable().optional(),
+  headline: z.string().min(1).max(400),
+  subhead: z.string().min(1).max(800),
   primaryCta: z.object({
-    label: z.string().min(1).max(60),
-    href: z.string().min(1).max(200),
+    label: z.string().min(1).max(120),
+    href: z.string().min(1).max(400),
   }),
   secondaryCta: z
     .object({
-      label: z.string().min(1).max(60),
-      href: z.string().min(1).max(200),
+      label: z.string().min(1).max(120),
+      href: z.string().min(1).max(400),
     })
     .nullable()
     .optional(),
@@ -31,12 +34,12 @@ const HeroSection = z.object({
 
 const ValueGridSection = z.object({
   kind: z.literal("valueGrid"),
-  heading: z.string().min(1).max(240),
+  heading: z.string().min(1).max(400),
   cards: z
     .array(
       z.object({
-        title: z.string().min(1).max(120),
-        body: z.string().min(1).max(400),
+        title: z.string().min(1).max(200),
+        body: z.string().min(1).max(800),
       }),
     )
     .min(2)
@@ -45,13 +48,13 @@ const ValueGridSection = z.object({
 
 const AboutSection = z.object({
   kind: z.literal("about"),
-  eyebrow: z.string().max(120).nullable().optional(),
-  heading: z.string().min(1).max(240),
-  paragraphs: z.array(z.string().min(1).max(600)).min(1).max(4),
+  eyebrow: z.string().max(200).nullable().optional(),
+  heading: z.string().min(1).max(400),
+  paragraphs: z.array(z.string().min(1).max(1200)).min(1).max(4),
   cta: z
     .object({
-      label: z.string().min(1).max(60),
-      href: z.string().min(1).max(200),
+      label: z.string().min(1).max(120),
+      href: z.string().min(1).max(400),
     })
     .nullable()
     .optional(),
@@ -59,11 +62,11 @@ const AboutSection = z.object({
 
 const CtaSection = z.object({
   kind: z.literal("cta"),
-  heading: z.string().min(1).max(240),
-  subhead: z.string().min(1).max(400).nullable().optional(),
+  heading: z.string().min(1).max(400),
+  subhead: z.string().min(1).max(800).nullable().optional(),
   cta: z.object({
-    label: z.string().min(1).max(60),
-    href: z.string().min(1).max(200),
+    label: z.string().min(1).max(120),
+    href: z.string().min(1).max(400),
   }),
 });
 
@@ -79,7 +82,8 @@ export const PageContentSchema = z.object({
   title: z.string().min(1).max(120),
   sections: z.array(PageSection).min(2).max(6),
   // Voice used by the agent when narrating this page in the left panel.
-  narration: z.string().min(1).max(600),
+  // Kept generous — Sonnet writes richer rationales than Haiku.
+  narration: z.string().min(1).max(1600),
 });
 
 export type PageContent = z.infer<typeof PageContentSchema>;
