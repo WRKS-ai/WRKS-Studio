@@ -622,12 +622,17 @@ function StudioInspectorInner({
   // Siri orb (StudioFloatingAgent below), active page-card glow, and
   // the publish-sweep animation. The inspector chrome stays neutral.
 
-  // /studio is the welcome canvas — a voice-first surface that owns its
-  // own hero orb. On that route we hide the right aside AND skip the
-  // floating-agent orb so the welcome stays clean. Other studio routes
-  // (library, settings, plans, …) keep the editor chrome.
+  // Routes that own their own chrome and hide the right inspector:
+  //   - /studio            welcome canvas (voice-first, hero orb)
+  //   - /studio/sites/*    Sites pillar workspace (composer + generation
+  //                        theater + builder canvas each have their own
+  //                        agent surface, so the shared inspector is
+  //                        redundant + visually competes with them).
+  // Other routes (library, settings, plans, …) keep the editor chrome.
   const pathname = usePathname();
   const isWelcome = pathname === "/studio";
+  const isSitesWorkspace = pathname?.startsWith("/studio/sites") ?? false;
+  const hideInspector = isWelcome || isSitesWorkspace;
 
   return (
     <StudioContextProvider
@@ -658,9 +663,9 @@ function StudioInspectorInner({
           </div>
 
           {/* Right inspector — present on the editor routes. Hidden on
-              the welcome canvas, which is voice-first and owns its own
-              hero orb in the center. */}
-          {!isWelcome && (
+              the welcome canvas + Sites workspace, which own their own
+              agent surfaces. */}
+          {!hideInspector && (
             <aside
               className="shrink-0 h-full flex flex-col"
               style={{
