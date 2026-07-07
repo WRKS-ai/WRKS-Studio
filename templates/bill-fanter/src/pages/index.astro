@@ -1,7 +1,9 @@
 ---
-// Homepage — componentized 2026 redesign, assembled from clean Astro section
-// components (no Webflow markup). Replaced the classic-modernized hybrid.
-// The /2026 preview and /classic rollback remain available for reference.
+// Homepage — componentized 2026 redesign. WRKS template: which sections
+// render is driven by siteConfig (agent-curated per user). Bento fade
+// wrapper stays because it's a visual continuity requirement between the
+// MegaBento and Watchlist sections — it's only inserted when BOTH are
+// selected; if only one is, that section renders solo without the fade.
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ReactReady from '../components/ReactReady.jsx';
 import Islands from '../components/Islands.astro';
@@ -14,9 +16,17 @@ import HelpGrid from '../components/sections/HelpGrid.astro';
 import Spotlight from '../components/sections/Spotlight.astro';
 import HeroSplit from '../components/sections/HeroSplit.astro';
 import Reviews from '../components/sections/Reviews.astro';
-import VideoTestimonials from '../components/sections/VideoTestimonials.astro';
 import YoutubeCta from '../components/sections/YoutubeCta.astro';
 import AboutBill from '../components/sections/AboutBill.astro';
+import { siteConfig } from '../data/siteConfig.sample';
+
+const homeSections = siteConfig.compositions.home?.sections ?? [];
+const has = (id: string) => homeSections.includes(id as never);
+
+// The MegaBento + Watchlist share a continuous gradient fade wrapper.
+// Only wrap when BOTH are selected — if the agent drops one, the other
+// renders standalone.
+const bentoFadeWrap = has('megaBento') && has('watchlist');
 ---
 <BaseLayout
   title="Options Trading Masterclass, Signals & Community | Bill Fanter"
@@ -27,21 +37,33 @@ import AboutBill from '../components/sections/AboutBill.astro';
   <ReactReady client:only="react" />
   {/* variant="split" = the narrow 57% header that meets the hero image edge. */}
   <main class="bf-page" data-cardnav-host data-cardnav-variant="split">
-    <Hero />
-    {/* One continuous gradient fade across the bento + watchlist: white at the
-        top of the bento → #f6f8fc at the bottom of the watchlist, then a hard
-        edge into the white Community section below. */}
-    <div class="bf-bento-fade">
-      <MegaBento />
-      <Watchlist />
-    </div>
-    <Community />
-    <HelpGrid />
-    <Spotlight />
-    <HeroSplit />
-    <Reviews />
-    <YoutubeCta />
-    <AboutBill />
+    {homeSections.map((id) => {
+      if (id === 'hero') return <Hero />;
+      if (id === 'community') return <Community />;
+      if (id === 'helpGrid') return <HelpGrid />;
+      if (id === 'spotlight') return <Spotlight />;
+      if (id === 'heroSplit') return <HeroSplit />;
+      if (id === 'reviews') return <Reviews />;
+      if (id === 'youtubeCta') return <YoutubeCta />;
+      if (id === 'aboutBill') return <AboutBill />;
+      // MegaBento + Watchlist: rendered inside the shared fade wrapper
+      // below when both are selected; skip standalone renders in that
+      // case to avoid rendering them twice.
+      if (id === 'megaBento' && !bentoFadeWrap) return <MegaBento />;
+      if (id === 'watchlist' && !bentoFadeWrap) return <Watchlist />;
+      // When bentoFadeWrap === true, the first of the pair emits the
+      // wrapper with both inside; the second is a no-op.
+      if (id === 'megaBento' && bentoFadeWrap) {
+        return (
+          <div class="bf-bento-fade">
+            <MegaBento />
+            <Watchlist />
+          </div>
+        );
+      }
+      if (id === 'watchlist' && bentoFadeWrap) return null;
+      return null;
+    })}
   </main>
   <Footer />
   <Islands />
