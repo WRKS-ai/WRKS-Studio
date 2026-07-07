@@ -1,0 +1,270 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { DesignSystemArtboard } from "./design-system-artboard";
+import type { DesignSystem } from "@/lib/site-generation/design-system";
+
+// Infinite dotted-grid canvas for the Stitch-style site generation
+// theater. Real pan (mouse drag) + zoom (wheel + trackpad). Artboards
+// are absolute-positioned children.
+//
+// Chose a hand-rolled canvas over tldraw for Ship 1 because tldraw's
+// v5 API is a big surface and we don't need drawing/selection tools
+// yet — we need reliable pan/zoom + custom artboard content. tldraw
+// upgrade lands in a later ship if we need canvas primitives.
+
+export type SiteArtboard =
+  | {
+      id: string;
+      kind: "design-system";
+      title: string;
+      designSystem: DesignSystem;
+    }
+  | {
+      id: string;
+      kind: "page";
+      title: string;
+      pageId: string;
+      status: "pending" | "generating" | "done";
+    };
+
+type Props = {
+  artboards: SiteArtboard[];
+};
+
+const ARTBOARD_W = 720;
+const ARTBOARD_GAP = 60;
+const MIN_ZOOM = 0.2;
+const MAX_ZOOM = 2;
+
+export function SiteCanvas({ artboards }: Props) {
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(0.55);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const lastFramedRef = useRef<number>(-1);
+
+  // Center the newest artboard when one appears.
+  useEffect(() => {
+    if (artboards.length === 0) return;
+    if (artboards.length - 1 === lastFramedRef.current) return;
+    lastFramedRef.current = artboards.length - 1;
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const artboardWidth = ARTBOARD_W;
+    const artboardHeight = 520;
+    const lastIdx = artboards.length - 1;
+    const artboardX = lastIdx * (ARTBOARD_W + ARTBOARD_GAP);
+    const centerX = rect.width / 2 - (artboardX + artboardWidth / 2) * 0.55;
+    const centerY = rect.height / 2 - (artboardHeight / 2) * 0.55;
+    setZoom(0.55);
+    setPan({ x: centerX, y: centerY });
+  }, [artboards]);
+
+  const onWheel = useCallback((e: WheelEvent) => {
+    if (!containerRef.current) return;
+    e.preventDefault();
+    // Ctrl / meta wheel = zoom. Plain wheel = pan.
+    if (e.ctrlKey || e.metaKey) {
+      const container = containerRef.current;
+      const rect = container.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      setZoom((prev) => {
+        const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+        const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * factor));
+        // Zoom around cursor point.
+        setPan((p) => ({
+          x: mx - ((mx - p.x) * next) / prev,
+          y: my - ((my - p.y) * next) / prev,
+        }));
+        return next;
+      });
+    } else {
+      setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [onWheel]);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    // Middle-click OR space+drag OR click on empty grid → pan.
+    const target = e.target as HTMLElement;
+    const isArtboard = target.closest(".ds-artboard, .page-artboard");
+    if (e.button !== 1 && isArtboard) return;
+    setIsPanning(true);
+    panStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      panX: pan.x,
+      panY: pan.y,
+    };
+  };
+
+  useEffect(() => {
+    if (!isPanning) return;
+    const onMove = (e: MouseEvent) => {
+      const dx = e.clientX - panStartRef.current.x;
+      const dy = e.clientY - panStartRef.current.y;
+      setPan({
+        x: panStartRef.current.panX + dx,
+        y: panStartRef.current.panY + dy,
+      });
+    };
+    const onUp = () => setIsPanning(false);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [isPanning]);
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseDown={onMouseDown}
+      className="relative size-full overflow-hidden"
+      style={{
+        background: "#0a0a0c",
+        cursor: isPanning ? "grabbing" : "default",
+        // Dotted grid — CSS radial gradient scaled with zoom.
+        backgroundImage:
+          "radial-gradient(circle at center, rgba(255,255,255,0.09) 1px, transparent 1px)",
+        backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
+        backgroundPosition: `${pan.x}px ${pan.y}px`,
+      }}
+    >
+      <div
+        ref={contentRef}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          transformOrigin: "0 0",
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          pointerEvents: isPanning ? "none" : "auto",
+          willChange: "transform",
+        }}
+      >
+        {artboards.map((a, i) => (
+          <div
+            key={a.id}
+            style={{
+              position: "absolute",
+              left: i * (ARTBOARD_W + ARTBOARD_GAP),
+              top: 0,
+            }}
+          >
+            {a.kind === "design-system" ? (
+              <DesignSystemArtboard
+                designSystem={a.designSystem}
+                title={a.title}
+              />
+            ) : (
+              <PageArtboardPending title={a.title} status={a.status} />
+            )}
+          </div>
+        ))}
+
+        {artboards.length === 0 && <EmptyState />}
+      </div>
+
+      <ZoomIndicator zoom={zoom} onReset={() => setZoom(0.55)} />
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div
+      style={{
+        width: 720,
+        height: 480,
+        borderRadius: 14,
+        background: "rgba(255,255,255,0.02)",
+        border: "1px dashed rgba(255,255,255,0.08)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "rgba(245,240,230,0.35)",
+        fontSize: 12,
+        fontFamily: "var(--font-mono)",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+      }}
+    >
+      Warming up…
+    </div>
+  );
+}
+
+function PageArtboardPending({
+  title,
+  status,
+}: {
+  title: string;
+  status: "pending" | "generating" | "done";
+}) {
+  return (
+    <div
+      className="page-artboard"
+      style={{
+        width: 720,
+        minHeight: 480,
+        borderRadius: 14,
+        background: "#0d0d12",
+        color: "#f5f0e6",
+        border: "1px solid rgba(255,255,255,0.08)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "var(--font-mono)",
+        fontSize: 12,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
+      {title} · {status}
+    </div>
+  );
+}
+
+function ZoomIndicator({
+  zoom,
+  onReset,
+}: {
+  zoom: number;
+  onReset: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onReset}
+      className="absolute transition-opacity duration-150 hover:opacity-80"
+      style={{
+        bottom: 16,
+        right: 16,
+        padding: "6px 12px",
+        borderRadius: 999,
+        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        color: "rgba(245,240,230,0.7)",
+        fontSize: 11.5,
+        fontFamily: "var(--font-mono)",
+        letterSpacing: "0.06em",
+        cursor: "pointer",
+      }}
+    >
+      {Math.round(zoom * 100)}%
+    </button>
+  );
+}

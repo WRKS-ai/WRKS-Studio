@@ -1,24 +1,36 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { createServiceSupabaseClient } from "@/lib/supabase";
+import {
+  type BrandContext,
+  type DesignSystem,
+  generateDesignSystem,
+} from "@/lib/site-generation/design-system";
 
-// POST /api/sites/generate — kicks off a site generation job.
-// GET  /api/sites/generate?jobId=… — SSE stream of section events.
+// POST /api/sites/generate       — create a job, return jobId.
+// GET  /api/sites/generate?jobId — SSE stream of generation events.
 //
-// v1 (2026-06-30): mock generator. Curation + copy are hardcoded to
-// the Bill-Fanter homepage sample; events stream on a fixed cadence
-// so the theater has real streaming to consume. Real Claude two-pass
-// generation (Haiku curate → Sonnet copy) lands in the next commit.
+// v2 (2026-06-30) — Stitch-style: real Haiku design system pass fires
+// first, streams the resulting palette + type + buttons + narration.
+// Per-page Sonnet content pass lands in Ship 2.
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// In-memory job store — sufficient for the mock. Real generation will
-// persist to a `sites_generation_jobs` table in Supabase so SSE
-// consumers can survive lambda cold-starts + reconnects.
+// In-memory job store. Real generation persists to a
+// `sites_generation_jobs` table (Ship 3) so SSE consumers can survive
+// lambda cold-starts + reconnects. In-memory works for local dev and
+// single-instance deploys; multi-instance requires the DB.
 const JOBS = new Map<
   string,
-  { userId: string; brief: string; templateId: string; createdAt: number }
+  {
+    userId: string;
+    brief: string;
+    templateId: string;
+    brand: BrandContext;
+    createdAt: number;
+  }
 >();
 
 const PostBody = z.object({
@@ -31,6 +43,7 @@ export async function POST(req: Request) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
   let body: z.infer<typeof PostBody>;
   try {
     body = PostBody.parse(await req.json());
@@ -41,20 +54,60 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+
+  // Pull brand_state so the Haiku pass has the full picture. If it
+  // fails we still start the job — the design system just gets a
+  // thinner input.
+  const brand: BrandContext = {
+    brandName: null,
+    businessType: null,
+    primaryGoal: null,
+    voiceDescriptor: null,
+    offerSummary: null,
+    audienceDescription: null,
+    differentiator: null,
+    existingSiteUrl: null,
+  };
+  try {
+    const supabase = createServiceSupabaseClient();
+    const { data: profile } = await supabase
+      .from("business_profiles")
+      .select(
+        "brand_name, business_type, primary_goal, voice_descriptor, offer_summary, audience_description, differentiator, existing_site_url",
+      )
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (profile) {
+      brand.brandName = profile.brand_name ?? null;
+      brand.businessType = profile.business_type ?? null;
+      brand.primaryGoal = profile.primary_goal ?? null;
+      brand.voiceDescriptor = profile.voice_descriptor ?? null;
+      brand.offerSummary = profile.offer_summary ?? null;
+      brand.audienceDescription = profile.audience_description ?? null;
+      brand.differentiator = profile.differentiator ?? null;
+      brand.existingSiteUrl = profile.existing_site_url ?? null;
+    }
+  } catch (err) {
+    console.warn("[api/sites/generate] brand_state fetch failed:", err);
+  }
+
   const jobId = crypto.randomUUID();
   JOBS.set(jobId, {
     userId,
     brief: body.brief,
     templateId: body.templateId,
+    brand,
     createdAt: Date.now(),
   });
   return NextResponse.json({ jobId });
 }
 
 // ============================================================
-// SSE stream — the theater consumes this via EventSource.
+// SSE stream
 // ============================================================
-
 export async function GET(req: Request) {
   const { userId } = await auth();
   if (!userId) {
@@ -74,45 +127,50 @@ export async function GET(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       const emit = (event: string, data: unknown) => {
-        const payload =
-          `event: ${event}\n` +
-          `data: ${JSON.stringify(data)}\n\n`;
-        controller.enqueue(encoder.encode(payload));
+        controller.enqueue(
+          encoder.encode(
+            `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+          ),
+        );
       };
-      const sleep = (ms: number) =>
-        new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-      // Emit curation immediately — theater uses it to lay out the
-      // browser mockups and know how many pages to expect.
-      emit("curation.done", MOCK_CURATION);
-      await sleep(400);
+      // ==================================================
+      // Pass 1 — Design system (real Haiku).
+      // ==================================================
+      emit("design.start", {
+        message:
+          "Reading your brand and drafting a design system — palette, type, buttons.",
+      });
 
-      for (const page of MOCK_CURATION.pages) {
-        const composition = MOCK_CURATION.compositions[page];
-        if (!composition) continue;
-        emit("page.start", { pageId: page });
-        for (const sectionId of composition.sections) {
-          emit("section.start", {
-            pageId: page,
-            sectionId,
-            narration: SECTION_NARRATION[sectionId] ?? "Drafting…",
-          });
-          // Cursor draws + skeleton morph takes ~2.6s in the theater.
-          // Real content lands mid-way through the animation.
-          await sleep(1500);
-          emit("section.done", {
-            pageId: page,
-            sectionId,
-            content: MOCK_CONTENT[sectionId] ?? null,
-          });
-          await sleep(700);
-        }
-        emit("page.done", { pageId: page });
-        await sleep(600);
+      let designSystem: DesignSystem;
+      try {
+        designSystem = await generateDesignSystem({
+          brief: job.brief,
+          brand: job.brand,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[api/sites/generate] design system failed:", message);
+        emit("error", {
+          stage: "design-system",
+          message,
+        });
+        controller.close();
+        JOBS.delete(jobId);
+        return;
       }
 
+      emit("design.done", designSystem);
+
+      // ==================================================
+      // Pass 2 — Per-page content generation (Ship 2).
+      // ==================================================
+      // For now, close cleanly after the design system streams so the
+      // canvas has its first real artboard to render. Real Sonnet
+      // per-page copy pass lands in the next commit.
       emit("generation.done", {
         siteId: jobId,
+        designSystem,
       });
       controller.close();
       JOBS.delete(jobId);
@@ -129,66 +187,3 @@ export async function GET(req: Request) {
     },
   });
 }
-
-// ============================================================
-// Mock generation output — hardcoded to Bill-Fanter homepage until
-// real Claude two-pass generation lands. This lets the theater ship
-// with a real streaming feed to render, so animation timing +
-// visual choreography are testable end-to-end before the LLM work.
-// ============================================================
-
-type Composition = { sections: string[] };
-type MockCuration = {
-  pages: string[];
-  compositions: Record<string, Composition>;
-};
-
-const MOCK_CURATION: MockCuration = {
-  pages: ["home"],
-  compositions: {
-    home: {
-      sections: [
-        "hero",
-        "megaBento",
-        "helpGrid",
-        "community",
-        "aboutBill",
-      ],
-    },
-  },
-};
-
-const SECTION_NARRATION: Record<string, string> = {
-  hero:
-    "Starting with the hero. Big headline, sharp promise, one CTA — this is what visitors see first.",
-  megaBento:
-    "Adding the mega bento next. Every important destination on one screen so the site doesn't feel like a funnel.",
-  helpGrid:
-    "Three value props — what you do, why it matters, what changes for the visitor.",
-  community:
-    "Community proof. Real numbers, real people. This is what pushes the fence-sitters over.",
-  aboutBill:
-    "Closing with the founder story. Long-form, warm, credible — the human behind the brand.",
-};
-
-const MOCK_CONTENT: Record<string, Record<string, unknown>> = {
-  hero: {
-    headline: "Learn options trading and build income you control",
-    subhead:
-      "Bill Fanter teaches new and experienced traders how to read the options market, time entries, and place trades with a clear plan.",
-    primaryCtaLabel: "Get the masterclass",
-    secondaryCtaLabel: "Join the community",
-  },
-  megaBento: {
-    heading: "Everything you need to trade options with confidence",
-  },
-  helpGrid: {
-    heading: "Trade options with confidence and grow your income",
-  },
-  community: {
-    heading: "Join my options trading community",
-  },
-  aboutBill: {
-    heading: "Hi, I'm Bill Fanter. I'm excited to get to know you.",
-  },
-};

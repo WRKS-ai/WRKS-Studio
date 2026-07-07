@@ -1,135 +1,100 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import DarkVeil from "@/components/dark-veil";
+import { useEffect, useRef, useState } from "react";
+import { SiteCanvas, type SiteArtboard } from "@/components/site-canvas/site-canvas";
+import type { DesignSystem } from "@/lib/site-generation/design-system";
 
-// /studio/sites/generating — the theater.
+// /studio/sites/generating — Stitch-style full-canvas theater.
 //
-// Consumes the /api/sites/generate SSE stream and renders section
-// reveals inside a browser mockup. Voice narration + virtual cursor
-// choreography layer on top of this foundation in follow-up commits.
+// Ship 1 (2026-06-30): full-viewport canvas with dotted grid + top
+// glass toolbar + left narration panel + right icon tools + bottom
+// composer. Design system pass runs against real Haiku via
+// /api/sites/generate SSE stream; result renders as the FIRST
+// artboard on the canvas.
+//
+// Ship 2+ adds page artboards (Sonnet content), inline editing,
+// voice narration, and undo/redo.
 
-type CurationEvent = {
-  pages: string[];
-  compositions: Record<string, { sections: string[] }>;
-};
-type SectionStartEvent = {
-  pageId: string;
-  sectionId: string;
-  narration: string;
-};
-type SectionDoneEvent = {
-  pageId: string;
-  sectionId: string;
-  content: Record<string, unknown> | null;
-};
-
-type SectionState = {
+type NarrationLine = {
   id: string;
-  status: "pending" | "drafting" | "done";
-  narration: string | null;
-  content: Record<string, unknown> | null;
-};
-
-const SECTION_LABEL: Record<string, string> = {
-  hero: "Hero",
-  megaBento: "Mega bento",
-  helpGrid: "Value grid",
-  community: "Community",
-  aboutBill: "About",
-  reviews: "Reviews",
-  spotlight: "Spotlight",
-  heroSplit: "Welcome split",
-  watchlist: "Watchlist",
-  youtubeCta: "YouTube CTA",
-  communityPricing: "Pricing",
-  effortlessStrategy: "Strategy",
-  closing: "Closing",
-  videoTestimonials: "Video reviews",
+  role: "system" | "agent";
+  text: string;
 };
 
 export default function GeneratingPage() {
   const router = useRouter();
   const params = useSearchParams();
   const jobId = params.get("jobId");
-
-  const [curation, setCuration] = useState<CurationEvent | null>(null);
-  const [sections, setSections] = useState<Record<string, SectionState[]>>({});
-  const [narration, setNarration] = useState<string>("");
-  const [currentPageId, setCurrentPageId] = useState<string | null>(null);
+  const [artboards, setArtboards] = useState<SiteArtboard[]>([]);
+  const [narration, setNarration] = useState<NarrationLine[]>([]);
+  const [projectTitle, setProjectTitle] = useState<string>("New site");
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ siteId: string } | null>(null);
-  const startedRef = useRef(false);
+  const [phase, setPhase] = useState<"design" | "pages" | "done">("design");
+  const streamStartedRef = useRef(false);
 
   useEffect(() => {
     if (!jobId) {
       setError("Missing job id — start again from the composer.");
       return;
     }
-    if (startedRef.current) return;
-    startedRef.current = true;
+    if (streamStartedRef.current) return;
+    streamStartedRef.current = true;
+
+    pushNarration(
+      setNarration,
+      "system",
+      "Warming up the design agent…",
+    );
 
     const es = new EventSource(`/api/sites/generate?jobId=${jobId}`);
 
-    es.addEventListener("curation.done", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as CurationEvent;
-      setCuration(data);
-      const seeded: Record<string, SectionState[]> = {};
-      for (const page of data.pages) {
-        const list = data.compositions[page]?.sections ?? [];
-        seeded[page] = list.map((id) => ({
-          id,
-          status: "pending",
-          narration: null,
-          content: null,
-        }));
-      }
-      setSections(seeded);
-      if (data.pages[0]) setCurrentPageId(data.pages[0]);
+    es.addEventListener("design.start", (e) => {
+      const data = JSON.parse((e as MessageEvent).data) as { message: string };
+      pushNarration(setNarration, "agent", data.message);
     });
 
-    es.addEventListener("page.start", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as { pageId: string };
-      setCurrentPageId(data.pageId);
-    });
-
-    es.addEventListener("section.start", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as SectionStartEvent;
-      setNarration(data.narration);
-      setSections((prev) => ({
+    es.addEventListener("design.done", (e) => {
+      const ds = JSON.parse((e as MessageEvent).data) as DesignSystem;
+      // Add the design-system artboard.
+      setArtboards((prev) => [
         ...prev,
-        [data.pageId]: (prev[data.pageId] ?? []).map((s) =>
-          s.id === data.sectionId
-            ? { ...s, status: "drafting", narration: data.narration }
-            : s,
-        ),
-      }));
+        {
+          id: "design-system",
+          kind: "design-system",
+          title: makeSystemTitle(ds),
+          designSystem: ds,
+        },
+      ]);
+      setProjectTitle(makeSystemTitle(ds));
+      pushNarration(setNarration, "agent", ds.narration);
+      setPhase("pages");
     });
 
-    es.addEventListener("section.done", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as SectionDoneEvent;
-      setSections((prev) => ({
-        ...prev,
-        [data.pageId]: (prev[data.pageId] ?? []).map((s) =>
-          s.id === data.sectionId
-            ? { ...s, status: "done", content: data.content }
-            : s,
-        ),
-      }));
-    });
-
-    es.addEventListener("generation.done", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as { siteId: string };
-      setDone(data);
+    es.addEventListener("generation.done", () => {
+      setPhase("done");
+      pushNarration(
+        setNarration,
+        "system",
+        "Design system complete. Page generation lands in the next update.",
+      );
       es.close();
     });
 
-    es.addEventListener("error", () => {
-      // EventSource fires 'error' on normal stream completion too — ignore
-      // unless we haven't received generation.done. We rely on the done
-      // handler to close cleanly; anything else here is genuine failure.
-      if (!startedRef.current) return;
+    es.addEventListener("error", (e) => {
+      try {
+        const raw = (e as MessageEvent).data;
+        if (raw) {
+          const data = JSON.parse(raw as string) as {
+            stage: string;
+            message: string;
+          };
+          setError(`${data.stage}: ${data.message}`);
+        }
+      } catch {
+        // EventSource fires 'error' on normal stream close too. Only
+        // surface if we haven't reached the done phase.
+      }
     });
 
     return () => {
@@ -137,402 +102,483 @@ export default function GeneratingPage() {
     };
   }, [jobId]);
 
-  useEffect(() => {
-    if (done) {
-      const t = setTimeout(() => {
-        router.push(`/studio/sites/${done.siteId}`);
-      }, 2400);
-      return () => clearTimeout(t);
-    }
-  }, [done, router]);
-
-  const totalSections = useMemo(() => {
-    if (!curation) return 0;
-    return curation.pages.reduce(
-      (acc, p) => acc + (curation.compositions[p]?.sections.length ?? 0),
-      0,
-    );
-  }, [curation]);
-  const doneSections = useMemo(() => {
-    return Object.values(sections)
-      .flat()
-      .filter((s) => s.status === "done").length;
-  }, [sections]);
-  const progress = totalSections > 0 ? doneSections / totalSections : 0;
-
-  const currentSections = currentPageId ? sections[currentPageId] ?? [] : [];
-
   return (
-    <main
-      className="relative size-full overflow-hidden"
-      style={{ background: "#0a0a0c", color: "#f5f0e6" }}
+    <div
+      className="fixed inset-0 flex flex-col"
+      style={{
+        background: "#0a0a0c",
+        color: "#f5f0e6",
+        fontFamily: "var(--font-sans)",
+      }}
     >
-      <div className="absolute inset-0" style={{ opacity: 0.65 }}>
-        <DarkVeil
-          hueShift={0}
-          noiseIntensity={0}
-          scanlineIntensity={0}
-          speed={0.35}
-          scanlineFrequency={0}
-          warpAmount={0}
-        />
-      </div>
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 100% 80% at 50% 50%, rgba(10,10,12,0.25) 0%, rgba(10,10,12,0.55) 65%, rgba(10,10,12,0.78) 100%)",
-        }}
-      />
+      <TopToolbar title={projectTitle} phase={phase} onExit={() => router.push("/studio/sites")} />
 
-      <div className="relative z-10 size-full overflow-y-auto">
-        <div
-          className="min-h-full flex flex-col items-center justify-center"
-          style={{ padding: "56px 40px 72px", gap: 32 }}
-        >
-          <div className="text-center" style={{ maxWidth: 700 }}>
-            <p
-              style={{
-                fontSize: 11.5,
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: "rgba(245,240,230,0.4)",
-                margin: "0 0 10px",
-              }}
-            >
-              {done
-                ? "Site drafted"
-                : curation
-                  ? `Page ${
-                      (curation.pages.findIndex((p) => p === currentPageId) ?? 0) + 1
-                    } of ${curation.pages.length}`
-                  : "Warming up"}
-            </p>
-            <h1
-              style={{
-                fontSize: "clamp(1.75rem, 3vw, 2.75rem)",
-                fontWeight: 600,
-                lineHeight: 1.05,
-                letterSpacing: "-0.028em",
-                color: "rgba(248,247,252,0.97)",
-                margin: "0 0 8px",
-              }}
-            >
-              {done
-                ? "Handing off to the builder…"
-                : narration || "Drafting your site."}
-            </h1>
-            <p
-              style={{
-                fontSize: 14,
-                color: "rgba(245,240,230,0.5)",
-                letterSpacing: "-0.003em",
-                margin: 0,
-              }}
-            >
-              {done
-                ? "You'll be able to edit any section inline."
-                : "About 60 seconds. Sit back — the agent will walk you through it."}
-            </p>
-          </div>
+      <div className="flex-1 min-h-0 flex">
+        {/* Left narration panel */}
+        <LeftPanel narration={narration} phase={phase} error={error} />
 
-          <SiteChrome
-            pageId={currentPageId}
-            sections={currentSections}
-            done={!!done}
-          />
-
-          <div
-            className="w-full"
-            style={{ maxWidth: 780 }}
-          >
-            <div
-              style={{
-                height: 2,
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.06)",
-                overflow: "hidden",
-                position: "relative",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  bottom: 0,
-                  width: `${Math.max(4, progress * 100)}%`,
-                  background:
-                    "linear-gradient(90deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.75) 100%)",
-                  transition: "width 400ms cubic-bezier(0.2, 0.7, 0.2, 1)",
-                }}
-              />
-            </div>
-            <div
-              className="flex items-center justify-between"
-              style={{
-                marginTop: 10,
-                fontSize: 11.5,
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "rgba(245,240,230,0.42)",
-              }}
-            >
-              <span>{doneSections} / {totalSections} sections</span>
-              <span>{Math.round(progress * 100)}%</span>
-            </div>
-          </div>
-
-          {error && (
-            <p
-              className="text-center"
-              style={{ fontSize: 13, color: "#ff9d98" }}
-            >
-              {error}
-            </p>
-          )}
+        {/* Center canvas */}
+        <div className="flex-1 min-w-0 relative">
+          <SiteCanvas artboards={artboards} />
+          <RightTools />
+          <BottomComposer phase={phase} />
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 
 // ============================================================
-// SiteChrome — browser-style mockup with section reveals inside.
+// Top toolbar
 // ============================================================
-
-function SiteChrome({
-  pageId,
-  sections,
-  done,
+function TopToolbar({
+  title,
+  phase,
+  onExit,
 }: {
-  pageId: string | null;
-  sections: SectionState[];
-  done: boolean;
+  title: string;
+  phase: "design" | "pages" | "done";
+  onExit: () => void;
 }) {
   return (
     <div
-      className="w-full"
+      className="shrink-0 flex items-center justify-between"
       style={{
-        maxWidth: 940,
-        borderRadius: 16,
-        overflow: "hidden",
-        background: "#0d0d12",
-        border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow:
-          "0 40px 120px -40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.04)",
+        padding: "10px 16px",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(20,20,26,0.72)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
       }}
     >
-      {/* Chrome bar — traffic lights + address */}
-      <div
-        className="flex items-center"
-        style={{
-          padding: "12px 18px",
-          gap: 14,
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          background: "rgba(255,255,255,0.018)",
-        }}
-      >
-        <div className="flex items-center" style={{ gap: 7 }}>
-          <span style={dotStyle("#ff5f56")} />
-          <span style={dotStyle("#ffbd2e")} />
-          <span style={dotStyle("#27c93f")} />
-        </div>
-        <div
-          className="flex-1 flex items-center"
+      <div className="flex items-center" style={{ gap: 12 }}>
+        <button
+          type="button"
+          onClick={onExit}
+          aria-label="Exit"
+          className="grid place-items-center transition-colors duration-150 hover:bg-white/[0.06]"
           style={{
-            gap: 8,
-            padding: "6px 14px",
+            width: 30,
+            height: 30,
             borderRadius: 8,
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.04)",
-            fontSize: 12,
-            color: "rgba(245,240,230,0.55)",
-            fontFamily: "var(--font-mono)",
-            letterSpacing: "0.02em",
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            color: "rgba(245,240,230,0.8)",
+            cursor: "pointer",
           }}
         >
-          <span aria-hidden style={{ opacity: 0.5 }}>◆</span>
-          <span>
-            {done ? "your-brand.wrks.studio" : "your-brand.wrks.studio"}
-            {pageId && pageId !== "home" ? `/${pageId}` : ""}
-          </span>
-        </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <span
+          style={{
+            fontSize: 13.5,
+            fontWeight: 500,
+            letterSpacing: "-0.005em",
+            color: "rgba(245,240,230,0.92)",
+          }}
+        >
+          {title}
+        </span>
       </div>
 
-      {/* Canvas — sections drop in one by one */}
-      <div
-        style={{
-          padding: "28px 32px",
-          minHeight: 380,
-          display: "flex",
-          flexDirection: "column",
-          gap: 20,
-          background:
-            "linear-gradient(180deg, #0d0d12 0%, #0a0a0c 100%)",
-        }}
-      >
-        {sections.map((s, i) => (
-          <SectionMockup key={`${pageId}-${s.id}-${i}`} section={s} />
-        ))}
-        {sections.length === 0 && (
-          <div
-            className="flex items-center justify-center"
-            style={{
-              flex: 1,
-              minHeight: 320,
-              color: "rgba(245,240,230,0.32)",
-              fontSize: 12,
-              fontFamily: "var(--font-mono)",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            Warming up
-          </div>
-        )}
+      <div className="flex items-center" style={{ gap: 4 }}>
+        <ModeDropdown label="Generate" active={phase !== "done"} />
+        <ModeDropdown label="Modify" active={false} />
+        <ModeDropdown label="Preview" active={phase === "done"} />
+        <ModeDropdown label="More" more />
+      </div>
+
+      <div className="flex items-center" style={{ gap: 8 }}>
+        <button
+          type="button"
+          className="inline-flex items-center transition-colors duration-150 hover:bg-white/[0.06]"
+          style={{
+            padding: "6px 12px",
+            gap: 6,
+            borderRadius: 8,
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            color: "rgba(245,240,230,0.85)",
+            fontSize: 12.5,
+            cursor: "pointer",
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M16 6l-4-4-4 4M12 2v14" />
+          </svg>
+          Export
+        </button>
+        <button
+          type="button"
+          className="inline-flex items-center transition-colors duration-150 hover:bg-white/[0.06]"
+          style={{
+            padding: "6px 12px",
+            gap: 6,
+            borderRadius: 8,
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            color: "rgba(245,240,230,0.85)",
+            fontSize: 12.5,
+            cursor: "pointer",
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <circle cx="6" cy="6" r="3" />
+            <circle cx="18" cy="18" r="3" />
+            <path d="m9 9 6 6M9 15l6-6" />
+          </svg>
+          Share
+        </button>
       </div>
     </div>
   );
 }
 
-function dotStyle(color: string): React.CSSProperties {
-  return {
-    display: "inline-block",
-    width: 12,
-    height: 12,
-    borderRadius: "50%",
-    background: color,
-    boxShadow: `inset 0 0 0 1px rgba(0,0,0,0.15)`,
-  };
-}
-
-function SectionMockup({ section }: { section: SectionState }) {
-  const label = SECTION_LABEL[section.id] ?? section.id;
-  const headline =
-    section.content && typeof section.content.headline === "string"
-      ? (section.content.headline as string)
-      : section.content && typeof section.content.heading === "string"
-        ? (section.content.heading as string)
-        : null;
-  const subhead =
-    section.content && typeof section.content.subhead === "string"
-      ? (section.content.subhead as string)
-      : null;
-
+function ModeDropdown({
+  label,
+  active,
+  more,
+}: {
+  label: string;
+  active?: boolean;
+  more?: boolean;
+}) {
   return (
-    <div
-      className="section-mockup"
+    <button
+      type="button"
+      className="inline-flex items-center transition-colors duration-150 hover:bg-white/[0.06]"
       style={{
-        padding: "22px 24px",
-        borderRadius: 12,
-        border: `1px solid ${
-          section.status === "drafting"
-            ? "rgba(255,255,255,0.18)"
-            : "rgba(255,255,255,0.06)"
-        }`,
-        background:
-          section.status === "done"
-            ? "rgba(255,255,255,0.028)"
-            : "rgba(255,255,255,0.014)",
-        transition:
-          "border-color 300ms ease, background 300ms ease, opacity 300ms ease",
-        opacity: section.status === "pending" ? 0.55 : 1,
-        position: "relative",
+        padding: "6px 10px",
+        gap: 5,
+        borderRadius: 8,
+        background: active ? "rgba(255,255,255,0.05)" : "transparent",
+        color: active ? "rgba(245,240,230,0.95)" : "rgba(245,240,230,0.68)",
+        fontSize: 12.5,
+        fontWeight: 500,
+        cursor: "pointer",
       }}
     >
-      <div
-        className="flex items-center justify-between"
-        style={{ marginBottom: 10 }}
-      >
-        <span
-          style={{
-            fontSize: 10.5,
-            fontFamily: "var(--font-mono)",
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color:
-              section.status === "drafting"
-                ? "rgba(245,240,230,0.65)"
-                : "rgba(245,240,230,0.35)",
-          }}
-        >
-          {label}
-        </span>
-        <span
-          style={{
-            fontSize: 10.5,
-            fontFamily: "var(--font-mono)",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color:
-              section.status === "done"
-                ? "rgba(120,220,140,0.72)"
-                : section.status === "drafting"
-                  ? "rgba(255,255,255,0.55)"
-                  : "rgba(245,240,230,0.28)",
-          }}
-        >
-          {section.status === "done"
-            ? "Done"
-            : section.status === "drafting"
-              ? "Drafting"
-              : "Queued"}
-        </span>
-      </div>
+      {label}
+      {!more && (
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      )}
+      {more && (
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="5" cy="12" r="1.5" />
+          <circle cx="12" cy="12" r="1.5" />
+          <circle cx="19" cy="12" r="1.5" />
+        </svg>
+      )}
+    </button>
+  );
+}
 
-      {section.status === "done" && headline ? (
-        <div className="flex flex-col" style={{ gap: 6 }}>
+// ============================================================
+// Left panel — narration stream
+// ============================================================
+function LeftPanel({
+  narration,
+  phase,
+  error,
+}: {
+  narration: NarrationLine[];
+  phase: "design" | "pages" | "done";
+  error: string | null;
+}) {
+  return (
+    <aside
+      className="shrink-0 flex flex-col"
+      style={{
+        width: 340,
+        background: "rgba(15,15,20,0.9)",
+        borderRight: "1px solid rgba(255,255,255,0.06)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+      }}
+    >
+      <div style={{ padding: "18px 22px 14px" }}>
+        <div className="flex items-center" style={{ gap: 6 }}>
           <span
             style={{
-              fontSize: 17,
-              fontWeight: 600,
-              letterSpacing: "-0.015em",
-              lineHeight: 1.2,
-              color: "rgba(245,240,230,0.95)",
+              display: "inline-block",
+              width: 6,
+              height: 6,
+              borderRadius: 999,
+              background:
+                phase === "done"
+                  ? "rgba(120,220,140,0.8)"
+                  : "rgba(255,255,255,0.6)",
+              animation:
+                phase !== "done" ? "wrks-skel-shimmer 1.6s ease-in-out infinite" : undefined,
+            }}
+          />
+          <span
+            style={{
+              fontSize: 10.5,
+              fontFamily: "var(--font-mono)",
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "rgba(245,240,230,0.55)",
             }}
           >
-            {headline}
+            {phase === "done" ? "Ready" : "Agent thinking"}
           </span>
-          {subhead && (
-            <span
-              style={{
-                fontSize: 12.5,
-                lineHeight: 1.5,
-                color: "rgba(245,240,230,0.55)",
-                maxWidth: "62ch",
-              }}
-            >
-              {subhead}
-            </span>
-          )}
         </div>
-      ) : (
-        <div className="flex flex-col" style={{ gap: 8 }}>
-          <span style={skelStyle(section.status === "drafting", "70%")} />
-          <span style={skelStyle(section.status === "drafting", "88%")} />
-          <span style={skelStyle(section.status === "drafting", "54%")} />
-        </div>
-      )}
+      </div>
+
+      <div
+        className="flex-1 overflow-y-auto"
+        style={{ padding: "0 22px 22px" }}
+      >
+        {narration.map((line, i) => (
+          <p
+            key={line.id}
+            style={{
+              margin: i === 0 ? "0 0 14px" : "14px 0",
+              fontSize: line.role === "system" ? 12 : 14,
+              lineHeight: 1.55,
+              letterSpacing: "-0.003em",
+              color:
+                line.role === "system"
+                  ? "rgba(245,240,230,0.45)"
+                  : "rgba(245,240,230,0.9)",
+              fontFamily:
+                line.role === "system"
+                  ? "var(--font-mono)"
+                  : "var(--font-sans)",
+            }}
+          >
+            {line.text}
+          </p>
+        ))}
+        {error && (
+          <p
+            style={{
+              margin: "14px 0",
+              padding: "10px 12px",
+              borderRadius: 8,
+              background: "rgba(255,120,110,0.06)",
+              border: "1px solid rgba(255,120,110,0.14)",
+              fontSize: 12.5,
+              color: "#ff9d98",
+            }}
+          >
+            {error}
+          </p>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+// ============================================================
+// Right icon toolbar
+// ============================================================
+function RightTools() {
+  return (
+    <div
+      className="absolute flex flex-col"
+      style={{
+        right: 16,
+        top: "50%",
+        transform: "translateY(-50%)",
+        gap: 4,
+        padding: 4,
+        borderRadius: 12,
+        background: "rgba(20,20,26,0.7)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+      }}
+    >
+      {(
+        [
+          { id: "cursor", d: "M4 4l7 20 3-9 9-3z" },
+          { id: "marquee", d: "M4 4h4M20 4h-4M4 20h4M20 20h-4M4 12v-2M4 14v-2M12 4h-2M14 4h-2M20 12v-2M20 14v-2M12 20h-2M14 20h-2" },
+          { id: "pen", d: "M4 20l4-1 11-11-3-3L5 16z" },
+          { id: "hand", d: "M9 11V5a2 2 0 0 1 4 0v6M13 11V4a2 2 0 0 1 4 0v11a5 5 0 0 1-10 0V9" },
+          { id: "image", d: "M4 6h16v12H4zM4 15l5-5 5 5 3-3 3 3" },
+          { id: "palette", d: "M12 3a9 9 0 1 0 3 17.5c-1 0-2-1-2-2s.4-2 1-2h2a5 5 0 0 0 0-10h-4z" },
+          { id: "star", d: "M12 3l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" },
+        ] as const
+      ).map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          aria-label={t.id}
+          className="grid place-items-center transition-colors duration-150 hover:bg-white/[0.08]"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: t.id === "cursor" ? "rgba(255,255,255,0.06)" : "transparent",
+            color:
+              t.id === "cursor"
+                ? "rgba(245,240,230,0.95)"
+                : "rgba(245,240,230,0.6)",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d={t.d} />
+          </svg>
+        </button>
+      ))}
     </div>
   );
 }
 
-function skelStyle(active: boolean, width: string): React.CSSProperties {
-  return {
-    display: "block",
-    height: 8,
-    width,
-    borderRadius: 999,
-    background: active
-      ? "linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.06) 100%)"
-      : "rgba(255,255,255,0.05)",
-    backgroundSize: active ? "200% 100%" : undefined,
-    animation: active
-      ? "wrks-skel-shimmer 1.6s ease-in-out infinite"
-      : undefined,
-  };
+// ============================================================
+// Bottom composer — placeholder until Ship 4 (edit-with-AI)
+// ============================================================
+function BottomComposer({ phase }: { phase: "design" | "pages" | "done" }) {
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: "50%",
+        transform: "translateX(-50%)",
+        bottom: 20,
+        width: "min(720px, calc(100% - 120px))",
+      }}
+    >
+      <div
+        className="flex flex-col"
+        style={{
+          gap: 8,
+          padding: 12,
+          borderRadius: 14,
+          background: "rgba(20,20,26,0.82)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          boxShadow: "0 20px 60px -30px rgba(0,0,0,0.7)",
+        }}
+      >
+        <input
+          type="text"
+          placeholder={
+            phase === "done"
+              ? "What would you like to change or create?"
+              : "Agent is drafting — hang on…"
+          }
+          disabled={phase !== "done"}
+          className="w-full bg-transparent outline-none"
+          style={{
+            padding: "8px 6px",
+            fontSize: 14,
+            letterSpacing: "-0.005em",
+            color: "rgba(245,240,230,0.95)",
+          }}
+        />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center" style={{ gap: 4 }}>
+            {(["+", "/"] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                className="grid place-items-center"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 7,
+                  background: "transparent",
+                  color: "rgba(245,240,230,0.55)",
+                  fontSize: 15,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center" style={{ gap: 6 }}>
+            <span
+              style={{
+                fontSize: 11.5,
+                fontFamily: "var(--font-mono)",
+                color: "rgba(245,240,230,0.42)",
+                letterSpacing: "0.06em",
+              }}
+            >
+              Sonnet 4.6
+            </span>
+            <button
+              type="button"
+              aria-label="Voice"
+              className="grid place-items-center transition-colors duration-150 hover:bg-white/[0.06]"
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 7,
+                background: "rgba(255,255,255,0.03)",
+                color: "rgba(245,240,230,0.65)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                cursor: "pointer",
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="3" width="6" height="12" rx="3" />
+                <path d="M5 11a7 7 0 0 0 14 0" />
+                <line x1="12" y1="18" x2="12" y2="22" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label="Send"
+              disabled={phase !== "done"}
+              className="grid place-items-center"
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 7,
+                background: phase === "done" ? "#ffffff" : "rgba(255,255,255,0.08)",
+                color: phase === "done" ? "#0a0a0c" : "rgba(245,240,230,0.35)",
+                border: "none",
+                cursor: phase === "done" ? "pointer" : "not-allowed",
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 19V5M5 12l7-7 7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Helpers
+// ============================================================
+function pushNarration(
+  setNarration: React.Dispatch<React.SetStateAction<NarrationLine[]>>,
+  role: NarrationLine["role"],
+  text: string,
+) {
+  setNarration((prev) => [
+    ...prev,
+    { id: crypto.randomUUID(), role, text },
+  ]);
+}
+
+function makeSystemTitle(ds: DesignSystem): string {
+  return `${ds.palette.primary.name} · ${ds.type.display.family}`;
 }
