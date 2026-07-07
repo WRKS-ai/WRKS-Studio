@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DesignSystemArtboard } from "./design-system-artboard";
+import { PageArtboard } from "./page-artboard";
 import type { DesignSystem } from "@/lib/site-generation/design-system";
+import type { PageContent } from "@/lib/site-generation/page-content";
 
 // Infinite dotted-grid canvas for the Stitch-style site generation
 // theater. Real pan (mouse drag) + zoom (wheel + trackpad). Artboards
@@ -26,14 +28,17 @@ export type SiteArtboard =
       title: string;
       pageId: string;
       status: "pending" | "generating" | "done";
+      content?: PageContent;
+      designSystem?: DesignSystem;
     };
 
 type Props = {
   artboards: SiteArtboard[];
 };
 
-const ARTBOARD_W = 720;
-const ARTBOARD_GAP = 60;
+const DESIGN_W = 720;
+const PAGE_W = 1280;
+const ARTBOARD_GAP = 80;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 2;
 
@@ -54,13 +59,23 @@ export function SiteCanvas({ artboards }: Props) {
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    const artboardWidth = ARTBOARD_W;
-    const artboardHeight = 520;
-    const lastIdx = artboards.length - 1;
-    const artboardX = lastIdx * (ARTBOARD_W + ARTBOARD_GAP);
-    const centerX = rect.width / 2 - (artboardX + artboardWidth / 2) * 0.55;
-    const centerY = rect.height / 2 - (artboardHeight / 2) * 0.55;
-    setZoom(0.55);
+    // Compute total width by summing artboard widths + gaps up to the new one.
+    let x = 0;
+    for (let i = 0; i < artboards.length - 1; i++) {
+      x += artboardWidthOf(artboards[i]) + ARTBOARD_GAP;
+    }
+    const newest = artboards[artboards.length - 1];
+    const wNew = artboardWidthOf(newest);
+    const hNew = newest.kind === "design-system" ? 520 : 900;
+    // Pick a zoom that keeps the new artboard visible: fit its width to
+    // ~70% of the container width, capped at 0.55 for design system.
+    const desiredZoom = Math.min(
+      newest.kind === "design-system" ? 0.55 : 0.42,
+      (rect.width * 0.7) / wNew,
+    );
+    const centerX = rect.width / 2 - (x + wNew / 2) * desiredZoom;
+    const centerY = rect.height / 2 - (hNew / 2) * desiredZoom;
+    setZoom(desiredZoom);
     setPan({ x: centerX, y: centerY });
   }, [artboards]);
 
@@ -155,25 +170,50 @@ export function SiteCanvas({ artboards }: Props) {
           willChange: "transform",
         }}
       >
-        {artboards.map((a, i) => (
-          <div
-            key={a.id}
-            style={{
-              position: "absolute",
-              left: i * (ARTBOARD_W + ARTBOARD_GAP),
-              top: 0,
-            }}
-          >
-            {a.kind === "design-system" ? (
-              <DesignSystemArtboard
-                designSystem={a.designSystem}
-                title={a.title}
-              />
-            ) : (
-              <PageArtboardPending title={a.title} status={a.status} />
-            )}
-          </div>
-        ))}
+        {(() => {
+          let x = 0;
+          const nodes = artboards.map((a) => {
+            const left = x;
+            x += artboardWidthOf(a) + ARTBOARD_GAP;
+            return (
+              <div
+                key={a.id}
+                style={{ position: "absolute", left, top: 0 }}
+              >
+                {a.kind === "design-system" ? (
+                  <DesignSystemArtboard
+                    designSystem={a.designSystem}
+                    title={a.title}
+                  />
+                ) : a.status === "done" && a.content && a.designSystem ? (
+                  <PageArtboard
+                    page={a.content}
+                    designSystem={a.designSystem}
+                  />
+                ) : (
+                  <PageArtboardPending
+                    title={a.title}
+                    status={a.status}
+                  />
+                )}
+                {/* Artboard label — small caption below the artboard */}
+                <div
+                  style={{
+                    marginTop: 10,
+                    fontSize: 11.5,
+                    fontFamily: "var(--font-mono)",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "rgba(245,240,230,0.5)",
+                  }}
+                >
+                  {a.title}
+                </div>
+              </div>
+            );
+          });
+          return nodes;
+        })()}
 
         {artboards.length === 0 && <EmptyState />}
       </div>
@@ -181,6 +221,10 @@ export function SiteCanvas({ artboards }: Props) {
       <ZoomIndicator zoom={zoom} onReset={() => setZoom(0.55)} />
     </div>
   );
+}
+
+function artboardWidthOf(a: SiteArtboard): number {
+  return a.kind === "design-system" ? DESIGN_W : PAGE_W;
 }
 
 function EmptyState() {
@@ -218,9 +262,9 @@ function PageArtboardPending({
     <div
       className="page-artboard"
       style={{
-        width: 720,
-        minHeight: 480,
-        borderRadius: 14,
+        width: 1280,
+        minHeight: 800,
+        borderRadius: 16,
         background: "#0d0d12",
         color: "#f5f0e6",
         border: "1px solid rgba(255,255,255,0.08)",
@@ -228,12 +272,32 @@ function PageArtboardPending({
         alignItems: "center",
         justifyContent: "center",
         fontFamily: "var(--font-mono)",
-        fontSize: 12,
+        fontSize: 13,
         letterSpacing: "0.08em",
         textTransform: "uppercase",
       }}
     >
-      {title} · {status}
+      <span
+        style={{
+          padding: "10px 22px",
+          borderRadius: 999,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        {title} · {status}
+        {status === "generating" && (
+          <span
+            style={{
+              display: "inline-block",
+              marginLeft: 8,
+              animation: "wrks-skel-shimmer 1.6s ease-in-out infinite",
+            }}
+          >
+            …
+          </span>
+        )}
+      </span>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   type DesignSystem,
   generateDesignSystem,
 } from "@/lib/site-generation/design-system";
+import { generatePageContent } from "@/lib/site-generation/page-content";
 
 // POST /api/sites/generate       — create a job, return jobId.
 // GET  /api/sites/generate?jobId — SSE stream of generation events.
@@ -163,15 +164,37 @@ export async function GET(req: Request) {
       emit("design.done", designSystem);
 
       // ==================================================
-      // Pass 2 — Per-page content generation (Ship 2).
+      // Pass 2 — Per-page content generation (real Sonnet).
+      // Ship 2: single-page (home). Multi-page baton pattern
+      // + agent-curated page selection land in Ship 3.
       // ==================================================
-      // For now, close cleanly after the design system streams so the
-      // canvas has its first real artboard to render. Real Sonnet
-      // per-page copy pass lands in the next commit.
-      emit("generation.done", {
-        siteId: jobId,
-        designSystem,
+      emit("page.start", {
+        pageId: "home",
+        message:
+          "Now writing your home page — hero, value cards, closer. In your voice.",
       });
+
+      try {
+        const page = await generatePageContent({
+          brief: job.brief,
+          brand: job.brand,
+          designSystem,
+          pageId: "home",
+        });
+        emit("page.done", page);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[api/sites/generate] page content failed:", message);
+        emit("error", {
+          stage: "page-content",
+          message,
+        });
+        controller.close();
+        JOBS.delete(jobId);
+        return;
+      }
+
+      emit("generation.done", { siteId: jobId });
       controller.close();
       JOBS.delete(jobId);
     },

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SiteCanvas, type SiteArtboard } from "@/components/site-canvas/site-canvas";
 import type { DesignSystem } from "@/lib/site-generation/design-system";
+import type { PageContent } from "@/lib/site-generation/page-content";
 
 // /studio/sites/generating — Stitch-style full-canvas theater.
 //
@@ -54,9 +55,11 @@ export default function GeneratingPage() {
       pushNarration(setNarration, "agent", data.message);
     });
 
+    let latestDesign: DesignSystem | null = null;
+
     es.addEventListener("design.done", (e) => {
       const ds = JSON.parse((e as MessageEvent).data) as DesignSystem;
-      // Add the design-system artboard.
+      latestDesign = ds;
       setArtboards((prev) => [
         ...prev,
         {
@@ -71,12 +74,51 @@ export default function GeneratingPage() {
       setPhase("pages");
     });
 
+    es.addEventListener("page.start", (e) => {
+      const data = JSON.parse((e as MessageEvent).data) as {
+        pageId: string;
+        message: string;
+      };
+      pushNarration(setNarration, "agent", data.message);
+      // Add a pending page artboard so the canvas frames its slot
+      // while Sonnet writes.
+      setArtboards((prev) => [
+        ...prev,
+        {
+          id: `page-${data.pageId}`,
+          kind: "page",
+          title: prettyPageTitle(data.pageId),
+          pageId: data.pageId,
+          status: "generating",
+          designSystem: latestDesign ?? undefined,
+        },
+      ]);
+    });
+
+    es.addEventListener("page.done", (e) => {
+      const page = JSON.parse((e as MessageEvent).data) as PageContent;
+      pushNarration(setNarration, "agent", page.narration);
+      setArtboards((prev) =>
+        prev.map((a) =>
+          a.kind === "page" && a.pageId === page.pageId
+            ? {
+                ...a,
+                status: "done" as const,
+                content: page,
+                title: page.title,
+                designSystem: latestDesign ?? a.designSystem,
+              }
+            : a,
+        ),
+      );
+    });
+
     es.addEventListener("generation.done", () => {
       setPhase("done");
       pushNarration(
         setNarration,
         "system",
-        "Design system complete. Page generation lands in the next update.",
+        "Draft is ready. Type in the composer to iterate.",
       );
       es.close();
     });
@@ -581,4 +623,9 @@ function pushNarration(
 
 function makeSystemTitle(ds: DesignSystem): string {
   return `${ds.palette.primary.name} · ${ds.type.display.family}`;
+}
+
+function prettyPageTitle(pageId: string): string {
+  if (pageId === "home") return "Home";
+  return pageId.charAt(0).toUpperCase() + pageId.slice(1).replace(/-/g, " ");
 }
