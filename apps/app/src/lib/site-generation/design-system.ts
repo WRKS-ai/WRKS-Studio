@@ -30,27 +30,28 @@ export const DesignSystemSchema = z.object({
     display: z.object({
       family: z.string().min(1).max(80),
       // Descriptive sample of the style, e.g. "Elegant, high-contrast serif".
-      sample: z.string().min(1).max(120),
+      // Kept forgiving — Haiku sometimes writes richer descriptions.
+      sample: z.string().min(1).max(400),
     }),
     body: z.object({
       family: z.string().min(1).max(80),
-      sample: z.string().min(1).max(120),
+      sample: z.string().min(1).max(400),
     }),
     mono: z.object({
       family: z.string().min(1).max(80),
-      sample: z.string().min(1).max(120),
+      sample: z.string().min(1).max(400),
     }),
   }),
   buttons: z.array(
     z.object({
       variant: z.enum(["primary", "secondary", "inverted", "outlined"]),
-      // Short describer of look, e.g. "solid dark navy, cream ink, 12px radius".
-      look: z.string().min(1).max(120),
+      // Describer of look. Room for palette-color refs + hover behavior.
+      look: z.string().min(1).max(600),
     }),
   ).min(2).max(4),
   iconStyle: z.enum(["stroke", "fill", "duotone"]),
-  // A one-line summary the agent uses in the left narration panel.
-  narration: z.string().min(1).max(280),
+  // Left narration panel summary. 2-3 sentences worth of room.
+  narration: z.string().min(1).max(800),
 });
 
 export type DesignSystem = z.infer<typeof DesignSystemSchema>;
@@ -77,7 +78,7 @@ export async function generateDesignSystem({
 
   const result = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 2048,
+    max_tokens: 4096,
     system: buildSystemPrompt(),
     messages: [
       {
