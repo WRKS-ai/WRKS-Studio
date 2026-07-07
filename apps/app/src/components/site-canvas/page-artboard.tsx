@@ -57,12 +57,14 @@ export function PageArtboard({ page, designSystem }: Props) {
       {/* Browser chrome */}
       <BrowserChrome pageId={page.pageId} designSystem={designSystem} />
 
-      {/* Nav strip on light bg (visually below the chrome, above the
-          dark hero — matches Bill-Fanter's CardNav layout). */}
-      <Nav page={page} designSystem={designSystem} />
-
-      {/* Sections in Bill-Fanter order */}
-      <Hero data={page.hero} designSystem={designSystem} />
+      {/* Hero section — includes the light nav strip OVERLAID above
+          the dark stage, matching Bill-Fanter's CardNav-over-hero
+          composition. */}
+      <Hero
+        data={page.hero}
+        title={page.title}
+        designSystem={designSystem}
+      />
       <HelpGrid data={page.helpGrid} designSystem={designSystem} />
       <About data={page.about} designSystem={designSystem} />
       <Closing data={page.closing} designSystem={designSystem} />
@@ -127,262 +129,321 @@ function dotStyle(color: string): React.CSSProperties {
 }
 
 // ============================================================
-// Nav (light, overlaid on top of the dark hero visually)
-// ============================================================
-function Nav({
-  page,
-  designSystem,
-}: {
-  page: PageContent;
-  designSystem: DesignSystem;
-}) {
-  const neutralDark = designSystem.palette.neutral.scale[4] ?? "#0a0a0c";
-  return (
-    <div
-      className="flex items-center justify-between"
-      style={{
-        padding: "18px 40px",
-        background: "#0a0a0c",
-        color: "#f5f0e6",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
-      <span
-        style={{
-          fontFamily: "var(--wrks-display)",
-          fontSize: 18,
-          fontWeight: 600,
-          letterSpacing: "-0.015em",
-          color: "#f5f0e6",
-        }}
-      >
-        {page.title}
-      </span>
-      <span
-        style={{
-          fontSize: 13,
-          color: "rgba(245,240,230,0.65)",
-          fontFamily: "var(--wrks-body)",
-        }}
-      >
-        Home · About · Work · Contact
-      </span>
-      <span
-        style={{
-          padding: "8px 16px",
-          borderRadius: 999,
-          background: designSystem.palette.primary.hex,
-          color: "#ffffff",
-          fontSize: 13,
-          fontWeight: 500,
-        }}
-      >
-        {page.hero.primaryCta.label}
-      </span>
-      {/* Reserve neutralDark just to keep the color reference honest. */}
-      <span style={{ display: "none", color: neutralDark }} />
-    </div>
-  );
-}
-
-// ============================================================
-// HERO — dark stage, dot-grid, trust row, namecard, portrait placeholder
+// HERO — Bill-Fanter parity.
+//
+// Structure:
+//   • Section is a DARK stage (#0a0a0a) with a dot-grid overlay + a
+//     lighter scrim below the dots so they read punchy, not washed.
+//   • Nav sits ABOVE the hero content on a LIGHT cream bar (matches
+//     Bill-Fanter's CardNav-over-dark-hero pattern).
+//   • Copy rail = left column, HUGE 80px display headline (~5rem),
+//     28px top gap → 18px subhead → 34px gap → CTA pills →
+//     26px gap → trust row.
+//   • Portrait area = absolute-positioned right column starting at
+//     55% of the artboard width. Full-bleed to the right edge.
+//     Placeholder is a warm palette gradient with a subtle darker
+//     inset so it reads as "person-in-a-lit-space" rather than a
+//     flat swatch. Real image pipeline replaces this later.
+//   • Namecard = frosted white pill absolute-anchored to the
+//     bottom-left of the portrait area, floating over it.
 // ============================================================
 function Hero({
   data,
+  title,
   designSystem,
 }: {
   data: PageContent["hero"];
+  title: string;
   designSystem: DesignSystem;
 }) {
-  const primary = designSystem.palette.primary.hex;
-  const tertiary = designSystem.palette.tertiary.hex;
+  const p = designSystem.palette;
+  const cream = "#f5f0e6";
   return (
     <div
       style={{
         position: "relative",
-        padding: "88px 40px 96px",
         background: "#0a0a0a",
         color: "#ffffff",
         overflow: "hidden",
       }}
     >
-      {/* Dot-grid overlay */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage:
-            "radial-gradient(circle at center, rgba(69,69,69,0.66) 1px, transparent 1px)",
-          backgroundSize: "10px 10px",
-          opacity: 0.66,
-          zIndex: 0,
-        }}
+      {/* Light nav strip above hero. Bill-Fanter's site header
+          floats OVER the dark hero on a cream bar with a small
+          radius so it reads as a floating chrome, not a header. */}
+      <NavStrip
+        title={title}
+        primaryCta={data.primaryCta.label}
+        designSystem={designSystem}
       />
 
-      {/* Right-anchored portrait placeholder — Bill-Fanter has a real
-          image here. Until we ship the image pipeline, a gradient block
-          keyed to the palette. */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: "58%",
-          right: 0,
-          zIndex: 1,
-          background: `linear-gradient(135deg, ${primary} 0%, ${tertiary} 100%)`,
-          opacity: 0.62,
-        }}
-      />
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: "58%",
-          right: 0,
-          zIndex: 2,
-          background:
-            "linear-gradient(90deg, #0a0a0a 0%, transparent 30%, transparent 100%)",
-        }}
-      />
-
-      {/* Copy rail */}
-      <div style={{ position: "relative", zIndex: 3, maxWidth: 720 }}>
-        <h1
-          style={{
-            fontFamily: "var(--wrks-display)",
-            fontSize: 68,
-            fontWeight: 600,
-            lineHeight: 1.04,
-            letterSpacing: "-0.03em",
-            color: "#ffffff",
-            margin: 0,
-          }}
-        >
-          {data.headline}
-        </h1>
-        <p
-          style={{
-            fontSize: 18,
-            lineHeight: 1.55,
-            color: "#ffffff",
-            maxWidth: "56ch",
-            margin: "24px 0 0",
-          }}
-        >
-          {data.subhead}
-        </p>
-
-        <div
-          style={{
-            marginTop: 30,
-            display: "flex",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <span
-            style={{
-              padding: "14px 26px",
-              borderRadius: 999,
-              background: "#ffffff",
-              color: "#0a0a0a",
-              fontSize: 14,
-              fontWeight: 500,
-            }}
-          >
-            {data.primaryCta.label}
-          </span>
-          <span
-            style={{
-              padding: "14px 26px",
-              borderRadius: 999,
-              background: "transparent",
-              color: "#ffffff",
-              border: "1px solid rgba(255,255,255,0.4)",
-              fontSize: 14,
-              fontWeight: 500,
-            }}
-          >
-            {data.secondaryCta.label}
-          </span>
-        </div>
-
-        {/* Trust row */}
-        <div
-          style={{
-            marginTop: 26,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            fontSize: 14,
-            fontWeight: 500,
-            color: "#ffffff",
-          }}
-        >
-          <span>{data.trust.label}</span>
-          <span
-            aria-hidden
-            style={{ display: "inline-flex", gap: 2 }}
-          >
-            {Array.from({ length: data.trust.rating }).map((_, i) => (
-              <svg
-                key={i}
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="#ffc14d"
-              >
-                <path d={STAR_PATH} />
-              </svg>
-            ))}
-          </span>
-          <span style={{ fontWeight: 400 }}>{data.trust.count}</span>
-        </div>
-      </div>
-
-      {/* Namecard bubble on the portrait */}
+      {/* Hero stage below the nav. */}
       <div
         style={{
-          position: "absolute",
-          left: "60%",
-          bottom: 26,
-          zIndex: 4,
-          padding: "12px 18px",
-          borderRadius: 12,
-          background: "rgba(255,255,255,0.94)",
-          backdropFilter: "blur(8px)",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 2,
+          position: "relative",
+          padding: "168px 56px 128px",
+          minHeight: 720,
+          overflow: "hidden",
         }}
       >
-        <span
+        {/* Dot-grid overlay */}
+        <div
+          aria-hidden
           style={{
-            fontSize: 15,
-            fontWeight: 700,
-            color: "#0a0a0a",
-            fontFamily: "var(--wrks-display)",
+            position: "absolute",
+            inset: 0,
+            backgroundImage:
+              "radial-gradient(circle at center, rgba(69,69,69,0.66) 2px, transparent 2px)",
+            backgroundSize: "10px 10px",
+            opacity: 0.66,
+            zIndex: 1,
+          }}
+        />
+        {/* Scrim so text stays punchy */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 0,
+            background: "rgba(10,10,10,0.5)",
+          }}
+        />
+
+        {/* Portrait — full-bleed right column, starts at 55% */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: "55%",
+            right: 0,
+            zIndex: 2,
+            background: `linear-gradient(180deg, ${p.tertiary.hex}88 0%, ${p.primary.hex}dd 55%, ${p.secondary.hex}ff 100%)`,
+          }}
+        />
+        {/* Portrait vignette — creates "person-in-lit-space" mood */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: "55%",
+            right: 0,
+            zIndex: 3,
+            background:
+              "radial-gradient(ellipse 60% 55% at 45% 40%, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.55) 100%)",
+          }}
+        />
+
+        {/* Copy rail */}
+        <div style={{ position: "relative", zIndex: 4, maxWidth: 780 }}>
+          <h1
+            style={{
+              fontFamily: "var(--wrks-display)",
+              fontSize: 80,
+              fontWeight: 600,
+              lineHeight: 1.04,
+              letterSpacing: "-0.03em",
+              color: "#ffffff",
+              margin: 0,
+              maxWidth: "16ch",
+            }}
+          >
+            {data.headline}
+          </h1>
+          <p
+            style={{
+              fontSize: 19,
+              lineHeight: 1.55,
+              color: "#ffffff",
+              maxWidth: "56ch",
+              margin: "28px 0 0",
+            }}
+          >
+            {data.subhead}
+          </p>
+
+          <div
+            style={{
+              marginTop: 36,
+              display: "flex",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <span
+              style={{
+                padding: "16px 30px",
+                borderRadius: 999,
+                background: "#ffffff",
+                color: "#0a0a0a",
+                fontSize: 15,
+                fontWeight: 600,
+              }}
+            >
+              {data.primaryCta.label}
+            </span>
+            <span
+              style={{
+                padding: "16px 30px",
+                borderRadius: 999,
+                background: "transparent",
+                color: "#ffffff",
+                border: "1px solid rgba(255,255,255,0.4)",
+                fontSize: 15,
+                fontWeight: 600,
+              }}
+            >
+              {data.secondaryCta.label}
+            </span>
+          </div>
+
+          {/* Trust row */}
+          <div
+            style={{
+              marginTop: 30,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              fontSize: 14,
+              fontWeight: 500,
+              color: cream,
+            }}
+          >
+            <span style={{ fontWeight: 600 }}>{data.trust.label}</span>
+            <span aria-hidden style={{ display: "inline-flex", gap: 2 }}>
+              {Array.from({ length: data.trust.rating }).map((_, i) => (
+                <svg
+                  key={i}
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="#ffc14d"
+                >
+                  <path d={STAR_PATH} />
+                </svg>
+              ))}
+            </span>
+            <span style={{ fontWeight: 400 }}>{data.trust.count}</span>
+          </div>
+        </div>
+
+        {/* Namecard bubble anchored bottom-left of the portrait area */}
+        <div
+          style={{
+            position: "absolute",
+            left: "calc(55% + 24px)",
+            bottom: 32,
+            zIndex: 5,
+            padding: "14px 20px",
+            borderRadius: 14,
+            background: "rgba(255,255,255,0.94)",
+            backdropFilter: "blur(8px)",
+            boxShadow: "0 12px 34px rgba(0,0,0,0.35)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
           }}
         >
-          {data.namecard.name}
-        </span>
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 500,
-            color: "rgba(10,10,10,0.6)",
-          }}
-        >
-          {data.namecard.role}
-        </span>
+          <span
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "#0a0a0a",
+              fontFamily: "var(--wrks-display)",
+              lineHeight: 1.1,
+            }}
+          >
+            {data.namecard.name}
+          </span>
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 500,
+              color: "rgba(10,10,10,0.6)",
+            }}
+          >
+            {data.namecard.role}
+          </span>
+        </div>
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Nav strip — light bar sitting on top of the dark hero. Matches
+// Bill-Fanter's CardNav style (rounded bar, brand mark left,
+// primary CTA button right, small nav items in between).
+// ============================================================
+function NavStrip({
+  title,
+  primaryCta,
+  designSystem,
+}: {
+  title: string;
+  primaryCta: string;
+  designSystem: DesignSystem;
+}) {
+  const neutralDark = designSystem.palette.neutral.scale[4] ?? "#0a0a0c";
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 20,
+        left: 24,
+        right: 24,
+        zIndex: 6,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "14px 22px",
+        borderRadius: 14,
+        background: "#ffffff",
+        boxShadow: "0 10px 30px -6px rgba(0,0,0,0.4)",
+        color: neutralDark,
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "var(--wrks-display)",
+          fontSize: 16,
+          fontWeight: 700,
+          letterSpacing: "-0.005em",
+          color: neutralDark,
+        }}
+      >
+        {title}
+      </span>
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 500,
+          color: `${neutralDark}b3`,
+          fontFamily: "var(--wrks-body)",
+          display: "flex",
+          gap: 20,
+        }}
+      >
+        <span>Home</span>
+        <span>About</span>
+        <span>Work</span>
+        <span>Contact</span>
+      </span>
+      <span
+        style={{
+          padding: "9px 18px",
+          borderRadius: 999,
+          background: neutralDark,
+          color: "#ffffff",
+          fontSize: 13,
+          fontWeight: 600,
+        }}
+      >
+        {primaryCta}
+      </span>
     </div>
   );
 }
