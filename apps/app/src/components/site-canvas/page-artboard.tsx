@@ -23,6 +23,14 @@ const BILL_FANTER_PREVIEW_ORIGIN =
   process.env.NEXT_PUBLIC_BILL_FANTER_PREVIEW_ORIGIN ??
   "https://bill-fanter-preview-tau.vercel.app";
 
+// Artboard sized to fit the full Bill-Fanter homepage without an
+// inner scrollbar. Bill-Fanter's 4-section homepage renders ~3600px
+// tall at 1280 viewport — Hero (720) + HelpGrid (~700) + AboutBill
+// (~900) + Closing (~800) + Footer + Nav. Rounded up to 4000 to
+// absorb variance from longer generated copy (multi-paragraph about
+// sections push over 900px).
+const ARTBOARD_HEIGHT = 4000;
+
 export function PagePreviewFrame({ content, designSystem }: Props) {
   const payload = encodeURIComponent(
     JSON.stringify({ content, designSystem }),
@@ -34,7 +42,7 @@ export function PagePreviewFrame({ content, designSystem }: Props) {
       className="page-artboard"
       style={{
         width: 1280,
-        height: 900,
+        height: ARTBOARD_HEIGHT,
         borderRadius: 16,
         overflow: "hidden",
         border: "1px solid rgba(0,0,0,0.1)",
@@ -47,6 +55,7 @@ export function PagePreviewFrame({ content, designSystem }: Props) {
       <iframe
         src={previewUrl}
         title="Site preview"
+        scrolling="no"
         style={{
           width: "100%",
           height: "100%",

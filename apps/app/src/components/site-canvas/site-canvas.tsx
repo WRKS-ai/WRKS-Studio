@@ -66,7 +66,10 @@ export function SiteCanvas({ artboards }: Props) {
     }
     const newest = artboards[artboards.length - 1];
     const wNew = artboardWidthOf(newest);
-    const hNew = newest.kind === "design-system" ? 520 : 900;
+    // Page artboards are tall (~4000px) — for framing we still use the
+    // hero-visible height (720) so the canvas zooms to show the TOP
+    // of the page. Pan/scroll reveals the sections below.
+    const hNew = newest.kind === "design-system" ? 520 : 720;
     // Pick a zoom that keeps the new artboard visible: fit its width to
     // ~70% of the container width, capped at 0.55 for design system.
     const desiredZoom = Math.min(
