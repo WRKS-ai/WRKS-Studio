@@ -1,0 +1,131 @@
+---
+// /preview/[jobId] — SSR route that renders the Bill-Fanter homepage
+// with per-user generated content.
+//
+// Requested by WRKS Studio's /studio/sites/generating canvas iframe.
+// This route fetches the current user's `content` payload by jobId
+// from the Studio's job endpoint and passes it into each section
+// component. Section components fall back to content.sample when the
+// prop is undefined, so any keys the Studio hasn't populated stay as
+// canonical Bill-Fanter copy.
+//
+// Also injects the user's design system as CSS custom properties on
+// :root so the template can (later) opt into palette + typography
+// overrides without changing markup.
+
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ReactReady from '../../components/ReactReady.jsx';
+import Islands from '../../components/Islands.astro';
+import Footer from '../../components/Footer.astro';
+import Hero from '../../components/sections/Hero.astro';
+import HelpGrid from '../../components/sections/HelpGrid.astro';
+import AboutBill from '../../components/sections/AboutBill.astro';
+import Closing from '../../components/sections/Closing.astro';
+import type {
+  HeroContent,
+  HelpGridContent,
+  AboutBillContent,
+  ClosingContent,
+} from '../../data/content.schema';
+
+const { jobId } = Astro.params;
+
+// The Studio origin — the Next.js app that stores the job in memory.
+// Configurable via env so preview can be deployed to any Vercel URL
+// while pointing back at whichever Studio deploy is authoritative.
+const STUDIO_ORIGIN =
+  import.meta.env.PUBLIC_WRKS_STUDIO_ORIGIN ??
+  'https://wrks-studio-app.vercel.app';
+
+type JobPayload = {
+  content: {
+    pageId: string;
+    title: string;
+    hero: HeroContent;
+    helpGrid: HelpGridContent;
+    about: AboutBillContent;
+    closing: ClosingContent;
+  };
+  designSystem: {
+    palette: {
+      primary: { hex: string };
+      secondary: { hex: string };
+      tertiary: { hex: string };
+      neutral: { hex: string; scale: string[] };
+    };
+    type: {
+      display: { family: string };
+      body: { family: string };
+      mono: { family: string };
+    };
+  };
+};
+
+let job: JobPayload | null = null;
+let fetchError: string | null = null;
+
+try {
+  const res = await fetch(`${STUDIO_ORIGIN}/api/sites/jobs/${jobId}`, {
+    headers: { 'cache-control': 'no-store' },
+  });
+  if (!res.ok) {
+    fetchError = `Job fetch returned ${res.status}`;
+  } else {
+    job = (await res.json()) as JobPayload;
+  }
+} catch (err) {
+  fetchError = err instanceof Error ? err.message : String(err);
+}
+
+// Build the CSS variable overrides. Font families use `!important` so
+// they take precedence over the design-system stylesheet.
+const cssVars = job
+  ? `
+    :root {
+      --wrks-palette-primary: ${job.designSystem.palette.primary.hex};
+      --wrks-palette-secondary: ${job.designSystem.palette.secondary.hex};
+      --wrks-palette-tertiary: ${job.designSystem.palette.tertiary.hex};
+      --wrks-palette-neutral: ${job.designSystem.palette.neutral.hex};
+      --wrks-display: "${job.designSystem.type.display.family}", ui-serif, Georgia, serif;
+      --wrks-body: "${job.designSystem.type.body.family}", ui-sans-serif, system-ui, sans-serif;
+    }
+    /* Preview-only: override the design-system's Hanken Grotesk with
+       the user's generated typography choices so the template renders
+       in their brand voice. */
+    body, .bf-body, .bf-lead, .bf-h1, .bf-h2, .bf-eyebrow {
+      font-family: var(--wrks-body) !important;
+    }
+    .bf-h1, .bf-h2, .bf-hero2026__h1, .bf-hero-split__h1 {
+      font-family: var(--wrks-display) !important;
+    }
+  `
+  : '';
+---
+<BaseLayout
+  title={job?.content.title ?? 'WRKS Studio preview'}
+  description="Generated site preview — WRKS Studio"
+  wfPageId="preview"
+>
+  <ReactReady client:only="react" />
+  {cssVars && <style set:html={cssVars} />}
+
+  {fetchError && (
+    <div
+      style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#7a1616;color:#fff;padding:16px 24px;font-family:ui-monospace,monospace;font-size:13px"
+    >
+      Preview error: {fetchError}. Falling back to canonical Bill-Fanter content.
+    </div>
+  )}
+
+  {/* variant="split" mirrors billfanter.com's homepage nav variant. */}
+  <main class="bf-page" data-cardnav-host data-cardnav-variant="split">
+    <Hero content={job?.content.hero} />
+    <HelpGrid content={job?.content.helpGrid} />
+    <AboutBill content={job?.content.about} />
+    <Closing content={job?.content.closing} />
+  </main>
+  <Footer />
+  <Islands />
+</BaseLayout>

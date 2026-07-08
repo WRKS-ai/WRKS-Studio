@@ -4,12 +4,17 @@
 // dual CTA + trust row on the left rail, right-anchored portrait that
 // lines up with the bento split below.
 //
-// WRKS template refactor (2026-06-30): all editable copy now reads from
-// `content.hero` slots (see ../../data/content.schema.ts). Layout,
-// classnames, and visual behavior are unchanged — only string literals
-// moved out of the markup.
-import { content } from '../../data/content.sample';
-const hero = content.hero;
+// Content sourcing (2026-06-30):
+//   1. If `content` prop is passed (from /preview/[jobId]), use it.
+//   2. Otherwise fall back to `content.sample.hero` — the canonical
+//      Bill-Fanter copy — so the marketing site keeps rendering as-is.
+import { content as sampleContent } from '../../data/content.sample';
+import type { HeroContent } from '../../data/content.schema';
+interface Props {
+  content?: HeroContent;
+}
+const { content: propContent } = Astro.props;
+const hero = propContent ?? sampleContent.hero;
 const star = '<path d="M12 2l3 7 7 .8-5 5 1.5 7-6.5-3.5L5 22l1.5-7-5-5L8.5 9z"/>';
 ---
 <section class="bf-hero2026">

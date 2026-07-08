@@ -1,7 +1,14 @@
 ---
-// Value-proposition icon grid. WRKS template: reads from content.helpGrid.
-import { content } from '../../data/content.sample';
-const help = content.helpGrid;
+// Value-proposition icon grid. Content sourcing:
+//   1. `content` prop from /preview/[jobId] wins.
+//   2. Fallback = content.sample.helpGrid (canonical Bill-Fanter).
+import { content as sampleContent } from '../../data/content.sample';
+import type { HelpGridContent } from '../../data/content.schema';
+interface Props {
+  content?: HelpGridContent;
+}
+const { content: propContent } = Astro.props;
+const help = propContent ?? sampleContent.helpGrid;
 ---
 <section class="bf-section">
   <div class="bf-container">

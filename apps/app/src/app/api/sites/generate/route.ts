@@ -8,31 +8,26 @@ import {
   generateDesignSystem,
 } from "@/lib/site-generation/design-system";
 import { generatePageContent } from "@/lib/site-generation/page-content";
+import {
+  createPendingJob,
+  deleteJob,
+  getJob,
+  markJobReady,
+} from "@/lib/site-generation/job-store";
 
 // POST /api/sites/generate       — create a job, return jobId.
 // GET  /api/sites/generate?jobId — SSE stream of generation events.
 //
-// v2 (2026-06-30) — Stitch-style: real Haiku design system pass fires
-// first, streams the resulting palette + type + buttons + narration.
-// Per-page Sonnet content pass lands in Ship 2.
+// Job lifecycle:
+//   POST  → createPendingJob
+//   GET   → runs design + page passes, streams events
+//   done  → markJobReady (stores content + designSystem)
+//   /api/sites/jobs/[jobId] serves the ready job publicly to the
+//   Bill-Fanter Astro preview route (bill-fanter-preview.vercel.app/
+//   preview/[jobId]).
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-// In-memory job store. Real generation persists to a
-// `sites_generation_jobs` table (Ship 3) so SSE consumers can survive
-// lambda cold-starts + reconnects. In-memory works for local dev and
-// single-instance deploys; multi-instance requires the DB.
-const JOBS = new Map<
-  string,
-  {
-    userId: string;
-    brief: string;
-    templateId: string;
-    brand: BrandContext;
-    createdAt: number;
-  }
->();
 
 const PostBody = z.object({
   brief: z.string().trim().min(6).max(600),
@@ -96,12 +91,11 @@ export async function POST(req: Request) {
   }
 
   const jobId = crypto.randomUUID();
-  JOBS.set(jobId, {
+  createPendingJob(jobId, {
     userId,
     brief: body.brief,
     templateId: body.templateId,
     brand,
-    createdAt: Date.now(),
   });
   return NextResponse.json({ jobId });
 }
@@ -119,7 +113,7 @@ export async function GET(req: Request) {
   if (!jobId) {
     return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
   }
-  const job = JOBS.get(jobId);
+  const job = getJob(jobId);
   if (!job || job.userId !== userId) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
@@ -157,7 +151,7 @@ export async function GET(req: Request) {
           message,
         });
         controller.close();
-        JOBS.delete(jobId);
+        deleteJob(jobId);
         return;
       }
 
@@ -174,8 +168,9 @@ export async function GET(req: Request) {
           "Now writing your home page — hero, value cards, closer. In your voice.",
       });
 
+      let page;
       try {
-        const page = await generatePageContent({
+        page = await generatePageContent({
           brief: job.brief,
           brand: job.brand,
           designSystem,
@@ -190,13 +185,17 @@ export async function GET(req: Request) {
           message,
         });
         controller.close();
-        JOBS.delete(jobId);
+        deleteJob(jobId);
         return;
       }
 
+      // Persist so the Bill-Fanter preview route can fetch this
+      // job's content over HTTP after generation completes.
+      markJobReady(jobId, page, designSystem);
+
       emit("generation.done", { siteId: jobId });
       controller.close();
-      JOBS.delete(jobId);
+      // Job stays in the store for its TTL so preview can fetch.
     },
   });
 

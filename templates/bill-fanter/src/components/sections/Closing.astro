@@ -1,8 +1,15 @@
 ---
-// Closing dark block — rotating testimonial slideshow + Book-a-Call grainient
-// card. WRKS template: reads from content.closing.
-import { content } from '../../data/content.sample';
-const closing = content.closing;
+// Closing dark block — rotating testimonial slideshow + Book-a-Call
+// grainient card. Content sourcing:
+//   1. `content` prop from /preview/[jobId] wins.
+//   2. Fallback = content.sample.closing (canonical Bill-Fanter).
+import { content as sampleContent } from '../../data/content.sample';
+import type { ClosingContent } from '../../data/content.schema';
+interface Props {
+  content?: ClosingContent;
+}
+const { content: propContent } = Astro.props;
+const closing = propContent ?? sampleContent.closing;
 const star = '<path d="M12 2l3 7 7 .8-5 5 1.5 7-6.5-3.5L5 22l1.5-7-5-5L8.5 9z"/>';
 ---
 <section class="bf-closing">

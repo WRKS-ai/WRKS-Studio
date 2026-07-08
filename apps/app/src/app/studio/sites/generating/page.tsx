@@ -90,7 +90,6 @@ export default function GeneratingPage() {
           title: prettyPageTitle(data.pageId),
           pageId: data.pageId,
           status: "generating",
-          designSystem: latestDesign ?? undefined,
         },
       ]);
     });
@@ -104,9 +103,8 @@ export default function GeneratingPage() {
             ? {
                 ...a,
                 status: "done" as const,
-                content: page,
+                jobId: jobId ?? undefined,
                 title: page.title,
-                designSystem: latestDesign ?? a.designSystem,
               }
             : a,
         ),

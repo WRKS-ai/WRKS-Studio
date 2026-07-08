@@ -1,9 +1,15 @@
 ---
-// About Bill — "Meet your mentor" section. WRKS template: reads copy
-// from content.aboutBill (see ../../data/content.schema.ts).
+// About Bill — "Meet your mentor" section. Content sourcing:
+//   1. `content` prop from /preview/[jobId] wins.
+//   2. Fallback = content.sample.aboutBill (canonical Bill-Fanter).
 import Signature from '../Signature.astro';
-import { content } from '../../data/content.sample';
-const about = content.aboutBill;
+import { content as sampleContent } from '../../data/content.sample';
+import type { AboutBillContent } from '../../data/content.schema';
+interface Props {
+  content?: AboutBillContent;
+}
+const { content: propContent } = Astro.props;
+const about = propContent ?? sampleContent.aboutBill;
 ---
 <section class="bf-section">
   <div class="bf-container">

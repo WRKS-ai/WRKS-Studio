@@ -1,786 +1,91 @@
 "use client";
 
-import type { DesignSystem } from "@/lib/site-generation/design-system";
-import type { PageContent } from "@/lib/site-generation/page-content";
+import { useEffect, useState } from "react";
 
-// Page artboard — renders the generated PageContent styled to visually
-// mirror the Bill-Fanter WRKS template (dark hero + dot-grid + trust row
-// + namecard, HelpGrid 3-column with icons, dark About block, dark
-// Closing with pills), with the design system applied via CSS variables.
+// Page artboard — iframes the REAL Bill-Fanter Astro template running
+// at bill-fanter-preview.vercel.app/preview/[jobId], which fetches
+// this user's generated content from Studio's public job endpoint
+// and renders billfanter.com's actual section components with the
+// user's copy.
 //
-// Portrait / photo slots use gradient placeholders keyed off the
-// generated palette until the image pipeline ships.
+// The React port that used to live here (hand-rolled Hero/HelpGrid/
+// About/Closing renderers) was killed 2026-06-30 — chasing pixel
+// parity with a hand-rolled port was the wrong direction. The
+// template we spent all day slot-refactoring IS the answer.
+//
+// The iframe waits until we're confident the job endpoint has
+// populated (a short delay after `page.done`) before loading —
+// premature loads see a 409 and render the Bill-Fanter canonical
+// content instead of the user's.
 
 type Props = {
-  page: PageContent;
-  designSystem: DesignSystem;
+  jobId: string;
 };
 
-const STAR_PATH = "M12 2l3 7 7 .8-5 5 1.5 7-6.5-3.5L5 22l1.5-7-5-5L8.5 9z";
+// Configurable via env so Bill-Fanter can be deployed to any
+// preview URL without hardcoding.
+const BILL_FANTER_PREVIEW_ORIGIN =
+  process.env.NEXT_PUBLIC_BILL_FANTER_PREVIEW_ORIGIN ??
+  "https://bill-fanter.vercel.app";
 
-export function PageArtboard({ page, designSystem }: Props) {
-  const p = designSystem.palette;
-  const neutralDark = p.neutral.scale[4] ?? "#0a0a0c";
-  const neutralLight = p.neutral.scale[0] ?? "#ffffff";
-  const display = designSystem.type.display.family;
-  const body = designSystem.type.body.family;
+export function PagePreviewFrame({ jobId }: Props) {
+  // Small delay so the /api/sites/jobs/[jobId] endpoint is populated
+  // by the time Astro's SSR fetch runs (page.done event fires just
+  // before markJobReady in the same request cycle, so the ordering
+  // is usually fine — but a beat helps in cold-start scenarios).
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 400);
+    return () => clearTimeout(t);
+  }, [jobId]);
 
-  const cssVars = {
-    "--wrks-primary": p.primary.hex,
-    "--wrks-secondary": p.secondary.hex,
-    "--wrks-tertiary": p.tertiary.hex,
-    "--wrks-neutral-0": p.neutral.scale[0],
-    "--wrks-neutral-1": p.neutral.scale[1],
-    "--wrks-neutral-2": p.neutral.scale[2],
-    "--wrks-neutral-3": p.neutral.scale[3],
-    "--wrks-neutral-4": p.neutral.scale[4],
-    "--wrks-display": `"${display}", ui-serif, Georgia, serif`,
-    "--wrks-body": `"${body}", ui-sans-serif, system-ui, sans-serif`,
-    background: neutralLight,
-    color: neutralDark,
-    fontFamily: "var(--wrks-body)",
-  } as React.CSSProperties;
+  const previewUrl = `${BILL_FANTER_PREVIEW_ORIGIN}/preview/${jobId}`;
 
   return (
     <div
       className="page-artboard"
       style={{
         width: 1280,
+        height: 900,
         borderRadius: 16,
         overflow: "hidden",
         border: "1px solid rgba(0,0,0,0.1)",
         boxShadow:
           "0 40px 100px -40px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.2)",
-        ...cssVars,
-      }}
-    >
-      {/* Browser chrome */}
-      <BrowserChrome pageId={page.pageId} designSystem={designSystem} />
-
-      {/* Hero section — includes the light nav strip OVERLAID above
-          the dark stage, matching Bill-Fanter's CardNav-over-hero
-          composition. */}
-      <Hero
-        data={page.hero}
-        title={page.title}
-        designSystem={designSystem}
-      />
-      <HelpGrid data={page.helpGrid} designSystem={designSystem} />
-      <About data={page.about} designSystem={designSystem} />
-      <Closing data={page.closing} designSystem={designSystem} />
-    </div>
-  );
-}
-
-// ============================================================
-// Browser chrome
-// ============================================================
-function BrowserChrome({
-  pageId,
-  designSystem,
-}: {
-  pageId: string;
-  designSystem: DesignSystem;
-}) {
-  const p = designSystem.palette;
-  const neutralLight = p.neutral.scale[0] ?? "#ffffff";
-  const neutralDark = p.neutral.scale[4] ?? "#0a0a0c";
-  return (
-    <div
-      className="flex items-center"
-      style={{
-        padding: "10px 16px",
-        gap: 12,
-        background: p.neutral.scale[1],
-        borderBottom: `1px solid ${p.neutral.scale[2]}44`,
-        fontSize: 13,
-        color: `${neutralDark}b0`,
-        fontFamily: "ui-monospace, SFMono-Regular, monospace",
-      }}
-    >
-      <span aria-hidden style={{ display: "inline-flex", gap: 5 }}>
-        <span style={dotStyle("#ff5f56")} />
-        <span style={dotStyle("#ffbd2e")} />
-        <span style={dotStyle("#27c93f")} />
-      </span>
-      <span
-        style={{
-          flex: 1,
-          padding: "5px 12px",
-          borderRadius: 6,
-          background: neutralLight,
-          border: `1px solid ${p.neutral.scale[2]}55`,
-        }}
-      >
-        your-brand.wrks.studio · {pageId}
-      </span>
-    </div>
-  );
-}
-
-function dotStyle(color: string): React.CSSProperties {
-  return {
-    display: "inline-block",
-    width: 12,
-    height: 12,
-    borderRadius: "50%",
-    background: color,
-  };
-}
-
-// ============================================================
-// HERO — Bill-Fanter parity.
-//
-// Structure:
-//   • Section is a DARK stage (#0a0a0a) with a dot-grid overlay + a
-//     lighter scrim below the dots so they read punchy, not washed.
-//   • Nav sits ABOVE the hero content on a LIGHT cream bar (matches
-//     Bill-Fanter's CardNav-over-dark-hero pattern).
-//   • Copy rail = left column, HUGE 80px display headline (~5rem),
-//     28px top gap → 18px subhead → 34px gap → CTA pills →
-//     26px gap → trust row.
-//   • Portrait area = absolute-positioned right column starting at
-//     55% of the artboard width. Full-bleed to the right edge.
-//     Placeholder is a warm palette gradient with a subtle darker
-//     inset so it reads as "person-in-a-lit-space" rather than a
-//     flat swatch. Real image pipeline replaces this later.
-//   • Namecard = frosted white pill absolute-anchored to the
-//     bottom-left of the portrait area, floating over it.
-// ============================================================
-function Hero({
-  data,
-  title,
-  designSystem,
-}: {
-  data: PageContent["hero"];
-  title: string;
-  designSystem: DesignSystem;
-}) {
-  const p = designSystem.palette;
-  const cream = "#f5f0e6";
-  return (
-    <div
-      style={{
-        position: "relative",
-        background: "#0a0a0a",
-        color: "#ffffff",
-        overflow: "hidden",
-      }}
-    >
-      {/* Light nav strip above hero. Bill-Fanter's site header
-          floats OVER the dark hero on a cream bar with a small
-          radius so it reads as a floating chrome, not a header. */}
-      <NavStrip
-        title={title}
-        primaryCta={data.primaryCta.label}
-        designSystem={designSystem}
-      />
-
-      {/* Hero stage below the nav. */}
-      <div
-        style={{
-          position: "relative",
-          padding: "168px 56px 128px",
-          minHeight: 720,
-          overflow: "hidden",
-        }}
-      >
-        {/* Dot-grid overlay */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage:
-              "radial-gradient(circle at center, rgba(69,69,69,0.66) 2px, transparent 2px)",
-            backgroundSize: "10px 10px",
-            opacity: 0.66,
-            zIndex: 1,
-          }}
-        />
-        {/* Scrim so text stays punchy */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 0,
-            background: "rgba(10,10,10,0.5)",
-          }}
-        />
-
-        {/* Portrait — full-bleed right column, starts at 55% */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: "55%",
-            right: 0,
-            zIndex: 2,
-            background: `linear-gradient(180deg, ${p.tertiary.hex}88 0%, ${p.primary.hex}dd 55%, ${p.secondary.hex}ff 100%)`,
-          }}
-        />
-        {/* Portrait vignette — creates "person-in-lit-space" mood */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: "55%",
-            right: 0,
-            zIndex: 3,
-            background:
-              "radial-gradient(ellipse 60% 55% at 45% 40%, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.55) 100%)",
-          }}
-        />
-
-        {/* Copy rail */}
-        <div style={{ position: "relative", zIndex: 4, maxWidth: 780 }}>
-          <h1
-            style={{
-              fontFamily: "var(--wrks-display)",
-              fontSize: 80,
-              fontWeight: 600,
-              lineHeight: 1.04,
-              letterSpacing: "-0.03em",
-              color: "#ffffff",
-              margin: 0,
-              maxWidth: "16ch",
-            }}
-          >
-            {data.headline}
-          </h1>
-          <p
-            style={{
-              fontSize: 19,
-              lineHeight: 1.55,
-              color: "#ffffff",
-              maxWidth: "56ch",
-              margin: "28px 0 0",
-            }}
-          >
-            {data.subhead}
-          </p>
-
-          <div
-            style={{
-              marginTop: 36,
-              display: "flex",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <span
-              style={{
-                padding: "16px 30px",
-                borderRadius: 999,
-                background: "#ffffff",
-                color: "#0a0a0a",
-                fontSize: 15,
-                fontWeight: 600,
-              }}
-            >
-              {data.primaryCta.label}
-            </span>
-            <span
-              style={{
-                padding: "16px 30px",
-                borderRadius: 999,
-                background: "transparent",
-                color: "#ffffff",
-                border: "1px solid rgba(255,255,255,0.4)",
-                fontSize: 15,
-                fontWeight: 600,
-              }}
-            >
-              {data.secondaryCta.label}
-            </span>
-          </div>
-
-          {/* Trust row */}
-          <div
-            style={{
-              marginTop: 30,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              fontSize: 14,
-              fontWeight: 500,
-              color: cream,
-            }}
-          >
-            <span style={{ fontWeight: 600 }}>{data.trust.label}</span>
-            <span aria-hidden style={{ display: "inline-flex", gap: 2 }}>
-              {Array.from({ length: data.trust.rating }).map((_, i) => (
-                <svg
-                  key={i}
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="#ffc14d"
-                >
-                  <path d={STAR_PATH} />
-                </svg>
-              ))}
-            </span>
-            <span style={{ fontWeight: 400 }}>{data.trust.count}</span>
-          </div>
-        </div>
-
-        {/* Namecard bubble anchored bottom-left of the portrait area */}
-        <div
-          style={{
-            position: "absolute",
-            left: "calc(55% + 24px)",
-            bottom: 32,
-            zIndex: 5,
-            padding: "14px 20px",
-            borderRadius: 14,
-            background: "rgba(255,255,255,0.94)",
-            backdropFilter: "blur(8px)",
-            boxShadow: "0 12px 34px rgba(0,0,0,0.35)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 16,
-              fontWeight: 700,
-              color: "#0a0a0a",
-              fontFamily: "var(--wrks-display)",
-              lineHeight: 1.1,
-            }}
-          >
-            {data.namecard.name}
-          </span>
-          <span
-            style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: "rgba(10,10,10,0.6)",
-            }}
-          >
-            {data.namecard.role}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// Nav strip — light bar sitting on top of the dark hero. Matches
-// Bill-Fanter's CardNav style (rounded bar, brand mark left,
-// primary CTA button right, small nav items in between).
-// ============================================================
-function NavStrip({
-  title,
-  primaryCta,
-  designSystem,
-}: {
-  title: string;
-  primaryCta: string;
-  designSystem: DesignSystem;
-}) {
-  const neutralDark = designSystem.palette.neutral.scale[4] ?? "#0a0a0c";
-  return (
-    <div
-      style={{
-        position: "absolute",
-        top: 20,
-        left: 24,
-        right: 24,
-        zIndex: 6,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "14px 22px",
-        borderRadius: 14,
         background: "#ffffff",
-        boxShadow: "0 10px 30px -6px rgba(0,0,0,0.4)",
-        color: neutralDark,
+        position: "relative",
       }}
     >
-      <span
-        style={{
-          fontFamily: "var(--wrks-display)",
-          fontSize: 16,
-          fontWeight: 700,
-          letterSpacing: "-0.005em",
-          color: neutralDark,
-        }}
-      >
-        {title}
-      </span>
-      <span
-        style={{
-          fontSize: 13,
-          fontWeight: 500,
-          color: `${neutralDark}b3`,
-          fontFamily: "var(--wrks-body)",
-          display: "flex",
-          gap: 20,
-        }}
-      >
-        <span>Home</span>
-        <span>About</span>
-        <span>Work</span>
-        <span>Contact</span>
-      </span>
-      <span
-        style={{
-          padding: "9px 18px",
-          borderRadius: 999,
-          background: neutralDark,
-          color: "#ffffff",
-          fontSize: 13,
-          fontWeight: 600,
-        }}
-      >
-        {primaryCta}
-      </span>
-    </div>
-  );
-}
-
-// ============================================================
-// HELPGRID — 3-column icon cards on light bg (Bill-Fanter parity)
-// ============================================================
-function HelpGrid({
-  data,
-  designSystem,
-}: {
-  data: PageContent["helpGrid"];
-  designSystem: DesignSystem;
-}) {
-  const p = designSystem.palette;
-  const neutralDark = p.neutral.scale[4] ?? "#0a0a0c";
-  const primary = p.primary.hex;
-  return (
-    <div
-      style={{
-        padding: "88px 40px 96px",
-        background: p.neutral.scale[0],
-        color: neutralDark,
-      }}
-    >
-      <h2
-        style={{
-          fontFamily: "var(--wrks-display)",
-          fontSize: 38,
-          fontWeight: 600,
-          lineHeight: 1.12,
-          letterSpacing: "-0.02em",
-          textAlign: "center",
-          maxWidth: "24ch",
-          margin: "0 auto 48px",
-        }}
-      >
-        {data.heading}
-      </h2>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${Math.min(data.cards.length, 3)}, 1fr)`,
-          gap: 24,
-          maxWidth: 1040,
-          margin: "0 auto",
-        }}
-      >
-        {data.cards.map((c, i) => (
-          <div
-            key={i}
-            style={{
-              padding: "28px 26px 30px",
-              borderRadius: 14,
-              background: p.neutral.scale[0],
-              border: `1px solid ${p.neutral.scale[2]}44`,
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                display: "inline-grid",
-                placeItems: "center",
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: `${primary}18`,
-                color: primary,
-                marginBottom: 18,
-              }}
-            >
-              <IconGlyph index={i} />
-            </span>
-            <h3
-              style={{
-                fontFamily: "var(--wrks-display)",
-                fontSize: 20,
-                fontWeight: 600,
-                letterSpacing: "-0.015em",
-                margin: "0 0 8px",
-              }}
-            >
-              {c.title}
-            </h3>
-            <p
-              style={{
-                fontSize: 15,
-                lineHeight: 1.6,
-                color: `${neutralDark}b3`,
-                margin: 0,
-              }}
-            >
-              {c.body}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function IconGlyph({ index }: { index: number }) {
-  const paths = [
-    "M12 3v18M3 12h18",
-    "M4 12l6 6 10-14",
-    "M4 6h16M4 12h16M4 18h10",
-    "M12 3l3 6 6 1-4.5 4.5 1 6.5-5.5-3-5.5 3 1-6.5L3 10l6-1z",
-  ];
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d={paths[index % paths.length]} />
-    </svg>
-  );
-}
-
-// ============================================================
-// ABOUT — light bg, split (photo placeholder + long-form copy)
-// ============================================================
-function About({
-  data,
-  designSystem,
-}: {
-  data: PageContent["about"];
-  designSystem: DesignSystem;
-}) {
-  const p = designSystem.palette;
-  const neutralDark = p.neutral.scale[4] ?? "#0a0a0c";
-  const primary = p.primary.hex;
-  const secondary = p.secondary.hex;
-  return (
-    <div
-      style={{
-        padding: "88px 40px 96px",
-        background: p.neutral.scale[1],
-        color: neutralDark,
-      }}
-    >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "0.9fr 1.1fr",
-          gap: 60,
-          alignItems: "start",
-          maxWidth: 1180,
-          margin: "0 auto",
-        }}
-      >
-        {/* Photo placeholder */}
+      {!ready ? (
         <div
-          aria-hidden
           style={{
-            aspectRatio: "3 / 4",
-            borderRadius: 14,
-            background: `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`,
-            position: "relative",
-            overflow: "hidden",
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "rgba(10,10,12,0.4)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 12,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
           }}
         >
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background:
-                "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, transparent 60%)",
-            }}
-          />
+          Loading preview…
         </div>
-
-        <div>
-          <div
-            style={{
-              fontFamily: "ui-monospace, SFMono-Regular, monospace",
-              fontSize: 12,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: `${neutralDark}88`,
-              marginBottom: 14,
-            }}
-          >
-            {data.eyebrow}
-          </div>
-          <h2
-            style={{
-              fontFamily: "var(--wrks-display)",
-              fontSize: 40,
-              fontWeight: 600,
-              lineHeight: 1.1,
-              letterSpacing: "-0.025em",
-              maxWidth: "22ch",
-              margin: "0 0 24px",
-            }}
-          >
-            {data.heading}
-          </h2>
-          {data.paragraphs.map((para, i) => (
-            <p
-              key={i}
-              style={{
-                fontSize: 15.5,
-                lineHeight: 1.65,
-                color: `${neutralDark}cc`,
-                margin: "0 0 14px",
-              }}
-            >
-              {para}
-            </p>
-          ))}
-          <span
-            style={{
-              display: "inline-block",
-              marginTop: 14,
-              padding: "13px 22px",
-              borderRadius: 10,
-              background: neutralDark,
-              color: p.neutral.scale[0] ?? "#ffffff",
-              fontSize: 14,
-              fontWeight: 500,
-            }}
-          >
-            {data.cta.label}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// CLOSING — dark stage, headline + lead + trust + pill row
-// ============================================================
-function Closing({
-  data,
-  designSystem: _ds,
-}: {
-  data: PageContent["closing"];
-  designSystem: DesignSystem;
-}) {
-  return (
-    <div
-      style={{
-        padding: "88px 40px 96px",
-        background: "#0a0a0a",
-        color: "#ffffff",
-        textAlign: "center",
-      }}
-    >
-      <h2
-        style={{
-          fontFamily: "var(--wrks-display)",
-          fontSize: 42,
-          fontWeight: 600,
-          lineHeight: 1.15,
-          letterSpacing: "-0.02em",
-          maxWidth: "24ch",
-          margin: "0 auto 14px",
-        }}
-      >
-        {data.heading}
-      </h2>
-      <p
-        style={{
-          fontSize: 16,
-          lineHeight: 1.55,
-          color: "rgba(255,255,255,0.7)",
-          maxWidth: "56ch",
-          margin: "0 auto 28px",
-        }}
-      >
-        {data.lead}
-      </p>
-
-      {/* Trust row */}
-      <div
-        style={{
-          marginBottom: 30,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: 10,
-          fontSize: 14,
-          color: "#ffffff",
-        }}
-      >
-        <span style={{ fontWeight: 600 }}>{data.trust.label}</span>
-        <span aria-hidden style={{ display: "inline-flex", gap: 2 }}>
-          {Array.from({ length: data.trust.rating }).map((_, i) => (
-            <svg
-              key={i}
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="#ffc14d"
-            >
-              <path d={STAR_PATH} />
-            </svg>
-          ))}
-        </span>
-        <span>{data.trust.count}</span>
-      </div>
-
-      {/* Pills */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "center",
-          gap: 12,
-          maxWidth: 780,
-          margin: "0 auto",
-        }}
-      >
-        {data.pills.map((pill, i) => (
-          <span
-            key={i}
-            style={{
-              padding: "12px 22px",
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.16)",
-              border: "1px solid rgba(255,255,255,0.42)",
-              color: "#ffffff",
-              fontSize: 15,
-              fontWeight: 600,
-            }}
-          >
-            {pill.label}
-          </span>
-        ))}
-      </div>
+      ) : (
+        <iframe
+          src={previewUrl}
+          title="Site preview"
+          style={{
+            width: "100%",
+            height: "100%",
+            border: 0,
+            display: "block",
+          }}
+          sandbox="allow-scripts allow-same-origin allow-forms"
+        />
+      )}
     </div>
   );
 }

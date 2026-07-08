@@ -1,12 +1,20 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import react from '@astrojs/react';
+import vercel from '@astrojs/vercel';
 
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   site: 'https://www.billfanter.com',
   trailingSlash: 'never',
+
+  // Static-by-default output (billfanter.com marketing pages stay
+  // pre-rendered) + SSR only for /preview/[jobId] which WRKS Studio
+  // iframes with per-user generated content. The preview route opts
+  // into SSR via `export const prerender = false`.
+  output: 'static',
+  adapter: vercel(),
 
   build: {
     format: 'directory',
