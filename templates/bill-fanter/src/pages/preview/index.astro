@@ -20,6 +20,7 @@ import Hero from '../../components/sections/Hero.astro';
 import HelpGrid from '../../components/sections/HelpGrid.astro';
 import AboutBill from '../../components/sections/AboutBill.astro';
 import Closing from '../../components/sections/Closing.astro';
+import { content as sampleContent } from '../../data/content.sample';
 import type {
   HeroContent,
   HelpGridContent,
@@ -65,24 +66,51 @@ if (raw) {
   parseError = 'Missing ?data= query param';
 }
 
-const cssVars = payload
-  ? `
-    :root {
-      --wrks-palette-primary: ${payload.designSystem.palette.primary.hex};
-      --wrks-palette-secondary: ${payload.designSystem.palette.secondary.hex};
-      --wrks-palette-tertiary: ${payload.designSystem.palette.tertiary.hex};
-      --wrks-palette-neutral: ${payload.designSystem.palette.neutral.hex};
-      --wrks-display: "${payload.designSystem.type.display.family}", ui-serif, Georgia, serif;
-      --wrks-body: "${payload.designSystem.type.body.family}", ui-sans-serif, system-ui, sans-serif;
-    }
-    body, .bf-body, .bf-lead, .bf-h1, .bf-h2, .bf-eyebrow {
-      font-family: var(--wrks-body) !important;
-    }
-    .bf-h1, .bf-h2, .bf-hero2026__h1, .bf-hero-split__h1 {
-      font-family: var(--wrks-display) !important;
-    }
-  `
-  : '';
+// Merge user-generated content (a subset of the full Bill-Fanter
+// schema) with the canonical sample as fallback. Sonnet writes text
+// fields (headline, cta labels, etc.); image fields (portrait, photo,
+// screenshot) fall back to Bill's images until the image pipeline
+// ships. Sections access .src, .alt, etc. on these sub-objects — if
+// user data omits them, sections crash. Merging prevents that.
+const mergedHero: HeroContent | undefined = payload?.content.hero
+  ? { ...sampleContent.hero, ...payload.content.hero }
+  : undefined;
+const mergedHelpGrid: HelpGridContent | undefined = payload?.content.helpGrid
+  ? { ...sampleContent.helpGrid, ...payload.content.helpGrid }
+  : undefined;
+const mergedAbout: AboutBillContent | undefined = payload?.content.about
+  ? { ...sampleContent.aboutBill, ...payload.content.about }
+  : undefined;
+const mergedClosing: ClosingContent | undefined = payload?.content.closing
+  ? { ...sampleContent.closing, ...payload.content.closing }
+  : undefined;
+
+// CSS variables — only injected when the design system parses cleanly.
+// Wrapped in try so a malformed designSystem doesn't crash the render.
+let cssVars = '';
+if (payload) {
+  try {
+    const ds = payload.designSystem;
+    cssVars = `
+      :root {
+        --wrks-palette-primary: ${ds.palette.primary.hex};
+        --wrks-palette-secondary: ${ds.palette.secondary.hex};
+        --wrks-palette-tertiary: ${ds.palette.tertiary.hex};
+        --wrks-palette-neutral: ${ds.palette.neutral.hex};
+        --wrks-display: "${ds.type.display.family}", ui-serif, Georgia, serif;
+        --wrks-body: "${ds.type.body.family}", ui-sans-serif, system-ui, sans-serif;
+      }
+      body, .bf-body, .bf-lead, .bf-h1, .bf-h2, .bf-eyebrow {
+        font-family: var(--wrks-body) !important;
+      }
+      .bf-h1, .bf-h2, .bf-hero2026__h1, .bf-hero-split__h1 {
+        font-family: var(--wrks-display) !important;
+      }
+    `;
+  } catch (err) {
+    parseError = `design-system parse: ${err instanceof Error ? err.message : String(err)}`;
+  }
+}
 ---
 <BaseLayout
   title={payload?.content.title ?? 'WRKS Studio preview'}
@@ -101,10 +129,10 @@ const cssVars = payload
   )}
 
   <main class="bf-page" data-cardnav-host data-cardnav-variant="split">
-    <Hero content={payload?.content.hero} />
-    <HelpGrid content={payload?.content.helpGrid} />
-    <AboutBill content={payload?.content.about} />
-    <Closing content={payload?.content.closing} />
+    <Hero content={mergedHero} />
+    <HelpGrid content={mergedHelpGrid} />
+    <AboutBill content={mergedAbout} />
+    <Closing content={mergedClosing} />
   </main>
   <Footer />
   <Islands />
