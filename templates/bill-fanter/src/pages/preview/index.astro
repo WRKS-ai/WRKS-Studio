@@ -4,11 +4,6 @@
 //
 // WRKS Studio's canvas builds a URL like:
 //   /preview?data=<encodeURIComponent(JSON.stringify({content, designSystem}))>
-//
-// No cross-service fetch — sidesteps Vercel SSO on the Studio deploy.
-// Trade-off: URL gets long (~5-7 KB), under Vercel's 8 KB limit for
-// this schema. Multi-page + large content sites will need a different
-// transport (Supabase link or Vercel KV) later.
 
 export const prerender = false;
 
@@ -17,13 +12,16 @@ import ReactReady from '../../components/ReactReady.jsx';
 import Islands from '../../components/Islands.astro';
 import Footer from '../../components/Footer.astro';
 import Hero from '../../components/sections/Hero.astro';
+import HeroSplit from '../../components/sections/HeroSplit.astro';
 import HelpGrid from '../../components/sections/HelpGrid.astro';
+import EffortlessStrategy from '../../components/sections/EffortlessStrategy.astro';
 import AboutBill from '../../components/sections/AboutBill.astro';
 import Closing from '../../components/sections/Closing.astro';
-import { content as sampleContent } from '../../data/content.sample';
 import type {
   HeroContent,
+  HeroSplitContent,
   HelpGridContent,
+  EffortlessStrategyContent,
   AboutBillContent,
   ClosingContent,
 } from '../../data/content.schema';
@@ -32,10 +30,12 @@ type UrlPayload = {
   content: {
     pageId: string;
     title: string;
-    hero: HeroContent;
+    hero: Omit<HeroContent, 'portrait'>;
+    heroSplit?: Omit<HeroSplitContent, 'photo' | 'videoVimeoId'>;
     helpGrid: HelpGridContent;
-    about: AboutBillContent;
-    closing: ClosingContent;
+    effortlessStrategy?: Omit<EffortlessStrategyContent, 'review' | 'image'>;
+    about: Omit<AboutBillContent, 'photo'>;
+    closing: Omit<ClosingContent, 'reviews'>;
   };
   designSystem: {
     palette: {
@@ -66,27 +66,80 @@ if (raw) {
   parseError = 'Missing ?data= query param';
 }
 
-// Merge user-generated content (a subset of the full Bill-Fanter
-// schema) with the canonical sample as fallback. Sonnet writes text
-// fields (headline, cta labels, etc.); image fields (portrait, photo,
-// screenshot) fall back to Bill's images until the image pipeline
-// ships. Sections access .src, .alt, etc. on these sub-objects — if
-// user data omits them, sections crash. Merging prevents that.
+// Palette-driven gradient placeholder — data URI so it inlines with no
+// asset roundtrip. Two-stop diagonal gradient over the user's primary
+// hue. Replaces Bill's actual photos so a user's site doesn't render
+// Bill Fanter's face on it.
+function makeGradientDataUri(primary: string, secondary: string): string {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='1000' viewBox='0 0 800 1000'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='${primary}'/><stop offset='100%' stop-color='${secondary}'/></linearGradient><radialGradient id='v' cx='45%' cy='40%' r='60%'><stop offset='0%' stop-color='rgba(0,0,0,0)'/><stop offset='100%' stop-color='rgba(0,0,0,0.55)'/></radialGradient></defs><rect width='800' height='1000' fill='url(%23g)'/><rect width='800' height='1000' fill='url(%23v)'/></svg>`;
+  return `data:image/svg+xml;utf8,${svg}`;
+}
+
+const gradientUri = payload
+  ? makeGradientDataUri(
+      payload.designSystem.palette.primary.hex,
+      payload.designSystem.palette.secondary.hex,
+    )
+  : '';
+
+// Build FULL section content by merging user text overrides with
+// placeholder images. Image slots (portrait, photo) get palette
+// gradients so Bill's face never shows on a non-Bill brand. Sub-
+// objects (review quote, ticker chips) stay as sample data — they'd
+// otherwise crash the render.
+import { content as sampleContent } from '../../data/content.sample';
+
 const mergedHero: HeroContent | undefined = payload?.content.hero
-  ? { ...sampleContent.hero, ...payload.content.hero }
-  : undefined;
-const mergedHelpGrid: HelpGridContent | undefined = payload?.content.helpGrid
-  ? { ...sampleContent.helpGrid, ...payload.content.helpGrid }
-  : undefined;
-const mergedAbout: AboutBillContent | undefined = payload?.content.about
-  ? { ...sampleContent.aboutBill, ...payload.content.about }
-  : undefined;
-const mergedClosing: ClosingContent | undefined = payload?.content.closing
-  ? { ...sampleContent.closing, ...payload.content.closing }
+  ? {
+      ...payload.content.hero,
+      portrait: { src: gradientUri, alt: '' },
+    }
   : undefined;
 
-// CSS variables — only injected when the design system parses cleanly.
-// Wrapped in try so a malformed designSystem doesn't crash the render.
+const mergedHeroSplit: HeroSplitContent | undefined = payload?.content
+  .heroSplit
+  ? {
+      ...payload.content.heroSplit,
+      photo: { src: gradientUri, alt: '' },
+      videoVimeoId: sampleContent.heroSplit.videoVimeoId,
+    }
+  : undefined;
+
+const mergedHelpGrid: HelpGridContent | undefined = payload?.content.helpGrid
+  ? {
+      heading: payload.content.helpGrid.heading,
+      cards: payload.content.helpGrid.cards.map((c, i) => ({
+        ...c,
+        iconPaths:
+          sampleContent.helpGrid.cards[i % sampleContent.helpGrid.cards.length]
+            .iconPaths,
+      })),
+    }
+  : undefined;
+
+const mergedEffortless: EffortlessStrategyContent | undefined = payload
+  ?.content.effortlessStrategy
+  ? {
+      ...payload.content.effortlessStrategy,
+      image: { src: gradientUri, alt: '' },
+      review: sampleContent.effortlessStrategy.review,
+    }
+  : undefined;
+
+const mergedAbout: AboutBillContent | undefined = payload?.content.about
+  ? {
+      ...payload.content.about,
+      photo: { src: gradientUri, alt: '' },
+    }
+  : undefined;
+
+const mergedClosing: ClosingContent | undefined = payload?.content.closing
+  ? {
+      ...payload.content.closing,
+      reviews: sampleContent.closing.reviews,
+    }
+  : undefined;
+
 let cssVars = '';
 if (payload) {
   try {
@@ -106,6 +159,9 @@ if (payload) {
       .bf-h1, .bf-h2, .bf-hero2026__h1, .bf-hero-split__h1 {
         font-family: var(--wrks-display) !important;
       }
+      /* Hide the tiny signature overlaid on About photos — it's Bill's
+         and we replaced the photo with a gradient. */
+      .bf-about__sig { display: none !important; }
     `;
   } catch (err) {
     parseError = `design-system parse: ${err instanceof Error ? err.message : String(err)}`;
@@ -130,7 +186,9 @@ if (payload) {
 
   <main class="bf-page" data-cardnav-host data-cardnav-variant="split">
     <Hero content={mergedHero} />
+    {mergedHeroSplit && <HeroSplit content={mergedHeroSplit} />}
     <HelpGrid content={mergedHelpGrid} />
+    {mergedEffortless && <EffortlessStrategy content={mergedEffortless} />}
     <AboutBill content={mergedAbout} />
     <Closing content={mergedClosing} />
   </main>

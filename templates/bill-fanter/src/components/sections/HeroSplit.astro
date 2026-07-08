@@ -1,9 +1,20 @@
 ---
 // "Welcome to Bill Fanter" split — media LEFT, copy RIGHT. WRKS template:
-// defaults read from content.heroSplit. Pages can override via Astro.props
-// (masterclass page passes its own copy).
-import { content } from '../../data/content.sample';
-const hs = content.heroSplit;
+// accepts a `content` prop OR falls back to content.sample.heroSplit.
+// Also supports the legacy per-field props (eyebrow, heading, etc.)
+// which existing pages pass for one-off overrides.
+import { content as sampleContent } from '../../data/content.sample';
+import type { HeroSplitContent } from '../../data/content.schema';
+interface Props {
+  content?: HeroSplitContent;
+  eyebrow?: string | null;
+  heading?: string;
+  lead?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+}
+const { content: propContent, ...legacyProps } = Astro.props;
+const hs = propContent ?? sampleContent.heroSplit;
 const star = '<path d="M12 2l3 7 7 .8-5 5 1.5 7-6.5-3.5L5 22l1.5-7-5-5L8.5 9z"/>';
 const dsrc = (p) => `${p.replace(/\.webp$/, '-720.webp')} 1x, ${p} 2x`;
 const photoSrc = hs.photo.src;
@@ -13,7 +24,7 @@ const {
   lead = hs.lead,
   ctaLabel = hs.cta.label,
   ctaHref = hs.cta.href,
-} = Astro.props;
+} = legacyProps;
 ---
 <section class="bf-section bf-hero-split-wrap">
   <div class="bf-container">

@@ -1,10 +1,23 @@
 ---
-// "Effortless trading. Real strategy." — split section. WRKS template:
-// defaults read from content.effortlessStrategy. Pages can still pass
-// Astro.props to override (e.g. /free-watchlist "Why join the weekly
-// watchlist?" with different copy).
-import { content } from '../../data/content.sample';
-const es = content.effortlessStrategy;
+// "Effortless trading. Real strategy." — split section. Accepts a
+// `content` prop OR falls back to content.sample.effortlessStrategy.
+// Also supports the legacy per-field props existing pages pass.
+import { content as sampleContent } from '../../data/content.sample';
+import type { EffortlessStrategyContent } from '../../data/content.schema';
+interface Props {
+  content?: EffortlessStrategyContent;
+  heading?: string;
+  lead?: string;
+  ctaHref?: string;
+  ctaLabel?: string;
+  ctaTarget?: string;
+  image?: string;
+  imageAlt?: string;
+  review?: unknown;
+  features?: unknown;
+}
+const { content: propContent, ...legacyProps } = Astro.props;
+const es = propContent ?? sampleContent.effortlessStrategy;
 const star = '<path d="M12 2l3 7 7 .8-5 5 1.5 7-6.5-3.5L5 22l1.5-7-5-5L8.5 9z"/>';
 const {
   heading = es.heading,
@@ -21,7 +34,7 @@ const {
     avatar: es.review.img,
   },
   features = es.features,
-} = Astro.props;
+} = legacyProps;
 ---
 <section class="es-section">
   <div class="bf-container">

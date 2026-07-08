@@ -53,9 +53,38 @@ const HeroContent = z.object({
   namecard: NamecardSlot,
 });
 
+const HeroSplitContent = z.object({
+  eyebrow: z.string().max(200).nullable().optional(),
+  heading: z.string().min(1).max(400),
+  lead: z.string().min(1).max(800),
+  cta: CtaSlot,
+  trust: StarTrustSlot,
+  quote: z.object({
+    text: z.string().min(1).max(800),
+    name: z.string().min(1).max(120),
+    title: z.string().min(1).max(200),
+  }),
+  quoteLink: CtaSlot,
+});
+
 const HelpGridContent = z.object({
   heading: z.string().min(1).max(400),
   cards: z.array(IconCardSlot).min(2).max(4),
+});
+
+const EffortlessStrategyContent = z.object({
+  heading: z.string().min(1).max(400),
+  lead: z.string().min(1).max(800),
+  cta: CtaSlot,
+  features: z
+    .array(
+      z.object({
+        lead: z.string().min(1).max(200),
+        rest: z.string().min(1).max(800),
+      }),
+    )
+    .min(2)
+    .max(4),
 });
 
 const AboutContent = z.object({
@@ -76,7 +105,9 @@ export const PageContentSchema = z.object({
   pageId: z.string().min(1).max(60),
   title: z.string().min(1).max(200),
   hero: HeroContent,
+  heroSplit: HeroSplitContent,
   helpGrid: HelpGridContent,
+  effortlessStrategy: EffortlessStrategyContent,
   about: AboutContent,
   closing: ClosingContent,
   // Agent's rationale, streamed into the left narration panel.
@@ -131,36 +162,51 @@ function buildSystemPrompt(): string {
 
 Return ONLY a single JSON object — no prose, no markdown fences.
 
-Schema — mirrors the Bill-Fanter template's content slots (subset that works without images):
+Schema — 6 sections, mirrors Bill-Fanter's homepage flow:
 
 {
-  "pageId": string,             // matches the input
-  "title": string,              // short page title
+  "pageId": string,
+  "title": string,
   "hero": {
     "headline": string,         // ONE core promise, big display type
-    "subhead": string,          // one sentence supporting the headline
+    "subhead": string,
     "primaryCta": { "label": string, "href": string },
     "secondaryCta": { "label": string, "href": string },
     "trust": { "label": string, "rating": 5, "count": string },
-    "namecard": { "name": string, "role": string }   // founder name + one credential
+    "namecard": { "name": string, "role": string }
+  },
+  "heroSplit": {                // "Welcome to X" bento — video + quote + photo
+    "eyebrow": string | null,   // "Welcome to {brand}" small caps
+    "heading": string,          // slightly different angle than hero — depth
+    "lead": string,             // one paragraph
+    "cta": { "label": string, "href": string },
+    "trust": { "label": string, "rating": 5, "count": string },
+    "quote": { "text": string, "name": string, "title": string },
+    "quoteLink": { "label": string, "href": string }
   },
   "helpGrid": {
-    "heading": string,          // "Trade options with confidence and grow your income" style
-    "cards": [{ "title": string, "body": string }, ... ]  // 3 cards (typical), max 4
+    "heading": string,
+    "cards": [{ "title": string, "body": string }, ... ]  // 3 cards typical
+  },
+  "effortlessStrategy": {       // Split section: heading + 3 feature callouts
+    "heading": string,          // Two lines OK, use <br /> between
+    "lead": string,
+    "cta": { "label": string, "href": string },
+    "features": [{ "lead": string, "rest": string }, ... ]  // 3 typical
   },
   "about": {
-    "eyebrow": string,          // "Meet your mentor" small caps label
-    "heading": string,          // "Hi, I'm {founder}. I'm excited to get to know you." style
-    "paragraphs": [string, ...], // 3-5 paragraphs, founder's own words
+    "eyebrow": string,
+    "heading": string,
+    "paragraphs": [string, ...], // 3-5 paragraphs, founder voice
     "cta": { "label": string, "href": string }
   },
   "closing": {
-    "heading": string,          // dark closing block headline
-    "lead": string,             // one sentence lead
+    "heading": string,
+    "lead": string,
     "trust": { "label": string, "rating": 5, "count": string },
-    "pills": [{ "label": string, "href": string }, ... ]  // 4-5 glass CTAs
+    "pills": [{ "label": string, "href": string }, ... ]  // 4-5 pills
   },
-  "narration": string           // 2-3 sentences: why THIS layout for THIS brand
+  "narration": string
 }
 
 Quality bar — WRKS taste (READ CAREFULLY):
