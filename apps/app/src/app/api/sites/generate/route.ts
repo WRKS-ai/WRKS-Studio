@@ -91,12 +91,20 @@ export async function POST(req: Request) {
   }
 
   const jobId = crypto.randomUUID();
-  createPendingJob(jobId, {
-    userId,
-    brief: body.brief,
-    templateId: body.templateId,
-    brand,
-  });
+  try {
+    await createPendingJob(jobId, {
+      userId,
+      brief: body.brief,
+      templateId: body.templateId,
+      brand,
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { error: "Couldn't create job", detail },
+      { status: 500 },
+    );
+  }
   return NextResponse.json({ jobId });
 }
 
@@ -113,7 +121,7 @@ export async function GET(req: Request) {
   if (!jobId) {
     return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
   }
-  const job = getJob(jobId);
+  const job = await getJob(jobId);
   if (!job || job.userId !== userId) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
@@ -151,7 +159,7 @@ export async function GET(req: Request) {
           message,
         });
         controller.close();
-        deleteJob(jobId);
+        await deleteJob(jobId);
         return;
       }
 
@@ -185,13 +193,13 @@ export async function GET(req: Request) {
           message,
         });
         controller.close();
-        deleteJob(jobId);
+        await deleteJob(jobId);
         return;
       }
 
       // Persist so the Bill-Fanter preview route can fetch this
       // job's content over HTTP after generation completes.
-      markJobReady(jobId, page, designSystem);
+      await markJobReady(jobId, page, designSystem);
 
       emit("generation.done", { siteId: jobId });
       controller.close();
