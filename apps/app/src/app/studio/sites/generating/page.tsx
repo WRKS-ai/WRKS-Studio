@@ -94,24 +94,33 @@ export default function GeneratingPage() {
       ]);
     });
 
+    // Sonnet finished writing this page's content. We DON'T flip the
+    // artboard to "done" yet — that would mount the iframe before the
+    // server's markJobReady() Supabase write completes. Just capture
+    // the narration + title; generation.done triggers the swap.
+    let pendingTitle: string | null = null;
     es.addEventListener("page.done", (e) => {
       const page = JSON.parse((e as MessageEvent).data) as PageContent;
       pushNarration(setNarration, "agent", page.narration);
+      pendingTitle = page.title;
+    });
+
+    es.addEventListener("generation.done", () => {
+      // Now the server has committed the job to Supabase. Safe for the
+      // iframe to fetch. Flip the artboard status → done which mounts
+      // the PagePreviewFrame.
       setArtboards((prev) =>
         prev.map((a) =>
-          a.kind === "page" && a.pageId === page.pageId
+          a.kind === "page"
             ? {
                 ...a,
                 status: "done" as const,
                 jobId: jobId ?? undefined,
-                title: page.title,
+                title: pendingTitle ?? a.title,
               }
             : a,
         ),
       );
-    });
-
-    es.addEventListener("generation.done", () => {
       setPhase("done");
       pushNarration(
         setNarration,
