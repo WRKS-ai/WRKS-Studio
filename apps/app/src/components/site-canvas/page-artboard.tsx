@@ -22,11 +22,13 @@ type Props = {
   jobId: string;
 };
 
-// Configurable via env so Bill-Fanter can be deployed to any
-// preview URL without hardcoding.
+// The bill-fanter-preview Vercel project — runs the Bill-Fanter Astro
+// template in SSR mode and exposes /preview/[jobId] that pulls the
+// current user's generated content from Studio's job endpoint.
+// Override via NEXT_PUBLIC_BILL_FANTER_PREVIEW_ORIGIN for staging.
 const BILL_FANTER_PREVIEW_ORIGIN =
   process.env.NEXT_PUBLIC_BILL_FANTER_PREVIEW_ORIGIN ??
-  "https://bill-fanter.vercel.app";
+  "https://bill-fanter-preview-tau.vercel.app";
 
 export function PagePreviewFrame({ jobId }: Props) {
   // Small delay so the /api/sites/jobs/[jobId] endpoint is populated
