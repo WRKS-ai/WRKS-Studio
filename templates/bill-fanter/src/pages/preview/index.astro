@@ -1,0 +1,111 @@
+---
+// /preview — SSR route that renders the Bill-Fanter homepage with
+// per-user generated content passed IN the URL query.
+//
+// WRKS Studio's canvas builds a URL like:
+//   /preview?data=<encodeURIComponent(JSON.stringify({content, designSystem}))>
+//
+// No cross-service fetch — sidesteps Vercel SSO on the Studio deploy.
+// Trade-off: URL gets long (~5-7 KB), under Vercel's 8 KB limit for
+// this schema. Multi-page + large content sites will need a different
+// transport (Supabase link or Vercel KV) later.
+
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ReactReady from '../../components/ReactReady.jsx';
+import Islands from '../../components/Islands.astro';
+import Footer from '../../components/Footer.astro';
+import Hero from '../../components/sections/Hero.astro';
+import HelpGrid from '../../components/sections/HelpGrid.astro';
+import AboutBill from '../../components/sections/AboutBill.astro';
+import Closing from '../../components/sections/Closing.astro';
+import type {
+  HeroContent,
+  HelpGridContent,
+  AboutBillContent,
+  ClosingContent,
+} from '../../data/content.schema';
+
+type UrlPayload = {
+  content: {
+    pageId: string;
+    title: string;
+    hero: HeroContent;
+    helpGrid: HelpGridContent;
+    about: AboutBillContent;
+    closing: ClosingContent;
+  };
+  designSystem: {
+    palette: {
+      primary: { hex: string };
+      secondary: { hex: string };
+      tertiary: { hex: string };
+      neutral: { hex: string; scale: string[] };
+    };
+    type: {
+      display: { family: string };
+      body: { family: string };
+      mono: { family: string };
+    };
+  };
+};
+
+const raw = Astro.url.searchParams.get('data');
+let payload: UrlPayload | null = null;
+let parseError: string | null = null;
+
+if (raw) {
+  try {
+    payload = JSON.parse(decodeURIComponent(raw)) as UrlPayload;
+  } catch (err) {
+    parseError = err instanceof Error ? err.message : String(err);
+  }
+} else {
+  parseError = 'Missing ?data= query param';
+}
+
+const cssVars = payload
+  ? `
+    :root {
+      --wrks-palette-primary: ${payload.designSystem.palette.primary.hex};
+      --wrks-palette-secondary: ${payload.designSystem.palette.secondary.hex};
+      --wrks-palette-tertiary: ${payload.designSystem.palette.tertiary.hex};
+      --wrks-palette-neutral: ${payload.designSystem.palette.neutral.hex};
+      --wrks-display: "${payload.designSystem.type.display.family}", ui-serif, Georgia, serif;
+      --wrks-body: "${payload.designSystem.type.body.family}", ui-sans-serif, system-ui, sans-serif;
+    }
+    body, .bf-body, .bf-lead, .bf-h1, .bf-h2, .bf-eyebrow {
+      font-family: var(--wrks-body) !important;
+    }
+    .bf-h1, .bf-h2, .bf-hero2026__h1, .bf-hero-split__h1 {
+      font-family: var(--wrks-display) !important;
+    }
+  `
+  : '';
+---
+<BaseLayout
+  title={payload?.content.title ?? 'WRKS Studio preview'}
+  description="Generated site preview — WRKS Studio"
+  wfPageId="preview"
+>
+  <ReactReady client:only="react" />
+  {cssVars && <style set:html={cssVars} />}
+
+  {parseError && (
+    <div
+      style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#7a1616;color:#fff;padding:16px 24px;font-family:ui-monospace,monospace;font-size:13px"
+    >
+      Preview error: {parseError}. Falling back to canonical Bill-Fanter content.
+    </div>
+  )}
+
+  <main class="bf-page" data-cardnav-host data-cardnav-variant="split">
+    <Hero content={payload?.content.hero} />
+    <HelpGrid content={payload?.content.helpGrid} />
+    <AboutBill content={payload?.content.about} />
+    <Closing content={payload?.content.closing} />
+  </main>
+  <Footer />
+  <Islands />
+</BaseLayout>

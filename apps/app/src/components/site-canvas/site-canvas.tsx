@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DesignSystemArtboard } from "./design-system-artboard";
 import { PagePreviewFrame } from "./page-artboard";
 import type { DesignSystem } from "@/lib/site-generation/design-system";
+import type { PageContent } from "@/lib/site-generation/page-content";
 
 // Infinite dotted-grid canvas for the Stitch-style site generation
 // theater. Real pan (mouse drag) + zoom (wheel + trackpad). Artboards
@@ -27,7 +28,8 @@ export type SiteArtboard =
       title: string;
       pageId: string;
       status: "pending" | "generating" | "done";
-      jobId?: string;
+      content?: PageContent;
+      designSystem?: DesignSystem;
     };
 
 type Props = {
@@ -183,8 +185,11 @@ export function SiteCanvas({ artboards }: Props) {
                     designSystem={a.designSystem}
                     title={a.title}
                   />
-                ) : a.status === "done" && a.jobId ? (
-                  <PagePreviewFrame jobId={a.jobId} />
+                ) : a.status === "done" && a.content && a.designSystem ? (
+                  <PagePreviewFrame
+                    content={a.content}
+                    designSystem={a.designSystem}
+                  />
                 ) : (
                   <PageArtboardPending
                     title={a.title}
