@@ -27,7 +27,11 @@ import {
 //   preview/[jobId]).
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Sonnet for 6 sections + Haiku for design system regularly exceeds
+// 60s. Bumping to Vercel Pro's 300s serverless max. If we go over
+// that we'll need to split Sonnet into per-section calls or move to
+// Fluid Compute (up to 800s).
+export const maxDuration = 300;
 
 const PostBody = z.object({
   brief: z.string().trim().min(6).max(600),
@@ -176,6 +180,12 @@ export async function GET(req: Request) {
           "Now writing your home page — hero, value cards, closer. In your voice.",
       });
 
+      // Heartbeat every 10s while Sonnet works — keeps the SSE
+      // connection warm and gives the client something to show.
+      const heartbeat = setInterval(() => {
+        emit("ping", { at: Date.now() });
+      }, 10_000);
+
       let page;
       try {
         page = await generatePageContent({
@@ -184,8 +194,10 @@ export async function GET(req: Request) {
           designSystem,
           pageId: "home",
         });
+        clearInterval(heartbeat);
         emit("page.done", page);
       } catch (err) {
+        clearInterval(heartbeat);
         const message = err instanceof Error ? err.message : String(err);
         console.error("[api/sites/generate] page content failed:", message);
         emit("error", {
