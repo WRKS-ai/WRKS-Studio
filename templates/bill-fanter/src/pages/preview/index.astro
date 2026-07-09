@@ -89,8 +89,13 @@ const gradientUri = payload
 // otherwise crash the render.
 import { content as sampleContent } from '../../data/content.sample';
 
+// Merge: SAMPLE first (fills ALL required sub-fields), then payload
+// overrides on top, then explicit image overrides. This guarantees no
+// required sub-field is ever undefined (which would crash Astro at
+// render time). User's text wins; images stay as palette gradients.
 const mergedHero: HeroContent | undefined = payload?.content.hero
   ? {
+      ...sampleContent.hero,
       ...payload.content.hero,
       portrait: { src: gradientUri, alt: '' },
     }
@@ -99,9 +104,9 @@ const mergedHero: HeroContent | undefined = payload?.content.hero
 const mergedHeroSplit: HeroSplitContent | undefined = payload?.content
   .heroSplit
   ? {
+      ...sampleContent.heroSplit,
       ...payload.content.heroSplit,
       photo: { src: gradientUri, alt: '' },
-      videoVimeoId: sampleContent.heroSplit.videoVimeoId,
     }
   : undefined;
 
@@ -120,14 +125,15 @@ const mergedHelpGrid: HelpGridContent | undefined = payload?.content.helpGrid
 const mergedEffortless: EffortlessStrategyContent | undefined = payload
   ?.content.effortlessStrategy
   ? {
+      ...sampleContent.effortlessStrategy,
       ...payload.content.effortlessStrategy,
       image: { src: gradientUri, alt: '' },
-      review: sampleContent.effortlessStrategy.review,
     }
   : undefined;
 
 const mergedAbout: AboutBillContent | undefined = payload?.content.about
   ? {
+      ...sampleContent.aboutBill,
       ...payload.content.about,
       photo: { src: gradientUri, alt: '' },
     }
@@ -135,8 +141,8 @@ const mergedAbout: AboutBillContent | undefined = payload?.content.about
 
 const mergedClosing: ClosingContent | undefined = payload?.content.closing
   ? {
+      ...sampleContent.closing,
       ...payload.content.closing,
-      reviews: sampleContent.closing.reviews,
     }
   : undefined;
 
