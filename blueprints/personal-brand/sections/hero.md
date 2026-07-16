@@ -13,7 +13,7 @@
 <section id="hero" data-section="hero-dark-portrait-split">
 ```
 
-### Wrapper dimensions
+### Wrapper dimensions (verified against billfanter.com production 2026-07-16)
 
 | Property | Value | Notes |
 |---|---|---|
@@ -21,22 +21,44 @@
 | `overflow` | `hidden` | portrait bleed + dot-grid must clip |
 | `background` | `#0a0a0a` | pure black, NOT neutral-dark from palette. Premium contrast requires deep pure black. |
 | `color` | `#ffffff` | inherited by children unless overridden |
-| `padding-top` | `168px` | clears floating nav: nav is at `top: 20px` with `padding: 14px` = 48px total. Add 120px breathing room. |
-| `padding-bottom` | `128px` | half of top padding — hero should feel weight-forward (dense top, quieter bottom) |
-| `padding-left` | `40px` | matches DESIGN.md container padding |
-| `padding-right` | `40px` | same |
-| `min-height` | `720px` | prevents hero from collapsing on short-copy pages |
 | `isolation` | `isolate` | z-index stacking context boundary |
 
-### Mobile overrides (viewport < 768px)
+**Content rail padding is what gives the hero height (no explicit `min-height`).** Padding is applied to the inner content div, NOT the section wrapper directly:
+
+```css
+.hero-inner {
+  position: relative;
+  z-index: 3;
+  padding-top: 272px;    /* CardNav (72px) overlays hero; 272 → 200 visual after nav = 200 clean */
+  padding-bottom: 200px; /* matches visual gap after nav — top 200, bottom 200, feels even */
+  padding-left: 40px;    /* container horizontal padding */
+  padding-right: 40px;
+}
+```
+
+**Why 272 top, not 168**: the CardNav is 72px tall and OVERLAYS the hero (doesn't push it down). Content must clear the nav AND leave visual breathing room. `272 - 72 (nav height) = 200 visible padding above headline`, which matches the 200px bottom padding — perfect visual symmetry.
+
+### Tablet overrides (viewport ≤ 991px)
 
 | Property | Value |
 |---|---|
-| `padding-top` | `124px` (nav is smaller on mobile) |
-| `padding-bottom` | `52px` |
-| `padding-left` | `24px` |
-| `padding-right` | `24px` |
-| `min-height` | `unset` — let content dictate height |
+| `.hero-inner padding-top` | `136px` |
+| `.hero-inner padding-bottom` | `64px` |
+| `.hero-headline font-size` | `clamp(40px, 8vw, 64px)` |
+
+### Mobile overrides (viewport ≤ 767px)
+
+| Property | Value |
+|---|---|
+| Section `display` | `flex` |
+| Section `flex-direction` | `column` (stack portrait below copy) |
+| `.hero-inner padding-top` | `124px` (72px nav + 52px breathing) |
+| `.hero-inner padding-bottom` | `52px` |
+| `.hero-headline font-size` | `clamp(34px, 9vw, 48px)` |
+| `.hero-headline max-width` | `none` (no cap on mobile) |
+| `.hero-portrait position` | `relative` (stops absolute-positioning) |
+| `.hero-portrait left` | `0` |
+| `.hero-portrait height` | `340px` (fixed) |
 
 ---
 
@@ -68,7 +90,9 @@ CSS:
 ### Layer 2 — Dot-grid overlay (z: 1)
 
 ```html
-<div aria-hidden="true" class="hero-dots"></div>
+<div class="hero-dots" data-dotgrid data-dot-size="2" data-gap="10"
+     data-base-color="#454545" data-active-color="#75B5FF"
+     data-proximity="140" data-return-duration="0.6"></div>
 ```
 
 CSS:
@@ -78,6 +102,19 @@ CSS:
   inset: 0;
   z-index: 1;
   opacity: 0.66;
+  pointer-events: auto;  /* NOT pointer-events: none — the React Bits
+                            DotGrid react to hover proximity */
+}
+```
+
+**Purpose**: adds texture, breaks flat black, gives premium editorial feel.
+Bill-Fanter uses the React Bits `DotGrid` interactive component that
+responds to cursor proximity — dots near the cursor animate to
+`data-active-color="#75B5FF"`.
+
+**Static CSS fallback** (when interactive DotGrid isn't available):
+```css
+.hero-dots {
   background-image: radial-gradient(
     circle at center,
     rgba(69, 69, 69, 0.66) 2px,
@@ -88,19 +125,14 @@ CSS:
 }
 ```
 
-**Purpose**: adds texture, breaks flat black, gives premium editorial feel.
-
-**Alternative (if brand voice is `warm`)**: replace the dot-grid with a soft noise overlay:
-```css
-background-image: url("data:image/svg+xml;utf8,<svg…filter turbulence…/>");
-opacity: 0.4;
-```
+**Alternative (if brand voice is `warm`)**: replace the dot-grid with a soft noise overlay.
 
 ### Layer 3 — Portrait column (z: 2)
 
 ```html
 <div class="hero-portrait">
   <img src="{hero.portraitImage}" alt="{hero.namecard.name}" fetchpriority="high" />
+  <!-- Namecard bubble lives INSIDE this container (see §7) -->
 </div>
 ```
 
@@ -110,7 +142,11 @@ CSS:
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 55%;
+  /* Left edge aligns to the "watchlist bento" grid line below the hero,
+     so both share the same vertical axis. The formula: clamp to viewport
+     at 65vw for small windows, snap to a 937px inset once viewport
+     exceeds the 1440px container. */
+  left: min(65vw, calc((100vw - 1440px) / 2 + 937px));
   right: 0;
   z-index: 2;
 }
@@ -122,16 +158,19 @@ CSS:
 }
 ```
 
-**Left edge at 55%**: this creates a 55/45 split (copy rail slightly wider) rather than 50/50. Reason: display headline needs room to breathe at 80px; portrait can crop tighter.
+**Left position formula (important)**:
+- `min(65vw, calc((100vw - 1440px) / 2 + 937px))`
+- At viewport <1440px: portrait starts at 65% of viewport width
+- At viewport ≥1440px: portrait left edge sits at `(gutter) + 937px` — this aligns to Bill-Fanter's 1440px container's inner grid split
+- Do NOT simplify to just `55%` — the responsive alignment matters, portrait must line up with the watchlist section's grid axis directly below
 
-**Mobile behavior** (< 768px):
+**Mobile behavior** (≤ 767px):
 ```css
 @media (max-width: 767px) {
   .hero-portrait {
-    position: relative;  /* stack below copy, don't absolute */
+    position: relative;  /* stops absolute; stacks below copy in flex column */
     left: 0;
-    height: 340px;
-    margin-top: 32px;
+    height: 340px;      /* fixed height on mobile — image can't drive its own height when the section flex-columns */
   }
 }
 ```
@@ -174,25 +213,36 @@ The single most important element on the page. Everything else supports it.
 <h1 data-edit-id="hero.headline">Your headline here</h1>
 ```
 
-### CSS
+### CSS (verified from billfanter.com production)
 
 ```css
 .hero-copy h1 {
   font-family: var(--font-display);
-  font-size: clamp(56px, 5.5vw, 80px);
+  font-size: 5rem;              /* 80px fixed on desktop (NOT clamped) */
   font-weight: 600;
   line-height: 1.04;
   letter-spacing: -0.03em;
   color: #ffffff;
-  max-width: 16ch;
+  max-width: 820px;             /* in px, NOT ch — forces ~2-3 line wrap at 80px */
   margin: 0;
 }
+
+@media (max-width: 991px) {
+  .hero-copy h1 { font-size: clamp(40px, 8vw, 64px); }
+}
+@media (max-width: 767px) {
+  .hero-copy h1 { font-size: clamp(34px, 9vw, 48px); max-width: none; }
+}
 ```
+
+**Why 5rem fixed, not clamped**: Bill-Fanter's headline sits at exactly 80px on desktop. Clamping introduces ambiguity — a 1200px viewport ends up at ~66px which is too small for the intended impact.
+
+**Why max-width in px, not ch**: `ch` scales with font-metrics, meaning different fonts wrap differently. `820px` is the deliberate wrap point — always 2-3 lines regardless of which display font the brand uses.
 
 ### Spacing
 
 | Above the h1 | 0 (h1 is the FIRST element in copy rail) |
-| Below the h1 | 28px to subhead (see §4) |
+| Below the h1 | 24px to subhead (see §4) |
 
 ### Copy writing rules
 
@@ -248,24 +298,24 @@ The single most important element on the page. Everything else supports it.
 <p class="hero-subhead" data-edit-id="hero.subhead">Your subhead here</p>
 ```
 
-### CSS
+### CSS (verified from billfanter.com production)
 
 ```css
 .hero-subhead {
   font-family: var(--font-body);
-  font-size: 19px;
+  font-size: 18px;              /* 18, not 19 — Bill-Fanter production value */
   font-weight: 400;
   line-height: 1.55;
   letter-spacing: -0.003em;
-  color: #ffffff;  /* full white — hero copy is loud */
-  max-width: 56ch;
-  margin: 28px 0 0;
+  color: #ffffff;                /* full white — hero copy is loud */
+  max-width: 560px;              /* in px, not ch */
+  margin: 24px 0 0;              /* 24, not 28 */
 }
 ```
 
 ### Spacing
 
-| Above the subhead | 28px from h1 |
+| Above the subhead | 24px from h1 |
 | Below the subhead | 36px to CTA row (see §5) |
 
 **Why full white, not muted**: hero is meant to be read at a glance. Muting to 70% white feels like disclaimer text. Full white treats the subhead as important.
@@ -329,13 +379,13 @@ Two buttons side by side. High-intent primary + low-intent secondary.
 }
 ```
 
-### Primary button CSS
+### Primary button CSS (verified from billfanter.com production)
 
 ```css
 .btn-primary {
   display: inline-flex;
   align-items: center;
-  padding: 16px 30px;
+  padding: 14px 26px;            /* 14×26, NOT 16×30 — Bill-Fanter's actual pill size */
   border-radius: 999px;
   background: #ffffff;
   color: #0a0a0a;
@@ -382,7 +432,7 @@ Two buttons side by side. High-intent primary + low-intent secondary.
 .btn-secondary {
   display: inline-flex;
   align-items: center;
-  padding: 16px 30px;
+  padding: 14px 26px;            /* matches primary */
   border-radius: 999px;
   background: transparent;
   color: #ffffff;
@@ -475,21 +525,31 @@ Two buttons side by side. High-intent primary + low-intent secondary.
 </div>
 ```
 
-### CSS
+### CSS (verified from billfanter.com production)
 
 ```css
 .hero-trust {
   display: flex;
+  flex-wrap: wrap;              /* wraps on narrow viewports as whole units */
   align-items: center;
-  gap: 10px;
-  margin: 30px 0 0;
+  gap: 6px 10px;                /* row-gap 6, column-gap 10 — different values */
+  margin-top: 28px;             /* 28, NOT 30 */
+  margin-left: 6px;             /* nudges right to correct optical-alignment
+                                   illusion vs the pill CTAs above (pill text
+                                   sits inset from the pill edge) */
   font-family: var(--font-body);
   font-size: 14px;
-  color: #f5f0e6;  /* cream, not white — softer secondary text */
+  font-weight: 500;
+  color: #ffffff;               /* pure white — NOT cream. Bill-Fanter uses white */
+}
+
+.trust-label,
+.trust-count {
+  white-space: nowrap;          /* prevents label/count from breaking mid-phrase */
 }
 
 .trust-label {
-  font-weight: 600;
+  font-weight: 500;             /* inherits from parent — no bold override */
 }
 
 .trust-stars {
@@ -500,10 +560,11 @@ Two buttons side by side. High-intent primary + low-intent secondary.
 .trust-stars svg {
   width: 16px;
   height: 16px;
-  fill: #ffc14d;  /* warm gold, not pure yellow */
+  fill: #ffc14d;                /* warm gold, not pure yellow */
 }
 
 .trust-count {
+  color: #ffffff;               /* explicitly white, weight 400 (lighter than label) */
   font-weight: 400;
 }
 ```
@@ -520,9 +581,11 @@ Render exactly `hero.trust.rating` stars. If rating is 4.7, still show 5 (rounde
 
 ### Spacing
 
-| Between label and stars | 10px (from `gap`) |
-| Between stars and count | 10px (from `gap`) |
-| Above the trust row | 30px from CTA row |
+| Between label and stars | 10px column-gap |
+| Between stars and count | 10px column-gap |
+| Wrap row-gap | 6px (when the row wraps on narrow viewports) |
+| Above the trust row | 28px from CTA row |
+| Left nudge | 6px (optical alignment vs pill CTAs above) |
 | Below the trust row | 0 — trust row is last in copy rail |
 
 ### Copy writing rules
@@ -554,36 +617,41 @@ Render exactly `hero.trust.rating` stars. If rating is 4.7, still show 5 (rounde
 
 Introduces the founder without a full "meet the founder" section competing above the fold.
 
-### HTML
+### HTML (verified from billfanter.com production)
+
+The namecard lives **INSIDE the portrait container** (Layer 3), NOT as a separate absolute-positioned sibling of the section. This is critical — it means the namecard is anchored to the portrait itself, so as the portrait shifts on responsive breakpoints, the namecard shifts with it.
 
 ```html
-<div class="hero-namecard">
-  <span class="namecard-name" data-edit-id="hero.namecard.name">
-    {hero.namecard.name}
-  </span>
-  <span class="namecard-role" data-edit-id="hero.namecard.role">
-    {hero.namecard.role}
-  </span>
+<div class="hero-portrait">
+  <img src="{hero.portraitImage}" alt="{hero.namecard.name}" fetchpriority="high" />
+  <div class="hero-namecard">
+    <span class="namecard-name" data-edit-id="hero.namecard.name">
+      {hero.namecard.name}
+    </span>
+    <span class="namecard-role" data-edit-id="hero.namecard.role">
+      {hero.namecard.role}
+    </span>
+  </div>
 </div>
 ```
 
-### CSS
+### CSS (verified from billfanter.com production)
 
 ```css
 .hero-namecard {
   position: absolute;
-  left: calc(55% + 24px);
-  bottom: 32px;
-  z-index: 4;
+  left: 24px;              /* 24px from LEFT EDGE of portrait container (not section) */
+  bottom: 24px;            /* 24px, NOT 32 */
+  z-index: 3;              /* z:3 inside portrait — portrait itself is z:2 on section */
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 14px 20px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.94);
+  padding: 12px 18px;      /* 12×18, NOT 14×20 */
+  border-radius: 12px;     /* 12, NOT 14 */
+  background: rgba(255, 255, 255, 0.92);   /* 0.92, NOT 0.94 */
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);  /* 10/30/0.3, NOT 12/34/0.35 */
 }
 
 .namecard-name {
@@ -602,23 +670,13 @@ Introduces the founder without a full "meet the founder" section competing above
 }
 ```
 
-**Left position `calc(55% + 24px)`**: aligns to the portrait column's left edge + 24px inset padding.
-**Bottom position `32px`**: floats 32px above the section's bottom padding.
+**Why inside portrait container**: because the portrait's own responsive positioning (that complex `min(65vw, calc(…))` formula) means the portrait's left edge is a moving target. Anchoring the namecard to the portrait's own inner coordinates (`left: 24px, bottom: 24px`) guarantees it lands in the same relative spot regardless of viewport width.
 
-### Mobile behavior (< 768px)
+### Mobile behavior (≤ 767px)
 
-```css
-@media (max-width: 767px) {
-  .hero-namecard {
-    position: relative;  /* stops floating */
-    left: 0;
-    bottom: 0;
-    margin-top: 24px;  /* sits below the stacked portrait */
-    width: max-content;
-    max-width: 100%;
-  }
-}
-```
+When the portrait becomes `position: relative` and stacks below the copy at `height: 340px`, the namecard automatically re-positions to `left: 24px, bottom: 24px` INSIDE that 340px tall portrait — still visible at bottom-left of the stacked image.
+
+No additional mobile override needed for the namecard itself — the container change handles it.
 
 ### Copy writing rules
 
@@ -689,7 +747,10 @@ When no portrait image is available:
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 55%;
+  /* Same responsive formula as the real portrait — fallback must land
+     in the same place or the layout jumps between real-image and
+     fallback-image users. */
+  left: min(65vw, calc((100vw - 1440px) / 2 + 937px));
   right: 0;
   z-index: 2;
   background:
@@ -704,53 +765,91 @@ Uses the extracted palette. Creates a "person-in-lit-space" mood without a real 
 
 ## 10. Complete assembled HTML (reference implementation)
 
+Below is the exact structure that matches Bill-Fanter production. Note the
+critical differences from the earlier draft:
+- Padding lives on `.hero-inner`, NOT the section wrapper.
+- Portrait uses the `min(65vw, calc(…))` responsive formula, not `55%`.
+- Namecard lives INSIDE the portrait container as its child.
+- All numbers (padding, sizes, gaps) match §1-§7 exactly.
+
 ```html
 <section id="hero" data-section="hero-dark-portrait-split"
   style="position: relative; overflow: hidden; background: #0a0a0a; color: #ffffff;
-         padding: 168px 40px 128px; min-height: 720px; isolation: isolate;">
+         isolation: isolate;">
 
+  <!-- Layer 1: dark scrim -->
   <div aria-hidden="true"
-    style="position: absolute; inset: 0; z-index: 0; background: rgba(10,10,10,0.5); pointer-events: none;">
-  </div>
+    style="position: absolute; inset: 0; z-index: 0;
+           background: rgba(10,10,10,0.5); pointer-events: none;"></div>
 
-  <div aria-hidden="true"
-    style="position: absolute; inset: 0; z-index: 1; opacity: 0.66;
-           background-image: radial-gradient(circle at center, rgba(69,69,69,0.66) 2px, transparent 2px);
-           background-size: 10px 10px; pointer-events: none;">
-  </div>
+  <!-- Layer 2: interactive dot-grid (React Bits DotGrid) -->
+  <div class="hero-dots"
+    data-dotgrid data-dot-size="2" data-gap="10"
+    data-base-color="#454545" data-active-color="#75B5FF"
+    data-proximity="140" data-return-duration="0.6"
+    style="position: absolute; inset: 0; z-index: 1; opacity: 0.66;"></div>
 
-  <div style="position: absolute; top: 0; bottom: 0; left: 55%; right: 0; z-index: 2;">
+  <!-- Layer 3: portrait column (namecard lives INSIDE this container) -->
+  <div style="position: absolute; top: 0; bottom: 0; right: 0; z-index: 2;
+              left: min(65vw, calc((100vw - 1440px) / 2 + 937px));">
     <img src="{hero.portraitImage}" alt="{hero.namecard.name}" fetchpriority="high"
       style="width: 100%; height: 100%; object-fit: cover; object-position: center top;" />
+
+    <!-- Layer 5: namecard bubble, anchored to portrait's own bottom-left -->
+    <div style="position: absolute; left: 24px; bottom: 24px; z-index: 3;
+                display: flex; flex-direction: column; gap: 2px;
+                padding: 12px 18px; border-radius: 12px;
+                background: rgba(255,255,255,0.92);
+                backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+      <span data-edit-id="hero.namecard.name"
+        style="font-family: var(--font-display); font-size: 16px; font-weight: 700;
+               line-height: 1.1; color: #0a0a0a;">
+        {hero.namecard.name}
+      </span>
+      <span data-edit-id="hero.namecard.role"
+        style="font-family: var(--font-body); font-size: 13px; font-weight: 500;
+               color: rgba(10,10,10,0.6);">
+        {hero.namecard.role}
+      </span>
+    </div>
   </div>
 
-  <div style="position: relative; z-index: 3; max-width: 780px;">
+  <!-- Layer 4: copy rail — padding lives HERE, not on the section -->
+  <div class="hero-inner"
+    style="position: relative; z-index: 3; max-width: 780px;
+           padding: 272px 40px 200px;">
+
     <h1 data-edit-id="hero.headline"
-      style="font-family: var(--font-display); font-size: clamp(56px, 5.5vw, 80px);
+      style="font-family: var(--font-display); font-size: 5rem;
              font-weight: 600; line-height: 1.04; letter-spacing: -0.03em;
-             color: #ffffff; max-width: 16ch; margin: 0;">
+             color: #ffffff; max-width: 820px; margin: 0;">
       {hero.headline}
     </h1>
 
     <p data-edit-id="hero.subhead"
-      style="font-family: var(--font-body); font-size: 19px; font-weight: 400;
+      style="font-family: var(--font-body); font-size: 18px; font-weight: 400;
              line-height: 1.55; letter-spacing: -0.003em; color: #ffffff;
-             max-width: 56ch; margin: 28px 0 0;">
+             max-width: 560px; margin: 24px 0 0;">
       {hero.subhead}
     </p>
 
     <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 36px 0 0;">
       <a href="{hero.primaryCta.href}" data-edit-id="hero.primaryCta"
         class="btn-primary"
-        style="display: inline-flex; align-items: center; padding: 16px 30px;
+        style="display: inline-flex; align-items: center; padding: 14px 26px;
                border-radius: 999px; background: #ffffff; color: #0a0a0a;
                font-family: var(--font-body); font-size: 15px; font-weight: 600;
                letter-spacing: -0.01em; text-decoration: none; white-space: nowrap;
-               box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(10,10,12,0.4), 0 8px 24px -8px rgba(10,10,12,0.55);">
+               box-shadow:
+                 inset 0 1px 0 rgba(255,255,255,0.9),
+                 inset 0 -1px 0 rgba(0,0,0,0.04),
+                 0 1px 2px rgba(10,10,12,0.4),
+                 0 8px 24px -8px rgba(10,10,12,0.55);">
         {hero.primaryCta.label}
       </a>
       <a href="{hero.secondaryCta.href}" data-edit-id="hero.secondaryCta"
-        style="display: inline-flex; align-items: center; padding: 16px 30px;
+        style="display: inline-flex; align-items: center; padding: 14px 26px;
                border-radius: 999px; background: transparent; color: #ffffff;
                border: 1px solid rgba(255,255,255,0.4); font-family: var(--font-body);
                font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
@@ -759,9 +858,10 @@ Uses the extracted palette. Creates a "person-in-lit-space" mood without a real 
       </a>
     </div>
 
-    <div style="display: flex; align-items: center; gap: 10px; margin: 30px 0 0;
-                font-family: var(--font-body); font-size: 14px; color: #f5f0e6;">
-      <span style="font-weight: 600;" data-edit-id="hero.trust.label">
+    <div style="display: flex; flex-wrap: wrap; align-items: center;
+                gap: 6px 10px; margin-top: 28px; margin-left: 6px;
+                font-family: var(--font-body); font-size: 14px; font-weight: 500; color: #ffffff;">
+      <span style="white-space: nowrap;" data-edit-id="hero.trust.label">
         {hero.trust.label}
       </span>
       <span style="display: inline-flex; gap: 2px;" aria-label="{hero.trust.rating} out of 5 stars">
@@ -771,27 +871,11 @@ Uses the extracted palette. Creates a "person-in-lit-space" mood without a real 
         </svg>
         <!-- ×4 more -->
       </span>
-      <span style="font-weight: 400;" data-edit-id="hero.trust.count">
+      <span style="white-space: nowrap; font-weight: 400; color: #ffffff;"
+            data-edit-id="hero.trust.count">
         {hero.trust.count}
       </span>
     </div>
-  </div>
-
-  <div style="position: absolute; left: calc(55% + 24px); bottom: 32px; z-index: 4;
-              display: flex; flex-direction: column; gap: 2px;
-              padding: 14px 20px; border-radius: 14px;
-              background: rgba(255,255,255,0.94); backdrop-filter: blur(8px);
-              box-shadow: 0 12px 34px rgba(0,0,0,0.35);">
-    <span data-edit-id="hero.namecard.name"
-      style="font-family: var(--font-display); font-size: 16px; font-weight: 700;
-             line-height: 1.1; color: #0a0a0a;">
-      {hero.namecard.name}
-    </span>
-    <span data-edit-id="hero.namecard.role"
-      style="font-family: var(--font-body); font-size: 13px; font-weight: 500;
-             color: rgba(10,10,10,0.6);">
-      {hero.namecard.role}
-    </span>
   </div>
 </section>
 ```
@@ -806,8 +890,8 @@ Uses the extracted palette. Creates a "person-in-lit-space" mood without a real 
 - [x] Dot-grid and scrim overlays have `aria-hidden="true"`
 - [x] CTAs are `<a>` tags with `href` (not `<button>` — they navigate)
 - [x] Color contrast: `#ffffff` on `#0a0a0a` = 20:1 (AAA)
-- [x] Namecard cream `#f5f0e6` on dark = 17:1 (AAA)
-- [x] All interactive elements ≥ 44×44px tap target (CTAs are 50px tall)
+- [x] Namecard ink `#0a0a0a` on `rgba(255,255,255,0.92)` = 18:1 (AAA)
+- [x] All interactive elements ≥ 44×44px tap target (CTAs are ~46px tall — 14px vertical padding + 15px font × 1.2 leading)
 - [x] Skip to content link at top of `<body>` (outside this section)
 - [x] `prefers-reduced-motion` respected (hover transforms disabled)
 
@@ -833,20 +917,20 @@ This section uses these CSS variables (must be set in `<head>` inline style):
 }
 ```
 
-The `#0a0a0a` (background), `#ffffff` (copy), `#f5f0e6` (trust cream), `#ffc14d` (stars), `#0a0a0a` (namecard ink) values are intentionally hardcoded — they're structural to the section, not brand-driven.
+The `#0a0a0a` (background + namecard ink), `#ffffff` (copy + trust row + namecard bg 0.92 alpha), `#ffc14d` (stars) values are intentionally hardcoded — they're structural to the section, not brand-driven.
 
 ---
 
 ## 14. Rationale (why this section converts)
 
-- **Dark stage** = premium editorial signal. Aesop, Mercury, Linear all use dark heroes.
-- **80px display type** = the promise is the biggest thing on the page. Nothing competes.
-- **Portrait right column** = personal brand made physically visible in 3 seconds.
+- **Dark stage** (`#0a0a0a`, not neutral-dark) = premium editorial signal. Aesop, Mercury, Linear all use dark heroes.
+- **80px display type** (fixed 5rem, not clamped) = the promise is the biggest thing on the page. Nothing competes. Ambiguity from clamp-scaling is unacceptable at hero scale.
+- **Portrait right column** with `min(65vw, calc(…))` responsive left = personal brand physically visible AND vertically aligned with the watchlist section grid axis below.
 - **Two CTAs of different intent** = capture buyers AND browsers, no one leaves.
-- **Trust row inline** = social proof without a separate section slowing the fold.
-- **Namecard bubble on portrait** = "who is this" answered without a separate "meet the founder" competing for attention.
-- **168px top padding** = clears the floating nav gracefully, feels intentional, not crowded.
-- **Copy rail max 780px** = forces tight display type wrap (2-3 lines), never sprawls.
+- **Trust row inline** with `margin-left: 6px` optical alignment = social proof without a separate section slowing the fold.
+- **Namecard bubble anchored INSIDE the portrait container** = "who is this" answered without a separate "meet the founder" section, and it travels with the portrait on every viewport.
+- **272px top padding on inner div (not section)** = clears the 72px CardNav gracefully AND leaves 200px visible breathing room that matches the 200px bottom padding — perfect visual symmetry.
+- **Copy rail max 780px + headline max 820px** = forces tight display type wrap (2-3 lines), never sprawls.
 
 Every choice is anti-generic: no centered hero, no lifestyle stock photo full-bleed, no rotating carousel, no video background, no scroll-cue arrow. The hero states, then leaves. Everything else is other sections.
 
