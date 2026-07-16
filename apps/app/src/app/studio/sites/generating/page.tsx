@@ -562,7 +562,7 @@ function BottomComposer({ phase }: { phase: "design" | "pages" | "done" }) {
                 letterSpacing: "0.06em",
               }}
             >
-              Sonnet 4.6
+              Opus 4.7
             </span>
             <button
               type="button"

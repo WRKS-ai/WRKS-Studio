@@ -77,7 +77,11 @@ export async function generateDesignSystem({
   const anthropic = new Anthropic();
 
   const result = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
+    // Opus 4.7 — the top Claude for taste. Design system decisions
+    // (palette + typography + button style) constrain every downstream
+    // page generation, so this call has the highest quality-per-token
+    // leverage in the whole pipeline.
+    model: "claude-opus-4-7",
     max_tokens: 4096,
     system: buildSystemPrompt(),
     messages: [

@@ -129,7 +129,10 @@ export async function generatePageContent({
 }): Promise<PageContent> {
   const anthropic = new Anthropic();
   const result = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
+    // Opus 4.7 — page copy is the visible product, so use the top
+    // Claude for taste + voice-matching. Cost/latency is higher than
+    // Sonnet but the quality delta is worth it on a per-site basis.
+    model: "claude-opus-4-7",
     max_tokens: 4096,
     system: buildSystemPrompt(),
     messages: [
