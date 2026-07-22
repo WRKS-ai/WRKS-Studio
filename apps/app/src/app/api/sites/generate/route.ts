@@ -4,10 +4,12 @@ import { z } from "zod";
 import { createServiceSupabaseClient } from "@/lib/supabase";
 import type { BrandContext } from "@/lib/site-generation/design-system";
 import {
+  claimForProcessing,
   createPendingJob,
-  deleteJob,
   getJob,
+  getReadyJobHtml,
   markJobReadyHtml,
+  waitForReady,
 } from "@/lib/site-generation/job-store";
 import { ingestBrand, type IngestedBrand } from "@/lib/site-generation/brand-ingest";
 import { generateHtmlDocument } from "@/lib/site-generation/generate-html";
@@ -149,7 +151,67 @@ export async function GET(req: Request) {
       }, 10_000);
 
       // ==================================================
+      // Guard: atomically claim the job. Prevents SSE reconnects from
+      // spawning parallel Opus calls on the same jobId.
+      // ==================================================
+      const claim = await claimForProcessing(jobId);
+
+      if (claim.status === "already-ready") {
+        // Fast-path replay: someone finished this before we opened.
+        const existing = await getReadyJobHtml(jobId);
+        emit("generation.done", {
+          siteId: jobId,
+          renderUrl: `/api/sites/render/${jobId}`,
+          bytes: existing?.length ?? 0,
+          replay: true,
+        });
+        clearInterval(heartbeat);
+        controller.close();
+        return;
+      }
+
+      if (claim.status === "in-progress") {
+        // Another SSE (or reconnect) is running Opus. Wait for readiness
+        // instead of racing a second generation.
+        emit("generate.start", {
+          message:
+            "Resuming your existing draft — another connection is still writing. Hang on…",
+        });
+        const html = await waitForReady(jobId, 300_000, 3_000, () => {
+          emit("ping", { at: Date.now() });
+        });
+        if (html) {
+          emit("generation.done", {
+            siteId: jobId,
+            renderUrl: `/api/sites/render/${jobId}`,
+            bytes: html.length,
+            replay: true,
+          });
+        } else {
+          emit("error", {
+            stage: "generate",
+            message:
+              "Draft still writing after 5 minutes — reload the page to check its state.",
+          });
+        }
+        clearInterval(heartbeat);
+        controller.close();
+        return;
+      }
+
+      if (claim.status === "not-found") {
+        emit("error", {
+          stage: "claim",
+          message: "Job expired or was removed. Start again from the composer.",
+        });
+        clearInterval(heartbeat);
+        controller.close();
+        return;
+      }
+
+      // ==================================================
       // Phase 1 — Deep brand ingest (if URL available)
+      // We hold the processing lock now; safe to run Opus.
       // ==================================================
       let ingest: IngestedBrand | null = null;
       const ingestUrl = job.brand.existingSiteUrl;
@@ -223,7 +285,9 @@ export async function GET(req: Request) {
         console.error("[api/sites/generate] generate failed:", message);
         emit("error", { stage: "generate", message });
         controller.close();
-        await deleteJob(jobId);
+        // Keep the row so the user can see what happened + retry.
+        // (Old code deleted the job here; that meant a reconnect on a
+        // transient failure lost all context.)
         return;
       }
 

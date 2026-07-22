@@ -121,6 +121,87 @@ export async function getJob(jobId: string): Promise<Job | null> {
   };
 }
 
+// Atomic claim: transition pending → processing IF and only IF no other
+// invocation has claimed it. Returns true if we got the lock, false if
+// someone else already has it (parallel SSE reconnect on the same job).
+//
+// Lease: if the row is already 'processing' but processing_started_at
+// is older than 10 minutes, we treat the previous claim as dead
+// (server crashed / lambda cold-boot before writing 'ready') and steal
+// the lock. Keeps stuck jobs from blocking retries forever.
+export async function claimForProcessing(jobId: string): Promise<
+  { status: "claimed"; brand: BrandContext; brief: string }
+  | { status: "already-ready" }
+  | { status: "in-progress"; since: number }
+  | { status: "not-found" }
+> {
+  const supabase = createServiceSupabaseClient() as AnySupabase;
+
+  const { data: current, error: readErr } = await supabase
+    .from(TABLE)
+    .select("id, status, processing_started_at, brand, brief, expires_at")
+    .eq("id", jobId)
+    .maybeSingle();
+
+  if (readErr || !current) return { status: "not-found" };
+  const row = current as JobRow & { processing_started_at: string | null };
+
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    return { status: "not-found" };
+  }
+  if (row.status === "ready") return { status: "already-ready" };
+
+  const now = Date.now();
+  const leaseAge =
+    row.processing_started_at !== null
+      ? now - new Date(row.processing_started_at).getTime()
+      : Infinity;
+
+  if (row.status === "processing" && leaseAge < 10 * 60_000) {
+    return { status: "in-progress", since: now - leaseAge };
+  }
+
+  // Attempt to claim. Use a conditional UPDATE to make this atomic —
+  // only succeed if we can transition from the same status we just read
+  // (optimistic concurrency).
+  const nowIso = new Date().toISOString();
+  const { data: updated, error: updErr } = await supabase
+    .from(TABLE)
+    .update({ status: "processing", processing_started_at: nowIso })
+    .eq("id", jobId)
+    .eq("status", row.status)
+    .select("id")
+    .maybeSingle();
+
+  if (updErr || !updated) {
+    return { status: "in-progress", since: 0 };
+  }
+
+  return {
+    status: "claimed",
+    brand: (row.brand as BrandContext | null) ?? emptyBrand(),
+    brief: row.brief,
+  };
+}
+
+// Poll helper for the SSE reconnect path: wait up to `maxWaitMs` for
+// the job to reach 'ready' state, checking every `intervalMs`.
+export async function waitForReady(
+  jobId: string,
+  maxWaitMs = 300_000,
+  intervalMs = 3_000,
+  onTick?: () => void,
+): Promise<string | null> {
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    const html = await getReadyJobHtml(jobId);
+    if (html) return html;
+    onTick?.();
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return null;
+}
+
 // v3: mark ready with full assembled HTML doc + brand-ingest snapshot.
 export async function markJobReadyHtml(
   jobId: string,

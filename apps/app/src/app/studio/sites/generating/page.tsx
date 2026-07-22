@@ -621,9 +621,12 @@ function pushNarration(
   role: NarrationLine["role"],
   text: string,
 ) {
-  setNarration((prev) => [
-    ...prev,
-    { id: crypto.randomUUID(), role, text },
-  ]);
+  setNarration((prev) => {
+    // Dedupe: if the last line already carries this exact text (any
+    // role), skip. Catches the 'server retried the same event' case.
+    const last = prev[prev.length - 1];
+    if (last && last.text === text) return prev;
+    return [...prev, { id: crypto.randomUUID(), role, text }];
+  });
 }
 
