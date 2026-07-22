@@ -1,29 +1,18 @@
 import { createServiceSupabaseClient } from "@/lib/supabase";
-import type { DesignSystem, BrandContext } from "./design-system";
-import type { PageContent } from "./page-content";
+import type { BrandContext } from "./design-system";
+import type { IngestedBrand } from "./brand-ingest";
 
-// Supabase-backed job store for /api/sites/generate.
+// Supabase-backed job store for the v3 site-generation pipeline.
 //
 // Two phases per job:
 //   1. PENDING: created by POST /api/sites/generate — carries the
 //      user's brief + brand snapshot until the SSE stream runs.
-//   2. READY: populated after design + page passes complete. The
-//      finished content + designSystem are readable by anyone with
-//      the jobId (unlisted-YouTube pattern — jobId is a UUID).
+//   2. READY: populated once Opus 4.7 finishes emitting the full HTML
+//      document. HTML is stored in-column so the public renderer at
+//      /api/sites/render/[jobId] can serve it without joining tables.
 //
-// Ready jobs are served publicly (no auth) from
-// /api/sites/jobs/[jobId] so the Bill-Fanter Astro preview route can
-// fetch them server-side without a Clerk session.
-//
-// Backed by Supabase's `sites_generation_jobs` table so jobs survive
-// lambda cold-starts + reconnects. Previously in-memory, which broke
-// because Bill-Fanter's SSR fetch would hit a different lambda than
-// the one that created the job.
-//
-// The Supabase generated types file (lib/supabase/types.ts) hasn't
-// been regenerated since this table was added, so we type-cast the
-// client to any at each call site. Regenerating types is a
-// mechanical follow-up.
+// Ready jobs are readable via getReadyJobHtml() without auth (unlisted-
+// UUID pattern). TTL 6h enforced by expires_at.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
@@ -46,8 +35,8 @@ export type ReadyJob = {
   templateId: string;
   brand: BrandContext;
   createdAt: number;
-  content: PageContent;
-  designSystem: DesignSystem;
+  html: string;
+  brandIngest: IngestedBrand | null;
 };
 
 export type Job = PendingJob | ReadyJob;
@@ -59,8 +48,8 @@ type JobRow = {
   template_id: string;
   brand: BrandContext | null;
   status: string;
-  content: PageContent | null;
-  design_system: DesignSystem | null;
+  html: string | null;
+  brand_ingest: IngestedBrand | null;
   created_at: string;
   expires_at: string;
 };
@@ -94,7 +83,7 @@ export async function getJob(jobId: string): Promise<Job | null> {
   const { data, error } = await supabase
     .from(TABLE)
     .select(
-      "id, user_id, brief, template_id, brand, status, content, design_system, created_at, expires_at",
+      "id, user_id, brief, template_id, brand, status, html, brand_ingest, created_at, expires_at",
     )
     .eq("id", jobId)
     .maybeSingle();
@@ -110,7 +99,7 @@ export async function getJob(jobId: string): Promise<Job | null> {
   const createdAt = new Date(row.created_at).getTime();
   const brand = row.brand ?? emptyBrand();
 
-  if (row.status === "ready" && row.content && row.design_system) {
+  if (row.status === "ready" && row.html) {
     return {
       status: "ready",
       userId: row.user_id,
@@ -118,8 +107,8 @@ export async function getJob(jobId: string): Promise<Job | null> {
       templateId: row.template_id,
       brand,
       createdAt,
-      content: row.content,
-      designSystem: row.design_system,
+      html: row.html,
+      brandIngest: row.brand_ingest,
     };
   }
   return {
@@ -132,23 +121,40 @@ export async function getJob(jobId: string): Promise<Job | null> {
   };
 }
 
-export async function markJobReady(
+// v3: mark ready with full assembled HTML doc + brand-ingest snapshot.
+export async function markJobReadyHtml(
   jobId: string,
-  content: PageContent,
-  designSystem: DesignSystem,
+  html: string,
+  brandIngest: IngestedBrand | null,
 ): Promise<void> {
   const supabase = createServiceSupabaseClient() as AnySupabase;
   const { error } = await supabase
     .from(TABLE)
     .update({
       status: "ready",
-      content,
-      design_system: designSystem,
+      html,
+      brand_ingest: brandIngest,
     })
     .eq("id", jobId);
   if (error) {
-    console.error("[job-store] markJobReady failed:", error);
+    console.error("[job-store] markJobReadyHtml failed:", error);
   }
+}
+
+// Public read for /api/sites/render/[jobId]. Returns null if the job
+// doesn't exist, isn't ready, or has expired.
+export async function getReadyJobHtml(jobId: string): Promise<string | null> {
+  const supabase = createServiceSupabaseClient() as AnySupabase;
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("html, status, expires_at")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = data as Pick<JobRow, "html" | "status" | "expires_at">;
+  if (row.status !== "ready" || !row.html) return null;
+  if (new Date(row.expires_at).getTime() < Date.now()) return null;
+  return row.html;
 }
 
 export async function deleteJob(jobId: string): Promise<void> {

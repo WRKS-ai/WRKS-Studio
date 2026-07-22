@@ -1,48 +1,38 @@
 "use client";
 
-import type { DesignSystem } from "@/lib/site-generation/design-system";
-import type { PageContent } from "@/lib/site-generation/page-content";
-
-// Page artboard — iframes the REAL Bill-Fanter Astro template running
-// at bill-fanter-preview-tau.vercel.app/preview and reads the current
-// user's content + designSystem from the URL query. No cross-service
-// fetch, no auth surface — everything the preview needs is in the URL.
+// v3 page artboard — iframes the WRKS server-side render endpoint
+// /api/sites/render/[jobId] which streams the assembled HTML doc
+// (stored in sites_generation_jobs.html) with Content-Type text/html.
 //
-// Chose URL-embedded content over a Supabase job endpoint because the
-// Studio deployment sits behind Vercel SSO, and Bill-Fanter's SSR
-// fetch was hitting the SSO gate → 302 → 404 fallback. URL params
-// sidestep the whole auth question. Trade-off: URL gets long
-// (~5-7 KB), well under Vercel's 8 KB limit.
+// v2 (Bill-Fanter template + URL-embedded JSON) is fully removed —
+// the v3 pipeline generates bespoke HTML per user via Opus 4.7
+// reading the blueprint MDs, so there's no shared template to iframe
+// anymore.
 
 type Props = {
-  content: PageContent;
-  designSystem: DesignSystem;
+  jobId: string;
+  // Optional dimensions — canvas passes these based on artboard size.
+  width?: number;
+  height?: number;
 };
 
-const BILL_FANTER_PREVIEW_ORIGIN =
-  process.env.NEXT_PUBLIC_BILL_FANTER_PREVIEW_ORIGIN ??
-  "https://bill-fanter-preview-tau.vercel.app";
+// Artboard sized to fit the full 10-section homepage without an
+// inner scrollbar. Sections total ~4500-5500px at 1280 viewport
+// (Hero 720 + MegaBento 1200 + Watchlist 700 + Community 720 +
+// HelpGrid 500 + Spotlight 480 + HeroSplit 700 + Reviews 1400 +
+// YoutubeCta 560 + AboutFounder 680). Rounded to 5200 with buffer.
+const DEFAULT_HEIGHT = 5200;
+const DEFAULT_WIDTH = 1280;
 
-// Artboard sized to fit the full Bill-Fanter homepage without an
-// inner scrollbar. Bill-Fanter's 4-section homepage renders ~3600px
-// tall at 1280 viewport — Hero (720) + HelpGrid (~700) + AboutBill
-// (~900) + Closing (~800) + Footer + Nav. Rounded up to 4000 to
-// absorb variance from longer generated copy (multi-paragraph about
-// sections push over 900px).
-const ARTBOARD_HEIGHT = 4000;
-
-export function PagePreviewFrame({ content, designSystem }: Props) {
-  const payload = encodeURIComponent(
-    JSON.stringify({ content, designSystem }),
-  );
-  const previewUrl = `${BILL_FANTER_PREVIEW_ORIGIN}/preview?data=${payload}`;
+export function PagePreviewFrame({ jobId, width, height }: Props) {
+  const src = `/api/sites/render/${encodeURIComponent(jobId)}`;
 
   return (
     <div
       className="page-artboard"
       style={{
-        width: 1280,
-        height: ARTBOARD_HEIGHT,
+        width: width ?? DEFAULT_WIDTH,
+        height: height ?? DEFAULT_HEIGHT,
         borderRadius: 16,
         overflow: "hidden",
         border: "1px solid rgba(0,0,0,0.1)",
@@ -53,7 +43,7 @@ export function PagePreviewFrame({ content, designSystem }: Props) {
       }}
     >
       <iframe
-        src={previewUrl}
+        src={src}
         title="Site preview"
         scrolling="no"
         style={{

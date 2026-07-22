@@ -1,10 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DesignSystemArtboard } from "./design-system-artboard";
 import { PagePreviewFrame } from "./page-artboard";
-import type { DesignSystem } from "@/lib/site-generation/design-system";
-import type { PageContent } from "@/lib/site-generation/page-content";
 
 // Infinite dotted-grid canvas for the Stitch-style site generation
 // theater. Real pan (mouse drag) + zoom (wheel + trackpad). Artboards
@@ -15,28 +12,21 @@ import type { PageContent } from "@/lib/site-generation/page-content";
 // yet — we need reliable pan/zoom + custom artboard content. tldraw
 // upgrade lands in a later ship if we need canvas primitives.
 
-export type SiteArtboard =
-  | {
-      id: string;
-      kind: "design-system";
-      title: string;
-      designSystem: DesignSystem;
-    }
-  | {
-      id: string;
-      kind: "page";
-      title: string;
-      pageId: string;
-      status: "pending" | "generating" | "done";
-      content?: PageContent;
-      designSystem?: DesignSystem;
-    };
+// v3: canvas holds page artboards only. Each page artboard renders as
+// an iframe pointing at /api/sites/render/[jobId] once the job is ready.
+export type SiteArtboard = {
+  id: string;
+  kind: "page";
+  title: string;
+  pageId: string;
+  status: "pending" | "generating" | "done";
+  jobId?: string;                             // set when the ready HTML is available
+};
 
 type Props = {
   artboards: SiteArtboard[];
 };
 
-const DESIGN_W = 720;
 const PAGE_W = 1280;
 const ARTBOARD_GAP = 80;
 const MIN_ZOOM = 0.2;
@@ -66,16 +56,13 @@ export function SiteCanvas({ artboards }: Props) {
     }
     const newest = artboards[artboards.length - 1];
     const wNew = artboardWidthOf(newest);
-    // Page artboards are tall (~4000px) — for framing we still use the
-    // hero-visible height (720) so the canvas zooms to show the TOP
-    // of the page. Pan/scroll reveals the sections below.
-    const hNew = newest.kind === "design-system" ? 520 : 720;
+    // Page artboards are tall (~5200px); frame to the hero-visible
+    // height (720) so the canvas zooms to show the TOP of the page.
+    // Pan/scroll reveals the sections below.
+    const hNew = 720;
     // Pick a zoom that keeps the new artboard visible: fit its width to
-    // ~70% of the container width, capped at 0.55 for design system.
-    const desiredZoom = Math.min(
-      newest.kind === "design-system" ? 0.55 : 0.42,
-      (rect.width * 0.7) / wNew,
-    );
+    // ~70% of the container width.
+    const desiredZoom = Math.min(0.42, (rect.width * 0.7) / wNew);
     const centerX = rect.width / 2 - (x + wNew / 2) * desiredZoom;
     const centerY = rect.height / 2 - (hNew / 2) * desiredZoom;
     setZoom(desiredZoom);
@@ -183,16 +170,8 @@ export function SiteCanvas({ artboards }: Props) {
                 key={a.id}
                 style={{ position: "absolute", left, top: 0 }}
               >
-                {a.kind === "design-system" ? (
-                  <DesignSystemArtboard
-                    designSystem={a.designSystem}
-                    title={a.title}
-                  />
-                ) : a.status === "done" && a.content && a.designSystem ? (
-                  <PagePreviewFrame
-                    content={a.content}
-                    designSystem={a.designSystem}
-                  />
+                {a.status === "done" && a.jobId ? (
+                  <PagePreviewFrame jobId={a.jobId} />
                 ) : (
                   <PageArtboardPending
                     title={a.title}
@@ -226,8 +205,8 @@ export function SiteCanvas({ artboards }: Props) {
   );
 }
 
-function artboardWidthOf(a: SiteArtboard): number {
-  return a.kind === "design-system" ? DESIGN_W : PAGE_W;
+function artboardWidthOf(_a: SiteArtboard): number {
+  return PAGE_W;
 }
 
 function EmptyState() {

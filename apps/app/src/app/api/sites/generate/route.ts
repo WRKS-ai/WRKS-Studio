@@ -2,40 +2,43 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceSupabaseClient } from "@/lib/supabase";
-import {
-  type BrandContext,
-  type DesignSystem,
-  generateDesignSystem,
-} from "@/lib/site-generation/design-system";
-import { generatePageContent } from "@/lib/site-generation/page-content";
+import type { BrandContext } from "@/lib/site-generation/design-system";
 import {
   createPendingJob,
   deleteJob,
   getJob,
-  markJobReady,
+  markJobReadyHtml,
 } from "@/lib/site-generation/job-store";
+import { ingestBrand, type IngestedBrand } from "@/lib/site-generation/brand-ingest";
+import { generateHtmlDocument } from "@/lib/site-generation/generate-html";
 
-// POST /api/sites/generate       — create a job, return jobId.
-// GET  /api/sites/generate?jobId — SSE stream of generation events.
+// v3 site-generation pipeline.
 //
-// Job lifecycle:
-//   POST  → createPendingJob
-//   GET   → runs design + page passes, streams events
-//   done  → markJobReady (stores content + designSystem)
-//   /api/sites/jobs/[jobId] serves the ready job publicly to the
-//   Bill-Fanter Astro preview route (bill-fanter-preview.vercel.app/
-//   preview/[jobId]).
+// Flow (single-pass, SSE-streamed):
+//   POST /api/sites/generate       — create a pending job, return jobId
+//   GET  /api/sites/generate?jobId — SSE stream:
+//     1. ingest.start / ingest.done — deep-fetch the user's URL if any
+//     2. generate.start / generate.done — Opus 4.7 emits full HTML doc
+//     3. generation.done — job persisted, ready for /api/sites/render
+//
+// Storage: sites_generation_jobs.html holds the assembled HTML doc,
+// sites_generation_jobs.brand_ingest holds the deep-ingested facts.
+// TTL 6h per row.
+//
+// Rendering: the studio canvas iframes /api/sites/render/[jobId]
+// which serves the stored HTML with the correct Content-Type.
 
 export const runtime = "nodejs";
-// Sonnet for 6 sections + Haiku for design system regularly exceeds
-// 60s. Bumping to Vercel Pro's 300s serverless max. If we go over
-// that we'll need to split Sonnet into per-section calls or move to
-// Fluid Compute (up to 800s).
+// Opus 4.7 emitting 25-40K chars of HTML in one call typically runs
+// 90-180s. 300s is Vercel Pro's serverless max — we heartbeat every
+// 10s to keep the SSE connection alive.
 export const maxDuration = 300;
 
 const PostBody = z.object({
   brief: z.string().trim().min(6).max(600),
-  templateId: z.string().trim().min(1).max(120),
+  // templateId is legacy — v3 doesn't need a template id, but keeping
+  // it optional so the composer doesn't break if it still sends one.
+  templateId: z.string().trim().min(1).max(120).optional(),
 });
 
 export async function POST(req: Request) {
@@ -55,9 +58,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // Pull brand_state so the Haiku pass has the full picture. If it
-  // fails we still start the job — the design system just gets a
-  // thinner input.
+  // Pull brand context from business_profiles for the generation prompt.
   const brand: BrandContext = {
     brandName: null,
     businessType: null,
@@ -99,7 +100,7 @@ export async function POST(req: Request) {
     await createPendingJob(jobId, {
       userId,
       brief: body.brief,
-      templateId: body.templateId,
+      templateId: body.templateId ?? "personal-brand",
       brand,
     });
   } catch (err) {
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
 }
 
 // ============================================================
-// SSE stream
+// SSE stream — the v3 pipeline
 // ============================================================
 export async function GET(req: Request) {
   const { userId } = await auth();
@@ -141,81 +142,113 @@ export async function GET(req: Request) {
         );
       };
 
-      // ==================================================
-      // Pass 1 — Design system (real Haiku).
-      // ==================================================
-      emit("design.start", {
-        message:
-          "Reading your brand and drafting a design system — palette, type, buttons.",
-      });
-
-      let designSystem: DesignSystem;
-      try {
-        designSystem = await generateDesignSystem({
-          brief: job.brief,
-          brand: job.brand,
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error("[api/sites/generate] design system failed:", message);
-        emit("error", {
-          stage: "design-system",
-          message,
-        });
-        controller.close();
-        await deleteJob(jobId);
-        return;
-      }
-
-      emit("design.done", designSystem);
-
-      // ==================================================
-      // Pass 2 — Per-page content generation (real Sonnet).
-      // Ship 2: single-page (home). Multi-page baton pattern
-      // + agent-curated page selection land in Ship 3.
-      // ==================================================
-      emit("page.start", {
-        pageId: "home",
-        message:
-          "Now writing your home page — hero, value cards, closer. In your voice.",
-      });
-
-      // Heartbeat every 10s while Sonnet works — keeps the SSE
-      // connection warm and gives the client something to show.
+      // Heartbeat every 10s throughout — keeps SSE warm during the
+      // long Opus call.
       const heartbeat = setInterval(() => {
         emit("ping", { at: Date.now() });
       }, 10_000);
 
-      let page;
-      try {
-        page = await generatePageContent({
-          brief: job.brief,
-          brand: job.brand,
-          designSystem,
-          pageId: "home",
+      // ==================================================
+      // Phase 1 — Deep brand ingest (if URL available)
+      // ==================================================
+      let ingest: IngestedBrand | null = null;
+      const ingestUrl = job.brand.existingSiteUrl;
+
+      if (ingestUrl) {
+        emit("ingest.start", {
+          url: ingestUrl,
+          message: `Reading ${new URL(ingestUrl).hostname} — extracting palette, typography, hero copy, testimonials.`,
         });
-        clearInterval(heartbeat);
-        emit("page.done", page);
+
+        try {
+          ingest = await ingestBrand(ingestUrl);
+          emit("ingest.done", {
+            url: ingest.url,
+            durationMs: ingest.raw.durationMs,
+            brandName: ingest.brandName,
+            palette: ingest.palette.colors.map((c) => ({ hex: c.hex, role: c.role })),
+            typefaces: ingest.typefaces,
+            heroImage: ingest.heroImage,
+            logo: ingest.logo.src,
+            testimonialsFound: ingest.testimonials.length,
+            verticals: ingest.detectedVerticals,
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.warn("[api/sites/generate] ingest failed, continuing without:", message);
+          emit("ingest.skipped", {
+            message: `Couldn't read that URL — generating from the brief alone.`,
+            detail: message,
+          });
+        }
+      } else {
+        emit("ingest.skipped", {
+          message: "No existing site to read — generating from brand context alone.",
+        });
+      }
+
+      // ==================================================
+      // Phase 2 — Opus 4.7 emits the full HTML document
+      // ==================================================
+      emit("generate.start", {
+        message:
+          "Drafting your site — 10 sections, tailored to your palette, voice, and offer. About 60-90 seconds.",
+      });
+
+      let html: string;
+      let modelUsage: { inputTokens: number; outputTokens: number };
+      // Throttle progress ticks to at most 1/second so the client
+      // doesn't get flooded — Opus streams deltas at ~50ms cadence.
+      let lastTick = 0;
+      try {
+        const result = await generateHtmlDocument(
+          {
+            brief: job.brief,
+            brand: job.brand,
+            ingest,
+          },
+          (ev) => {
+            const now = Date.now();
+            if (now - lastTick > 1000) {
+              lastTick = now;
+              emit("generate.progress", { chars: ev.totalChars });
+            }
+          },
+        );
+        html = result.html;
+        modelUsage = result.modelUsage;
       } catch (err) {
         clearInterval(heartbeat);
         const message = err instanceof Error ? err.message : String(err);
-        console.error("[api/sites/generate] page content failed:", message);
-        emit("error", {
-          stage: "page-content",
-          message,
-        });
+        console.error("[api/sites/generate] generate failed:", message);
+        emit("error", { stage: "generate", message });
         controller.close();
         await deleteJob(jobId);
         return;
       }
 
-      // Persist so the Bill-Fanter preview route can fetch this
-      // job's content over HTTP after generation completes.
-      await markJobReady(jobId, page, designSystem);
+      emit("generate.done", {
+        bytes: html.length,
+        modelUsage,
+      });
 
-      emit("generation.done", { siteId: jobId });
+      // ==================================================
+      // Phase 3 — Persist + notify canvas
+      // ==================================================
+      try {
+        await markJobReadyHtml(jobId, html, ingest);
+      } catch (err) {
+        console.error("[api/sites/generate] markJobReadyHtml failed:", err);
+        // Don't fail the stream — HTML is already in memory, canvas
+        // will still get it via generation.done payload.
+      }
+
+      clearInterval(heartbeat);
+      emit("generation.done", {
+        siteId: jobId,
+        renderUrl: `/api/sites/render/${jobId}`,
+      });
       controller.close();
-      // Job stays in the store for its TTL so preview can fetch.
     },
   });
 

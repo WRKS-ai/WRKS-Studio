@@ -65,3 +65,6 @@ coverage/
 
 # Turbo
 .turbo
+
+# Site-gen smoke test artifacts
+apps/app/smoke-output.html

@@ -3,19 +3,16 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SiteCanvas, type SiteArtboard } from "@/components/site-canvas/site-canvas";
-import type { DesignSystem } from "@/lib/site-generation/design-system";
-import type { PageContent } from "@/lib/site-generation/page-content";
 
-// /studio/sites/generating — Stitch-style full-canvas theater.
+// /studio/sites/generating — v3 generation theater.
 //
-// Ship 1 (2026-06-30): full-viewport canvas with dotted grid + top
-// glass toolbar + left narration panel + right icon tools + bottom
-// composer. Design system pass runs against real Haiku via
-// /api/sites/generate SSE stream; result renders as the FIRST
-// artboard on the canvas.
-//
-// Ship 2+ adds page artboards (Sonnet content), inline editing,
-// voice narration, and undo/redo.
+// Full-viewport canvas + top glass toolbar + left narration panel +
+// right icon tools + bottom composer. Streams v3 pipeline events from
+// /api/sites/generate:
+//   1. ingest.start / ingest.done  — deep-fetch user's URL
+//   2. generate.start / generate.done — Opus emits full HTML doc
+//   3. generation.done — page artboard flips to done, iframes
+//      /api/sites/render/[jobId]
 
 type NarrationLine = {
   id: string;
@@ -31,7 +28,7 @@ export default function GeneratingPage() {
   const [narration, setNarration] = useState<NarrationLine[]>([]);
   const [projectTitle, setProjectTitle] = useState<string>("New site");
   const [error, setError] = useState<string | null>(null);
-  const [phase, setPhase] = useState<"design" | "pages" | "done">("design");
+  const [phase, setPhase] = useState<"ingest" | "generate" | "done">("ingest");
   const streamStartedRef = useRef(false);
 
   useEffect(() => {
@@ -48,80 +45,86 @@ export default function GeneratingPage() {
       "Warming up the design agent…",
     );
 
+    // Seed the canvas with a pending page artboard immediately so the
+    // user sees a framed slot while ingest + Opus run.
+    setArtboards([
+      {
+        id: `page-home-${jobId}`,
+        kind: "page",
+        title: "Home",
+        pageId: "home",
+        status: "generating",
+      },
+    ]);
+
     const es = new EventSource(`/api/sites/generate?jobId=${jobId}`);
 
-    es.addEventListener("design.start", (e) => {
+    es.addEventListener("ingest.start", (e) => {
       const data = JSON.parse((e as MessageEvent).data) as { message: string };
       pushNarration(setNarration, "agent", data.message);
     });
 
-    let latestDesign: DesignSystem | null = null;
-
-    es.addEventListener("design.done", (e) => {
-      const ds = JSON.parse((e as MessageEvent).data) as DesignSystem;
-      latestDesign = ds;
-      setArtboards((prev) => [
-        ...prev,
-        {
-          id: "design-system",
-          kind: "design-system",
-          title: makeSystemTitle(ds),
-          designSystem: ds,
-        },
-      ]);
-      setProjectTitle(makeSystemTitle(ds));
-      pushNarration(setNarration, "agent", ds.narration);
-      setPhase("pages");
-    });
-
-    es.addEventListener("page.start", (e) => {
+    es.addEventListener("ingest.done", (e) => {
       const data = JSON.parse((e as MessageEvent).data) as {
-        pageId: string;
-        message: string;
+        brandName: string | null;
+        palette: Array<{ hex: string; role: string }>;
+        typefaces: { display: string | null; body: string | null };
+        heroImage: string | null;
+        testimonialsFound: number;
+        verticals: string[];
       };
-      pushNarration(setNarration, "agent", data.message);
-      // Add a pending page artboard so the canvas frames its slot
-      // while Sonnet writes.
-      setArtboards((prev) => [
-        ...prev,
-        {
-          id: `page-${data.pageId}`,
-          kind: "page",
-          title: prettyPageTitle(data.pageId),
-          pageId: data.pageId,
-          status: "generating",
-        },
-      ]);
+      if (data.brandName) setProjectTitle(data.brandName);
+      const paletteCount = data.palette.length;
+      const parts: string[] = [];
+      parts.push(`Read your site — ${paletteCount} palette color${paletteCount === 1 ? "" : "s"} extracted.`);
+      if (data.typefaces.display) parts.push(`Type: ${data.typefaces.display}.`);
+      if (data.testimonialsFound > 0) parts.push(`Found ${data.testimonialsFound} testimonial${data.testimonialsFound === 1 ? "" : "s"}.`);
+      if (data.verticals.length > 0) parts.push(`Verticals: ${data.verticals.slice(0, 3).join(", ")}.`);
+      pushNarration(setNarration, "agent", parts.join(" "));
+      setPhase("generate");
     });
 
-    // Sonnet finished writing this page's content. Flip the artboard
-    // to done — content + designSystem are passed directly to the
-    // iframe via URL params, no cross-service fetch or Supabase lookup
-    // needed.
-    es.addEventListener("page.done", (e) => {
-      const page = JSON.parse((e as MessageEvent).data) as PageContent;
-      pushNarration(setNarration, "agent", page.narration);
-      setArtboards((prev) =>
-        prev.map((a) =>
-          a.kind === "page" && a.pageId === page.pageId
-            ? {
-                ...a,
-                status: "done" as const,
-                content: page,
-                designSystem: latestDesign ?? a.designSystem,
-                title: page.title,
-              }
-            : a,
-        ),
+    es.addEventListener("ingest.skipped", (e) => {
+      const data = JSON.parse((e as MessageEvent).data) as { message: string };
+      pushNarration(setNarration, "system", data.message);
+      setPhase("generate");
+    });
+
+    es.addEventListener("generate.start", (e) => {
+      const data = JSON.parse((e as MessageEvent).data) as { message: string };
+      pushNarration(setNarration, "agent", data.message);
+    });
+
+    es.addEventListener("generate.done", (e) => {
+      const data = JSON.parse((e as MessageEvent).data) as {
+        bytes: number;
+        modelUsage: { inputTokens: number; outputTokens: number };
+      };
+      pushNarration(
+        setNarration,
+        "system",
+        `Draft written — ${Math.round(data.bytes / 1000)}kb HTML. Rendering now.`,
       );
     });
 
-    es.addEventListener("generation.done", () => {
+    es.addEventListener("generation.done", (e) => {
+      const data = JSON.parse((e as MessageEvent).data) as {
+        siteId: string;
+      };
+      // Flip the page artboard to done — attach jobId so the iframe
+      // renders /api/sites/render/[jobId].
+      setArtboards((prev) =>
+        prev.map((a) =>
+          a.pageId === "home"
+            ? { ...a, status: "done" as const, jobId: data.siteId }
+            : a,
+        ),
+      );
       setPhase("done");
       pushNarration(
         setNarration,
         "system",
-        "Draft is ready. Type in the composer to iterate.",
+        "Site is live. Iterate below or export.",
       );
       es.close();
     });
@@ -182,7 +185,7 @@ function TopToolbar({
   onExit,
 }: {
   title: string;
-  phase: "design" | "pages" | "done";
+  phase: "ingest" | "generate" | "done";
   onExit: () => void;
 }) {
   return (
@@ -332,7 +335,7 @@ function LeftPanel({
   error,
 }: {
   narration: NarrationLine[];
-  phase: "design" | "pages" | "done";
+  phase: "ingest" | "generate" | "done";
   error: string | null;
 }) {
   return (
@@ -491,7 +494,7 @@ function RightTools() {
 // ============================================================
 // Bottom composer — placeholder until Ship 4 (edit-with-AI)
 // ============================================================
-function BottomComposer({ phase }: { phase: "design" | "pages" | "done" }) {
+function BottomComposer({ phase }: { phase: "ingest" | "generate" | "done" }) {
   return (
     <div
       className="absolute"
@@ -624,11 +627,3 @@ function pushNarration(
   ]);
 }
 
-function makeSystemTitle(ds: DesignSystem): string {
-  return `${ds.palette.primary.name} · ${ds.type.display.family}`;
-}
-
-function prettyPageTitle(pageId: string): string {
-  if (pageId === "home") return "Home";
-  return pageId.charAt(0).toUpperCase() + pageId.slice(1).replace(/-/g, " ");
-}
