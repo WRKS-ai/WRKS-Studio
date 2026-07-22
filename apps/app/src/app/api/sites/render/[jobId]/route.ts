@@ -41,7 +41,13 @@ export async function GET(
     });
   }
 
-  return new Response(html, {
+  // Inject the auto-height reporter before </body>. This posts the
+  // document's real scroll height back to the parent studio canvas so
+  // the artboard iframe can grow to fit — otherwise the fixed default
+  // clips longer sections (footer + closing beats).
+  const withReporter = injectHeightReporter(html);
+
+  return new Response(withReporter, {
     status: 200,
     headers: {
       "content-type": "text/html; charset=utf-8",
@@ -51,6 +57,55 @@ export async function GET(
       "cache-control": "public, max-age=60, s-maxage=60",
     },
   });
+}
+
+// ============================================================
+// Auto-height reporter (injected script)
+// ============================================================
+//
+// The generated HTML has variable length (5 to 12+ sections, each
+// with variable copy). We can't know the render height statically, so
+// the iframe posts its real height on load + on resize + on font/image
+// load. The parent artboard listens for `wrks:height` messages and
+// updates the iframe height to match.
+
+function injectHeightReporter(html: string): string {
+  const script = `
+<script>
+(function(){
+  var last = 0;
+  function report(){
+    var h = Math.max(
+      document.documentElement.scrollHeight,
+      document.body ? document.body.scrollHeight : 0
+    );
+    if (h > 0 && h !== last) {
+      last = h;
+      try {
+        parent.postMessage({ type: 'wrks:height', height: h }, '*');
+      } catch (e) {}
+    }
+  }
+  window.addEventListener('load', report);
+  window.addEventListener('resize', report);
+  // Fonts + late images can grow the doc after load. Re-measure a few
+  // times, spaced out, then settle.
+  [100, 400, 1000, 2500, 5000].forEach(function(t){ setTimeout(report, t); });
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(report).catch(function(){});
+  }
+  document.addEventListener('DOMContentLoaded', report);
+  // Late images
+  document.querySelectorAll('img').forEach(function(img){
+    if (!img.complete) img.addEventListener('load', report);
+  });
+})();
+</script>`;
+  if (html.includes("</body>")) {
+    return html.replace("</body>", `${script}\n</body>`);
+  }
+  // Fallback — append at end
+  return html + script;
 }
 
 function isUuid(s: string): boolean {

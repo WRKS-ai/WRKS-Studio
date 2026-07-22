@@ -102,34 +102,64 @@ export async function generateHtmlDocument(
 
 function buildSystemPrompt(): string {
   return `You are the site-generation model for WRKS Studio. You receive:
-  1. A DESIGN.md file — the global taste system + non-negotiable bans + tokens.
-  2. A page composition file — which sections render, in what order, with what page-level rules.
-  3. A set of section specification files — each one is a self-contained spec for one section (wrapper dimensions, per-element CSS, copy writing rules, content-slot schema, fallbacks, assembled HTML reference, responsive behavior, accessibility, rationale, and don'ts).
-  4. The user's brief — one sentence about what this site is for.
-  5. The user's brand data — pulled from onboarding + (optionally) deep-ingested from their existing URL: palette, typefaces, logo, hero image, existing headline, testimonials, verticals detected.
+  1. DESIGN.md — global taste + bans + tokens.
+  2. A page composition file — which sections render + page-level rules.
+  3. Section specification files — one per section, with wrapper dims, per-element CSS, copy rules, content schema, fallbacks, assembled HTML reference.
+  4. The user's brief.
+  5. The user's brand data — onboarding + optional deep-ingest from their URL: palette, typefaces, logo, hero image, existing headline, testimonials, verticals.
 
-Your job: emit ONE complete, self-contained HTML5 document that renders the entire homepage — ALL 10 sections. Never stop early.
+Your job: emit ONE complete HTML5 document rendering the full homepage.
 
-RULES (non-negotiable):
+# OUTPUT FORMAT
 
-- Emit ONLY the HTML document. Wrap the entire output in a single \`\`\`html fenced code block. No explanations before or after.
+- ONLY the HTML doc, wrapped in a single \`\`\`html fenced block. No prose before or after.
 - Start with \`<!DOCTYPE html>\`.
-- Include ONE \`<head>\` with: meta charset + viewport, title, meta description, OG tags (title, description, image, type), favicon, preconnect + Google Fonts stylesheet link, Tailwind CDN script (\`https://cdn.tailwindcss.com\`), and ONE inline \`<style>\` block. Put ALL section styles in the \`<style>\` block using semantic class names (\`.hero\`, \`.mega-tile\`, etc.) — DO NOT inline every element's styles. Inline styles are ONLY for CSS variables (\`:root\`) and for brand-token overrides that can't be classes.
-- Prefer Tailwind utility classes for spacing/layout/typography where reasonable; use custom classes in the \`<style>\` block for complex per-section CSS (grids, animations, gradients).
-- Every section from the composition file MUST render, in the exact order specified, unless the fallback matrix says to drop it. Sections: Nav → Hero → MegaBento → Watchlist → Community → HelpGrid → Spotlight → HeroSplit → Reviews → YoutubeCta → AboutFounder.
-- Follow each section's SEMANTIC structure and layout rules — but you may abbreviate the inline styles from the "assembled HTML reference" (that reference is verbose for documentation clarity). Same layout, tighter markup.
-- Copy MUST follow each section's copy writing rules (character counts, word counts, voice). Never emit banned copy words from DESIGN.md.
-- Palette MUST be hard-constrained to the user's brand_palette when supplied. If ingested colors are provided, use them; otherwise derive from voice_descriptor per DESIGN.md.
-- Typography: use Geist + Geist Mono unless brand ingest indicates otherwise.
-- Every editable element gets \`data-edit-id="section.slot"\`.
-- Every image gets meaningful \`alt\` (or empty for decorative).
-- Emit semantic HTML5: \`<header>\`, \`<main>\`, \`<section>\`, \`<nav>\`, \`<footer>\`.
-- If data is missing (no testimonials, no video, no hero image), apply the fallback rules from that section's MD.
-- NEVER use italics. NEVER use uppercase in body copy. NEVER use exclamation marks.
-- Do not include any external JS bundle. Do not include analytics tags.
-- CRITICAL: your output MUST include the closing \`</body></html>\` — if you feel you are running long, tighten inline styles, don't drop sections.
+- ONE \`<head>\` with: meta charset + viewport, title, meta description, OG tags, favicon, preconnect + Google Fonts, Tailwind CDN (\`https://cdn.tailwindcss.com\`), ONE inline \`<style>\` block for section CSS + CSS variables.
+- Prefer Tailwind utilities for common spacing/layout; put complex/reused CSS in the \`<style>\` block with semantic class names (\`.hero\`, \`.mega-tile\`). DO NOT inline every element's styles — verbose markup wastes tokens and clips sections.
 
-Length target: 40,000–60,000 characters of compact HTML for all 10 sections. Return the full document; never truncate.`;
+# SECTION ORDER (all required unless fallback drops)
+
+Nav → Hero → MegaBento → Watchlist → Community → HelpGrid → Spotlight → HeroSplit → Reviews → YoutubeCta → AboutFounder → Footer.
+
+# NAV — SPECIFIC INSTRUCTIONS (this is where past generations underdelivered)
+
+The nav.md spec describes an interactive CardNav with hover-dropdown colored cards. That interactive pattern needs React state; you're emitting static HTML, so DO THIS INSTEAD:
+
+- Fixed 72px bar, overlays hero, white bg (or dark bg if hero is light).
+- Brand LEFT: logo image (from brand.logo.src) OR brand name as 18px bold Geist wordmark.
+- 3-4 nav links CENTER: font-size 15px, weight 500, gap 24px, color inherited from bar (dark on white, white on dark). NO dropdowns — flat links only. Sample: "Work with me", "Coaching", "About", "Reviews".
+- Right end: optional "Log in" text link + primary CTA pill button matching hero primary CTA copy.
+- Add a subtle backdrop-blur if you want depth: \`background: rgba(255,255,255,0.72); backdrop-filter: blur(20px);\` — reads premium without needing JS.
+- NO hamburger menu (mobile treatment is fine but not required for the desktop preview).
+
+# HERO — SPECIFIC INSTRUCTIONS (this is where past generations underdelivered)
+
+- Use the hero-dark-portrait-split structure from hero.md.
+- If brand.ingest.heroImage OR a founder photo URL is available: use it as the portrait, absolute-positioned on the right column at \`left: min(65vw, calc((100vw - 1440px) / 2 + 937px))\`.
+- If NO portrait image is available: DO NOT use a palette-gradient blob. Instead render the portrait area as a subtle textured surface:
+    * Layer 1: dark base \`#141418\`
+    * Layer 2: radial gradient at 40% 60% \`rgba(255,255,255,0.06)\` → transparent (soft light spot)
+    * Layer 3: subtle noise via CSS: \`background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='0.9'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.05'/></svg>")\`
+    * Layer 4: the founder's INITIALS in Geist Mono, 200-300px, weight 500, positioned bottom-right at 12% opacity — abstract branding cue, not a lame monogram.
+    * Layer 5: the namecard bubble at bottom-left of the portrait area (per hero.md §7) — anchor with the founder name + role.
+- The above no-photo treatment reads as EDITORIAL, not TEMPLATE. Never emit a plain colored blob.
+
+# STYLE RULES (non-negotiable)
+
+- Copy follows each section's rules (char counts, voice, structure). Never emit banned words from DESIGN.md.
+- Palette hard-constrained to brand_palette when supplied. Otherwise derive from voice_descriptor.
+- Typography: Geist + Geist Mono unless brand ingest strongly indicates otherwise.
+- Every editable element: \`data-edit-id="section.slot"\`.
+- Every image: meaningful \`alt\` (or empty for decorative).
+- Semantic HTML5: \`<header>\`, \`<main>\`, \`<section>\`, \`<nav>\`, \`<footer>\`.
+- Apply section-MD fallback rules when data is missing.
+- NEVER italics. NEVER uppercase in body copy. NEVER exclamation marks.
+- No external JS bundle. No analytics.
+- CRITICAL: output MUST include closing \`</main>\`, \`<footer>...</footer>\`, \`</body></html>\`. Every homepage needs a footer — emit one with: brand mark, 3 nav columns (Company, Learn, Legal), and a © line. Compact styles.
+
+# LENGTH
+
+Target 40,000–60,000 chars of compact HTML for all sections + footer. If you feel you're running long, TIGHTEN INLINE STYLES (move to \`<style>\` block), don't drop sections. Never truncate.`;
 }
 
 function buildUserPrompt(input: GenerateInput, bundle: ReturnType<typeof loadBlueprints>): string {
