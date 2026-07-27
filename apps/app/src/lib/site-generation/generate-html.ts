@@ -121,6 +121,23 @@ Your job: emit ONE complete HTML5 document rendering the full homepage.
 
 Nav → Hero → MegaBento → Watchlist → Community → HelpGrid → Spotlight → HeroSplit → Reviews → YoutubeCta → AboutFounder → Footer.
 
+# SECTION SPACING — CRITICAL
+
+EVERY \`<section>\` gets top+bottom padding to separate it from its neighbours. Zero exceptions.
+
+- Standard content sections (Nav, Hero excepted): \`padding: 100px 0;\` on the section, with an inner \`.container\` at \`max-width: 1180px; margin: 0 auto; padding: 0 40px;\`.
+- Sections that contain a full-bleed CARD (Spotlight, YoutubeCta): the OUTER section STILL gets \`padding: 100px 24px;\` — the card sits INSIDE that padding, it does NOT replace it. Result: 100px space above the card + card + 100px space below.
+- On mobile (≤767px): reduce section padding to \`padding: 64px 0;\` (or \`64px 20px\` for full-bleed containers).
+- NEVER emit \`padding-top: 0\` or \`padding: 0\` on a section. If you're tempted to "collapse padding" between sections to avoid doubled gaps, DON'T — 200px between sections is intentional, that's the editorial rhythm.
+- Sections should visually breathe. Two consecutive sections touching is a rendering bug.
+
+# FOOTER — CRITICAL
+
+- Emit exactly ONE \`<footer>\` after the last section, before \`</main>\`'s close (or as a sibling to \`</main>\`).
+- Footer padding: \`padding: 64px 40px 40px;\` (top 64, bottom 40 for the copyright row).
+- Do NOT emit ANY content after the footer closes. No hidden divs, no scripts with visible height, no extra sections.
+- The document ends at \`</footer></main></body></html>\` (or \`</main></footer></body></html>\` — either order fine). Absolutely no trailing empty space, no phantom \`<div>\`s with min-height.
+
 # NAV — SPECIFIC INSTRUCTIONS (this is where past generations underdelivered)
 
 The nav.md spec describes an interactive CardNav with hover-dropdown colored cards. That interactive pattern needs React state; you're emitting static HTML, so DO THIS INSTEAD:
@@ -135,14 +152,23 @@ The nav.md spec describes an interactive CardNav with hover-dropdown colored car
 # HERO — SPECIFIC INSTRUCTIONS (this is where past generations underdelivered)
 
 - Use the hero-dark-portrait-split structure from hero.md.
-- If brand.ingest.heroImage OR a founder photo URL is available: use it as the portrait, absolute-positioned on the right column at \`left: min(65vw, calc((100vw - 1440px) / 2 + 937px))\`.
-- If NO portrait image is available: DO NOT use a palette-gradient blob. Instead render the portrait area as a subtle textured surface:
-    * Layer 1: dark base \`#141418\`
-    * Layer 2: radial gradient at 40% 60% \`rgba(255,255,255,0.06)\` → transparent (soft light spot)
-    * Layer 3: subtle noise via CSS: \`background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='0.9'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.05'/></svg>")\`
-    * Layer 4: the founder's INITIALS in Geist Mono, 200-300px, weight 500, positioned bottom-right at 12% opacity — abstract branding cue, not a lame monogram.
-    * Layer 5: the namecard bubble at bottom-left of the portrait area (per hero.md §7) — anchor with the founder name + role.
-- The above no-photo treatment reads as EDITORIAL, not TEMPLATE. Never emit a plain colored blob.
+- The hero's overall height should be 720-820px (padding-top 200-224px to clear the nav, padding-bottom 120-160px, content sits above the fold).
+- Headline is the biggest thing on the page: 60-80px, weight 500-600, letter-spacing -0.03em, line-height 1.04. Keep it 2-3 lines wrapped at ~14 words.
+- If brand.ingest.heroImage OR a founder photo URL is available: use it as the portrait, absolute-positioned on the right column at \`left: min(65vw, calc((100vw - 1440px) / 2 + 937px))\`, right: 0, top: 0, bottom: 0, object-fit: cover, object-position: center top.
+- If NO portrait image is available: build a PROMINENT editorial right-column treatment. Not a subtle watermark. Make it feel intentional — like the designer chose this over a stock photo.
+  RECIPE (compose ALL of the following layers, in this z-order):
+    * Layer 0: dark base \`#0a0a0f\` filling the right column (from the split line to the right edge).
+    * Layer 1: two overlapping radial gradients for atmospheric depth:
+      \`radial-gradient(ellipse 60% 55% at 30% 40%, rgba(brand-primary-rgb, 0.28) 0%, transparent 60%)\`
+      + \`radial-gradient(ellipse 45% 40% at 70% 70%, rgba(brand-tertiary-rgb, 0.18) 0%, transparent 55%)\`
+    * Layer 2: fine dot-grid overlay: \`background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px); background-size: 24px 24px;\` at 40% opacity.
+    * Layer 3: THE BIG STATEMENT — one huge editorial element choose ONE of these based on the vertical:
+        - \`stat\` (numeric): if brand has a big number in offer_summary or differentiator (e.g. "1,600+ students", "$50M in verdicts", "900% growth"), render it as a 180-240px Geist Sans display number at 24% opacity, positioned center-right of the column, weight 600, letter-spacing -0.04em.
+        - \`initials\` (fallback): founder or brand initials, 240-320px Geist Mono weight 500, positioned bottom-right, opacity 32-40% (NOT 12%). This must READ, not hide.
+        - \`wordmark\` (elegant fallback): full brand name in the display font, 96-120px, opacity 20%, rotated -8deg, bottom-right.
+    * Layer 4: subtle vignette darkening the corners: \`background: radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.4) 100%);\`
+    * Layer 5: the namecard bubble at bottom-LEFT of the right column (per hero.md §7) — small pill with brand name + one-line credential. This anchors the abstract layers with something concrete.
+- The above no-photo treatment reads as EDITORIAL, not TEMPLATE. Never emit a plain colored blob. Never emit a subtle watermark. The right column should have as much visual weight as the copy on the left.
 
 # STYLE RULES (non-negotiable)
 

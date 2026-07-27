@@ -16,10 +16,11 @@ type Props = {
   width?: number;
 };
 
-// Initial height guess — the real value arrives via postMessage within
-// ~200-500ms of the iframe loading. Keeping this in the ballpark
-// prevents a huge layout jump on first render.
-const INITIAL_HEIGHT = 6000;
+// Initial height guess. The real value arrives via postMessage within
+// 200-500ms of the iframe loading. We bias LOW (not high) so if the
+// reporter ever fails to land, the user sees a slightly-clipped
+// artboard rather than a large empty tail of phantom whitespace.
+const INITIAL_HEIGHT = 4400;
 const DEFAULT_WIDTH = 1280;
 
 export function PagePreviewFrame({ jobId, width }: Props) {
