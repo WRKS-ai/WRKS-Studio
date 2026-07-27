@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SiteCanvas, type SiteArtboard } from "@/components/site-canvas/site-canvas";
 import type { DesignSystemArtboardData } from "@/components/site-canvas/design-system-artboard";
+import { PreviewOverlay } from "@/components/site-canvas/preview-overlay";
 
 // /studio/sites/generating — the generation theater.
 //
@@ -57,7 +58,14 @@ export default function GeneratingPage() {
   });
   const [projectTitle, setProjectTitle] = useState<string>("Marketing Landing Page");
   const [error, setError] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const streamStartedRef = useRef(false);
+
+  // Grab the finished job id (if any) for the Preview overlay iframe.
+  const readyJobId =
+    artboards
+      .filter((a): a is Extract<SiteArtboard, { kind: "page" }> => a.kind === "page")
+      .find((a) => a.status === "done" && a.jobId)?.jobId ?? null;
 
   useEffect(() => {
     if (!jobId) {
@@ -267,7 +275,12 @@ export default function GeneratingPage() {
         fontFamily: "var(--font-sans)",
       }}
     >
-      <TopToolbar title={projectTitle} onExit={() => router.push("/studio/sites")} />
+      <TopToolbar
+        title={projectTitle}
+        onExit={() => router.push("/studio/sites")}
+        canPreview={!!readyJobId}
+        onOpenPreview={() => setPreviewOpen(true)}
+      />
 
       {/* Global keyframes reused across children */}
       <style>{`
@@ -309,6 +322,15 @@ export default function GeneratingPage() {
         {/* Bottom composer */}
         <BottomComposer disabled={!status.isDone} />
       </div>
+
+      {/* Preview overlay (opens on top of everything when triggered) */}
+      {previewOpen && readyJobId && (
+        <PreviewOverlay
+          jobId={readyJobId}
+          brandName={projectTitle}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -316,7 +338,17 @@ export default function GeneratingPage() {
 // ============================================================
 // Top toolbar — minimal (hamburger + title + Export + Share + avatar)
 // ============================================================
-function TopToolbar({ title, onExit }: { title: string; onExit: () => void }) {
+function TopToolbar({
+  title,
+  onExit,
+  canPreview,
+  onOpenPreview,
+}: {
+  title: string;
+  onExit: () => void;
+  canPreview: boolean;
+  onOpenPreview: () => void;
+}) {
   return (
     <div
       className="shrink-0 flex items-center justify-between"
@@ -361,6 +393,13 @@ function TopToolbar({ title, onExit }: { title: string; onExit: () => void }) {
       </div>
 
       <div className="flex items-center" style={{ gap: 8 }}>
+        <ToolbarButton
+          label="Preview"
+          icon="preview"
+          onClick={onOpenPreview}
+          disabled={!canPreview}
+          primary={canPreview}
+        />
         <ToolbarButton label="Export" icon="export" />
         <ToolbarButton label="Share" icon="share" />
         <div
@@ -378,12 +417,35 @@ function TopToolbar({ title, onExit }: { title: string; onExit: () => void }) {
   );
 }
 
-function ToolbarButton({ label, icon }: { label: string; icon: "export" | "share" }) {
-  return (
-    <button
-      type="button"
-      className="inline-flex items-center transition-colors duration-150 hover:bg-white/[0.08]"
-      style={{
+function ToolbarButton({
+  label,
+  icon,
+  onClick,
+  disabled,
+  primary,
+}: {
+  label: string;
+  icon: "export" | "share" | "preview";
+  onClick?: () => void;
+  disabled?: boolean;
+  primary?: boolean;
+}) {
+  const style: React.CSSProperties = primary
+    ? {
+        padding: "7px 14px",
+        gap: 7,
+        borderRadius: 999,
+        background: "linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)",
+        border: "1px solid rgba(255,255,255,0.14)",
+        color: "#ffffff",
+        fontSize: 12.5,
+        fontWeight: 600,
+        letterSpacing: "-0.005em",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.4 : 1,
+        boxShadow: "0 6px 20px -6px rgba(167,139,250,0.55)",
+      }
+    : {
         padding: "7px 14px",
         gap: 7,
         borderRadius: 999,
@@ -393,10 +455,24 @@ function ToolbarButton({ label, icon }: { label: string; icon: "export" | "share
         fontSize: 12.5,
         fontWeight: 500,
         letterSpacing: "-0.005em",
-        cursor: "pointer",
-      }}
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.4 : 1,
+      };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex items-center transition-all duration-150 hover:brightness-110"
+      style={style}
     >
-      {icon === "export" ? (
+      {icon === "preview" ? (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      ) : icon === "export" ? (
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M16 6l-4-4-4 4M12 2v14" />
         </svg>
