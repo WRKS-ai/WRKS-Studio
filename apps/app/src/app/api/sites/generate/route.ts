@@ -7,39 +7,38 @@ import {
   claimForProcessing,
   createPendingJob,
   getJob,
-  getReadyJobHtml,
-  markJobReadyHtml,
-  waitForReady,
+  getJobStatus,
 } from "@/lib/site-generation/job-store";
-import { ingestBrand, type IngestedBrand } from "@/lib/site-generation/brand-ingest";
-import { generateHtmlDocument } from "@/lib/site-generation/generate-html";
+import { runGenerationJob } from "@/lib/site-generation/runner";
 
 // v3 site-generation pipeline.
 //
-// Flow (single-pass, SSE-streamed):
-//   POST /api/sites/generate       — create a pending job, return jobId
-//   GET  /api/sites/generate?jobId — SSE stream:
-//     1. ingest.start / ingest.done — deep-fetch the user's URL if any
-//     2. generate.start / generate.done — Opus 4.7 emits full HTML doc
-//     3. generation.done — job persisted, ready for /api/sites/render
+// ARCHITECTURE (rewritten): work is DECOUPLED from the HTTP request
+// lifecycle. Before, Opus streamed into the SSE controller and any SSE
+// drop killed generation. Now:
 //
-// Storage: sites_generation_jobs.html holds the assembled HTML doc,
-// sites_generation_jobs.brand_ingest holds the deep-ingested facts.
-// TTL 6h per row.
+//   POST /api/sites/generate       — creates job, claims lock, kicks off
+//                                    runGenerationJob() in the background
+//                                    (fire-and-forget), returns jobId.
+//   GET  /api/sites/generate?jobId — SSE that just POLLS job_status rows
+//                                    every 2s and emits phase updates.
+//                                    Never runs Opus. Never claims locks.
+//                                    Safe to drop + reconnect any time.
 //
-// Rendering: the studio canvas iframes /api/sites/render/[jobId]
-// which serves the stored HTML with the correct Content-Type.
+// The runner writes phase / phase_message / phase_progress / html / error
+// to sites_generation_jobs as it goes. The client just watches.
+//
+// Rendering: unchanged. /api/sites/render/[jobId] serves the stored
+// html column with Content-Type text/html.
 
 export const runtime = "nodejs";
-// Opus 4.7 emitting 25-40K chars of HTML in one call typically runs
-// 90-180s. 300s is Vercel Pro's serverless max — we heartbeat every
-// 10s to keep the SSE connection alive.
-export const maxDuration = 300;
+// Poll endpoint: needs to stay open long enough to see the whole
+// generation cycle (up to 6 min for slow Opus runs). 600s = 10 min
+// which is Vercel Fluid Compute max.
+export const maxDuration = 600;
 
 const PostBody = z.object({
   brief: z.string().trim().min(6).max(600),
-  // templateId is legacy — v3 doesn't need a template id, but keeping
-  // it optional so the composer doesn't break if it still sends one.
   templateId: z.string().trim().min(1).max(120).optional(),
 });
 
@@ -60,7 +59,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // Pull brand context from business_profiles for the generation prompt.
+  // Pull brand context from business_profiles.
   const brand: BrandContext = {
     brandName: null,
     businessType: null,
@@ -112,11 +111,29 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+
+  // Claim the lock immediately so any observer knows it's in progress,
+  // then fire-and-forget the runner. The runner completes on its own
+  // and writes result to Supabase. NO await — return response now.
+  const claim = await claimForProcessing(jobId);
+  if (claim.status === "claimed") {
+    // Node fire-and-forget. On Vercel this needs Inngest for reliable
+    // completion (serverless kills the process after response); on dev
+    // / long-lived Node this runs to completion.
+    void runGenerationJob({ jobId, brief: body.brief, brand });
+  } else {
+    console.warn(
+      "[api/sites/generate] unexpected non-claimed status on fresh job:",
+      claim.status,
+    );
+  }
+
   return NextResponse.json({ jobId });
 }
 
 // ============================================================
-// SSE stream — the v3 pipeline
+// SSE observer — just polls the DB every 2s and emits phase updates.
+// Never runs Opus. Never claims. Safe to reconnect at any time.
 // ============================================================
 export async function GET(req: Request) {
   const { userId } = await auth();
@@ -137,180 +154,91 @@ export async function GET(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       const emit = (event: string, data: unknown) => {
-        controller.enqueue(
-          encoder.encode(
-            `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
-          ),
-        );
+        try {
+          controller.enqueue(
+            encoder.encode(
+              `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+            ),
+          );
+        } catch {
+          // Controller closed (client disconnected). Poll loop will
+          // detect and exit.
+        }
       };
 
-      // Heartbeat every 10s throughout — keeps SSE warm during the
-      // long Opus call.
-      const heartbeat = setInterval(() => {
-        emit("ping", { at: Date.now() });
-      }, 10_000);
+      let closed = false;
+      const abortSignal = req.signal;
+      abortSignal.addEventListener("abort", () => {
+        closed = true;
+      });
 
-      // ==================================================
-      // Guard: atomically claim the job. Prevents SSE reconnects from
-      // spawning parallel Opus calls on the same jobId.
-      // ==================================================
-      const claim = await claimForProcessing(jobId);
-
-      if (claim.status === "already-ready") {
-        // Fast-path replay: someone finished this before we opened.
-        const existing = await getReadyJobHtml(jobId);
-        emit("generation.done", {
-          siteId: jobId,
-          renderUrl: `/api/sites/render/${jobId}`,
-          bytes: existing?.length ?? 0,
-          replay: true,
-        });
-        clearInterval(heartbeat);
-        controller.close();
-        return;
-      }
-
-      if (claim.status === "in-progress") {
-        // Another SSE (or reconnect) is running Opus. Wait for readiness
-        // instead of racing a second generation.
-        emit("generate.start", {
-          message:
-            "Resuming your existing draft — another connection is still writing. Hang on…",
-        });
-        const html = await waitForReady(jobId, 300_000, 3_000, () => {
-          emit("ping", { at: Date.now() });
-        });
-        if (html) {
+      // Emit an initial status snapshot on connect so reconnects don't
+      // stare at a blank screen waiting for the next poll.
+      const initial = await getJobStatus(jobId);
+      if (initial) {
+        emit("status", initial);
+        if (initial.ready) {
           emit("generation.done", {
             siteId: jobId,
             renderUrl: `/api/sites/render/${jobId}`,
-            bytes: html.length,
+            bytes: initial.bytes ?? 0,
             replay: true,
           });
+          controller.close();
+          return;
+        }
+        if (initial.status === "error") {
+          emit("error", { stage: "runner", message: initial.error ?? "Unknown error" });
+          controller.close();
+          return;
+        }
+      }
+
+      // Poll loop: watch for phase changes + terminal state.
+      let lastUpdatedAt = initial?.updatedAt ?? 0;
+      const pollIntervalMs = 2000;
+      const maxDurationMs = 9 * 60 * 1000; // 9 min budget under the 10 min func limit
+      const deadline = Date.now() + maxDurationMs;
+
+      while (!closed && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, pollIntervalMs));
+        if (closed) break;
+
+        const status = await getJobStatus(jobId);
+        if (!status) {
+          emit("error", { stage: "poll", message: "Job disappeared." });
+          controller.close();
+          return;
+        }
+
+        // Only emit if something changed since last poll.
+        if (status.updatedAt > lastUpdatedAt) {
+          lastUpdatedAt = status.updatedAt;
+          emit("status", status);
         } else {
-          emit("error", {
-            stage: "generate",
-            message:
-              "Draft still writing after 5 minutes — reload the page to check its state.",
-          });
+          // Keep the SSE connection warm even when no changes.
+          emit("ping", { at: Date.now() });
         }
-        clearInterval(heartbeat);
-        controller.close();
-        return;
-      }
 
-      if (claim.status === "not-found") {
-        emit("error", {
-          stage: "claim",
-          message: "Job expired or was removed. Start again from the composer.",
-        });
-        clearInterval(heartbeat);
-        controller.close();
-        return;
-      }
-
-      // ==================================================
-      // Phase 1 — Deep brand ingest (if URL available)
-      // We hold the processing lock now; safe to run Opus.
-      // ==================================================
-      let ingest: IngestedBrand | null = null;
-      const ingestUrl = job.brand.existingSiteUrl;
-
-      if (ingestUrl) {
-        emit("ingest.start", {
-          url: ingestUrl,
-          message: `Reading ${new URL(ingestUrl).hostname} — extracting palette, typography, hero copy, testimonials.`,
-        });
-
-        try {
-          ingest = await ingestBrand(ingestUrl);
-          emit("ingest.done", {
-            url: ingest.url,
-            durationMs: ingest.raw.durationMs,
-            brandName: ingest.brandName,
-            palette: ingest.palette.colors.map((c) => ({ hex: c.hex, role: c.role })),
-            typefaces: ingest.typefaces,
-            heroImage: ingest.heroImage,
-            logo: ingest.logo.src,
-            testimonialsFound: ingest.testimonials.length,
-            verticals: ingest.detectedVerticals,
+        if (status.ready) {
+          emit("generation.done", {
+            siteId: jobId,
+            renderUrl: `/api/sites/render/${jobId}`,
+            bytes: status.bytes ?? 0,
           });
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.warn("[api/sites/generate] ingest failed, continuing without:", message);
-          emit("ingest.skipped", {
-            message: `Couldn't read that URL — generating from the brief alone.`,
-            detail: message,
-          });
+          controller.close();
+          return;
         }
-      } else {
-        emit("ingest.skipped", {
-          message: "No existing site to read — generating from brand context alone.",
-        });
+        if (status.status === "error") {
+          emit("error", { stage: "runner", message: status.error ?? "Unknown error" });
+          controller.close();
+          return;
+        }
       }
 
-      // ==================================================
-      // Phase 2 — Opus 4.7 emits the full HTML document
-      // ==================================================
-      emit("generate.start", {
-        message:
-          "Drafting your site — 10 sections, tailored to your palette, voice, and offer. About 60-90 seconds.",
-      });
-
-      let html: string;
-      let modelUsage: { inputTokens: number; outputTokens: number };
-      // Throttle progress ticks to at most 1/second so the client
-      // doesn't get flooded — Opus streams deltas at ~50ms cadence.
-      let lastTick = 0;
-      try {
-        const result = await generateHtmlDocument(
-          {
-            brief: job.brief,
-            brand: job.brand,
-            ingest,
-          },
-          (ev) => {
-            const now = Date.now();
-            if (now - lastTick > 1000) {
-              lastTick = now;
-              emit("generate.progress", { chars: ev.totalChars });
-            }
-          },
-        );
-        html = result.html;
-        modelUsage = result.modelUsage;
-      } catch (err) {
-        clearInterval(heartbeat);
-        const message = err instanceof Error ? err.message : String(err);
-        console.error("[api/sites/generate] generate failed:", message);
-        emit("error", { stage: "generate", message });
-        controller.close();
-        // Keep the row so the user can see what happened + retry.
-        // (Old code deleted the job here; that meant a reconnect on a
-        // transient failure lost all context.)
-        return;
-      }
-
-      emit("generate.done", {
-        bytes: html.length,
-        modelUsage,
-      });
-
-      // ==================================================
-      // Phase 3 — Persist + notify canvas
-      // ==================================================
-      try {
-        await markJobReadyHtml(jobId, html, ingest);
-      } catch (err) {
-        console.error("[api/sites/generate] markJobReadyHtml failed:", err);
-        // Don't fail the stream — HTML is already in memory, canvas
-        // will still get it via generation.done payload.
-      }
-
-      clearInterval(heartbeat);
-      emit("generation.done", {
-        siteId: jobId,
-        renderUrl: `/api/sites/render/${jobId}`,
+      // Timed out — client can reconnect to keep watching.
+      emit("timeout", {
+        message: "Still working — reconnect to keep watching.",
       });
       controller.close();
     },

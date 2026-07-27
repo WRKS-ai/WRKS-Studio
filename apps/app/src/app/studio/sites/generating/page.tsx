@@ -59,52 +59,60 @@ export default function GeneratingPage() {
 
     const es = new EventSource(`/api/sites/generate?jobId=${jobId}`);
 
-    es.addEventListener("ingest.start", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as { message: string };
-      pushNarration(setNarration, "agent", data.message);
-    });
-
-    es.addEventListener("ingest.done", (e) => {
+    // v3 poll architecture: server emits one `status` event whenever the
+    // job row changes phase. We render narration lines based on the
+    // phase value + phase_message. Dedupe is handled inside pushNarration.
+    es.addEventListener("status", (e) => {
       const data = JSON.parse((e as MessageEvent).data) as {
-        brandName: string | null;
-        palette: Array<{ hex: string; role: string }>;
-        typefaces: { display: string | null; body: string | null };
-        heroImage: string | null;
-        testimonialsFound: number;
-        verticals: string[];
+        status: string;
+        phase: string | null;
+        phaseMessage: string | null;
+        phaseProgress: Record<string, unknown> | null;
+        ready: boolean;
+        bytes: number | null;
       };
-      if (data.brandName) setProjectTitle(data.brandName);
-      const paletteCount = data.palette.length;
-      const parts: string[] = [];
-      parts.push(`Read your site — ${paletteCount} palette color${paletteCount === 1 ? "" : "s"} extracted.`);
-      if (data.typefaces.display) parts.push(`Type: ${data.typefaces.display}.`);
-      if (data.testimonialsFound > 0) parts.push(`Found ${data.testimonialsFound} testimonial${data.testimonialsFound === 1 ? "" : "s"}.`);
-      if (data.verticals.length > 0) parts.push(`Verticals: ${data.verticals.slice(0, 3).join(", ")}.`);
-      pushNarration(setNarration, "agent", parts.join(" "));
-      setPhase("generate");
-    });
+      if (!data.phaseMessage) return;
 
-    es.addEventListener("ingest.skipped", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as { message: string };
-      pushNarration(setNarration, "system", data.message);
-      setPhase("generate");
-    });
+      // Enrich the ingest.done message with palette + typeface + verticals
+      // pulled from phaseProgress (server sends structured data in that
+      // slot instead of stuffing everything into the phase_message).
+      if (data.phase === "ingest.done" && data.phaseProgress) {
+        const p = data.phaseProgress as {
+          brandName?: string | null;
+          palette?: Array<{ hex: string; role: string }>;
+          typefaces?: { display?: string | null };
+          testimonialsFound?: number;
+          verticals?: string[];
+        };
+        if (p.brandName) setProjectTitle(p.brandName);
+        const parts: string[] = [];
+        const paletteCount = p.palette?.length ?? 0;
+        parts.push(`Read your site — ${paletteCount} palette color${paletteCount === 1 ? "" : "s"} extracted.`);
+        if (p.typefaces?.display) parts.push(`Type: ${p.typefaces.display}.`);
+        if (p.testimonialsFound && p.testimonialsFound > 0) {
+          parts.push(`Found ${p.testimonialsFound} testimonial${p.testimonialsFound === 1 ? "" : "s"}.`);
+        }
+        if (p.verticals && p.verticals.length > 0) {
+          parts.push(`Verticals: ${p.verticals.slice(0, 3).join(", ")}.`);
+        }
+        pushNarration(setNarration, "agent", parts.join(" "));
+        setPhase("generate");
+        return;
+      }
 
-    es.addEventListener("generate.start", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as { message: string };
-      pushNarration(setNarration, "agent", data.message);
-    });
+      if (data.phase === "ingest.skipped") {
+        pushNarration(setNarration, "system", data.phaseMessage);
+        setPhase("generate");
+        return;
+      }
 
-    es.addEventListener("generate.done", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as {
-        bytes: number;
-        modelUsage: { inputTokens: number; outputTokens: number };
-      };
-      pushNarration(
-        setNarration,
-        "system",
-        `Draft written — ${Math.round(data.bytes / 1000)}kb HTML. Rendering now.`,
-      );
+      // For everything else, just render phase_message as an agent line.
+      const role: NarrationLine["role"] = data.phase?.startsWith("ingest") ? "agent" : "agent";
+      pushNarration(setNarration, role, data.phaseMessage);
+
+      if (data.phase === "generate" || data.phase === "generate.progress") {
+        setPhase("generate");
+      }
     });
 
     es.addEventListener("generation.done", (e) => {

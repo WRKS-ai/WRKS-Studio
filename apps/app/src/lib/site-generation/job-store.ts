@@ -202,6 +202,87 @@ export async function waitForReady(
   return null;
 }
 
+// Update the phase signal so the poll endpoint can show what's
+// happening. Called at each pipeline stage (ingest, generate, done).
+export async function updateJobPhase(
+  jobId: string,
+  phase: string,
+  message: string,
+  progress?: Record<string, unknown>,
+): Promise<void> {
+  const supabase = createServiceSupabaseClient() as AnySupabase;
+  const { error } = await supabase
+    .from(TABLE)
+    .update({
+      phase,
+      phase_message: message,
+      phase_progress: progress ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", jobId);
+  if (error) console.error("[job-store] updateJobPhase failed:", error);
+}
+
+// Store an error message on the job when generation fails. Status stays
+// as-is so the client can distinguish "job errored" from "job in flight."
+export async function markJobError(jobId: string, message: string): Promise<void> {
+  const supabase = createServiceSupabaseClient() as AnySupabase;
+  const { error } = await supabase
+    .from(TABLE)
+    .update({
+      error: message,
+      phase: "error",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", jobId);
+  if (error) console.error("[job-store] markJobError failed:", error);
+}
+
+// Fetch the current live status of a job for the polling endpoint.
+// Returns everything the client needs to render narration + iframe.
+export type JobStatus = {
+  status: "pending" | "processing" | "ready" | "error";
+  phase: string | null;
+  phaseMessage: string | null;
+  phaseProgress: Record<string, unknown> | null;
+  error: string | null;
+  ready: boolean;
+  bytes: number | null;
+  updatedAt: number;
+};
+
+export async function getJobStatus(jobId: string): Promise<JobStatus | null> {
+  const supabase = createServiceSupabaseClient() as AnySupabase;
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("status, phase, phase_message, phase_progress, error, html, updated_at, expires_at")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = data as {
+    status: string;
+    phase: string | null;
+    phase_message: string | null;
+    phase_progress: Record<string, unknown> | null;
+    error: string | null;
+    html: string | null;
+    updated_at: string;
+    expires_at: string;
+  };
+  if (new Date(row.expires_at).getTime() < Date.now()) return null;
+
+  return {
+    status: (row.error ? "error" : row.status) as JobStatus["status"],
+    phase: row.phase,
+    phaseMessage: row.phase_message,
+    phaseProgress: row.phase_progress,
+    error: row.error,
+    ready: row.status === "ready" && !!row.html,
+    bytes: row.html?.length ?? null,
+    updatedAt: new Date(row.updated_at).getTime(),
+  };
+}
+
 // v3: mark ready with full assembled HTML doc + brand-ingest snapshot.
 export async function markJobReadyHtml(
   jobId: string,
@@ -215,6 +296,10 @@ export async function markJobReadyHtml(
       status: "ready",
       html,
       brand_ingest: brandIngest,
+      phase: "done",
+      phase_message: "Site is live.",
+      error: null,
+      updated_at: new Date().toISOString(),
     })
     .eq("id", jobId);
   if (error) {
