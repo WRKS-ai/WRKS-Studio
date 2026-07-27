@@ -115,8 +115,11 @@ export default function UrlIngestCard({
         | { error: string; detail?: string };
       if (!res.ok || !("extracted" in json)) {
         setStatus("error");
-        const detail = "error" in json ? json.error : "Unknown error";
-        setError(detail);
+        // Show the specific detail (e.g. "credit balance too low")
+        // instead of the generic "Extraction failed" wrapper.
+        const label = "error" in json ? json.error : "Unknown error";
+        const detail = "detail" in json && json.detail ? ` — ${json.detail}` : "";
+        setError(`${label}${detail}`);
         return;
       }
       setResult(json);
