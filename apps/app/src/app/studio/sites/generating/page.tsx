@@ -1,35 +1,73 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SiteCanvas, type SiteArtboard } from "@/components/site-canvas/site-canvas";
 
 // /studio/sites/generating — v3 generation theater.
 //
-// Full-viewport canvas + top glass toolbar + left narration panel +
-// right icon tools + bottom composer. Streams v3 pipeline events from
-// /api/sites/generate:
-//   1. ingest.start / ingest.done  — deep-fetch user's URL
-//   2. generate.start / generate.done — Opus emits full HTML doc
-//   3. generation.done — page artboard flips to done, iframes
-//      /api/sites/render/[jobId]
+// Structured state model (no scrolling narration log): each server
+// `status` event updates a fixed PipelineStatus record with:
+//   - current phase (mapped to one of 4 stepper phases)
+//   - live verb / message (single line, updates in place)
+//   - brand facts (palette, typefaces, verticals) once ingest.done
+//   - byte count from generate.progress ticks
+//   - startedAt timestamp for elapsed clock
+//
+// The left sidebar renders: phase stepper + brand facts card + one
+// live activity line. The center canvas renders a full-artboard
+// skeleton (page-artboard-pending) that reflects the same live state.
 
-type NarrationLine = {
-  id: string;
-  role: "system" | "agent";
-  text: string;
+type StepPhase = "read" | "draft" | "style" | "render" | "done";
+
+type BrandFacts = {
+  brandName: string | null;
+  palette: Array<{ hex: string; role: string }>;
+  typefaces: { display: string | null; body: string | null } | null;
+  testimonialsFound: number;
+  verticals: string[];
 };
+
+type PipelineStatus = {
+  currentPhase: StepPhase | "idle";
+  liveMessage: string | null;         // one-line verb-first present-tense line
+  bytes: number;                       // running byte count
+  startedAt: number;                   // ms epoch — for elapsed clock
+  brandFacts: BrandFacts | null;
+};
+
+// Byte thresholds to advance the phase stepper past "draft" into
+// "style" then "render". Rough — the point is a live sense of progress.
+const BYTES_DRAFT_END = 30_000;
+const BYTES_STYLE_END = 55_000;
 
 export default function GeneratingPage() {
   const router = useRouter();
   const params = useSearchParams();
   const jobId = params.get("jobId");
   const [artboards, setArtboards] = useState<SiteArtboard[]>([]);
-  const [narration, setNarration] = useState<NarrationLine[]>([]);
+  const [status, setStatus] = useState<PipelineStatus>({
+    currentPhase: "idle",
+    liveMessage: null,
+    bytes: 0,
+    startedAt: Date.now(),
+    brandFacts: null,
+  });
   const [projectTitle, setProjectTitle] = useState<string>("New site");
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<"ingest" | "generate" | "done">("ingest");
   const streamStartedRef = useRef(false);
+
+  // Derive stepper phase from bytes when in the middle of generation.
+  const derivedPhase: StepPhase | "idle" = useMemo(() => {
+    if (status.currentPhase === "done") return "done";
+    if (status.currentPhase === "idle") return "idle";
+    if (status.currentPhase === "read") return "read";
+    // In generate — walk through draft/style/render by bytes.
+    if (status.bytes >= BYTES_STYLE_END) return "render";
+    if (status.bytes >= BYTES_DRAFT_END) return "style";
+    return "draft";
+  }, [status.currentPhase, status.bytes]);
 
   useEffect(() => {
     if (!jobId) {
@@ -39,11 +77,13 @@ export default function GeneratingPage() {
     if (streamStartedRef.current) return;
     streamStartedRef.current = true;
 
-    pushNarration(
-      setNarration,
-      "system",
-      "Warming up the design agent…",
-    );
+    // Initial live message.
+    setStatus((prev) => ({
+      ...prev,
+      currentPhase: "read",
+      liveMessage: "warming up the design agent",
+      startedAt: Date.now(),
+    }));
 
     // Seed the canvas with a pending page artboard immediately so the
     // user sees a framed slot while ingest + Opus run.
@@ -60,8 +100,9 @@ export default function GeneratingPage() {
     const es = new EventSource(`/api/sites/generate?jobId=${jobId}`);
 
     // v3 poll architecture: server emits one `status` event whenever the
-    // job row changes phase. We render narration lines based on the
-    // phase value + phase_message. Dedupe is handled inside pushNarration.
+    // job row changes phase. We map that to a structured PipelineStatus
+    // (one live message + brand facts + bytes) instead of pushing new
+    // narration lines. No more scrolling wall of duplicates.
     es.addEventListener("status", (e) => {
       const data = JSON.parse((e as MessageEvent).data) as {
         status: string;
@@ -71,47 +112,90 @@ export default function GeneratingPage() {
         ready: boolean;
         bytes: number | null;
       };
-      if (!data.phaseMessage) return;
 
-      // Enrich the ingest.done message with palette + typeface + verticals
-      // pulled from phaseProgress (server sends structured data in that
-      // slot instead of stuffing everything into the phase_message).
+      // Terminal ready state — actual artboard flip happens on generation.done.
+      if (data.phase === "done") return;
+
+      // Ingest completion carries the brand facts payload — extract into
+      // structured state so the sidebar card can render palette + type.
       if (data.phase === "ingest.done" && data.phaseProgress) {
         const p = data.phaseProgress as {
           brandName?: string | null;
           palette?: Array<{ hex: string; role: string }>;
-          typefaces?: { display?: string | null };
+          typefaces?: { display?: string | null; body?: string | null };
           testimonialsFound?: number;
           verticals?: string[];
         };
         if (p.brandName) setProjectTitle(p.brandName);
-        const parts: string[] = [];
-        const paletteCount = p.palette?.length ?? 0;
-        parts.push(`Read your site — ${paletteCount} palette color${paletteCount === 1 ? "" : "s"} extracted.`);
-        if (p.typefaces?.display) parts.push(`Type: ${p.typefaces.display}.`);
-        if (p.testimonialsFound && p.testimonialsFound > 0) {
-          parts.push(`Found ${p.testimonialsFound} testimonial${p.testimonialsFound === 1 ? "" : "s"}.`);
-        }
-        if (p.verticals && p.verticals.length > 0) {
-          parts.push(`Verticals: ${p.verticals.slice(0, 3).join(", ")}.`);
-        }
-        pushNarration(setNarration, "agent", parts.join(" "));
+        const paletteHex =
+          p.palette?.find((c) => c.role === "primary")?.hex ??
+          p.palette?.[0]?.hex ??
+          null;
+        setStatus((prev) => ({
+          ...prev,
+          currentPhase: "draft",
+          liveMessage: "structure",
+          brandFacts: {
+            brandName: p.brandName ?? null,
+            palette: p.palette ?? [],
+            typefaces: p.typefaces
+              ? { display: p.typefaces.display ?? null, body: p.typefaces.body ?? null }
+              : null,
+            testimonialsFound: p.testimonialsFound ?? 0,
+            verticals: p.verticals ?? [],
+          },
+        }));
+        setArtboards((prev) =>
+          prev.map((a) =>
+            a.pageId === "home"
+              ? { ...a, paletteHex, title: p.brandName ?? a.title }
+              : a,
+          ),
+        );
         setPhase("generate");
         return;
       }
 
       if (data.phase === "ingest.skipped") {
-        pushNarration(setNarration, "system", data.phaseMessage);
+        setStatus((prev) => ({
+          ...prev,
+          currentPhase: "draft",
+          liveMessage: "structure",
+        }));
         setPhase("generate");
         return;
       }
 
-      // For everything else, just render phase_message as an agent line.
-      const role: NarrationLine["role"] = data.phase?.startsWith("ingest") ? "agent" : "agent";
-      pushNarration(setNarration, role, data.phaseMessage);
+      if (data.phase === "generate.progress") {
+        const bytes = (data.phaseProgress as { chars?: number } | null)?.chars ?? data.bytes ?? 0;
+        setStatus((prev) => ({
+          ...prev,
+          bytes,
+          liveMessage: verbForBytes(bytes),
+        }));
+        // Also update the artboard so the skeleton's top progress bar
+        // and centered pill reflect the live byte count.
+        setArtboards((prev) =>
+          prev.map((a) =>
+            a.pageId === "home"
+              ? { ...a, bytes, phase: "generate.progress" }
+              : a,
+          ),
+        );
+        return;
+      }
 
-      if (data.phase === "generate" || data.phase === "generate.progress") {
+      if (data.phase === "generate") {
+        setStatus((prev) => ({ ...prev, currentPhase: "draft", liveMessage: "sketching structure" }));
         setPhase("generate");
+        return;
+      }
+
+      if (data.phase === "ingest" || data.phase === "images") {
+        // Pipeline pre-generate phases — keep in "read" stepper phase.
+        const msg = data.phase === "ingest" ? "reading your site" : "curating image slots";
+        setStatus((prev) => ({ ...prev, currentPhase: "read", liveMessage: msg }));
+        return;
       }
     });
 
@@ -128,12 +212,8 @@ export default function GeneratingPage() {
             : a,
         ),
       );
+      setStatus((prev) => ({ ...prev, currentPhase: "done", liveMessage: null }));
       setPhase("done");
-      pushNarration(
-        setNarration,
-        "system",
-        "Site is live. Iterate below or export.",
-      );
       es.close();
     });
 
@@ -170,8 +250,13 @@ export default function GeneratingPage() {
       <TopToolbar title={projectTitle} phase={phase} onExit={() => router.push("/studio/sites")} />
 
       <div className="flex-1 min-h-0 flex">
-        {/* Left narration panel */}
-        <LeftPanel narration={narration} phase={phase} error={error} />
+        {/* Left status panel (structured stepper + brand facts + live line) */}
+        <LeftPanel
+          status={status}
+          derivedPhase={derivedPhase}
+          phase={phase}
+          error={error}
+        />
 
         {/* Center canvas */}
         <div className="flex-1 min-w-0 relative">
@@ -335,42 +420,73 @@ function ModeDropdown({
 }
 
 // ============================================================
-// Left panel — narration stream
+// Left panel — structured stepper + brand facts + one live line
 // ============================================================
+//
+// Design: no scrolling log. Fixed 4-phase stepper at top (Read → Draft
+// → Style → Render). Brand-facts card appears once ingest.done. One
+// live-verb line + elapsed clock at the bottom.
+
+const STEPS: Array<{ id: StepPhase; label: string }> = [
+  { id: "read", label: "Read" },
+  { id: "draft", label: "Draft" },
+  { id: "style", label: "Style" },
+  { id: "render", label: "Render" },
+];
+
 function LeftPanel({
-  narration,
+  status,
+  derivedPhase,
   phase,
   error,
 }: {
-  narration: NarrationLine[];
+  status: PipelineStatus;
+  derivedPhase: StepPhase | "idle";
   phase: "ingest" | "generate" | "done";
   error: string | null;
 }) {
+  // Rolling elapsed clock, ticks every 1s.
+  const [elapsedMs, setElapsedMs] = useState(0);
+  useEffect(() => {
+    if (phase === "done") return;
+    const t = setInterval(() => {
+      setElapsedMs(Date.now() - status.startedAt);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [phase, status.startedAt]);
+
+  const primaryHex =
+    status.brandFacts?.palette.find((c) => c.role === "primary")?.hex ??
+    status.brandFacts?.palette[0]?.hex ??
+    "#75B5FF";
+
   return (
     <aside
       className="shrink-0 flex flex-col"
       style={{
         width: 340,
-        background: "rgba(15,15,20,0.9)",
+        background: "rgba(12,12,16,0.94)",
         borderRight: "1px solid rgba(255,255,255,0.06)",
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
       }}
     >
-      <div style={{ padding: "18px 22px 14px" }}>
-        <div className="flex items-center" style={{ gap: 6 }}>
+      {/* Status pill top */}
+      <div style={{ padding: "18px 22px 8px" }}>
+        <div className="flex items-center" style={{ gap: 8 }}>
           <span
             style={{
               display: "inline-block",
               width: 6,
               height: 6,
               borderRadius: 999,
-              background:
+              background: phase === "done" ? "rgba(120,220,140,0.9)" : primaryHex,
+              boxShadow:
                 phase === "done"
-                  ? "rgba(120,220,140,0.8)"
-                  : "rgba(255,255,255,0.6)",
+                  ? "0 0 8px rgba(120,220,140,0.5)"
+                  : `0 0 8px ${primaryHex}`,
               animation:
-                phase !== "done" ? "wrks-skel-shimmer 1.6s ease-in-out infinite" : undefined,
+                phase !== "done" ? "wrks-pulse-dot 1.6s ease-in-out infinite" : undefined,
             }}
           />
           <span
@@ -379,43 +495,56 @@ function LeftPanel({
               fontFamily: "var(--font-mono)",
               letterSpacing: "0.14em",
               textTransform: "uppercase",
-              color: "rgba(245,240,230,0.55)",
+              color: "rgba(245,240,230,0.7)",
+              fontWeight: 500,
             }}
           >
-            {phase === "done" ? "Ready" : "Agent thinking"}
+            {phase === "done" ? "Ready" : "Working"}
           </span>
         </div>
       </div>
 
-      <div
-        className="flex-1 overflow-y-auto"
-        style={{ padding: "0 22px 22px" }}
-      >
-        {narration.map((line, i) => (
-          <p
-            key={line.id}
+      {/* Phase stepper */}
+      <div style={{ padding: "16px 22px 8px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {STEPS.map((step, i) => {
+            const isActive = derivedPhase === step.id;
+            const isDone =
+              derivedPhase === "done" ||
+              STEPS.findIndex((s) => s.id === derivedPhase) > i;
+            return (
+              <StepRow
+                key={step.id}
+                label={step.label}
+                state={isDone ? "done" : isActive ? "active" : "pending"}
+                sublineFor={isActive ? status.liveMessage : null}
+                accent={primaryHex}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div style={{ margin: "12px 22px", height: 1, background: "rgba(255,255,255,0.05)" }} />
+
+      {/* Brand facts card — appears once ingest.done */}
+      <div style={{ padding: "0 22px 8px" }}>
+        {status.brandFacts ? (
+          <BrandFactsCard facts={status.brandFacts} />
+        ) : (
+          <BrandFactsSkeleton />
+        )}
+      </div>
+
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Error surface */}
+      {error && (
+        <div style={{ padding: "0 22px 12px" }}>
+          <div
             style={{
-              margin: i === 0 ? "0 0 14px" : "14px 0",
-              fontSize: line.role === "system" ? 12 : 14,
-              lineHeight: 1.55,
-              letterSpacing: "-0.003em",
-              color:
-                line.role === "system"
-                  ? "rgba(245,240,230,0.45)"
-                  : "rgba(245,240,230,0.9)",
-              fontFamily:
-                line.role === "system"
-                  ? "var(--font-mono)"
-                  : "var(--font-sans)",
-            }}
-          >
-            {line.text}
-          </p>
-        ))}
-        {error && (
-          <p
-            style={{
-              margin: "14px 0",
               padding: "10px 12px",
               borderRadius: 8,
               background: "rgba(255,120,110,0.06)",
@@ -425,11 +554,302 @@ function LeftPanel({
             }}
           >
             {error}
-          </p>
-        )}
+          </div>
+        </div>
+      )}
+
+      {/* Bottom: elapsed + bytes */}
+      <div
+        style={{
+          padding: "14px 22px 18px",
+          borderTop: "1px solid rgba(255,255,255,0.05)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          fontFamily: "var(--font-mono)",
+          fontSize: 11.5,
+          letterSpacing: "0.08em",
+          color: "rgba(245,240,230,0.5)",
+          textTransform: "uppercase",
+        }}
+      >
+        <span>{formatElapsed(elapsedMs)}</span>
+        <span>{status.bytes > 0 ? `${Math.round(status.bytes / 1000)}kb` : "—"}</span>
       </div>
+
+      <style>{`
+        @keyframes wrks-pulse-dot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.55; transform: scale(0.75); }
+        }
+      `}</style>
     </aside>
   );
+}
+
+function StepRow({
+  label,
+  state,
+  sublineFor,
+  accent,
+}: {
+  label: string;
+  state: "pending" | "active" | "done";
+  sublineFor: string | null;
+  accent: string;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 0" }}>
+      <StepIndicator state={state} accent={accent} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+        <span
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: 13.5,
+            fontWeight: state === "active" ? 500 : 400,
+            color:
+              state === "done"
+                ? "rgba(245,240,230,0.55)"
+                : state === "active"
+                ? "rgba(245,240,230,0.95)"
+                : "rgba(245,240,230,0.35)",
+            letterSpacing: "-0.005em",
+            transition: "color 300ms ease, font-weight 300ms ease",
+          }}
+        >
+          {label}
+        </span>
+        {sublineFor && state === "active" && (
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 11.5,
+              color: "rgba(245,240,230,0.55)",
+              letterSpacing: "0.02em",
+            }}
+          >
+            {sublineFor}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StepIndicator({
+  state,
+  accent,
+}: {
+  state: "pending" | "active" | "done";
+  accent: string;
+}) {
+  const size = 16;
+  if (state === "done") {
+    return (
+      <div
+        style={{
+          width: size,
+          height: size,
+          marginTop: 2,
+          borderRadius: "50%",
+          background: "rgba(120,220,140,0.14)",
+          border: "1px solid rgba(120,220,140,0.4)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(120,220,140,0.9)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+    );
+  }
+  if (state === "active") {
+    return (
+      <div
+        style={{
+          width: size,
+          height: size,
+          marginTop: 2,
+          borderRadius: "50%",
+          background: accent,
+          boxShadow: `0 0 12px ${accent}`,
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: -4,
+            borderRadius: "50%",
+            border: `1px solid ${accent}`,
+            opacity: 0.4,
+            animation: "wrks-ripple 2s ease-out infinite",
+          }}
+        />
+        <style>{`
+          @keyframes wrks-ripple {
+            0% { opacity: 0.5; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1.8); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        marginTop: 2,
+        borderRadius: "50%",
+        border: "1px solid rgba(255,255,255,0.14)",
+      }}
+    />
+  );
+}
+
+function BrandFactsCard({ facts }: { facts: BrandFacts }) {
+  return (
+    <div
+      style={{
+        padding: 14,
+        borderRadius: 10,
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 10.5,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "rgba(245,240,230,0.5)",
+        }}
+      >
+        Found
+      </div>
+      {facts.brandName && (
+        <div
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: 14,
+            fontWeight: 500,
+            color: "rgba(245,240,230,0.95)",
+            letterSpacing: "-0.005em",
+          }}
+        >
+          {facts.brandName}
+        </div>
+      )}
+      {facts.palette.length > 0 && (
+        <div style={{ display: "flex", gap: 4 }}>
+          {facts.palette.slice(0, 5).map((c, i) => (
+            <div
+              key={i}
+              title={`${c.role} · ${c.hex}`}
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 4,
+                background: c.hex,
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            />
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {facts.typefaces?.display && (
+          <FactRow label="Type" value={facts.typefaces.display} />
+        )}
+        {facts.testimonialsFound > 0 && (
+          <FactRow
+            label="Testimonials"
+            value={String(facts.testimonialsFound)}
+          />
+        )}
+        {facts.verticals.length > 0 && (
+          <FactRow label="Verticals" value={facts.verticals.slice(0, 2).join(", ")} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FactRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        fontFamily: "var(--font-mono)",
+        fontSize: 11.5,
+        color: "rgba(245,240,230,0.55)",
+      }}
+    >
+      <span style={{ letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</span>
+      <span style={{ color: "rgba(245,240,230,0.85)", fontFamily: "var(--font-sans)", fontSize: 12.5 }}>{value}</span>
+    </div>
+  );
+}
+
+function BrandFactsSkeleton() {
+  return (
+    <div
+      style={{
+        padding: 14,
+        borderRadius: 10,
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 10.5,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "rgba(245,240,230,0.35)",
+        }}
+      >
+        Reading brand
+      </div>
+      <div style={{ display: "flex", gap: 4 }}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: 4,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.04)",
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ height: 12, borderRadius: 6, background: "rgba(255,255,255,0.05)", width: "70%" }} />
+      <div style={{ height: 12, borderRadius: 6, background: "rgba(255,255,255,0.05)", width: "55%" }} />
+    </div>
+  );
+}
+
+function formatElapsed(ms: number): string {
+  if (ms < 1000) return "0:00";
+  const total = Math.floor(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 // ============================================================
@@ -624,17 +1044,19 @@ function BottomComposer({ phase }: { phase: "ingest" | "generate" | "done" }) {
 // ============================================================
 // Helpers
 // ============================================================
-function pushNarration(
-  setNarration: React.Dispatch<React.SetStateAction<NarrationLine[]>>,
-  role: NarrationLine["role"],
-  text: string,
-) {
-  setNarration((prev) => {
-    // Dedupe: if the last line already carries this exact text (any
-    // role), skip. Catches the 'server retried the same event' case.
-    const last = prev[prev.length - 1];
-    if (last && last.text === text) return prev;
-    return [...prev, { id: crypto.randomUUID(), role, text }];
-  });
+
+// Map running byte count → a terse present-tense verb (Cursor / Linear
+// style). Rotates as generation progresses; single line updates in
+// place in the sidebar's "live" slot.
+function verbForBytes(bytes: number): string {
+  if (bytes < 4000) return "warming up";
+  if (bytes < 10_000) return "sketching structure";
+  if (bytes < 18_000) return "writing hero";
+  if (bytes < 26_000) return "assembling grid";
+  if (bytes < 34_000) return "placing sections";
+  if (bytes < 42_000) return "shaping copy";
+  if (bytes < 50_000) return "styling components";
+  if (bytes < 58_000) return "polishing details";
+  return "finishing";
 }
 

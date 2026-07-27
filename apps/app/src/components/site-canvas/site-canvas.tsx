@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PagePreviewFrame } from "./page-artboard";
+import { PageArtboardPending } from "./page-artboard-pending";
 
 // Infinite dotted-grid canvas for the Stitch-style site generation
 // theater. Real pan (mouse drag) + zoom (wheel + trackpad). Artboards
@@ -21,6 +22,11 @@ export type SiteArtboard = {
   pageId: string;
   status: "pending" | "generating" | "done";
   jobId?: string;                             // set when the ready HTML is available
+  // Live progress signals for the pending/generating skeleton.
+  phase?: string | null;                      // "ingest" | "ingest.done" | "generate" | "generate.progress" | "done"
+  phaseMessage?: string | null;
+  bytes?: number | null;                      // running byte count from generate.progress
+  paletteHex?: string | null;                 // brand primary hex if ingested, for skeleton accents
 };
 
 type Props = {
@@ -174,8 +180,10 @@ export function SiteCanvas({ artboards }: Props) {
                   <PagePreviewFrame jobId={a.jobId} />
                 ) : (
                   <PageArtboardPending
-                    title={a.title}
-                    status={a.status}
+                    bytes={a.bytes ?? null}
+                    phase={a.phase ?? null}
+                    paletteHex={a.paletteHex ?? null}
+                    brandName={a.title === "Home" ? null : a.title}
                   />
                 )}
                 {/* Artboard label — small caption below the artboard */}
@@ -233,56 +241,6 @@ function EmptyState() {
   );
 }
 
-function PageArtboardPending({
-  title,
-  status,
-}: {
-  title: string;
-  status: "pending" | "generating" | "done";
-}) {
-  return (
-    <div
-      className="page-artboard"
-      style={{
-        width: 1280,
-        minHeight: 800,
-        borderRadius: 16,
-        background: "#0d0d12",
-        color: "#f5f0e6",
-        border: "1px solid rgba(255,255,255,0.08)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "var(--font-mono)",
-        fontSize: 13,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-      }}
-    >
-      <span
-        style={{
-          padding: "10px 22px",
-          borderRadius: 999,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
-        {title} · {status}
-        {status === "generating" && (
-          <span
-            style={{
-              display: "inline-block",
-              marginLeft: 8,
-              animation: "wrks-skel-shimmer 1.6s ease-in-out infinite",
-            }}
-          >
-            …
-          </span>
-        )}
-      </span>
-    </div>
-  );
-}
 
 function ZoomIndicator({
   zoom,
