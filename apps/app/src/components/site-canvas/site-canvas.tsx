@@ -3,82 +3,93 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PagePreviewFrame } from "./page-artboard";
 import { PageArtboardPending } from "./page-artboard-pending";
+import {
+  DesignSystemArtboard,
+  type DesignSystemArtboardData,
+} from "./design-system-artboard";
 
-// Infinite dotted-grid canvas for the Stitch-style site generation
-// theater. Real pan (mouse drag) + zoom (wheel + trackpad). Artboards
-// are absolute-positioned children.
-//
-// Chose a hand-rolled canvas over tldraw for Ship 1 because tldraw's
-// v5 API is a big surface and we don't need drawing/selection tools
-// yet — we need reliable pan/zoom + custom artboard content. tldraw
-// upgrade lands in a later ship if we need canvas primitives.
+// Infinite dotted-grid canvas for the site-generation theater. Real
+// pan (mouse drag on empty canvas) + zoom (ctrl-wheel). Two artboard
+// kinds live here: the design-system card (drops first) and the page
+// artboard (mobile-shape while generating with cursor animation → real
+// iframe when done).
 
-// v3: canvas holds page artboards only. Each page artboard renders as
-// an iframe pointing at /api/sites/render/[jobId] once the job is ready.
-export type SiteArtboard = {
-  id: string;
-  kind: "page";
-  title: string;
-  pageId: string;
-  status: "pending" | "generating" | "done";
-  jobId?: string;                             // set when the ready HTML is available
-  // Live progress signals for the pending/generating skeleton.
-  phase?: string | null;                      // "ingest" | "ingest.done" | "generate" | "generate.progress" | "done"
-  phaseMessage?: string | null;
-  bytes?: number | null;                      // running byte count from generate.progress
-  paletteHex?: string | null;                 // brand primary hex if ingested, for skeleton accents
-};
+export type SiteArtboard =
+  | {
+      id: string;
+      kind: "design-system";
+      title: string;
+      data: DesignSystemArtboardData;
+    }
+  | {
+      id: string;
+      kind: "page";
+      title: string;
+      pageId: string;
+      status: "pending" | "generating" | "done";
+      jobId?: string;
+      phase?: string | null;
+      phaseMessage?: string | null;
+      bytes?: number | null;
+      paletteHex?: string | null;
+    };
 
 type Props = {
   artboards: SiteArtboard[];
 };
 
-const PAGE_W = 1280;
-const ARTBOARD_GAP = 80;
-const MIN_ZOOM = 0.2;
+const DS_WIDTH = 720;
+const PAGE_W_PENDING = 420;     // Mobile-shape while cursor is drawing
+const PAGE_W_DONE = 1280;       // Full desktop when real iframe renders
+const ARTBOARD_GAP = 60;
+const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 2;
 
 export function SiteCanvas({ artboards }: Props) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(0.55);
+  const [zoom, setZoom] = useState(0.7);
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const lastFramedRef = useRef<number>(-1);
 
-  // Center the newest artboard when one appears.
+  // Frame the newest artboard OR frame BOTH together once page appears.
   useEffect(() => {
     if (artboards.length === 0) return;
     if (artboards.length - 1 === lastFramedRef.current) return;
     lastFramedRef.current = artboards.length - 1;
+
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    // Compute total width by summing artboard widths + gaps up to the new one.
-    let x = 0;
-    for (let i = 0; i < artboards.length - 1; i++) {
-      x += artboardWidthOf(artboards[i]) + ARTBOARD_GAP;
+
+    // If we now have both DS + page, frame both. Otherwise center the
+    // single new artboard.
+    if (artboards.length >= 2) {
+      const totalWidth =
+        artboardWidthOf(artboards[0]) +
+        ARTBOARD_GAP +
+        artboardWidthOf(artboards[1]);
+      const desiredZoom = Math.min(0.65, (rect.width * 0.85) / totalWidth);
+      const centerX = rect.width / 2 - (totalWidth / 2) * desiredZoom;
+      const centerY = rect.height / 2 - 360 * desiredZoom;
+      setZoom(desiredZoom);
+      setPan({ x: centerX, y: centerY });
+    } else {
+      const newest = artboards[artboards.length - 1];
+      const wNew = artboardWidthOf(newest);
+      const desiredZoom = Math.min(0.75, (rect.width * 0.6) / wNew);
+      const centerX = rect.width / 2 - (wNew / 2) * desiredZoom;
+      const centerY = rect.height / 2 - 320 * desiredZoom;
+      setZoom(desiredZoom);
+      setPan({ x: centerX, y: centerY });
     }
-    const newest = artboards[artboards.length - 1];
-    const wNew = artboardWidthOf(newest);
-    // Page artboards are tall (~5200px); frame to the hero-visible
-    // height (720) so the canvas zooms to show the TOP of the page.
-    // Pan/scroll reveals the sections below.
-    const hNew = 720;
-    // Pick a zoom that keeps the new artboard visible: fit its width to
-    // ~70% of the container width.
-    const desiredZoom = Math.min(0.42, (rect.width * 0.7) / wNew);
-    const centerX = rect.width / 2 - (x + wNew / 2) * desiredZoom;
-    const centerY = rect.height / 2 - (hNew / 2) * desiredZoom;
-    setZoom(desiredZoom);
-    setPan({ x: centerX, y: centerY });
   }, [artboards]);
 
   const onWheel = useCallback((e: WheelEvent) => {
     if (!containerRef.current) return;
     e.preventDefault();
-    // Ctrl / meta wheel = zoom. Plain wheel = pan.
     if (e.ctrlKey || e.metaKey) {
       const container = containerRef.current;
       const rect = container.getBoundingClientRect();
@@ -87,7 +98,6 @@ export function SiteCanvas({ artboards }: Props) {
       setZoom((prev) => {
         const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
         const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * factor));
-        // Zoom around cursor point.
         setPan((p) => ({
           x: mx - ((mx - p.x) * next) / prev,
           y: my - ((my - p.y) * next) / prev,
@@ -107,7 +117,6 @@ export function SiteCanvas({ artboards }: Props) {
   }, [onWheel]);
 
   const onMouseDown = (e: React.MouseEvent) => {
-    // Middle-click OR space+drag OR click on empty grid → pan.
     const target = e.target as HTMLElement;
     const isArtboard = target.closest(".ds-artboard, .page-artboard");
     if (e.button !== 1 && isArtboard) return;
@@ -145,12 +154,11 @@ export function SiteCanvas({ artboards }: Props) {
       onMouseDown={onMouseDown}
       className="relative size-full overflow-hidden"
       style={{
-        background: "#0a0a0c",
+        background: "#0a0a0f",
         cursor: isPanning ? "grabbing" : "default",
-        // Dotted grid — CSS radial gradient scaled with zoom.
         backgroundImage:
-          "radial-gradient(circle at center, rgba(255,255,255,0.09) 1px, transparent 1px)",
-        backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
+          "radial-gradient(circle at center, rgba(255,255,255,0.06) 1px, transparent 1px)",
+        backgroundSize: `${28 * zoom}px ${28 * zoom}px`,
         backgroundPosition: `${pan.x}px ${pan.y}px`,
       }}
     >
@@ -168,37 +176,33 @@ export function SiteCanvas({ artboards }: Props) {
       >
         {(() => {
           let x = 0;
-          const nodes = artboards.map((a) => {
+          const nodes = artboards.map((a, i) => {
             const left = x;
             x += artboardWidthOf(a) + ARTBOARD_GAP;
             return (
               <div
                 key={a.id}
-                style={{ position: "absolute", left, top: 0 }}
+                style={{
+                  position: "absolute",
+                  left,
+                  top: 0,
+                  animation:
+                    i === artboards.length - 1
+                      ? "wrks-artboard-in 700ms cubic-bezier(0.34, 1.2, 0.64, 1) both"
+                      : undefined,
+                }}
               >
-                {a.status === "done" && a.jobId ? (
+                {a.kind === "design-system" ? (
+                  <DesignSystemArtboard {...a.data} />
+                ) : a.status === "done" && a.jobId ? (
                   <PagePreviewFrame jobId={a.jobId} />
                 ) : (
                   <PageArtboardPending
                     bytes={a.bytes ?? null}
-                    phase={a.phase ?? null}
                     paletteHex={a.paletteHex ?? null}
                     brandName={a.title === "Home" ? null : a.title}
                   />
                 )}
-                {/* Artboard label — small caption below the artboard */}
-                <div
-                  style={{
-                    marginTop: 10,
-                    fontSize: 11.5,
-                    fontFamily: "var(--font-mono)",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color: "rgba(245,240,230,0.5)",
-                  }}
-                >
-                  {a.title}
-                </div>
               </div>
             );
           });
@@ -208,13 +212,21 @@ export function SiteCanvas({ artboards }: Props) {
         {artboards.length === 0 && <EmptyState />}
       </div>
 
-      <ZoomIndicator zoom={zoom} onReset={() => setZoom(0.55)} />
+      <ZoomIndicator zoom={zoom} onReset={() => setZoom(0.7)} />
+
+      <style>{`
+        @keyframes wrks-artboard-in {
+          from { opacity: 0; transform: translateY(20px) scale(0.98); filter: blur(8px); }
+          to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+      `}</style>
     </div>
   );
 }
 
-function artboardWidthOf(_a: SiteArtboard): number {
-  return PAGE_W;
+function artboardWidthOf(a: SiteArtboard): number {
+  if (a.kind === "design-system") return DS_WIDTH;
+  return a.status === "done" && a.jobId ? PAGE_W_DONE : PAGE_W_PENDING;
 }
 
 function EmptyState() {
@@ -241,7 +253,6 @@ function EmptyState() {
   );
 }
 
-
 function ZoomIndicator({
   zoom,
   onReset,
@@ -256,7 +267,7 @@ function ZoomIndicator({
       className="absolute transition-opacity duration-150 hover:opacity-80"
       style={{
         bottom: 16,
-        right: 16,
+        right: 76,
         padding: "6px 12px",
         borderRadius: 999,
         background: "rgba(255,255,255,0.06)",
