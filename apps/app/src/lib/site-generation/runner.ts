@@ -68,20 +68,17 @@ export async function runGenerationJob(input: RunnerInput): Promise<void> {
     }
 
     // ------------------------------------------------------
-    // Phase 1b: curate an image pack (Pexels) so Opus has real photos
-    // for hero + tile backgrounds + founder shot. Never fall back to
-    // typography watermarks or empty gradient blobs.
+    // Phase 1b: build the image-slot map. If ingest found a real
+    // hero photo we use it; every other slot is a designed placeholder
+    // the user fills in via the inline editor after generation.
     // ------------------------------------------------------
-    await updateJobPhase(
-      jobId,
-      "images",
-      "Curating a photo set from your industry — real editorial images, not stock clichés.",
-    );
     const imagePack = await curateImagePack(brand, ingest);
-    await updateJobPhase(jobId, "images.done", "Images ready.", {
-      hero: imagePack.hero,
-      supportingCount: imagePack.supporting.length,
-      provider: imagePack.attribution.provider,
+    await updateJobPhase(jobId, "images.done", "Image slots ready — placeholders for you to fill in.", {
+      heroSource: imagePack.attribution.heroSource,
+      placeholderCount:
+        (imagePack.hero.kind === "placeholder" ? 1 : 0) +
+        imagePack.supporting.filter((s) => s.kind === "placeholder").length +
+        (imagePack.founder.kind === "placeholder" ? 1 : 0),
     });
 
     // ------------------------------------------------------

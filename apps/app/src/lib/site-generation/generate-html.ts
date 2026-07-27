@@ -169,8 +169,40 @@ TYPOGRAPHY (smaller than before — user asked for cleaner scale):
 - Trust row: 13px, rgba(255,255,255,0.7), 5 star SVGs + count. Margin-top 24px.
 
 IMAGE SOURCE:
-- Always use imagePack.hero (a real editorial photo, either from the ingested site or curated Pexels). NEVER emit typography watermarks (huge numbers, initials, wordmarks) in place of a photo. NEVER emit a plain colored blob or gradient blob in the right column.
-- If the imagePack.hero URL is a background pattern (rare), still use it — apply the left-side scrim heavily so it reads as an atmospheric backdrop.
+- If imagePack.hero.kind === 'real' AND imagePack.hero.url is set: use it as the right-column photo, absolute-positioned edge-bleeding.
+- If imagePack.hero.kind === 'placeholder': render an IMAGE PLACEHOLDER block (see PLACEHOLDER RECIPE below). Do NOT emit typography watermarks or gradient blobs. Do NOT go find a stock image.
+
+# IMAGE PLACEHOLDER RECIPE (use for EVERY placeholder slot)
+
+Every placeholder is a designed empty state that clearly signals "click to add your image." It should look INTENTIONAL, not broken.
+
+Layers (inside a container that fills the intended photo area):
+1. Base: soft palette gradient using the brand's own colors, low saturation:
+   \`background: linear-gradient(135deg, {brand.palette.primary at 8% opacity mixed with #0f172a} 0%, {brand.palette.tertiary at 6% opacity mixed with #0f172a} 100%);\`
+   Or simpler: \`background: linear-gradient(135deg, rgba(30,58,138,0.12), rgba(59,130,246,0.06)); background-color: #0f172a;\`
+2. Dashed border: \`border: 1.5px dashed rgba(255,255,255,0.14); border-radius: [inherit from slot];\`
+3. Subtle inner noise: \`background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='0.85' numOctaves='2'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.03'/></svg>");\`
+4. CENTER content group (flex column, gap 12, centered):
+   - Circular icon chip: 48px round, rgba(255,255,255,0.06) bg, 1px rgba(255,255,255,0.14) border, camera SVG inside (16×16, stroke 1.8, currentColor at rgba(255,255,255,0.5)).
+   - Small text label: 12px, weight 500, letter-spacing 0.08em, uppercase, color rgba(255,255,255,0.55). Text = the slot's label ("ADD HERO PHOTO", "ADD TILE IMAGE", "ADD FOUNDER PHOTO").
+   - Sub-hint: 11.5px, color rgba(255,255,255,0.35), text "1440 × 900 recommended" (or portrait dims for hero: "1200 × 1600").
+
+Wrapper attributes:
+- \`data-image-slot="{slotId}"\` — from imagePack.hero.slotId / supporting[i].slotId / founder.slotId. This lets the future inline editor target it.
+- \`role="button"\` and \`tabindex="0"\` — hint at click-to-upload affordance.
+- \`aria-label="Add image: {label}"\`
+- Cursor: pointer.
+- Hover state: brighten the base gradient by 4% and the border to rgba(255,255,255,0.22). Transition 200ms.
+
+The placeholder must fill the SAME dimensions as the real image would have (hero right column, mega-bento tile bg, founder portrait). Never shrink.
+
+Camera icon SVG (use verbatim):
+\`\`\`
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+  <circle cx="12" cy="13" r="4"></circle>
+</svg>
+\`\`\`
 
 # MEGA-BENTO — SPECIFIC INSTRUCTIONS (this is where past generations underdelivered)
 
@@ -191,22 +223,24 @@ Grid CSS (put in the \`<style>\` block):
 
 Tile layout (exact 6-tile plan — DO NOT deviate):
 
-    Tile 1 (Row 1, LEFT)   -> style="grid-column: span 4"                          HERO tile: imagePack.supporting[0] photo bg + top service
-    Tile 2 (Row 1, RIGHT)  -> style="grid-column: span 2; grid-row: span 2"        TALL tile: imagePack.supporting[1] photo bg + secondary service
-    Tile 3 (Row 2, LEFT-a) -> style="grid-column: span 2"                          imagePack.supporting[2] photo bg + service
-    Tile 4 (Row 2, LEFT-b) -> style="grid-column: span 2"                          imagePack.supporting[3] photo bg + service
-    Tile 5 (Row 3, LEFT)   -> style="grid-column: span 4"                          REVIEWS tile: dark bg, one testimonial from ingest.testimonials[0]
-    Tile 6 (Row 3, RIGHT)  -> style="grid-column: span 2"                          imagePack.supporting[4] photo bg + last service
+    Tile 1 (Row 1, LEFT)   -> style="grid-column: span 4"                          HERO tile: imagePack.supporting[0] slot + top service label
+    Tile 2 (Row 1, RIGHT)  -> style="grid-column: span 2; grid-row: span 2"        TALL tile: imagePack.supporting[1] slot + secondary service
+    Tile 3 (Row 2, LEFT-a) -> style="grid-column: span 2"                          imagePack.supporting[2] slot + service
+    Tile 4 (Row 2, LEFT-b) -> style="grid-column: span 2"                          imagePack.supporting[3] slot + service
+    Tile 5 (Row 3, LEFT)   -> style="grid-column: span 4"                          REVIEWS tile: dark bg, one testimonial from ingest.testimonials[0] (no image slot)
+    Tile 6 (Row 3, RIGHT)  -> style="grid-column: span 2"                          imagePack.supporting[4] slot + last service
 
 CRITICAL: EVERY tile uses inline grid-column/grid-row via the \`style="…"\` attribute.
 NEVER emit \`.span4\` \`.span2\` classes because they always end up undefined.
 
-Each tile:
-- Has a real photo as background (imagePack.supporting[i], or the reviews-tile has solid \`#0a0a0f\`).
-- Photo: absolute inset:0 z-index:0, object-fit:cover.
-- Scrim: absolute inset:0 z-index:1 with \`linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.35) 60%, rgba(0,0,0,0.85) 100%)\`.
-- Title bottom-left: z-index:2, 20px semibold white.
-- Arrow chip top-right: 38px pill with 16% white bg, arrow icon.
+Each image-tile (tiles 1, 2, 3, 4, 6):
+- The tile IS the image placeholder — apply the PLACEHOLDER RECIPE from above at full-tile scale.
+- Do NOT emit an <img> tag. Just the placeholder container with proper data-image-slot attribute.
+- Copy overlay: title (20px semibold white, z-index:3) sits bottom-left over the placeholder.
+- Arrow chip top-right: 38px pill with 16% white bg, arrow icon (z-index:3).
+- Scrim: not needed on placeholders (the palette-gradient is already low contrast); only add if the tile title is illegible.
+
+Tile 5 (Reviews) doesn't have an image slot — solid \`#0a0a0f\` bg, testimonial quote left-aligned, author + role bottom-left, "Read more reviews →" bottom-right.
 
 # STYLE RULES (non-negotiable)
 
