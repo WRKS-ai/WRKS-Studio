@@ -1,5 +1,6 @@
 import { ingestBrand, type IngestedBrand } from "./brand-ingest";
 import { generateHtmlDocument } from "./generate-html";
+import { curateImagePack } from "./image-curator";
 import type { BrandContext } from "./design-system";
 import {
   markJobError,
@@ -67,6 +68,23 @@ export async function runGenerationJob(input: RunnerInput): Promise<void> {
     }
 
     // ------------------------------------------------------
+    // Phase 1b: curate an image pack (Pexels) so Opus has real photos
+    // for hero + tile backgrounds + founder shot. Never fall back to
+    // typography watermarks or empty gradient blobs.
+    // ------------------------------------------------------
+    await updateJobPhase(
+      jobId,
+      "images",
+      "Curating a photo set from your industry — real editorial images, not stock clichés.",
+    );
+    const imagePack = await curateImagePack(brand, ingest);
+    await updateJobPhase(jobId, "images.done", "Images ready.", {
+      hero: imagePack.hero,
+      supportingCount: imagePack.supporting.length,
+      provider: imagePack.attribution.provider,
+    });
+
+    // ------------------------------------------------------
     // Phase 2: Opus 4.7 emits full HTML
     // ------------------------------------------------------
     await updateJobPhase(
@@ -79,7 +97,7 @@ export async function runGenerationJob(input: RunnerInput): Promise<void> {
     // — Opus streams at ~50ms cadence, we push a progress row every 2s.
     let lastPush = 0;
     const result = await generateHtmlDocument(
-      { brief, brand, ingest },
+      { brief, brand, ingest, imagePack },
       (ev) => {
         const now = Date.now();
         if (now - lastPush > 2000) {

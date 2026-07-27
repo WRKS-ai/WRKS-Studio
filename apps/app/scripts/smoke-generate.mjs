@@ -18,6 +18,7 @@ console.log("[smoke] Loading blueprint bundle + ingest module…\n");
 
 const { ingestBrand } = await import("../src/lib/site-generation/brand-ingest.ts");
 const { generateHtmlDocument } = await import("../src/lib/site-generation/generate-html.ts");
+const { curateImagePack } = await import("../src/lib/site-generation/image-curator.ts");
 
 // Phase 1 — ingest
 const ingestStart = Date.now();
@@ -39,22 +40,34 @@ try {
   ingest = null;
 }
 
+const brand = {
+  brandName: ingest?.brandName ?? "Bill Fanter",
+  businessType: "personal_brand",
+  primaryGoal: "book_calls",
+  voiceDescriptor: "bold",
+  offerSummary: "6-session options trading masterclass + Discord community with live trade alerts",
+  audienceDescription: "New and intermediate options traders who want a repeatable system",
+  differentiator: "35-year banking career + 1,600+ students taught",
+  existingSiteUrl: targetUrl,
+};
+
+// Phase 1b — image pack
+console.log("\n[smoke] === Phase 1b: image curator ===");
+const imagePackStart = Date.now();
+const imagePack = await curateImagePack(brand, ingest);
+console.log(`[smoke] image pack done in ${Date.now() - imagePackStart}ms`);
+console.log(`         hero: ${imagePack.hero}`);
+console.log(`         supporting: ${imagePack.supporting.length} images`);
+console.log(`         provider: ${imagePack.attribution.provider}`);
+
 // Phase 2 — generate
 console.log("\n[smoke] === Phase 2: Opus 4.7 generation ===");
 const genStart = Date.now();
 const { html, modelUsage } = await generateHtmlDocument({
   brief: "A landing page for my options trading masterclass and community — book calls, capture leads.",
-  brand: {
-    brandName: ingest?.brandName ?? "Bill Fanter",
-    businessType: "personal_brand",
-    primaryGoal: "book_calls",
-    voiceDescriptor: "bold",
-    offerSummary: "6-session options trading masterclass + Discord community with live trade alerts",
-    audienceDescription: "New and intermediate options traders who want a repeatable system",
-    differentiator: "35-year banking career + 1,600+ students taught",
-    existingSiteUrl: targetUrl,
-  },
+  brand,
   ingest,
+  imagePack,
 });
 
 console.log(`[smoke] Generate done in ${Date.now() - genStart}ms`);

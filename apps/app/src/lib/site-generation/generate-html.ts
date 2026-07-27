@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { BrandContext } from "./design-system";
 import type { IngestedBrand } from "./brand-ingest";
+import type { ImagePack } from "./image-curator";
 import { loadBlueprints } from "./blueprint-loader";
 
 // The v3 pipeline: Opus 4.7 reads the blueprint MDs + ingested brand
@@ -29,6 +30,7 @@ export type GenerateInput = {
   brief: string;                              // user's one-liner
   brand: BrandContext;                        // from business_profiles
   ingest: IngestedBrand | null;               // deep-ingested facts, or null if no URL
+  imagePack: ImagePack;                       // pre-curated Pexels photos for hero + tiles
 };
 
 export type GenerateResult = {
@@ -149,26 +151,62 @@ The nav.md spec describes an interactive CardNav with hover-dropdown colored car
 - Add a subtle backdrop-blur if you want depth: \`background: rgba(255,255,255,0.72); backdrop-filter: blur(20px);\` — reads premium without needing JS.
 - NO hamburger menu (mobile treatment is fine but not required for the desktop preview).
 
-# HERO — SPECIFIC INSTRUCTIONS (this is where past generations underdelivered)
+# HERO — SPECIFIC INSTRUCTIONS
 
-- Use the hero-dark-portrait-split structure from hero.md.
-- The hero's overall height should be 720-820px (padding-top 200-224px to clear the nav, padding-bottom 120-160px, content sits above the fold).
-- Headline is the biggest thing on the page: 60-80px, weight 500-600, letter-spacing -0.03em, line-height 1.04. Keep it 2-3 lines wrapped at ~14 words.
-- If brand.ingest.heroImage OR a founder photo URL is available: use it as the portrait, absolute-positioned on the right column at \`left: min(65vw, calc((100vw - 1440px) / 2 + 937px))\`, right: 0, top: 0, bottom: 0, object-fit: cover, object-position: center top.
-- If NO portrait image is available: build a PROMINENT editorial right-column treatment. Not a subtle watermark. Make it feel intentional — like the designer chose this over a stock photo.
-  RECIPE (compose ALL of the following layers, in this z-order):
-    * Layer 0: dark base \`#0a0a0f\` filling the right column (from the split line to the right edge).
-    * Layer 1: two overlapping radial gradients for atmospheric depth:
-      \`radial-gradient(ellipse 60% 55% at 30% 40%, rgba(brand-primary-rgb, 0.28) 0%, transparent 60%)\`
-      + \`radial-gradient(ellipse 45% 40% at 70% 70%, rgba(brand-tertiary-rgb, 0.18) 0%, transparent 55%)\`
-    * Layer 2: fine dot-grid overlay: \`background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px); background-size: 24px 24px;\` at 40% opacity.
-    * Layer 3: THE BIG STATEMENT — one huge editorial element choose ONE of these based on the vertical:
-        - \`stat\` (numeric): if brand has a big number in offer_summary or differentiator (e.g. "1,600+ students", "$50M in verdicts", "900% growth"), render it as a 180-240px Geist Sans display number at 24% opacity, positioned center-right of the column, weight 600, letter-spacing -0.04em.
-        - \`initials\` (fallback): founder or brand initials, 240-320px Geist Mono weight 500, positioned bottom-right, opacity 32-40% (NOT 12%). This must READ, not hide.
-        - \`wordmark\` (elegant fallback): full brand name in the display font, 96-120px, opacity 20%, rotated -8deg, bottom-right.
-    * Layer 4: subtle vignette darkening the corners: \`background: radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.4) 100%);\`
-    * Layer 5: the namecard bubble at bottom-LEFT of the right column (per hero.md §7) — small pill with brand name + one-line credential. This anchors the abstract layers with something concrete.
-- The above no-photo treatment reads as EDITORIAL, not TEMPLATE. Never emit a plain colored blob. Never emit a subtle watermark. The right column should have as much visual weight as the copy on the left.
+The hero is 50/50 split: COPY on the left (60%), REAL PHOTO on the right (40%).
+
+Layout:
+- Dark bg \`#0a0a0f\`, white text.
+- Total height: 640-720px. Padding-top: 200px (clears the 72px nav + 128px breathing). Padding-bottom: 100px.
+- LEFT column: eyebrow (optional, small mono-caps if brand needs it) + headline + subhead + 2 CTA buttons + trust row. Everything left-aligned, max-width 640px.
+- RIGHT column: the PHOTO from imagePack.hero. Full-height, edge-to-bleed on the right, absolute-positioned. Use \`left: 52%; right: 0; top: 0; bottom: 0; object-fit: cover; object-position: center;\`. Add a subtle left-side gradient overlay: \`background: linear-gradient(90deg, rgba(10,10,15,0.9) 0%, rgba(10,10,15,0.35) 30%, transparent 60%);\` on top of the image so the copy remains legible if it wraps into the right column.
+- Namecard bubble at the bottom-right of the photo area (per hero.md §7): 12px 18px padding, radius 12, white/92% bg, dark ink, brand name + one-line role.
+
+TYPOGRAPHY (smaller than before — user asked for cleaner scale):
+- Headline: 44-56px on desktop (clamp(36px, 4.5vw, 56px)). Weight 500. Letter-spacing -0.028em. Line-height 1.05. Max-width 640px. Wrap to 2-3 lines. NEVER larger than 60px.
+- Subhead: 17-18px. Weight 400. Line-height 1.55. Muted white (rgba(255,255,255,0.78)). Max-width 520px. Margin-top 20px.
+- CTAs: 14px semibold, padding 12px 22px, radius 999px. Primary = solid white bg + dark ink. Secondary = transparent + 1px white border. Margin-top 28px.
+- Trust row: 13px, rgba(255,255,255,0.7), 5 star SVGs + count. Margin-top 24px.
+
+IMAGE SOURCE:
+- Always use imagePack.hero (a real editorial photo, either from the ingested site or curated Pexels). NEVER emit typography watermarks (huge numbers, initials, wordmarks) in place of a photo. NEVER emit a plain colored blob or gradient blob in the right column.
+- If the imagePack.hero URL is a background pattern (rare), still use it — apply the left-side scrim heavily so it reads as an atmospheric backdrop.
+
+# MEGA-BENTO — SPECIFIC INSTRUCTIONS (this is where past generations underdelivered)
+
+The 6-tile grid keeps rendering as narrow columns because past generations used
+\`.span2\`/\`.span4\` utility classes without defining them in CSS. To eliminate the
+class you must remember, USE INLINE STYLES for grid-column and grid-row spans.
+
+Grid CSS (put in the \`<style>\` block):
+
+    .mb-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-template-rows: repeat(3, 340px);
+      gap: 16px;
+    }
+    @media (max-width: 900px) { .mb-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: none; grid-auto-rows: 280px; } }
+    @media (max-width: 560px) { .mb-grid { grid-template-columns: 1fr; grid-auto-rows: minmax(240px, auto); } }
+
+Tile layout (exact 6-tile plan — DO NOT deviate):
+
+    Tile 1 (Row 1, LEFT)   -> style="grid-column: span 4"                          HERO tile: imagePack.supporting[0] photo bg + top service
+    Tile 2 (Row 1, RIGHT)  -> style="grid-column: span 2; grid-row: span 2"        TALL tile: imagePack.supporting[1] photo bg + secondary service
+    Tile 3 (Row 2, LEFT-a) -> style="grid-column: span 2"                          imagePack.supporting[2] photo bg + service
+    Tile 4 (Row 2, LEFT-b) -> style="grid-column: span 2"                          imagePack.supporting[3] photo bg + service
+    Tile 5 (Row 3, LEFT)   -> style="grid-column: span 4"                          REVIEWS tile: dark bg, one testimonial from ingest.testimonials[0]
+    Tile 6 (Row 3, RIGHT)  -> style="grid-column: span 2"                          imagePack.supporting[4] photo bg + last service
+
+CRITICAL: EVERY tile uses inline grid-column/grid-row via the \`style="…"\` attribute.
+NEVER emit \`.span4\` \`.span2\` classes because they always end up undefined.
+
+Each tile:
+- Has a real photo as background (imagePack.supporting[i], or the reviews-tile has solid \`#0a0a0f\`).
+- Photo: absolute inset:0 z-index:0, object-fit:cover.
+- Scrim: absolute inset:0 z-index:1 with \`linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.35) 60%, rgba(0,0,0,0.85) 100%)\`.
+- Title bottom-left: z-index:2, 20px semibold white.
+- Arrow chip top-right: 38px pill with 16% white bg, arrow icon.
 
 # STYLE RULES (non-negotiable)
 
@@ -189,7 +227,7 @@ Target 40,000–60,000 chars of compact HTML for all sections + footer. If you f
 }
 
 function buildUserPrompt(input: GenerateInput, bundle: ReturnType<typeof loadBlueprints>): string {
-  const { brief, brand, ingest } = input;
+  const { brief, brand, ingest, imagePack } = input;
 
   // Compose the brand-data JSON that Opus will use as the source of truth
   const brandData = {
@@ -202,6 +240,15 @@ function buildUserPrompt(input: GenerateInput, bundle: ReturnType<typeof loadBlu
       audienceDescription: brand.audienceDescription,
       differentiator: brand.differentiator,
       existingSiteUrl: brand.existingSiteUrl,
+    },
+    // Pre-curated real photos for hero + tile backgrounds + founder shot.
+    // Opus MUST use these URLs directly in <img src=…> — never emit
+    // typography watermarks or gradient blobs where a photo goes.
+    imagePack: {
+      hero: imagePack.hero,
+      supporting: imagePack.supporting,
+      founder: imagePack.founder,
+      _provider: imagePack.attribution.provider,
     },
     ingest: ingest
       ? {
