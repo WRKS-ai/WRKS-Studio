@@ -39,15 +39,14 @@ type Props = {
 };
 
 const DS_WIDTH = 720;
-const PAGE_W_PENDING = 420;     // Mobile-shape while cursor is drawing
-const PAGE_W_DONE = 1280;       // Full desktop when real iframe renders
+const PAGE_W = 1280;            // Same width pending + done — no size jump
 const ARTBOARD_GAP = 60;
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 2;
 
 export function SiteCanvas({ artboards }: Props) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(0.7);
+  const [zoom, setZoom] = useState(0.5);
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -71,17 +70,18 @@ export function SiteCanvas({ artboards }: Props) {
         artboardWidthOf(artboards[0]) +
         ARTBOARD_GAP +
         artboardWidthOf(artboards[1]);
-      const desiredZoom = Math.min(0.65, (rect.width * 0.85) / totalWidth);
+      const desiredZoom = Math.min(0.5, (rect.width * 0.82) / totalWidth);
       const centerX = rect.width / 2 - (totalWidth / 2) * desiredZoom;
-      const centerY = rect.height / 2 - 360 * desiredZoom;
+      // Bias UP so the top of the page (hero) shows, not the middle.
+      const centerY = 100;
       setZoom(desiredZoom);
       setPan({ x: centerX, y: centerY });
     } else {
       const newest = artboards[artboards.length - 1];
       const wNew = artboardWidthOf(newest);
-      const desiredZoom = Math.min(0.75, (rect.width * 0.6) / wNew);
+      const desiredZoom = Math.min(0.55, (rect.width * 0.65) / wNew);
       const centerX = rect.width / 2 - (wNew / 2) * desiredZoom;
-      const centerY = rect.height / 2 - 320 * desiredZoom;
+      const centerY = 100;
       setZoom(desiredZoom);
       setPan({ x: centerX, y: centerY });
     }
@@ -212,7 +212,7 @@ export function SiteCanvas({ artboards }: Props) {
         {artboards.length === 0 && <EmptyState />}
       </div>
 
-      <ZoomIndicator zoom={zoom} onReset={() => setZoom(0.7)} />
+      <ZoomIndicator zoom={zoom} onReset={() => setZoom(0.5)} />
 
       <style>{`
         @keyframes wrks-artboard-in {
@@ -226,7 +226,7 @@ export function SiteCanvas({ artboards }: Props) {
 
 function artboardWidthOf(a: SiteArtboard): number {
   if (a.kind === "design-system") return DS_WIDTH;
-  return a.status === "done" && a.jobId ? PAGE_W_DONE : PAGE_W_PENDING;
+  return PAGE_W;
 }
 
 function EmptyState() {
