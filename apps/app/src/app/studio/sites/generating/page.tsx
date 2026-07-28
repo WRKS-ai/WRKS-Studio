@@ -300,6 +300,10 @@ export default function GeneratingPage() {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(0.75); }
         }
+        @keyframes wrks-pulse-bar {
+          0%, 100% { opacity: 1; transform: scaleY(1); }
+          50% { opacity: 0.5; transform: scaleY(0.7); }
+        }
       `}</style>
 
       {/* Canvas fills the whole area below the toolbar. Left cards +
@@ -406,12 +410,22 @@ function TopToolbar({
           style={{
             width: 32,
             height: 32,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #a78bfa, #ec4899)",
+            borderRadius: 8,
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.1)",
             marginLeft: 6,
-            border: "1px solid rgba(255,255,255,0.15)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "var(--font-mono)",
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            color: "rgba(245,240,230,0.85)",
           }}
-        />
+        >
+          Y
+        </div>
       </div>
     </div>
   );
@@ -654,52 +668,71 @@ function ChatCard({
           gap: 12,
         }}
       >
-        {/* Header: three dots */}
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <div
+        {/* Header: agent chip + mono label */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span
             style={{
-              padding: "3px 10px",
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              display: "flex",
-              gap: 3,
+              fontFamily: "var(--font-mono)",
+              fontSize: 9.5,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "rgba(245,240,230,0.5)",
             }}
           >
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                style={{ width: 3, height: 3, borderRadius: 999, background: "rgba(245,240,230,0.6)" }}
-              />
-            ))}
-          </div>
+            AGENT
+          </span>
+          <button
+            type="button"
+            aria-label="Menu"
+            style={{
+              width: 22,
+              height: 22,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "transparent",
+              border: "none",
+              color: "rgba(245,240,230,0.5)",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="4" y1="18" x2="20" y2="18" />
+            </svg>
+          </button>
         </div>
 
-        {/* Prompt pill */}
+        {/* Prompt pill — no avatar orb. Small mono-caps label instead. */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 8,
-            padding: "8px 12px",
-            borderRadius: 999,
-            background: "rgba(255,255,255,0.05)",
+            gap: 10,
+            padding: "8px 14px",
+            borderRadius: 12,
+            background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.06)",
           }}
         >
-          <div
+          <span
             style={{
-              width: 20,
-              height: 20,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #a78bfa, #ec4899)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9.5,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "rgba(245,240,230,0.4)",
               flexShrink: 0,
             }}
-          />
+          >
+            YOU
+          </span>
           <span
             style={{
               fontSize: 12.5,
-              color: "rgba(245,240,230,0.85)",
+              color: "rgba(245,240,230,0.9)",
               letterSpacing: "-0.005em",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -938,33 +971,22 @@ function JobStatusPill({
 }
 
 function StatusDot({ isDone, accent }: { isDone: boolean; accent: string }) {
-  // Quiet status indicator — no green tick pill.
-  // Active: brand-accent solid dot with soft glow (breathes).
-  // Done: same shape but muted white with subtle inner ring.
-  if (isDone) {
-    return (
-      <span
-        style={{
-          display: "inline-block",
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          background: "rgba(245,240,230,0.85)",
-          boxShadow: "inset 0 0 0 1.5px rgba(0,0,0,0.7)",
-        }}
-      />
-    );
-  }
+  // Hairline vertical bar — no more orbs.
+  // Active: brand-accent bar with soft glow (breathes weight).
+  // Done: same shape but muted white, no glow.
   return (
     <span
       style={{
         display: "inline-block",
-        width: 8,
-        height: 8,
-        borderRadius: "50%",
-        background: accent,
-        boxShadow: `0 0 8px ${accent}`,
-        animation: "wrks-pulse-dot 1.6s ease-in-out infinite",
+        width: 2,
+        height: 14,
+        borderRadius: 999,
+        background: isDone ? "rgba(245,240,230,0.75)" : accent,
+        boxShadow: isDone ? undefined : `0 0 6px ${accent}`,
+        animation: isDone
+          ? undefined
+          : "wrks-pulse-bar 1.6s ease-in-out infinite",
+        flexShrink: 0,
       }}
     />
   );
@@ -1277,8 +1299,8 @@ function BottomComposer({ disabled }: { disabled: boolean }) {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
-                padding: "4px 10px 4px 6px",
-                borderRadius: 999,
+                padding: "4px 10px",
+                borderRadius: 6,
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.06)",
                 fontSize: 11.5,
@@ -1288,17 +1310,6 @@ function BottomComposer({ disabled }: { disabled: boolean }) {
                 cursor: "pointer",
               }}
             >
-              {/* Gradient dot */}
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 16,
-                  height: 16,
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #a78bfa, #60a5fa 50%, #ec4899)",
-                  boxShadow: "0 0 8px rgba(167,139,250,0.5)",
-                }}
-              />
               Opus 4.7
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 12 15 18 9" />
