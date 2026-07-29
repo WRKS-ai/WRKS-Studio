@@ -555,11 +555,11 @@ function LeftFloatingStack({
     .map((m) => m.text)
     .join("\n\n");
 
-  // Warm cream fallback accent — never purple/pink AI defaults.
+  // Warm cream fallback — no hue. Brand palette wins when ingested.
   const accent =
     status.brandFacts?.palette.find((c) => c.role === "primary")?.hex ??
     status.brandFacts?.palette[0]?.hex ??
-    "#e8c785";
+    "#f5f0e6";
 
   // Steps derived from current phase.
   const activeIdx = STEP_DEFS.findIndex((s) => s.id === derivedPhase);

@@ -125,15 +125,14 @@ export function AnalogPanel({
           >
             <span
               style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
+                fontFamily: "var(--font-sans)",
+                fontSize: 13,
                 fontWeight: 500,
-                letterSpacing: "0.22em",
-                color: IVORY_MUTED,
-                textTransform: "lowercase",
+                letterSpacing: "-0.005em",
+                color: IVORY_STRONG,
               }}
             >
-              wrks
+              Draft
             </span>
             <button
               type="button"
@@ -161,29 +160,29 @@ export function AnalogPanel({
 
           <HairlineRule />
 
-          {/* DATELINE — project + elapsed */}
+          {/* Project title + elapsed */}
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span
               style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                fontWeight: 500,
-                letterSpacing: "0.16em",
-                textTransform: "uppercase",
-                color: IVORY_MUTED,
+                fontFamily: "var(--font-sans)",
+                fontSize: 15,
+                fontWeight: 600,
+                letterSpacing: "-0.008em",
+                color: IVORY_STRONG,
               }}
             >
               {projectTitle}
             </span>
             <span
               style={{
+                fontFamily: "var(--font-sans)",
                 fontSize: 12,
                 fontWeight: 400,
                 color: IVORY_DIM,
                 letterSpacing: "-0.003em",
               }}
             >
-              {isDone ? "Draft · complete" : "Draft"} · {formatElapsed(elapsedMs)} elapsed
+              {isDone ? "Complete" : "Drafting"} · {formatElapsed(elapsedMs)}
             </span>
           </div>
 
@@ -236,15 +235,14 @@ export function AnalogPanel({
 
           <HairlineRule />
 
-          {/* STEPS — flip-clock digits */}
+          {/* Steps — flip-clock digits */}
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <span
               style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
+                fontFamily: "var(--font-sans)",
+                fontSize: 12,
                 fontWeight: 500,
-                letterSpacing: "0.16em",
-                textTransform: "uppercase",
+                letterSpacing: "-0.003em",
                 color: IVORY_MUTED,
                 marginBottom: 6,
               }}
@@ -265,7 +263,7 @@ export function AnalogPanel({
             accent={accent}
           />
 
-          {/* MICRO STATUS + SPLIT-FLAP LIVE VERB */}
+          {/* Live status: bytes + est time + current verb */}
           <div
             style={{
               display: "flex",
@@ -277,13 +275,14 @@ export function AnalogPanel({
           >
             <span
               style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 10.5,
-                letterSpacing: "0.08em",
+                fontFamily: "var(--font-sans)",
+                fontSize: 12,
+                fontWeight: 400,
+                letterSpacing: "-0.003em",
                 color: IVORY_DIM,
               }}
             >
-              {bytes > 0 ? `${Math.round(bytes / 1000)} KB` : "0 KB"}
+              {bytes > 0 ? `${Math.round(bytes / 1000)} kb` : "0 kb"}
               {estRemainingMs != null && !isDone && (
                 <span> · ~{formatShortTime(estRemainingMs)} left</span>
               )}
@@ -293,9 +292,10 @@ export function AnalogPanel({
               <SplitFlapText
                 value={liveVerb}
                 style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 10.5,
-                  letterSpacing: "0.06em",
+                  fontFamily: "var(--font-sans)",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  letterSpacing: "-0.003em",
                   color: accent,
                 }}
               />
@@ -475,7 +475,7 @@ function DustMotes() {
 // ============================================================
 // Signature 2: Split-flap character animation
 // ============================================================
-const FLAP_GLYPHS = "abcdefghijklmnopqrstuvwxyz▓▒░";
+const FLAP_GLYPHS = "abcdefghijklmnopqrstuvwxyz";
 
 function SplitFlapText({
   value,
@@ -710,10 +710,10 @@ function StepRow({
       </span>
       <span
         style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 9.5,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
+          fontFamily: "var(--font-sans)",
+          fontSize: 11.5,
+          fontWeight: 400,
+          letterSpacing: "-0.003em",
           color:
             step.state === "active"
               ? accent
@@ -722,7 +722,7 @@ function StepRow({
               : "rgba(245,240,230,0.2)",
         }}
       >
-        {step.state === "done" ? "done" : step.state === "active" ? "now" : "—"}
+        {step.state === "done" ? "done" : step.state === "active" ? "in progress" : ""}
       </span>
     </div>
   );
@@ -770,8 +770,8 @@ function FlipDigit({
         borderRadius: 4,
         border: `1px solid ${borderColor}`,
         background: active ? `${withAlpha(accent, 0.08)}` : "transparent",
-        fontFamily: "var(--font-mono)",
-        fontSize: 11,
+        fontFamily: "var(--font-sans)",
+        fontSize: 12,
         fontWeight: 600,
         color,
         perspective: "80px",
