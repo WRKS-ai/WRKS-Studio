@@ -289,7 +289,7 @@ export function AnalogPanel({
               Steps
             </span>
             {steps.map((step, i) => (
-              <StepRow key={step.id} step={step} index={i + 1} accent={accent} />
+              <StepRow key={step.id} step={step} index={i + 1} />
             ))}
           </div>
 
@@ -328,14 +328,14 @@ export function AnalogPanel({
               {isDone && <span> · complete</span>}
             </span>
             {!isDone && liveVerb && (
-              <SplitFlapText
+              <LiveVerbText
                 value={liveVerb}
                 style={{
                   fontFamily: "var(--font-sans)",
                   fontSize: 12,
                   fontWeight: 500,
                   letterSpacing: "-0.003em",
-                  color: accent,
+                  color: IVORY_STRONG,
                 }}
               />
             )}
@@ -524,11 +524,11 @@ function DustMotes() {
 }
 
 // ============================================================
-// Signature 2: Split-flap character animation
+// Live verb — clean crossfade when the label changes.
+// (Replaces the earlier split-flap scramble which looked like garbage
+// mid-flip.)
 // ============================================================
-const FLAP_GLYPHS = "abcdefghijklmnopqrstuvwxyz";
-
-function SplitFlapText({
+function LiveVerbText({
   value,
   style,
 }: {
@@ -536,62 +536,25 @@ function SplitFlapText({
   style?: React.CSSProperties;
 }) {
   const [displayed, setDisplayed] = useState(value);
-  const rafRef = useRef<number | null>(null);
-  const targetRef = useRef(value);
+  const [fading, setFading] = useState(false);
 
   useEffect(() => {
-    targetRef.current = value;
-    // If already showing the target, skip
-    if (displayed === value) return;
-
-    const start = displayed;
-    const target = value;
-    const maxLen = Math.max(start.length, target.length);
-    let tick = 0;
-    const flipsPerChar = 6;
-    const stepMs = 40;
-    let lastTick = performance.now();
-
-    const step = (now: number) => {
-      if (now - lastTick < stepMs) {
-        rafRef.current = requestAnimationFrame(step);
-        return;
-      }
-      lastTick = now;
-      tick++;
-
-      const chars: string[] = [];
-      for (let i = 0; i < maxLen; i++) {
-        const targetChar = target[i] ?? "";
-        const settleAt = flipsPerChar + i * 2;
-        if (tick >= settleAt) {
-          chars.push(targetChar);
-        } else {
-          chars.push(FLAP_GLYPHS[Math.floor(Math.random() * FLAP_GLYPHS.length)]!);
-        }
-      }
-      setDisplayed(chars.join(""));
-
-      if (tick >= flipsPerChar + maxLen * 2) {
-        setDisplayed(target);
-        rafRef.current = null;
-        return;
-      }
-      rafRef.current = requestAnimationFrame(step);
-    };
-
-    rafRef.current = requestAnimationFrame(step);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+    if (value === displayed) return;
+    setFading(true);
+    const t = setTimeout(() => {
+      setDisplayed(value);
+      setFading(false);
+    }, 180);
+    return () => clearTimeout(t);
+  }, [value, displayed]);
 
   return (
     <span
       style={{
         display: "inline-block",
-        fontVariantNumeric: "tabular-nums",
+        opacity: fading ? 0 : 1,
+        transform: fading ? "translateY(2px)" : "translateY(0)",
+        transition: "opacity 180ms ease-out, transform 180ms ease-out",
         ...style,
       }}
     >
@@ -721,11 +684,9 @@ function TypewriterText({
 function StepRow({
   step,
   index,
-  accent,
 }: {
   step: Step;
   index: number;
-  accent: string;
 }) {
   return (
     <div
@@ -741,7 +702,6 @@ function StepRow({
         value={index}
         active={step.state === "active"}
         done={step.state === "done"}
-        accent={accent}
       />
       <span
         style={{
@@ -767,7 +727,7 @@ function StepRow({
           letterSpacing: "-0.003em",
           color:
             step.state === "active"
-              ? accent
+              ? IVORY_STRONG
               : step.state === "done"
               ? IVORY_DIM
               : "rgba(245,240,230,0.2)",
@@ -783,12 +743,10 @@ function FlipDigit({
   value,
   active,
   done,
-  accent,
 }: {
   value: number;
   active: boolean;
   done: boolean;
-  accent: string;
 }) {
   const [current, setCurrent] = useState(value);
   const [flipping, setFlipping] = useState(false);
@@ -803,9 +761,9 @@ function FlipDigit({
     return () => clearTimeout(t);
   }, [value, current]);
 
-  const color = active ? accent : done ? IVORY_MUTED : "rgba(245,240,230,0.25)";
+  const color = active ? IVORY_STRONG : done ? IVORY_MUTED : "rgba(245,240,230,0.25)";
   const borderColor = active
-    ? accent
+    ? "rgba(245,240,230,0.6)"
     : done
     ? IVORY
     : "rgba(245,240,230,0.08)";
@@ -820,13 +778,13 @@ function FlipDigit({
         height: 22,
         borderRadius: 4,
         border: `1px solid ${borderColor}`,
-        background: active ? `${withAlpha(accent, 0.08)}` : "transparent",
+        background: active ? "rgba(245,240,230,0.06)" : "transparent",
         fontFamily: "var(--font-sans)",
         fontSize: 12,
         fontWeight: 600,
         color,
         perspective: "80px",
-        boxShadow: active ? `0 0 12px ${withAlpha(accent, 0.35)}` : "none",
+        boxShadow: active ? "0 0 10px rgba(245,240,230,0.18)" : "none",
       }}
     >
       <span
