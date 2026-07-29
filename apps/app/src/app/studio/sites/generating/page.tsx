@@ -78,6 +78,12 @@ export default function GeneratingPage() {
       .filter((a): a is Extract<SiteArtboard, { kind: "page" }> => a.kind === "page")
       .find((a) => a.status === "done" && a.jobId)?.jobId ?? null;
 
+  // Ambient accent — reused by the atmosphere layer and the panel.
+  const ambientAccent =
+    status.brandFacts?.palette.find((c) => c.role === "primary")?.hex ??
+    status.brandFacts?.palette[0]?.hex ??
+    "#8b5cf6";
+
   useEffect(() => {
     if (!jobId) {
       setError("Missing job id — start again from the composer.");
@@ -315,12 +321,54 @@ export default function GeneratingPage() {
           0%, 100% { opacity: 1; transform: scaleY(1); }
           50% { opacity: 0.5; transform: scaleY(0.7); }
         }
+        @keyframes wrks-atmos-a {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+          50% { transform: translate3d(-4%, 3%, 0) scale(1.08); }
+        }
+        @keyframes wrks-atmos-b {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+          50% { transform: translate3d(5%, -3%, 0) scale(1.1); }
+        }
+        @keyframes wrks-atmos-c {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.55; }
+          50% { transform: translate3d(-3%, -4%, 0) scale(1.14); opacity: 0.85; }
+        }
+        @keyframes wrks-atmos-grain {
+          0% { transform: translate3d(0, 0, 0); }
+          25% { transform: translate3d(-8px, 4px, 0); }
+          50% { transform: translate3d(6px, -6px, 0); }
+          75% { transform: translate3d(-4px, -3px, 0); }
+          100% { transform: translate3d(0, 0, 0); }
+        }
+        @keyframes wrks-theater-mote-a {
+          0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.35; }
+          25% { opacity: 0.75; }
+          50% { transform: translate3d(30px, -42px, 0); opacity: 0.55; }
+          75% { opacity: 0.75; }
+        }
+        @keyframes wrks-theater-mote-b {
+          0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.3; }
+          33% { opacity: 0.7; }
+          50% { transform: translate3d(-28px, 36px, 0); opacity: 0.5; }
+          66% { opacity: 0.7; }
+        }
+        @keyframes wrks-theater-mote-c {
+          0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.4; }
+          40% { opacity: 0.8; }
+          50% { transform: translate3d(38px, 26px, 0); opacity: 0.5; }
+          60% { opacity: 0.8; }
+        }
       `}</style>
 
       {/* Canvas fills the whole area below the toolbar. Left cards +
           right rail + bottom composer float ON TOP of it. */}
-      <div className="flex-1 min-h-0 relative">
+      <div className="flex-1 min-h-0 relative" style={{ background: "#0a0a0f" }}>
         <SiteCanvas artboards={artboards} />
+
+        {/* Atmosphere — ambient light rig + grain + vignette + motes.
+            Sits over the canvas but pointer-events: none so pan/zoom
+            still work. Chrome (panels, composer) sits above at z:20. */}
+        <TheaterAtmosphere accent={ambientAccent} />
 
         {/* Left floating analog editorial panel */}
         <LeftFloatingStack
@@ -869,11 +917,151 @@ function BottomComposer({ disabled }: { disabled: boolean }) {
 }
 
 // ============================================================
+// Theater atmosphere — ambient light rig, grain, vignette, motes.
+// Every layer is pointer-events: none so the canvas stays interactive.
+// ============================================================
+const THEATER_MOTES: Array<{
+  left: string;
+  top: string;
+  size: number;
+  dir: "a" | "b" | "c";
+  dur: number;
+  delay: number;
+}> = [
+  { left: "14%", top: "20%", size: 3, dir: "a", dur: 68, delay: 0 },
+  { left: "82%", top: "24%", size: 2, dir: "b", dur: 82, delay: 6 },
+  { left: "28%", top: "72%", size: 3, dir: "c", dur: 74, delay: 12 },
+  { left: "68%", top: "78%", size: 2, dir: "a", dur: 90, delay: 3 },
+  { left: "48%", top: "44%", size: 2, dir: "b", dur: 62, delay: 18 },
+  { left: "58%", top: "14%", size: 2, dir: "c", dur: 78, delay: 9 },
+  { left: "18%", top: "50%", size: 3, dir: "b", dur: 85, delay: 22 },
+  { left: "88%", top: "58%", size: 2, dir: "a", dur: 71, delay: 15 },
+];
+
+function TheaterAtmosphere({ accent }: { accent: string }) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        overflow: "hidden",
+        zIndex: 5,
+      }}
+    >
+      {/* Warm gold — top-right corner glow */}
+      <div
+        style={{
+          position: "absolute",
+          top: "-25%",
+          right: "-15%",
+          width: "70vw",
+          height: "70vw",
+          borderRadius: "50%",
+          background: `radial-gradient(circle, ${withAlpha("#e8c785", 0.16)} 0%, transparent 65%)`,
+          filter: "blur(120px)",
+          mixBlendMode: "screen",
+          animation: "wrks-atmos-a 42s ease-in-out infinite",
+          willChange: "transform",
+        }}
+      />
+      {/* Brand purple — bottom-left corner glow (dominant) */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: "-25%",
+          left: "-15%",
+          width: "75vw",
+          height: "75vw",
+          borderRadius: "50%",
+          background: `radial-gradient(circle, ${withAlpha(accent, 0.22)} 0%, transparent 65%)`,
+          filter: "blur(140px)",
+          mixBlendMode: "screen",
+          animation: "wrks-atmos-b 55s ease-in-out infinite",
+          willChange: "transform",
+        }}
+      />
+      {/* Cool violet — mid-canvas ambient wash */}
+      <div
+        style={{
+          position: "absolute",
+          top: "18%",
+          left: "32%",
+          width: "50vw",
+          height: "50vw",
+          borderRadius: "50%",
+          background: `radial-gradient(circle, ${withAlpha("#4c3d8f", 0.14)} 0%, transparent 60%)`,
+          filter: "blur(160px)",
+          mixBlendMode: "screen",
+          animation: "wrks-atmos-c 68s ease-in-out infinite",
+          willChange: "transform, opacity",
+        }}
+      />
+
+      {/* Film grain — barely perceptible, drifts to break up static feel */}
+      <div
+        style={{
+          position: "absolute",
+          inset: "-4%",
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.96  0 0 0 0 0.94  0 0 0 0 0.9  0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
+          opacity: 0.05,
+          mixBlendMode: "overlay",
+          animation: "wrks-atmos-grain 24s steps(6) infinite",
+        }}
+      />
+
+      {/* Vignette — soft edge darkening pulls focus to center */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.45) 100%)",
+        }}
+      />
+
+      {/* Dust motes — 8 particles drifting on independent cycles */}
+      {THEATER_MOTES.map((m, i) => (
+        <span
+          key={i}
+          style={{
+            position: "absolute",
+            left: m.left,
+            top: m.top,
+            width: m.size,
+            height: m.size,
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${withAlpha(accent, 0.65)} 0%, transparent 70%)`,
+            boxShadow: `0 0 6px ${withAlpha(accent, 0.4)}`,
+            animation: `wrks-theater-mote-${m.dir} ${m.dur}s ease-in-out infinite`,
+            animationDelay: `${m.delay}s`,
+            willChange: "transform, opacity",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ============================================================
 // Helpers
 // ============================================================
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
   return s.slice(0, max - 1) + "…";
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const expanded =
+    h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const bigint = parseInt(expanded, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function verbForBytes(bytes: number): string {
