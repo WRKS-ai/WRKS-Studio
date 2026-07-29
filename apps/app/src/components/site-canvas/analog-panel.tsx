@@ -67,17 +67,31 @@ export function AnalogPanel({
         width: CARD_WIDTH,
       }}
     >
-      {/* Candle-breath shadow — sits behind the card, breathes on 8s */}
+      {/* Outer purple aura — sits behind the card, breathes on 7s.
+          Uses brand accent so ingested brand colors shift the aura. */}
       <div
         aria-hidden
         style={{
           position: "absolute",
-          inset: -6,
-          borderRadius: 20,
-          background:
-            "radial-gradient(ellipse 80% 60% at 50% 100%, rgba(160,120,80,0.14), transparent 70%)",
-          filter: "blur(20px)",
-          animation: "wrks-candle 8s ease-in-out infinite",
+          inset: -18,
+          borderRadius: 28,
+          background: `radial-gradient(ellipse 80% 60% at 50% 40%, ${withAlpha(accent, 0.24)}, transparent 70%)`,
+          filter: "blur(28px)",
+          animation: "wrks-aura 7s ease-in-out infinite",
+          zIndex: -1,
+          pointerEvents: "none",
+        }}
+      />
+      {/* Secondary lower aura for depth — offset + slower */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: -10,
+          borderRadius: 22,
+          background: `radial-gradient(ellipse 60% 40% at 30% 100%, ${withAlpha(accent, 0.18)}, transparent 60%)`,
+          filter: "blur(22px)",
+          animation: "wrks-aura-slow 11s ease-in-out infinite",
           zIndex: -1,
           pointerEvents: "none",
         }}
@@ -91,10 +105,35 @@ export function AnalogPanel({
           WebkitBackdropFilter: "blur(24px)",
           borderRadius: 18,
           overflow: "hidden",
-          boxShadow:
-            "0 30px 60px -30px rgba(120,90,60,0.28), 0 4px 12px rgba(0,0,0,0.35)",
+          boxShadow: `0 30px 60px -30px ${withAlpha(accent, 0.35)}, 0 4px 12px rgba(0,0,0,0.35), inset 0 1px 0 ${withAlpha(accent, 0.08)}`,
         }}
       >
+        {/* Ambient inner glow — soft purple light from top-center,
+            drifts subtly and breathes. Reads like the card is lit
+            from above by a purple lamp. */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: `radial-gradient(ellipse 90% 55% at 50% -10%, ${withAlpha(accent, 0.16)}, transparent 55%)`,
+            pointerEvents: "none",
+            zIndex: 1,
+            animation: "wrks-inner-glow 6s ease-in-out infinite",
+          }}
+        />
+        {/* Secondary inner accent — bottom-right corner soft light */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: `radial-gradient(ellipse 50% 40% at 100% 100%, ${withAlpha(accent, 0.1)}, transparent 60%)`,
+            pointerEvents: "none",
+            zIndex: 1,
+            animation: "wrks-inner-glow-2 9s ease-in-out infinite",
+          }}
+        />
         {/* Paper grain overlay — slowly drifts */}
         <PaperGrain />
 
@@ -330,9 +369,21 @@ export function AnalogPanel({
           from { opacity: 0; transform: translateY(4px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes wrks-candle {
-          0%, 100% { opacity: 0.75; transform: translateY(0) scale(1); }
-          50% { opacity: 1; transform: translateY(1px) scale(1.02); }
+        @keyframes wrks-aura {
+          0%, 100% { opacity: 0.72; transform: scale(1); }
+          50%      { opacity: 1;    transform: scale(1.06); }
+        }
+        @keyframes wrks-aura-slow {
+          0%, 100% { opacity: 0.6;  transform: translate(0, 0) scale(1); }
+          50%      { opacity: 0.95; transform: translate(4px, -3px) scale(1.04); }
+        }
+        @keyframes wrks-inner-glow {
+          0%, 100% { opacity: 0.85; transform: translateY(0); }
+          50%      { opacity: 1.15; transform: translateY(2px); }
+        }
+        @keyframes wrks-inner-glow-2 {
+          0%, 100% { opacity: 0.55; }
+          50%      { opacity: 1; }
         }
         @keyframes wrks-grain-drift {
           0%   { transform: translate(0, 0); }

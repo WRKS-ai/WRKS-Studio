@@ -555,11 +555,12 @@ function LeftFloatingStack({
     .map((m) => m.text)
     .join("\n\n");
 
-  // Warm cream fallback — no hue. Brand palette wins when ingested.
+  // Brand purple fallback — matches WRKS accent. Ingested brand
+  // palette still wins when we have one.
   const accent =
     status.brandFacts?.palette.find((c) => c.role === "primary")?.hex ??
     status.brandFacts?.palette[0]?.hex ??
-    "#f5f0e6";
+    "#8b5cf6";
 
   // Steps derived from current phase.
   const activeIdx = STEP_DEFS.findIndex((s) => s.id === derivedPhase);
