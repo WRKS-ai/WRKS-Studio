@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { SiteCanvas, type SiteArtboard } from "@/components/site-canvas/site-canvas";
 import type { DesignSystemArtboardData } from "@/components/site-canvas/design-system-artboard";
 import { PreviewOverlay } from "@/components/site-canvas/preview-overlay";
+import { AnalogPanel } from "@/components/site-canvas/analog-panel";
 
 // /studio/sites/generating — the generation theater.
 //
@@ -34,13 +35,13 @@ type ChatMessage = {
   text: string;
 };
 
-// Structured design narrative rendered inside the chat card once the
-// site is done. Client synthesizes from brandFacts — no server round
-// trip. Intro paragraph + a few bulleted highlights with bold labels.
-type DesignNarrative = {
-  intro: string;
-  bullets: Array<{ label: string; text: string }>;
-};
+// Steps in the generation pipeline — feeds AnalogPanel's Steps list.
+type StepPhase = "read" | "draft" | "style" | "render" | "done";
+
+// Byte thresholds that advance the phase stepper past 'draft' into
+// 'style' then 'render'. Rough — the point is a live sense of progress.
+const BYTES_DRAFT_END = 30_000;
+const BYTES_STYLE_END = 55_000;
 
 export default function GeneratingPage() {
   const router = useRouter();
@@ -60,6 +61,16 @@ export default function GeneratingPage() {
   const [error, setError] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const streamStartedRef = useRef(false);
+
+  // Derive stepper phase from bytes during generation.
+  const derivedPhase: StepPhase | "idle" = (() => {
+    if (status.isDone) return "done";
+    if (!status.brandFacts && status.bytes === 0) return "read";
+    if (status.bytes >= BYTES_STYLE_END) return "render";
+    if (status.bytes >= BYTES_DRAFT_END) return "style";
+    if (status.brandFacts || status.bytes > 0) return "draft";
+    return "read";
+  })();
 
   // Grab the finished job id (if any) for the Preview overlay iframe.
   const readyJobId =
@@ -311,13 +322,14 @@ export default function GeneratingPage() {
       <div className="flex-1 min-h-0 relative">
         <SiteCanvas artboards={artboards} />
 
-        {/* Left floating chat + agent-log stack */}
+        {/* Left floating analog editorial panel */}
         <LeftFloatingStack
           chat={chat}
           status={status}
           isDone={status.isDone}
           projectTitle={projectTitle}
           error={error}
+          derivedPhase={derivedPhase}
         />
 
         {/* Right icon toolbar */}
@@ -504,21 +516,31 @@ function ToolbarButton({
   );
 }
 
+
 // ============================================================
-// Left floating stack — chat card + active job pill + agent log
+// Left floating stack — single editorial AnalogPanel
 // ============================================================
+const STEP_DEFS: Array<{ id: StepPhase; label: string }> = [
+  { id: "read", label: "Read" },
+  { id: "draft", label: "Draft" },
+  { id: "style", label: "Style" },
+  { id: "render", label: "Render" },
+];
+
 function LeftFloatingStack({
   chat,
   status,
   isDone,
   projectTitle,
   error,
+  derivedPhase,
 }: {
   chat: ChatMessage[];
   status: PipelineStatus;
   isDone: boolean;
   projectTitle: string;
   error: string | null;
+  derivedPhase: StepPhase | "idle";
 }) {
   const [elapsedMs, setElapsedMs] = useState(0);
   useEffect(() => {
@@ -528,7 +550,41 @@ function LeftFloatingStack({
   }, [isDone, status.startedAt]);
 
   const userPrompt = chat.find((m) => m.role === "user")?.text ?? "A page for my site";
-  const agentReply = chat.filter((m) => m.role === "agent").map((m) => m.text).join("\n\n");
+  const agentReply = chat
+    .filter((m) => m.role === "agent")
+    .map((m) => m.text)
+    .join("\n\n");
+
+  // Warm cream fallback accent — never purple/pink AI defaults.
+  const accent =
+    status.brandFacts?.palette.find((c) => c.role === "primary")?.hex ??
+    status.brandFacts?.palette[0]?.hex ??
+    "#e8c785";
+
+  // Steps derived from current phase.
+  const activeIdx = STEP_DEFS.findIndex((s) => s.id === derivedPhase);
+  const steps = STEP_DEFS.map((s, i) => ({
+    id: s.id,
+    label: s.label,
+    state: (isDone
+      ? "done"
+      : i < activeIdx
+      ? "done"
+      : i === activeIdx
+      ? "active"
+      : "pending") as "pending" | "active" | "done",
+  }));
+
+  // Estimated remaining time from elapsed / progress.
+  const EST_TOTAL_BYTES = 65_000;
+  const progress = isDone
+    ? 1
+    : Math.min(0.98, Math.max(0.04, status.bytes / EST_TOTAL_BYTES));
+  let estRemainingMs: number | null = null;
+  if (!isDone && progress > 0.05 && elapsedMs > 3000) {
+    const totalEstMs = elapsedMs / progress;
+    estRemainingMs = Math.max(0, totalEstMs - elapsedMs);
+  }
 
   return (
     <div
@@ -536,7 +592,6 @@ function LeftFloatingStack({
         position: "absolute",
         top: 20,
         left: 20,
-        width: 320,
         display: "flex",
         flexDirection: "column",
         gap: 12,
@@ -545,562 +600,27 @@ function LeftFloatingStack({
         maxHeight: "calc(100% - 40px)",
       }}
     >
-      <ChatCard
+      <AnalogPanel
+        projectTitle={truncate(projectTitle, 40)}
         userPrompt={userPrompt}
         agentReply={agentReply}
-        liveMessage={status.liveMessage}
-        isDone={isDone}
-        designNarrative={isDone && status.brandFacts ? synthesizeNarrative(status.brandFacts) : null}
-      />
-
-      {/* Job progress pill with time bar */}
-      <JobStatusPill
-        title={truncate(projectTitle, 32)}
-        isDone={isDone}
-        elapsedMs={elapsedMs}
+        liveVerb={status.liveMessage}
         bytes={status.bytes}
-        accent={
-          status.brandFacts?.palette.find((c) => c.role === "primary")?.hex ??
-          status.brandFacts?.palette[0]?.hex ??
-          "#a78bfa"
-        }
+        estRemainingMs={estRemainingMs}
+        elapsedMs={elapsedMs}
+        isDone={isDone}
+        steps={steps}
+        accent={accent}
+        error={error}
       />
-
-      {/* Agent log collapsed footer */}
-      <AgentLogFooter status={status} isDone={isDone} />
-
-      {error && (
-        <div
-          style={{
-            padding: "10px 14px",
-            borderRadius: 12,
-            background: "rgba(255,120,110,0.08)",
-            border: "1px solid rgba(255,120,110,0.16)",
-            fontSize: 12.5,
-            color: "#ff9d98",
-          }}
-        >
-          {error}
-        </div>
-      )}
     </div>
   );
 }
 
-function ChatCard({
-  userPrompt,
-  agentReply,
-  liveMessage,
-  isDone,
-  designNarrative,
-}: {
-  userPrompt: string;
-  agentReply: string;
-  liveMessage: string | null;
-  isDone: boolean;
-  designNarrative: DesignNarrative | null;
-}) {
-  return (
-    <div
-      style={{
-        position: "relative",
-        borderRadius: 20,
-        padding: 1.5,
-        // The rotating conic gradient border sits behind the inner card.
-        // isolation:isolate ensures the mask trick doesn't leak.
-        isolation: "isolate",
-      }}
-    >
-      {/* Animated conic-gradient border. The rotating layer is a
-          large square (200%) centered on the card so the conic sweep
-          stays visible at every edge without stretching. Clipped by
-          the parent's border-radius via overflow:hidden on wrapper. */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          borderRadius: 20,
-          overflow: "hidden",
-          zIndex: 0,
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            width: "200%",
-            aspectRatio: "1",
-            transform: "translate(-50%, -50%)",
-            background:
-              "conic-gradient(from 0deg, #a78bfa 0deg, #ec4899 90deg, #60a5fa 200deg, #a78bfa 360deg)",
-            animation: "wrks-border-spin 8s linear infinite",
-          }}
-        />
-      </div>
-      {/* Soft outer halo (breathes) */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: -12,
-          borderRadius: 32,
-          background:
-            "radial-gradient(ellipse at center, rgba(167,139,250,0.28), rgba(236,72,153,0.1) 45%, transparent 70%)",
-          animation: "wrks-halo-pulse 4.5s ease-in-out infinite",
-          zIndex: -1,
-          filter: "blur(24px)",
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          borderRadius: 18.5,
-          background: "rgba(15,15,22,0.94)",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-          padding: "14px 16px 16px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        {/* Header: agent chip + mono label */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 9.5,
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              color: "rgba(245,240,230,0.5)",
-            }}
-          >
-            AGENT
-          </span>
-          <button
-            type="button"
-            aria-label="Menu"
-            style={{
-              width: 22,
-              height: 22,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "transparent",
-              border: "none",
-              color: "rgba(245,240,230,0.5)",
-              cursor: "pointer",
-              padding: 0,
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="6" x2="20" y2="6" />
-              <line x1="4" y1="18" x2="20" y2="18" />
-            </svg>
-          </button>
-        </div>
 
-        {/* Prompt pill — no avatar orb. Small mono-caps label instead. */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "8px 14px",
-            borderRadius: 12,
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 9.5,
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              color: "rgba(245,240,230,0.4)",
-              flexShrink: 0,
-            }}
-          >
-            YOU
-          </span>
-          <span
-            style={{
-              fontSize: 12.5,
-              color: "rgba(245,240,230,0.9)",
-              letterSpacing: "-0.005em",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              flex: 1,
-            }}
-          >
-            {userPrompt}
-          </span>
-          <button
-            type="button"
-            aria-label="Copy"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 18,
-              height: 18,
-              borderRadius: 4,
-              background: "transparent",
-              border: "none",
-              color: "rgba(245,240,230,0.5)",
-              cursor: "pointer",
-              padding: 0,
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            aria-label="More"
-            style={{
-              width: 18,
-              height: 18,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "transparent",
-              border: "none",
-              color: "rgba(245,240,230,0.5)",
-              cursor: "pointer",
-              padding: 0,
-            }}
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Agent reply — intro paragraph + structured bullets */}
-        <div
-          style={{
-            position: "relative",
-            overflowY: "auto",
-            maxHeight: 420,
-          }}
-        >
-          {designNarrative ? (
-            <DesignNarrativeBlock narrative={designNarrative} />
-          ) : (
-            <div
-              style={{
-                fontFamily: "var(--font-sans)",
-                fontSize: 13.5,
-                lineHeight: 1.55,
-                letterSpacing: "-0.003em",
-                color: "rgba(245,240,230,0.9)",
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {agentReply}
-            </div>
-          )}
-          {/* Bottom fade-out mask */}
-          <div
-            aria-hidden
-            style={{
-              position: "sticky",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 40,
-              marginTop: -40,
-              background:
-                "linear-gradient(180deg, rgba(15,15,22,0) 0%, rgba(15,15,22,0.94) 90%)",
-              pointerEvents: "none",
-            }}
-          />
-        </div>
-
-        {/* Live status line */}
-        {!isDone && liveMessage && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              paddingTop: 4,
-              borderTop: "1px solid rgba(255,255,255,0.04)",
-              marginTop: 2,
-            }}
-          >
-            <Spinner />
-            <span
-              style={{
-                fontSize: 12,
-                fontStyle: "italic",
-                color: "rgba(245,240,230,0.6)",
-                letterSpacing: "-0.003em",
-              }}
-            >
-              {liveMessage}
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function JobStatusPill({
-  title,
-  isDone,
-  elapsedMs,
-  bytes,
-  accent,
-}: {
-  title: string;
-  isDone: boolean;
-  elapsedMs: number;
-  bytes: number;
-  accent: string;
-}) {
-  // Progress 0..1 based on byte count.
-  const EST_TOTAL_BYTES = 65_000;
-  const progress = isDone ? 1 : Math.min(0.98, Math.max(0.04, bytes / EST_TOTAL_BYTES));
-
-  // Estimate remaining time from elapsed + progress.
-  // While progress < 3%, don't estimate (too noisy). Once meaningful,
-  // extrapolate linearly.
-  let remainingText = "estimating…";
-  if (isDone) {
-    remainingText = "done";
-  } else if (progress > 0.05 && elapsedMs > 3000) {
-    const totalEstMs = elapsedMs / progress;
-    const remainingMs = Math.max(0, totalEstMs - elapsedMs);
-    remainingText = `~${formatShortTime(remainingMs)} left`;
-  }
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        padding: "12px 14px 10px",
-        borderRadius: 14,
-        background: "rgba(20,20,28,0.88)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        border: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
-      {/* Top row: status dot + title + elapsed */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <StatusDot isDone={isDone} accent={accent} />
-        <span
-          style={{
-            fontSize: 12.5,
-            fontWeight: 500,
-            color: "rgba(245,240,230,0.9)",
-            letterSpacing: "-0.005em",
-            flex: 1,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {title}
-        </span>
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10.5,
-            color: "rgba(245,240,230,0.4)",
-            letterSpacing: "0.04em",
-          }}
-        >
-          {formatElapsed(elapsedMs)}
-        </span>
-      </div>
-
-      {/* Time progress bar */}
-      <div
-        style={{
-          height: 3,
-          borderRadius: 999,
-          background: "rgba(255,255,255,0.06)",
-          overflow: "hidden",
-          position: "relative",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${progress * 100}%`,
-            background: isDone
-              ? "rgba(120,220,140,0.85)"
-              : `linear-gradient(90deg, ${accent}, ${accent}cc)`,
-            boxShadow: isDone ? undefined : `0 0 8px ${accent}`,
-            transition: "width 800ms cubic-bezier(0.4, 0, 0.2, 1)",
-          }}
-        />
-      </div>
-
-      {/* Bottom row: bytes + time left */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          fontFamily: "var(--font-mono)",
-          fontSize: 10,
-          color: "rgba(245,240,230,0.35)",
-          letterSpacing: "0.04em",
-        }}
-      >
-        <span>{bytes > 0 ? `${Math.round(bytes / 1000)}kb` : "0kb"}</span>
-        <span>{remainingText}</span>
-      </div>
-    </div>
-  );
-}
-
-function StatusDot({ isDone, accent }: { isDone: boolean; accent: string }) {
-  // Hairline vertical bar — no more orbs.
-  // Active: brand-accent bar with soft glow (breathes weight).
-  // Done: same shape but muted white, no glow.
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        width: 2,
-        height: 14,
-        borderRadius: 999,
-        background: isDone ? "rgba(245,240,230,0.75)" : accent,
-        boxShadow: isDone ? undefined : `0 0 6px ${accent}`,
-        animation: isDone
-          ? undefined
-          : "wrks-pulse-bar 1.6s ease-in-out infinite",
-        flexShrink: 0,
-      }}
-    />
-  );
-}
-
-function AgentLogFooter({ status, isDone }: { status: PipelineStatus; isDone: boolean }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <div
-      style={{
-        borderRadius: 14,
-        background: "rgba(20,20,28,0.85)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        overflow: "hidden",
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center justify-between w-full"
-        style={{
-          padding: "12px 14px",
-          background: "transparent",
-          border: "none",
-          color: "rgba(245,240,230,0.85)",
-          fontSize: 12.5,
-          fontWeight: 500,
-          cursor: "pointer",
-          letterSpacing: "-0.005em",
-        }}
-      >
-        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <RocketIcon />
-          Agent log
-        </span>
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{
-            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 200ms",
-          }}
-        >
-          <polyline points="18 15 12 9 6 15" />
-        </svg>
-      </button>
-      {expanded && (
-        <div
-          style={{
-            padding: "0 14px 14px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            color: "rgba(245,240,230,0.55)",
-            letterSpacing: "0.02em",
-          }}
-        >
-          <LogRow label="Read" done />
-          <LogRow label="Design system" done={!!status.brandFacts} />
-          <LogRow label="Draft" done={isDone} />
-          <LogRow label="Render" done={isDone} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function LogRow({ label, done }: { label: string; done: boolean }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      {/* Quiet status marker: filled bar when done, hairline when pending */}
-      <span
-        style={{
-          width: 12,
-          height: 2,
-          borderRadius: 999,
-          background: done ? "rgba(245,240,230,0.7)" : "rgba(245,240,230,0.15)",
-        }}
-      />
-      <span
-        style={{
-          color: done ? "rgba(245,240,230,0.75)" : "rgba(245,240,230,0.4)",
-        }}
-      >
-        {label}
-      </span>
-      {done && (
-        <span
-          style={{
-            marginLeft: "auto",
-            fontSize: 9.5,
-            letterSpacing: "0.14em",
-            color: "rgba(245,240,230,0.35)",
-          }}
-        >
-          DONE
-        </span>
-      )}
-    </div>
-  );
-}
 
 // ============================================================
-// Right icon toolbar (kept the vertical rail from Stitch reference)
+// Right icon toolbar (kept the vertical rail)
 // ============================================================
 function RightTools() {
   const tools = [
@@ -1157,10 +677,8 @@ function RightTools() {
 }
 
 // ============================================================
-// Bottom composer — clean pill (input + / + mic + model + send)
+// Bottom composer — pill + / commands + model + mic + send
 // ============================================================
-// Suggested quick actions offered above the composer once the site
-// is ready. Tap to prefill the composer with an iteration request.
 const QUICK_ACTIONS: Array<{ id: string; label: string; prefill: string }> = [
   { id: "dark", label: "Make it dark mode", prefill: "Rework the site in dark mode with the same brand accents." },
   { id: "pricing", label: "Add a pricing section", prefill: "Add a pricing section with 3 tiers below the reviews section." },
@@ -1169,7 +687,6 @@ const QUICK_ACTIONS: Array<{ id: string; label: string; prefill: string }> = [
 
 function BottomComposer({ disabled }: { disabled: boolean }) {
   const [prefill, setPrefill] = useState<string>("");
-
   return (
     <div
       style={{
@@ -1185,7 +702,6 @@ function BottomComposer({ disabled }: { disabled: boolean }) {
         alignItems: "center",
       }}
     >
-      {/* Quick-action pills — only shown when composer is enabled */}
       {!disabled && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
           {QUICK_ACTIONS.map((a, i) => (
@@ -1209,14 +725,6 @@ function BottomComposer({ disabled }: { disabled: boolean }) {
                 letterSpacing: "-0.005em",
                 cursor: "pointer",
                 transition: "background 150ms, border-color 150ms",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(30,30,42,0.9)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.14)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(20,20,28,0.85)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
               }}
             >
               {a.label}
@@ -1257,9 +765,7 @@ function BottomComposer({ disabled }: { disabled: boolean }) {
           type="text"
           value={prefill}
           onChange={(e) => setPrefill(e.target.value)}
-          placeholder={
-            disabled ? "Agent is drafting — hang on…" : "What would you like to change or create?"
-          }
+          placeholder={disabled ? "Agent is drafting — hang on…" : "What would you like to change or create?"}
           disabled={disabled}
           className="w-full bg-transparent outline-none"
           style={{
@@ -1362,162 +868,11 @@ function BottomComposer({ disabled }: { disabled: boolean }) {
 }
 
 // ============================================================
-// Icons + helpers
+// Helpers
 // ============================================================
-
-function Spinner({ size = "md" }: { size?: "sm" | "md" }) {
-  const dim = size === "sm" ? 10 : 12;
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        width: dim,
-        height: dim,
-        borderRadius: "50%",
-        border: `1.5px solid rgba(245,240,230,0.15)`,
-        borderTopColor: "rgba(245,240,230,0.85)",
-        animation: "wrks-spin 900ms linear infinite",
-      }}
-    />
-  );
-}
-
-function RocketIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
-      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
-      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
-      <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
-    </svg>
-  );
-}
-
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
   return s.slice(0, max - 1) + "…";
-}
-
-// ============================================================
-// Design narrative — bulleted design decisions after render completes
-// ============================================================
-
-function DesignNarrativeBlock({ narrative }: { narrative: DesignNarrative }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        fontFamily: "var(--font-sans)",
-        fontSize: 13.5,
-        lineHeight: 1.55,
-        letterSpacing: "-0.003em",
-        color: "rgba(245,240,230,0.9)",
-      }}
-    >
-      <p style={{ margin: 0 }}>{narrative.intro}</p>
-      <ul
-        style={{
-          margin: 0,
-          paddingLeft: 18,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        {narrative.bullets.map((b, i) => (
-          <li key={i} style={{ color: "rgba(245,240,230,0.85)" }}>
-            <span style={{ fontWeight: 600, color: "rgba(245,240,230,0.95)" }}>
-              {b.label}
-            </span>
-            : {b.text}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-// Compose a short design narrative from the ingested brand facts. Deterministic
-// and cheap (no LLM round-trip needed for what's essentially a template).
-function synthesizeNarrative(facts: BrandFacts): DesignNarrative {
-  const brand = facts.brandName ?? "the brand";
-  const primary = facts.palette.find((c) => c.role === "primary")?.hex;
-  const secondary = facts.palette.find((c) => c.role === "secondary")?.hex;
-  const displayType = facts.typefaces?.display ?? "Geist";
-
-  // Palette description — infer mood from hex values
-  const paletteMood = describePalette(primary, secondary);
-  const systemName = `${brand} Professional`;
-
-  const bullets: Array<{ label: string; text: string }> = [
-    {
-      label: "Hero Section",
-      text: `Features a bold, high-impact headline in ${displayType} and a clear primary CTA designed to drive conversions immediately.`,
-    },
-    {
-      label: "Editorial Layout",
-      text: "Every element — from the feature bento to the reviews wall — is composed on an asymmetric editorial grid to feel intentionally designed, not templated.",
-    },
-  ];
-
-  if (facts.testimonialsFound > 0) {
-    bullets.push({
-      label: "Social Proof & Trust",
-      text: `Integrated ${facts.testimonialsFound} real testimonial${facts.testimonialsFound === 1 ? "" : "s"} from your existing site along with a prominent trust row to build immediate credibility.`,
-    });
-  } else {
-    bullets.push({
-      label: "Social Proof & Trust",
-      text: `A "trusted by" strip and reviews section anchored below the hero to build credibility with first-time visitors.`,
-    });
-  }
-
-  if (facts.verticals.length > 0) {
-    bullets.push({
-      label: "Voice & Copy",
-      text: `Tone calibrated for the ${facts.verticals.slice(0, 2).join(" / ")} space — direct, benefit-forward, and free of generic AI-tell language.`,
-    });
-  }
-
-  return {
-    intro: `"${systemName}" design system using ${paletteMood} to convey trust and intent. The full page is drafted section by section around a mobile-first rhythm.`,
-    bullets,
-  };
-}
-
-function describePalette(primary: string | undefined, secondary: string | undefined): string {
-  if (!primary) return "a considered palette";
-  const p = primary.toLowerCase();
-  // Rough hue classification from hex
-  const r = parseInt(p.slice(1, 3), 16);
-  const g = parseInt(p.slice(3, 5), 16);
-  const b = parseInt(p.slice(5, 7), 16);
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  let hue = "warm";
-  if (b > r && b > g) hue = "cool blue";
-  else if (r > b && r > g && r > 180) hue = "bold red";
-  else if (r > 200 && g > 100 && b < 100) hue = "warm amber";
-  else if (g > r && g > b) hue = "grounded green";
-  else if (r > 180 && g > 100 && b > 150) hue = "expressive pink";
-  const value = l < 60 ? `a deep ${hue}` : l > 200 ? `a light ${hue}` : `a rich ${hue}`;
-  if (secondary && secondary !== primary) {
-    return `${value} paired with a supporting accent`;
-  }
-  return `${value} palette`;
-}
-
-// Estimated-time formatter for the JobStatusPill (e.g. "2m 30s")
-function formatShortTime(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  if (total < 60) return `${total}s`;
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  if (m < 3 && s > 0) return `${m}m ${s}s`;
-  return `${m}m`;
 }
 
 function verbForBytes(bytes: number): string {
@@ -1530,12 +885,4 @@ function verbForBytes(bytes: number): string {
   if (bytes < 50_000) return "styling components";
   if (bytes < 58_000) return "polishing details";
   return "finishing";
-}
-
-function formatElapsed(ms: number): string {
-  if (ms < 1000) return "0:00";
-  const total = Math.floor(ms / 1000);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
 }
