@@ -6,6 +6,7 @@ import { SiteCanvas, type SiteArtboard } from "@/components/site-canvas/site-can
 import type { DesignSystemArtboardData } from "@/components/site-canvas/design-system-artboard";
 import { PreviewOverlay } from "@/components/site-canvas/preview-overlay";
 import { AnalogPanel } from "@/components/site-canvas/analog-panel";
+import { PublishModal } from "@/components/site-canvas/publish-modal";
 
 // /studio/sites/generating — the generation theater.
 //
@@ -60,6 +61,7 @@ export default function GeneratingPage() {
   const [projectTitle, setProjectTitle] = useState<string>("Marketing Landing Page");
   const [error, setError] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
   const streamStartedRef = useRef(false);
 
   // Derive stepper phase from bytes during generation.
@@ -297,6 +299,8 @@ export default function GeneratingPage() {
         onExit={() => router.push("/studio/sites")}
         canPreview={!!readyJobId}
         onOpenPreview={() => setPreviewOpen(true)}
+        canPublish={!!readyJobId}
+        onOpenPublish={() => setPublishOpen(true)}
       />
 
       {/* Global keyframes reused across children */}
@@ -395,6 +399,15 @@ export default function GeneratingPage() {
           onClose={() => setPreviewOpen(false)}
         />
       )}
+
+      {/* Publish modal — slug picker + subdomain */}
+      {publishOpen && readyJobId && (
+        <PublishModal
+          jobId={readyJobId}
+          brandName={projectTitle}
+          onClose={() => setPublishOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -407,11 +420,15 @@ function TopToolbar({
   onExit,
   canPreview,
   onOpenPreview,
+  canPublish,
+  onOpenPublish,
 }: {
   title: string;
   onExit: () => void;
   canPreview: boolean;
   onOpenPreview: () => void;
+  canPublish: boolean;
+  onOpenPublish: () => void;
 }) {
   return (
     <div
@@ -462,10 +479,15 @@ function TopToolbar({
           icon="preview"
           onClick={onOpenPreview}
           disabled={!canPreview}
-          primary={canPreview}
+        />
+        <ToolbarButton
+          label="Publish"
+          icon="publish"
+          onClick={onOpenPublish}
+          disabled={!canPublish}
+          primary={canPublish}
         />
         <ToolbarButton label="Export" icon="export" />
-        <ToolbarButton label="Share" icon="share" />
         <div
           style={{
             width: 32,
@@ -499,7 +521,7 @@ function ToolbarButton({
   primary,
 }: {
   label: string;
-  icon: "export" | "share" | "preview";
+  icon: "export" | "share" | "preview" | "publish";
   onClick?: () => void;
   disabled?: boolean;
   primary?: boolean;
@@ -545,6 +567,10 @@ function ToolbarButton({
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
           <circle cx="12" cy="12" r="3" />
+        </svg>
+      ) : icon === "publish" ? (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12l7-7 7 7M12 5v14" />
         </svg>
       ) : icon === "export" ? (
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
