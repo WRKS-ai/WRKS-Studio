@@ -19,6 +19,7 @@ type Props = {
   audienceDescription: string | null;
   differentiator: string | null;
   agentName: string | null;
+  sitesList?: React.ReactNode; // server-rendered list of user's existing sites
 };
 
 // Placeholder examples describe THE BUSINESS, not a page type — we
@@ -43,6 +44,7 @@ export function SitesComposer({
   audienceDescription,
   differentiator,
   agentName,
+  sitesList,
 }: Props) {
   const router = useRouter();
   const [brief, setBrief] = useState("");
@@ -105,7 +107,7 @@ export function SitesComposer({
       </div>
 
       <div className="relative z-10 size-full overflow-y-auto">
-        <div className="min-h-full flex items-center justify-center px-10 py-16">
+        <div className="min-h-full flex flex-col items-center justify-center px-10 py-16">
           <div className="w-full" style={{ maxWidth: 780 }}>
             <Link
               href="/studio"
@@ -120,6 +122,8 @@ export function SitesComposer({
             >
               <span aria-hidden>←</span> Studio
             </Link>
+
+            {sitesList}
 
             <h1
               className="text-center"
