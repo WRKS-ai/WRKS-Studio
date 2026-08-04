@@ -307,6 +307,78 @@ export async function markJobReadyHtml(
   }
 }
 
+// Multi-page: mark ready with an array of pages + brand-ingest snapshot.
+// Home page's HTML also lives in the top-level `html` column for backwards
+// compat with anything (like the render endpoint) that currently reads
+// only that column.
+export type StoredPage = { path: string; html: string; title: string };
+
+export async function markJobReadyWithPages(
+  jobId: string,
+  pages: StoredPage[],
+  brandIngest: IngestedBrand | null,
+): Promise<void> {
+  const supabase = createServiceSupabaseClient() as AnySupabase;
+  const home = pages.find((p) => p.path === "/") ?? pages[0];
+  const { error } = await supabase
+    .from(TABLE)
+    .update({
+      status: "ready",
+      html: home?.html ?? "",
+      pages,
+      page_count: pages.length,
+      brand_ingest: brandIngest,
+      phase: "done",
+      phase_message: `Site is live — ${pages.length} page${pages.length === 1 ? "" : "s"}.`,
+      error: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", jobId);
+  if (error) {
+    console.error("[job-store] markJobReadyWithPages failed:", error);
+  }
+}
+
+// Fetch a specific page's HTML by slug path. Used by the wildcard-
+// subdomain catch-all route to serve /about, /services, /contact etc.
+export async function getSitePageHtml(
+  jobId: string,
+  path: string,
+): Promise<string | null> {
+  const supabase = createServiceSupabaseClient() as AnySupabase;
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("html, pages, status, expires_at")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = data as {
+    html: string | null;
+    pages: StoredPage[] | null;
+    status: string;
+    expires_at: string | null;
+  };
+  if (row.status !== "ready") return null;
+  if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) return null;
+
+  const normalized = normalizePath(path);
+  if (row.pages && row.pages.length > 0) {
+    const match = row.pages.find((p) => p.path === normalized);
+    return match?.html ?? null;
+  }
+  // Legacy single-page job — only serve the root.
+  if (normalized === "/") return row.html;
+  return null;
+}
+
+function normalizePath(path: string): string {
+  if (!path || path === "") return "/";
+  const trimmed = path.startsWith("/") ? path : `/${path}`;
+  // Strip trailing slash except for root
+  if (trimmed.length > 1 && trimmed.endsWith("/")) return trimmed.slice(0, -1);
+  return trimmed;
+}
+
 // Public read for /api/sites/render/[jobId]. Returns null if the job
 // doesn't exist, isn't ready, or has expired.
 export async function getReadyJobHtml(jobId: string): Promise<string | null> {

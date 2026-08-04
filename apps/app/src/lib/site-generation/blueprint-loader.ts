@@ -47,6 +47,16 @@ export type BlueprintBundle = {
     youtubeCta: string;
     aboutFounder: string;
   };
+  // Universal page-type MDs used for multi-page generation (Ship 3+).
+  // Home page still comes from personal-brand deep spec (or the corpus
+  // reference's sections.md); About/Services/Contact/Lead-Magnet use
+  // these universal specs paired with the picked reference's vibe.
+  pages: {
+    about: string;
+    services: string;
+    contact: string;
+    leadMagnet: string;
+  };
 };
 
 export function loadBlueprints(): BlueprintBundle {
@@ -77,6 +87,12 @@ export function loadBlueprints(): BlueprintBundle {
       reviews: readSafe("personal-brand/sections/reviews.md"),
       youtubeCta: readSafe("personal-brand/sections/youtube-cta.md"),
       aboutFounder: readSafe("personal-brand/sections/about-founder.md"),
+    },
+    pages: {
+      about: readSafe("pages/about.md"),
+      services: readSafe("pages/services.md"),
+      contact: readSafe("pages/contact.md"),
+      leadMagnet: readSafe("pages/lead-magnet.md"),
     },
   };
 

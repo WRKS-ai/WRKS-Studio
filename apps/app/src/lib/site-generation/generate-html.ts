@@ -9,6 +9,7 @@ import {
   type PaletteHint,
   type RouterInput,
 } from "./corpus-router";
+import type { PagePlan, PageType } from "./page-planner";
 
 // The v3 pipeline: Opus 4.7 reads the blueprint MDs + ingested brand
 // data + user brief, and returns ONE complete HTML5 document.
@@ -38,6 +39,8 @@ export type GenerateInput = {
   ingest: IngestedBrand | null;               // deep-ingested facts, or null if no URL
   imagePack: ImagePack;                       // pre-curated Pexels photos for hero + tiles
   siteIntent?: "has_site" | "no_site" | null; // for router — routes labels/language
+  pageType?: PageType;                        // "home" default; other types for multi-page
+  pagePlan?: PagePlan[];                      // full site plan — needed for cross-page nav
 };
 
 export type GenerateResult = {
@@ -71,8 +74,9 @@ export async function generateHtmlDocument(
 
   const anthropic = new Anthropic();
 
-  const system = buildSystemPrompt(pick);
-  const user = buildUserPrompt(input, pick);
+  const pageType: PageType = input.pageType ?? "home";
+  const system = buildSystemPrompt(pick, pageType, input.pagePlan);
+  const user = buildUserPrompt(input, pick, pageType);
 
   // The SDK requires streaming for any call that MAY exceed 10 minutes.
   // Opus at 32K output tokens crosses that threshold. Streaming here is
@@ -119,11 +123,21 @@ export async function generateHtmlDocument(
 // Prompt assembly
 // ============================================================
 
-function buildSystemPrompt(pick: CorpusPick): string {
+function buildSystemPrompt(
+  pick: CorpusPick,
+  pageType: PageType,
+  pagePlan: PagePlan[] | undefined,
+): string {
   const hasSecondary = pick.secondary !== null;
   const referenceLine = hasSecondary
     ? `TWO reference bundles: **${pick.primary.id}** (primary, weight ${pick.primary.weight}) and **${pick.secondary!.id}** (secondary, weight ${pick.secondary!.weight})`
     : `ONE reference bundle: **${pick.primary.id}** (primary)`;
+
+  // Multi-page context block. Home pages still generate a full homepage
+  // per reference's sections.md; non-home pages generate a specific page
+  // using the corresponding page-type MD. Either way, the nav must link
+  // to every page in the plan.
+  const multiPageBlock = pagePlan && pagePlan.length > 1 ? buildMultiPageBlock(pageType, pagePlan) : "";
 
   return `You are the site-generation model for WRKS Studio.
 
@@ -136,8 +150,10 @@ You are given:
 2. **${referenceLine}** — inspiration for section inventory, structural rhythm, and visual character. NOT a template to copy verbatim.
 3. **The user's brand data** — palette, typography, offer, audience, voice, testimonials from onboarding + optional deep-ingest of their existing URL.
 4. **The user's brief** — one sentence about their business.
+${pageType !== "home" ? `5. **The page-type spec** — a composition file describing THIS page (${pageType}). Use it as the structural blueprint; keep the reference's vibe.` : ""}
 
-Your task is to REMIX the reference bundle(s) into a homepage that fits THIS brand, obeying DESIGN.md's constitutional law absolutely.
+Your task is to REMIX the reference bundle(s) into ${pageType === "home" ? "a homepage" : `the ${pageType} page`} that fits THIS brand, obeying DESIGN.md's constitutional law absolutely.
+${multiPageBlock}
 
 # THE REMIX PRINCIPLE
 
@@ -155,13 +171,22 @@ Your task is to REMIX the reference bundle(s) into a homepage that fits THIS bra
 
 # SECTION SELECTION
 
-Pick **8-14 sections** based on the reference's \`sections.md\` inventory, adapted for the user:
+${pageType === "home"
+  ? `Pick **8-14 sections** based on the reference's \`sections.md\` inventory, adapted for the user:
 
 - ALWAYS include: nav, hero, at least one proof/trust section, at least one offer/services section, at least one about/founder section, one final CTA, footer.
 - Include OR skip based on user context: testimonials (skip if none in ingest data), pricing tiers (skip if no explicit pricing), team grid (skip for solo founders), video reels (skip if no social links), lead magnet form (skip unless brief signals lead-gen intent).
 - Follow the reference's "Adaptation rules" block in sections.md — those tell you what to skip for smaller/adjacent business types.
 - Alternate light and dark sections for editorial rhythm. Long runs of same-tone sections lose the eye.
-- Never emit the AI-wireframe default sequence (hero → 3-cards → testimonials → logo bar → CTA) — that's a DESIGN.md ban.
+- Never emit the AI-wireframe default sequence (hero → 3-cards → testimonials → logo bar → CTA) — that's a DESIGN.md ban.`
+  : `Follow the page-type spec provided in the user prompt (${pageType}.md) — it dictates:
+- Section count for this page type
+- Section order + adaptation rules per business_type
+- Copy voice notes + bans specific to this page
+
+Do NOT pull the reference's home-page section inventory here. The reference contributes VIBE (character.md) only — palette, typography choices, motion character, section rhythm. The page-type spec contributes STRUCTURE.
+
+Never emit the AI-wireframe default sequence — that's a DESIGN.md ban.`}
 
 # SECTION SPACING — CRITICAL
 
@@ -286,16 +311,57 @@ For OTHER grids (feature grids, service grids, blog grids), use Tailwind grid ut
 Target 40,000–60,000 chars of compact HTML for all sections + footer. If you feel you're running long, TIGHTEN INLINE STYLES (move to \`<style>\` block), don't drop sections. Never truncate.`;
 }
 
-function buildUserPrompt(input: GenerateInput, pick: CorpusPick): string {
+function buildMultiPageBlock(pageType: PageType, pagePlan: PagePlan[]): string {
+  const currentPage = pagePlan.find((p) => matchesType(p, pageType));
+  const pagesList = pagePlan
+    .map((p) => `- \`${p.path}\` — ${p.navLabel}${p === currentPage ? " (current)" : ""}`)
+    .join("\n");
+
+  return `
+# MULTI-PAGE CONTEXT
+
+This is a MULTI-PAGE site. You're generating the **${pageType === "home" ? "HOME" : pageType.toUpperCase()}** page${currentPage ? ` at \`${currentPage.path}\`` : ""}.
+
+**All pages in this site:**
+${pagesList}
+
+**NAV REQUIREMENT** — non-negotiable:
+- The nav on this page MUST link to ALL pages in the plan above, in the order listed. Use the exact paths (\`/\`, \`/about\`, etc.) and the exact nav labels.
+- These are REAL routes, not \`#anchors\`. Use \`<a href="/about">\` — never \`<a href="#about">\`.
+- Mark the current page's link with a subtle current-state indicator (thin underline in the accent color OR slightly bolder weight). NEVER a background pill on the current link — that reads like a button.
+
+**FOOTER REQUIREMENT** — non-negotiable:
+- Footer must include a nav column that repeats the same page links (all paths, all labels).
+- Footer must repeat brand mark + copyright with the current year (${new Date().getFullYear()}).
+
+**CROSS-PAGE CONSISTENCY** — this page will render alongside sibling pages generated in the same session. To feel like ONE site:
+- Same palette across all pages (from brand data).
+- Same typefaces + type scale.
+- Same nav structure (per above).
+- Same footer structure (per above).
+- Same CTA vocabulary (primary CTA repeats with contextual variation across pages).
+`;
+}
+
+function matchesType(page: PagePlan, pageType: PageType): boolean {
+  return page.pageType === pageType;
+}
+
+function buildUserPrompt(input: GenerateInput, pick: CorpusPick, pageType: PageType): string {
   const { brief, brand, ingest, imagePack } = input;
 
   // Load DESIGN.md (constitution) from the same blueprint loader.
   const bundle = loadBlueprints();
 
-  // When primary is personal-brand, ALSO include its deep composition
-  // spec so we preserve the proven Bill-Fanter quality for that vertical.
-  // Other references use light corpus only (character + sections + voice-map).
-  const includeDeepSpec = pick.primary.id === "personal-brand";
+  // When primary is personal-brand AND this is the home page, ALSO
+  // include the deep composition spec so we preserve the proven
+  // Bill-Fanter quality for that vertical. Non-home pages use the
+  // universal page-type MD regardless of reference.
+  const includeDeepSpec = pageType === "home" && pick.primary.id === "personal-brand";
+
+  // For non-home pages, load the appropriate page-type MD as the
+  // structural spec (character stays from the reference).
+  const pageSpec = pageType === "home" ? null : pageSpecFor(pageType, bundle);
 
   const brandData = {
     onboarding: {
@@ -344,16 +410,25 @@ function buildUserPrompt(input: GenerateInput, pick: CorpusPick): string {
     "",
     `# 2. Primary reference — ${pick.primary.id} (weight ${pick.primary.weight})`,
     "",
+    pageType === "home"
+      ? "Use this reference's character, section inventory, and voice-map to shape the homepage."
+      : "Use this reference's CHARACTER only (palette, typography, motion tier, section rhythm). The page-type spec below dictates STRUCTURE.",
+    "",
     "## Character",
     pick.primary.character,
     "",
-    "## Section inventory",
-    pick.primary.sections,
-    "",
-    "## Voice fit",
-    pick.primary.voiceMap,
-    "",
   ];
+
+  if (pageType === "home") {
+    parts.push(
+      "## Section inventory",
+      pick.primary.sections,
+      "",
+      "## Voice fit",
+      pick.primary.voiceMap,
+      "",
+    );
+  }
 
   if (pick.secondary) {
     parts.push(
@@ -366,11 +441,28 @@ function buildUserPrompt(input: GenerateInput, pick: CorpusPick): string {
       "## Character",
       pick.secondary.character,
       "",
-      "## Section inventory",
-      pick.secondary.sections,
+    );
+    if (pageType === "home") {
+      parts.push(
+        "## Section inventory",
+        pick.secondary.sections,
+        "",
+        "## Voice fit",
+        pick.secondary.voiceMap,
+        "",
+      );
+    }
+  }
+
+  // Non-home pages get the universal page-type spec as their structural
+  // blueprint. Reference bundles above only contribute vibe.
+  if (pageSpec) {
+    parts.push(
+      "---",
       "",
-      "## Voice fit",
-      pick.secondary.voiceMap,
+      `# 4. Page-type spec — ${pageType} page structure (BINDING for section choice)`,
+      "",
+      pageSpec,
       "",
     );
   }
@@ -443,10 +535,39 @@ function buildUserPrompt(input: GenerateInput, pick: CorpusPick): string {
     "",
     "# Task",
     "",
-    `Generate the complete HTML5 document for this brand's homepage. Remix the ${pick.secondary ? "two references" : "reference"} above under DESIGN.md's constitutional law. Adapt section selection to THIS brand's business_type + voice_descriptor + brief — do not slavishly copy the reference sequence. Return ONLY the fenced code block starting with \`\`\`html and ending with \`\`\`. Nothing before, nothing after.`,
+    taskInstruction(pageType, pick),
   );
 
   return parts.join("\n");
+}
+
+// Maps page type to the corresponding page-spec MD from the blueprint bundle.
+function pageSpecFor(
+  pageType: PageType,
+  bundle: ReturnType<typeof loadBlueprints>,
+): string {
+  switch (pageType) {
+    case "about":
+      return bundle.pages.about;
+    case "services":
+      return bundle.pages.services;
+    case "contact":
+      return bundle.pages.contact;
+    case "lead-magnet":
+      return bundle.pages.leadMagnet;
+    case "home":
+    default:
+      return "";
+  }
+}
+
+// Final task line adapted per page type.
+function taskInstruction(pageType: PageType, pick: CorpusPick): string {
+  const remixTarget = pick.secondary ? "two references" : "reference";
+  if (pageType === "home") {
+    return `Generate the complete HTML5 document for this brand's homepage. Remix the ${remixTarget} above under DESIGN.md's constitutional law. Adapt section selection to THIS brand's business_type + voice_descriptor + brief — do not slavishly copy the reference sequence. Return ONLY the fenced code block starting with \`\`\`html and ending with \`\`\`. Nothing before, nothing after.`;
+  }
+  return `Generate the complete HTML5 document for this brand's **${pageType}** page. Follow the page-type spec above for structure. Draw visual character from the ${remixTarget} above (palette, typography, motion, rhythm). Obey DESIGN.md's constitutional law absolutely. Include the shared nav + footer linking to all pages in the site (see MULTI-PAGE CONTEXT in the system prompt). Return ONLY the fenced code block starting with \`\`\`html and ending with \`\`\`. Nothing before, nothing after.`;
 }
 
 // Rough palette-hint inference from ingested brand colors.

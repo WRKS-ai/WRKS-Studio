@@ -5,9 +5,11 @@ import type { BrandContext } from "./design-system";
 import { normalizeGenerationError } from "./error-normalize";
 import {
   markJobError,
-  markJobReadyHtml,
+  markJobReadyWithPages,
   updateJobPhase,
+  type StoredPage,
 } from "./job-store";
+import { planPages } from "./page-planner";
 
 // runGenerationJob — the actual work, decoupled from any HTTP request
 // lifecycle. Runs ingest + Opus + persists HTML to Supabase. Updates
@@ -84,40 +86,77 @@ export async function runGenerationJob(input: RunnerInput): Promise<void> {
     });
 
     // ------------------------------------------------------
-    // Phase 2: Opus 4.7 emits full HTML
+    // Phase 2: page-by-page generation. Loops through the planned pages
+    // (Home + supporting pages), calling Opus once per page. Home first
+    // so the theater canvas can render it while the rest generate.
     // ------------------------------------------------------
-    await updateJobPhase(
-      jobId,
-      "generate",
-      "Drafting your site — tailored to your palette, voice, and offer. About 4-5 minutes.",
-    );
-
-    // Throttle phase updates so we don't hammer Supabase with writes
-    // — Opus streams at ~50ms cadence, we push a progress row every 2s.
-    let lastPush = 0;
-    const result = await generateHtmlDocument(
-      { brief, brand, ingest, imagePack, siteIntent: siteIntent ?? null },
-      (ev) => {
-        const now = Date.now();
-        if (now - lastPush > 2000) {
-          lastPush = now;
-          // Fire-and-forget — don't block Opus streaming on DB writes.
-          void updateJobPhase(
-            jobId,
-            "generate.progress",
-            `Writing your site… ${Math.round(ev.totalChars / 1000)}kb so far.`,
-            { chars: ev.totalChars },
-          );
-        }
-      },
-    );
-
-    // ------------------------------------------------------
-    // Phase 3: persist
-    // ------------------------------------------------------
-    await markJobReadyHtml(jobId, result.html, ingest);
+    const plan = planPages(brand);
     console.log(
-      `[runner] job ${jobId} ready: ${result.html.length} bytes, ${result.modelUsage.inputTokens}/${result.modelUsage.outputTokens} tokens`,
+      `[runner] job ${jobId} planned ${plan.length} pages: ${plan.map((p) => p.path).join(", ")}`,
+    );
+
+    const generatedPages: StoredPage[] = [];
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+
+    for (let i = 0; i < plan.length; i++) {
+      const page = plan[i]!;
+      const pageIndex = i + 1;
+
+      await updateJobPhase(
+        jobId,
+        `generate.page.${i}`,
+        i === 0
+          ? `Drafting your home page — page ${pageIndex} of ${plan.length}.`
+          : `Drafting your ${page.navLabel.toLowerCase()} page — page ${pageIndex} of ${plan.length}.`,
+        { pageIndex, totalPages: plan.length, currentPath: page.path },
+      );
+
+      // Throttle progress updates per page.
+      let lastPush = 0;
+      const result = await generateHtmlDocument(
+        {
+          brief,
+          brand,
+          ingest,
+          imagePack,
+          siteIntent: siteIntent ?? null,
+          pageType: page.pageType,
+          pagePlan: plan,
+        },
+        (ev) => {
+          const now = Date.now();
+          if (now - lastPush > 2000) {
+            lastPush = now;
+            void updateJobPhase(
+              jobId,
+              "generate.progress",
+              `Writing ${page.navLabel.toLowerCase()}… ${Math.round(ev.totalChars / 1000)}kb so far (page ${pageIndex}/${plan.length}).`,
+              { chars: ev.totalChars, pageIndex, totalPages: plan.length },
+            );
+          }
+        },
+      );
+
+      generatedPages.push({
+        path: page.path,
+        html: result.html,
+        title: page.title,
+      });
+      totalInputTokens += result.modelUsage.inputTokens;
+      totalOutputTokens += result.modelUsage.outputTokens;
+
+      console.log(
+        `[runner] job ${jobId} page ${page.path} ready: ${result.html.length} bytes`,
+      );
+    }
+
+    // ------------------------------------------------------
+    // Phase 3: persist all pages
+    // ------------------------------------------------------
+    await markJobReadyWithPages(jobId, generatedPages, ingest);
+    console.log(
+      `[runner] job ${jobId} ready: ${generatedPages.length} pages, ${totalInputTokens}/${totalOutputTokens} tokens total`,
     );
   } catch (err) {
     // Raw error goes to server logs for debugging. Users only ever see
