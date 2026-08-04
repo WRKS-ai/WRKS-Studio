@@ -6,12 +6,18 @@ import { suggestSlug, validateSlug } from "@/lib/published-sites/slugs";
 // Publish modal — takes a finished generation and publishes it to
 // {slug}.wrksstudio.com. Auto-suggests a slug from the brand name.
 // Live-checks availability with a 350ms debounce.
+//
+// Labels differentiate between users who already have a real site
+// (this is a preview URL, not a replacement) vs users starting fresh
+// (this IS their live site). Pulled from /api/me/site-intent on mount.
 
 type CheckState =
   | { status: "idle" }
   | { status: "checking" }
   | { status: "available"; mine?: boolean }
   | { status: "unavailable"; reason: string };
+
+type SiteIntent = "has_site" | "no_site" | null;
 
 export function PublishModal({
   jobId,
@@ -28,7 +34,24 @@ export function PublishModal({
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [siteIntent, setSiteIntent] = useState<SiteIntent>(null);
   const debounceRef = useRef<number | null>(null);
+
+  // Fetch site intent once on mount so we can swap labels.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me/site-intent")
+      .then((r) => r.json())
+      .then((d: { siteIntent?: SiteIntent }) => {
+        if (!cancelled) setSiteIntent(d.siteIntent ?? null);
+      })
+      .catch(() => {
+        /* leave as null — labels fall back to neutral */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const runCheck = useCallback((next: string) => {
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
@@ -70,6 +93,25 @@ export function PublishModal({
 
   const canPublish =
     !publishing && !publishedUrl && check.status === "available";
+
+  const isPreview = siteIntent === "has_site";
+  const primaryLabel = publishing
+    ? "Publishing…"
+    : check.status === "available" && check.mine
+    ? isPreview
+      ? "Update preview"
+      : "Republish"
+    : isPreview
+    ? "Publish preview"
+    : "Publish live";
+  const successHeading = isPreview ? "Your preview is live" : "Your site is live";
+  const successSubcopy = isPreview
+    ? "Share this preview link. Your existing site is untouched."
+    : "Share this link — anyone with it can see your site.";
+  const introHeading = isPreview ? "Publish a preview" : "Publish your site";
+  const introSubcopy = isPreview
+    ? "Pick a preview address. Your live site stays exactly as it is."
+    : "Pick a subdomain. Your site will be live in seconds.";
 
   async function handlePublish() {
     if (!canPublish) return;
@@ -157,7 +199,7 @@ export function PublishModal({
                   letterSpacing: "-0.01em",
                 }}
               >
-                Publish your site
+                {introHeading}
               </span>
               <span
                 style={{
@@ -166,7 +208,7 @@ export function PublishModal({
                   letterSpacing: "-0.003em",
                 }}
               >
-                Pick a subdomain. Your site will be live in seconds.
+                {introSubcopy}
               </span>
             </div>
 
@@ -297,7 +339,7 @@ export function PublishModal({
                   transition: "background 150ms, color 150ms",
                 }}
               >
-                {publishing ? "Publishing…" : check.status === "available" && check.mine ? "Republish" : "Publish"}
+                {primaryLabel}
               </button>
             </div>
           </>
@@ -311,7 +353,7 @@ export function PublishModal({
                   letterSpacing: "-0.01em",
                 }}
               >
-                Your site is live
+                {successHeading}
               </span>
               <span
                 style={{
@@ -320,7 +362,7 @@ export function PublishModal({
                   letterSpacing: "-0.003em",
                 }}
               >
-                Share this link. DNS may take a moment to propagate for new visitors.
+                {successSubcopy}
               </span>
             </div>
 
