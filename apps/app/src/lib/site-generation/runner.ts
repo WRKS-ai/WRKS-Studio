@@ -22,10 +22,11 @@ export type RunnerInput = {
   jobId: string;
   brief: string;
   brand: BrandContext;
+  siteIntent?: "has_site" | "no_site" | null;
 };
 
 export async function runGenerationJob(input: RunnerInput): Promise<void> {
-  const { jobId, brief, brand } = input;
+  const { jobId, brief, brand, siteIntent } = input;
 
   try {
     // ------------------------------------------------------
@@ -88,14 +89,14 @@ export async function runGenerationJob(input: RunnerInput): Promise<void> {
     await updateJobPhase(
       jobId,
       "generate",
-      "Drafting your site — 10 sections, tailored to your palette, voice, and offer. About 4-5 minutes.",
+      "Drafting your site — tailored to your palette, voice, and offer. About 4-5 minutes.",
     );
 
     // Throttle phase updates so we don't hammer Supabase with writes
     // — Opus streams at ~50ms cadence, we push a progress row every 2s.
     let lastPush = 0;
     const result = await generateHtmlDocument(
-      { brief, brand, ingest, imagePack },
+      { brief, brand, ingest, imagePack, siteIntent: siteIntent ?? null },
       (ev) => {
         const now = Date.now();
         if (now - lastPush > 2000) {

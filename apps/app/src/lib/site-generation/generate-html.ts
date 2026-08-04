@@ -3,6 +3,12 @@ import type { BrandContext } from "./design-system";
 import type { IngestedBrand } from "./brand-ingest";
 import type { ImagePack } from "./image-curator";
 import { loadBlueprints } from "./blueprint-loader";
+import {
+  pickReferences,
+  type CorpusPick,
+  type PaletteHint,
+  type RouterInput,
+} from "./corpus-router";
 
 // The v3 pipeline: Opus 4.7 reads the blueprint MDs + ingested brand
 // data + user brief, and returns ONE complete HTML5 document.
@@ -31,6 +37,7 @@ export type GenerateInput = {
   brand: BrandContext;                        // from business_profiles
   ingest: IngestedBrand | null;               // deep-ingested facts, or null if no URL
   imagePack: ImagePack;                       // pre-curated Pexels photos for hero + tiles
+  siteIntent?: "has_site" | "no_site" | null; // for router — routes labels/language
 };
 
 export type GenerateResult = {
@@ -51,11 +58,21 @@ export async function generateHtmlDocument(
   input: GenerateInput,
   onProgress?: StreamProgress,
 ): Promise<GenerateResult> {
-  const bundle = loadBlueprints();
+  // 1. Route: pick 1-2 references from the corpus based on brand context.
+  const routerInput: RouterInput = {
+    voiceDescriptor: input.brand.voiceDescriptor,
+    businessType: input.brand.businessType,
+    primaryGoal: input.brand.primaryGoal,
+    siteIntent: input.siteIntent ?? null,
+    paletteHint: inferPaletteHint(input.ingest),
+  };
+  const pick = pickReferences(routerInput);
+  console.log(`[generate-html] corpus pick — ${pick.reasoning}`);
+
   const anthropic = new Anthropic();
 
-  const system = buildSystemPrompt();
-  const user = buildUserPrompt(input, bundle);
+  const system = buildSystemPrompt(pick);
+  const user = buildUserPrompt(input, pick);
 
   // The SDK requires streaming for any call that MAY exceed 10 minutes.
   // Opus at 32K output tokens crosses that threshold. Streaming here is
@@ -102,26 +119,49 @@ export async function generateHtmlDocument(
 // Prompt assembly
 // ============================================================
 
-function buildSystemPrompt(): string {
-  return `You are the site-generation model for WRKS Studio. You receive:
-  1. DESIGN.md — global taste + bans + tokens.
-  2. A page composition file — which sections render + page-level rules.
-  3. Section specification files — one per section, with wrapper dims, per-element CSS, copy rules, content schema, fallbacks, assembled HTML reference.
-  4. The user's brief.
-  5. The user's brand data — onboarding + optional deep-ingest from their URL: palette, typefaces, logo, hero image, existing headline, testimonials, verticals.
+function buildSystemPrompt(pick: CorpusPick): string {
+  const hasSecondary = pick.secondary !== null;
+  const referenceLine = hasSecondary
+    ? `TWO reference bundles: **${pick.primary.id}** (primary, weight ${pick.primary.weight}) and **${pick.secondary!.id}** (secondary, weight ${pick.secondary!.weight})`
+    : `ONE reference bundle: **${pick.primary.id}** (primary)`;
 
-Your job: emit ONE complete HTML5 document rendering the full homepage.
+  return `You are the site-generation model for WRKS Studio.
+
+# YOUR JOB
+
+Emit ONE complete HTML5 document — a full homepage for the user's brand.
+
+You are given:
+1. **DESIGN.md** — the constitution. Its bans are law, its tokens are non-negotiable.
+2. **${referenceLine}** — inspiration for section inventory, structural rhythm, and visual character. NOT a template to copy verbatim.
+3. **The user's brand data** — palette, typography, offer, audience, voice, testimonials from onboarding + optional deep-ingest of their existing URL.
+4. **The user's brief** — one sentence about their business.
+
+Your task is to REMIX the reference bundle(s) into a homepage that fits THIS brand, obeying DESIGN.md's constitutional law absolutely.
+
+# THE REMIX PRINCIPLE
+
+- **Reference bundles suggest.** DESIGN.md decides. When they conflict, DESIGN.md wins.
+- **Section inventory** in each reference's \`sections.md\` is the starting point — not a fixed sequence. Adapt: drop sections that don't fit the user's business, reorder based on what serves this specific brand's conversion flow.
+- **Character** in each reference's \`character.md\` describes the vibe you're inspired by — not literal moves to copy. If the reference uses italics as accents but DESIGN.md bans italics, use weight-contrast instead.
+- **When two references are picked**, primary drives the overall shape (~65%); secondary contributes signature moves (~35%). Draw structural spine from primary, borrow one or two visual signatures from secondary.
 
 # OUTPUT FORMAT
 
 - ONLY the HTML doc, wrapped in a single \`\`\`html fenced block. No prose before or after.
 - Start with \`<!DOCTYPE html>\`.
 - ONE \`<head>\` with: meta charset + viewport, title, meta description, OG tags, favicon, preconnect + Google Fonts, Tailwind CDN (\`https://cdn.tailwindcss.com\`), ONE inline \`<style>\` block for section CSS + CSS variables.
-- Prefer Tailwind utilities for common spacing/layout; put complex/reused CSS in the \`<style>\` block with semantic class names (\`.hero\`, \`.mega-tile\`). DO NOT inline every element's styles — verbose markup wastes tokens and clips sections.
+- Prefer Tailwind utilities for common spacing/layout; put complex/reused CSS in the \`<style>\` block with semantic class names (\`.hero\`, \`.section-x\`). DO NOT inline every element's styles — verbose markup wastes tokens and clips sections.
 
-# SECTION ORDER (all required unless fallback drops)
+# SECTION SELECTION
 
-Nav → Hero → MegaBento → Watchlist → Community → HelpGrid → Spotlight → HeroSplit → Reviews → YoutubeCta → AboutFounder → Footer.
+Pick **8-14 sections** based on the reference's \`sections.md\` inventory, adapted for the user:
+
+- ALWAYS include: nav, hero, at least one proof/trust section, at least one offer/services section, at least one about/founder section, one final CTA, footer.
+- Include OR skip based on user context: testimonials (skip if none in ingest data), pricing tiers (skip if no explicit pricing), team grid (skip for solo founders), video reels (skip if no social links), lead magnet form (skip unless brief signals lead-gen intent).
+- Follow the reference's "Adaptation rules" block in sections.md — those tell you what to skip for smaller/adjacent business types.
+- Alternate light and dark sections for editorial rhythm. Long runs of same-tone sections lose the eye.
+- Never emit the AI-wireframe default sequence (hero → 3-cards → testimonials → logo bar → CTA) — that's a DESIGN.md ban.
 
 # SECTION SPACING — CRITICAL
 
@@ -140,37 +180,32 @@ EVERY \`<section>\` gets top+bottom padding to separate it from its neighbours. 
 - Do NOT emit ANY content after the footer closes. No hidden divs, no scripts with visible height, no extra sections.
 - The document ends at \`</footer></main></body></html>\` (or \`</main></footer></body></html>\` — either order fine). Absolutely no trailing empty space, no phantom \`<div>\`s with min-height.
 
-# NAV — SPECIFIC INSTRUCTIONS (this is where past generations underdelivered)
+# NAV RENDERING (static-HTML output)
 
-The nav.md spec describes an interactive CardNav with hover-dropdown colored cards. That interactive pattern needs React state; you're emitting static HTML, so DO THIS INSTEAD:
+The reference bundles may describe interactive card-based navs — those need JS state we don't emit. Render a STATIC nav that captures the reference's visual intent:
 
-- Fixed 72px bar, overlays hero, white bg (or dark bg if hero is light).
-- Brand LEFT: logo image (from brand.logo.src) OR brand name as 18px bold Geist wordmark.
-- 3-4 nav links CENTER: font-size 15px, weight 500, gap 24px, color inherited from bar (dark on white, white on dark). NO dropdowns — flat links only. Sample: "Work with me", "Coaching", "About", "Reviews".
-- Right end: optional "Log in" text link + primary CTA pill button matching hero primary CTA copy.
-- Add a subtle backdrop-blur if you want depth: \`background: rgba(255,255,255,0.72); backdrop-filter: blur(20px);\` — reads premium without needing JS.
-- NO hamburger menu (mobile treatment is fine but not required for the desktop preview).
+- Fixed bar, height ~72px, sticky at top.
+- Background: match the section-below tone. Dark hero → dark nav (or white bar with dark hero peeking below). Light hero → white nav. Optional \`backdrop-filter: blur(20px)\` for premium depth without JS.
+- Brand LEFT: logo (from brand.logo.src or ingest) OR brand name as ~18px semibold wordmark.
+- 3-5 links CENTER: 14-15px, weight 500, gap 24px, color from bar tone. Flat links only — NO dropdowns (would need JS). Link labels reflect THIS business (not the generic "Product / Features / Pricing / Blog / Login / Get Started" — that's a DESIGN.md ban).
+- Right end: primary CTA pill (matching hero primary), optional "Log in" text link if the site has auth.
+- NO hamburger menu required for the desktop preview.
 
-# HERO — SPECIFIC INSTRUCTIONS
+# HERO RENDERING
 
-The hero is 50/50 split: COPY on the left (60%), REAL PHOTO on the right (40%).
+Draw the hero SHAPE from the primary reference's \`character.md\` — that describes whether it's a portrait-split, a centered-editorial, a video-fullbleed, or a nature-carousel. Use the actual variant that fits the user's voice.
 
-Layout:
-- Dark bg \`#0a0a0f\`, white text.
-- Total height: 640-720px. Padding-top: 200px (clears the 72px nav + 128px breathing). Padding-bottom: 100px.
-- LEFT column: eyebrow (optional, small mono-caps if brand needs it) + headline + subhead + 2 CTA buttons + trust row. Everything left-aligned, max-width 640px.
-- RIGHT column: the PHOTO from imagePack.hero. Full-height, edge-to-bleed on the right, absolute-positioned. Use \`left: 52%; right: 0; top: 0; bottom: 0; object-fit: cover; object-position: center;\`. Add a subtle left-side gradient overlay: \`background: linear-gradient(90deg, rgba(10,10,15,0.9) 0%, rgba(10,10,15,0.35) 30%, transparent 60%);\` on top of the image so the copy remains legible if it wraps into the right column.
-- Namecard bubble at the bottom-right of the photo area (per hero.md §7): 12px 18px padding, radius 12, white/92% bg, dark ink, brand name + one-line role.
+Universal engineering rules for whatever hero variant you pick:
 
-TYPOGRAPHY (smaller than before — user asked for cleaner scale):
-- Headline: 44-56px on desktop (clamp(36px, 4.5vw, 56px)). Weight 500. Letter-spacing -0.028em. Line-height 1.05. Max-width 640px. Wrap to 2-3 lines. NEVER larger than 60px.
-- Subhead: 17-18px. Weight 400. Line-height 1.55. Muted white (rgba(255,255,255,0.78)). Max-width 520px. Margin-top 20px.
-- CTAs: 14px semibold, padding 12px 22px, radius 999px. Primary = solid white bg + dark ink. Secondary = transparent + 1px white border. Margin-top 28px.
-- Trust row: 13px, rgba(255,255,255,0.7), 5 star SVGs + count. Margin-top 24px.
+- **Height**: 640-720px min. Padding-top 200px (clears floating nav). Padding-bottom 100px.
+- **Headline typography**: 44-60px on desktop. **NEVER larger than 60px** — bigger reads as AI-tell. Use \`clamp(36px, 4.5vw, 60px)\`, weight 500-600, letter-spacing -0.028em, line-height 1.05, max-width 640px, wrap 2-3 lines max.
+- **Subhead**: 17-18px, weight 400, line-height 1.55, muted color (foreground at 75-80% opacity), max-width 520px, margin-top 20px.
+- **CTAs**: 14px semibold, padding 12px 22px, radius per DESIGN.md (site-consistent). Primary solid, secondary outlined. Margin-top 28px. **Never repeat the same CTA text more than twice on the page.**
+- **Trust row** (if brand has social proof to show): 13px muted, star SVGs + count, margin-top 24px. Skip entirely if user has no ratings/reviews.
 
-IMAGE SOURCE:
-- If imagePack.hero.kind === 'real' AND imagePack.hero.url is set: use it as the right-column photo, absolute-positioned edge-bleeding.
-- If imagePack.hero.kind === 'placeholder': render an IMAGE PLACEHOLDER block (see PLACEHOLDER RECIPE below). Do NOT emit typography watermarks or gradient blobs. Do NOT go find a stock image.
+**Hero image**:
+- If \`imagePack.hero.kind === 'real'\` and \`.url\` is set → use it, positioned per your hero variant (edge-bleed for portrait-split, background-cover for fullbleed, sub-region for centered).
+- If \`imagePack.hero.kind === 'placeholder'\` → render the IMAGE PLACEHOLDER (recipe below). Never emit a stock URL you invent.
 
 # IMAGE PLACEHOLDER RECIPE (use for EVERY placeholder slot)
 
@@ -204,66 +239,64 @@ Camera icon SVG (use verbatim):
 </svg>
 \`\`\`
 
-# MEGA-BENTO — SPECIFIC INSTRUCTIONS (this is where past generations underdelivered)
+# GRID / BENTO LAYOUTS — CRITICAL ENGINEERING RULE
 
-The 6-tile grid keeps rendering as narrow columns because past generations used
-\`.span2\`/\`.span4\` utility classes without defining them in CSS. To eliminate the
-class you must remember, USE INLINE STYLES for grid-column and grid-row spans.
+When emitting bento or asymmetric grid sections, USE INLINE STYLES for grid-column and grid-row spans. Past generations emitted \`.span2\` / \`.span4\` classes that were never defined in CSS, resulting in tiles collapsing to single columns. To prevent this:
 
-Grid CSS (put in the \`<style>\` block):
+Base grid CSS (in your \`<style>\` block):
 
-    .mb-grid {
+    .grid-bento {
       display: grid;
       grid-template-columns: repeat(6, 1fr);
-      grid-template-rows: repeat(3, 340px);
+      grid-auto-rows: 340px;
       gap: 16px;
     }
-    @media (max-width: 900px) { .mb-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: none; grid-auto-rows: 280px; } }
-    @media (max-width: 560px) { .mb-grid { grid-template-columns: 1fr; grid-auto-rows: minmax(240px, auto); } }
+    @media (max-width: 900px) { .grid-bento { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 280px; } }
+    @media (max-width: 560px) { .grid-bento { grid-template-columns: 1fr; grid-auto-rows: minmax(240px, auto); } }
 
-Tile layout (exact 6-tile plan — DO NOT deviate):
+Every tile uses inline style for its span:
 
-    Tile 1 (Row 1, LEFT)   -> style="grid-column: span 4"                          HERO tile: imagePack.supporting[0] slot + top service label
-    Tile 2 (Row 1, RIGHT)  -> style="grid-column: span 2; grid-row: span 2"        TALL tile: imagePack.supporting[1] slot + secondary service
-    Tile 3 (Row 2, LEFT-a) -> style="grid-column: span 2"                          imagePack.supporting[2] slot + service
-    Tile 4 (Row 2, LEFT-b) -> style="grid-column: span 2"                          imagePack.supporting[3] slot + service
-    Tile 5 (Row 3, LEFT)   -> style="grid-column: span 4"                          REVIEWS tile: dark bg, one testimonial from ingest.testimonials[0] (no image slot)
-    Tile 6 (Row 3, RIGHT)  -> style="grid-column: span 2"                          imagePack.supporting[4] slot + last service
+    <div style="grid-column: span 4">…</div>
+    <div style="grid-column: span 2; grid-row: span 2">…</div>
 
-CRITICAL: EVERY tile uses inline grid-column/grid-row via the \`style="…"\` attribute.
-NEVER emit \`.span4\` \`.span2\` classes because they always end up undefined.
+NEVER emit \`.span4\` / \`.span2\` classes. INLINE STYLES ONLY for grid positioning.
 
-Each image-tile (tiles 1, 2, 3, 4, 6):
-- The tile IS the image placeholder — apply the PLACEHOLDER RECIPE from above at full-tile scale.
-- Do NOT emit an <img> tag. Just the placeholder container with proper data-image-slot attribute.
-- Copy overlay: title (20px semibold white, z-index:3) sits bottom-left over the placeholder.
-- Arrow chip top-right: 38px pill with 16% white bg, arrow icon (z-index:3).
-- Scrim: not needed on placeholders (the palette-gradient is already low contrast); only add if the tile title is illegible.
+Image tiles in a bento apply the IMAGE PLACEHOLDER RECIPE at full-tile scale, with title overlay bottom-left (20px semibold, z-index:3) and optional arrow chip top-right.
 
-Tile 5 (Reviews) doesn't have an image slot — solid \`#0a0a0f\` bg, testimonial quote left-aligned, author + role bottom-left, "Read more reviews →" bottom-right.
+For OTHER grids (feature grids, service grids, blog grids), use Tailwind grid utilities (\`grid-cols-3\`, \`grid-cols-4\`) — the inline-style requirement is specific to asymmetric bento layouts.
 
 # STYLE RULES (non-negotiable)
 
-- Copy follows each section's rules (char counts, voice, structure). Never emit banned words from DESIGN.md.
-- Palette hard-constrained to brand_palette when supplied. Otherwise derive from voice_descriptor.
-- Typography: Geist + Geist Mono unless brand ingest strongly indicates otherwise.
+- **DESIGN.md is law.** Never emit any of its banned patterns (typography, layout, motion, copy, meta, icons). When in doubt, check the ban list.
+- **Palette hard-constrained** to \`brand_palette\` when supplied. Otherwise derive from voice_descriptor per DESIGN.md's voice-mapping table.
+- **Typography**: use the typefaces DESIGN.md recommends for this voice_descriptor. Never use Poppins. Never use Inter+Geist+the-same for all three roles.
+- **Motion**: apply the appropriate Tier from DESIGN.md's motion-vocabulary based on voice_descriptor. Tier 1 always on. Tier 2 only for bold/expert/playful. Tier 3 (one signature moment) only for bold/playful. Never blanket \`fade-up-on-scroll\` on every element.
+- **Copy voice**: match the reference's tone character AND the user's voice_descriptor. No verb-cluster words (Elevate/Unlock/Empower/Seamless/etc.). No em-dash confetti. No "it's not X, it's Y" formulations. No three-benefit triads with periods.
+- **Icons**: stroke-only 16/20/24px sizes, varied per hierarchy. Never sparkles/robots/lightbulbs/rockets as "AI/smart/launch" signals. No duotone icons in rounded-square feature cards.
 - Every editable element: \`data-edit-id="section.slot"\`.
 - Every image: meaningful \`alt\` (or empty for decorative).
 - Semantic HTML5: \`<header>\`, \`<main>\`, \`<section>\`, \`<nav>\`, \`<footer>\`.
-- Apply section-MD fallback rules when data is missing.
 - NEVER italics. NEVER uppercase in body copy. NEVER exclamation marks.
-- No external JS bundle. No analytics.
-- CRITICAL: output MUST include closing \`</main>\`, \`<footer>...</footer>\`, \`</body></html>\`. Every homepage needs a footer — emit one with: brand mark, 3 nav columns (Company, Learn, Legal), and a © line. Compact styles.
+- No external JS bundle. No analytics. No orbs, no rotating gradient borders, no aurora backgrounds.
+- **Copyright year**: use ${new Date().getFullYear()} — never a hardcoded past year (training-cutoff leak is a top AI-tell).
+- CRITICAL: output MUST include closing \`</main>\`, \`<footer>...</footer>\`, \`</body></html>\`. Every homepage needs a footer — emit one with: brand mark, 3 nav columns adapted to this business (never generic "Company/Learn/Legal" if the business has different content), and a © ${new Date().getFullYear()} line.
 
 # LENGTH
 
 Target 40,000–60,000 chars of compact HTML for all sections + footer. If you feel you're running long, TIGHTEN INLINE STYLES (move to \`<style>\` block), don't drop sections. Never truncate.`;
 }
 
-function buildUserPrompt(input: GenerateInput, bundle: ReturnType<typeof loadBlueprints>): string {
+function buildUserPrompt(input: GenerateInput, pick: CorpusPick): string {
   const { brief, brand, ingest, imagePack } = input;
 
-  // Compose the brand-data JSON that Opus will use as the source of truth
+  // Load DESIGN.md (constitution) from the same blueprint loader.
+  const bundle = loadBlueprints();
+
+  // When primary is personal-brand, ALSO include its deep composition
+  // spec so we preserve the proven Bill-Fanter quality for that vertical.
+  // Other references use light corpus only (character + sections + voice-map).
+  const includeDeepSpec = pick.primary.id === "personal-brand";
+
   const brandData = {
     onboarding: {
       brandName: brand.brandName,
@@ -274,6 +307,7 @@ function buildUserPrompt(input: GenerateInput, bundle: ReturnType<typeof loadBlu
       audienceDescription: brand.audienceDescription,
       differentiator: brand.differentiator,
       existingSiteUrl: brand.existingSiteUrl,
+      siteIntent: input.siteIntent ?? null,
     },
     // Pre-curated real photos for hero + tile backgrounds + founder shot.
     // Opus MUST use these URLs directly in <img src=…> — never emit
@@ -301,63 +335,105 @@ function buildUserPrompt(input: GenerateInput, bundle: ReturnType<typeof loadBlu
       : null,
   };
 
-  return [
-    "# 1. DESIGN.md (global taste system)",
+  const parts: string[] = [
+    "# 1. DESIGN.md — CONSTITUTION (law, non-negotiable)",
     "",
     bundle.design,
     "",
     "---",
     "",
-    "# 2. Composition file — page-level plan",
+    `# 2. Primary reference — ${pick.primary.id} (weight ${pick.primary.weight})`,
     "",
-    bundle.composition,
+    "## Character",
+    pick.primary.character,
     "",
+    "## Section inventory",
+    pick.primary.sections,
+    "",
+    "## Voice fit",
+    pick.primary.voiceMap,
+    "",
+  ];
+
+  if (pick.secondary) {
+    parts.push(
+      "---",
+      "",
+      `# 3. Secondary reference — ${pick.secondary.id} (weight ${pick.secondary.weight})`,
+      "",
+      "Draw 1-2 signature moves from this reference to layer over the primary spine. Do not adopt its full structure.",
+      "",
+      "## Character",
+      pick.secondary.character,
+      "",
+      "## Section inventory",
+      pick.secondary.sections,
+      "",
+      "## Voice fit",
+      pick.secondary.voiceMap,
+      "",
+    );
+  }
+
+  if (includeDeepSpec) {
+    parts.push(
+      "---",
+      "",
+      "# 4. Deep composition spec (personal-brand vertical — for maximum fidelity)",
+      "",
+      "This is the proven Bill-Fanter composition + per-section specs. Follow it closely for structural rhythm; DESIGN.md's bans still override any spec that conflicts.",
+      "",
+      "## Composition (page-level plan)",
+      bundle.composition,
+      "",
+      "## Section specs (per-family)",
+      "",
+      "### Nav",
+      bundle.sections.nav,
+      "",
+      "### Hero",
+      bundle.sections.hero,
+      "",
+      "### MegaBento",
+      bundle.sections.megaBento,
+      "",
+      "### Watchlist",
+      bundle.sections.watchlist,
+      "",
+      "### Community",
+      bundle.sections.community,
+      "",
+      "### HelpGrid",
+      bundle.sections.helpGrid,
+      "",
+      "### Spotlight",
+      bundle.sections.spotlight,
+      "",
+      "### HeroSplit",
+      bundle.sections.heroSplit,
+      "",
+      "### Reviews",
+      bundle.sections.reviews,
+      "",
+      "### YoutubeCta",
+      bundle.sections.youtubeCta,
+      "",
+      "### AboutFounder",
+      bundle.sections.aboutFounder,
+      "",
+    );
+  }
+
+  parts.push(
     "---",
     "",
-    "# 3. Section specifications",
-    "",
-    "## Section 0 — Nav",
-    bundle.sections.nav,
-    "",
-    "## Section 1 — Hero",
-    bundle.sections.hero,
-    "",
-    "## Section 2 — MegaBento",
-    bundle.sections.megaBento,
-    "",
-    "## Section 3 — Watchlist",
-    bundle.sections.watchlist,
-    "",
-    "## Section 4 — Community",
-    bundle.sections.community,
-    "",
-    "## Section 5 — HelpGrid",
-    bundle.sections.helpGrid,
-    "",
-    "## Section 6 — Spotlight",
-    bundle.sections.spotlight,
-    "",
-    "## Section 7 — HeroSplit",
-    bundle.sections.heroSplit,
-    "",
-    "## Section 8 — Reviews",
-    bundle.sections.reviews,
-    "",
-    "## Section 9 — YoutubeCta",
-    bundle.sections.youtubeCta,
-    "",
-    "## Section 10 — AboutFounder",
-    bundle.sections.aboutFounder,
-    "",
-    "---",
-    "",
-    "# 4. User brief",
+    "# User brief",
     "",
     `> ${brief}`,
     "",
     "---",
     "",
-    "# 5. Brand data (source of truth for palette, typography, copy hints, testimonials)",
+    "# Brand data (source of truth for palette, typography, copy hints, testimonials, images)",
     "",
     "```json",
     JSON.stringify(brandData, null, 2),
@@ -367,8 +443,68 @@ function buildUserPrompt(input: GenerateInput, bundle: ReturnType<typeof loadBlu
     "",
     "# Task",
     "",
-    "Generate the complete HTML5 document for this brand's homepage. Return ONLY the fenced code block starting with ```html and ending with ```. Nothing before, nothing after.",
-  ].join("\n");
+    `Generate the complete HTML5 document for this brand's homepage. Remix the ${pick.secondary ? "two references" : "reference"} above under DESIGN.md's constitutional law. Adapt section selection to THIS brand's business_type + voice_descriptor + brief — do not slavishly copy the reference sequence. Return ONLY the fenced code block starting with \`\`\`html and ending with \`\`\`. Nothing before, nothing after.`,
+  );
+
+  return parts.join("\n");
+}
+
+// Rough palette-hint inference from ingested brand colors.
+// Feeds the corpus router when we have brand ingest data.
+function inferPaletteHint(ingest: IngestedBrand | null): PaletteHint | null {
+  if (!ingest || !ingest.palette?.colors?.length) return null;
+
+  // Average luminance across the first 3 palette colors (which are
+  // typically primary + secondary + tertiary — the ones that carry
+  // most visual weight).
+  const sample = ingest.palette.colors.slice(0, 3);
+  let totalL = 0;
+  let count = 0;
+  for (const c of sample) {
+    const l = hexLuminance(c.hex);
+    if (l !== null) {
+      totalL += l;
+      count++;
+    }
+  }
+  if (count === 0) return null;
+  const avgL = totalL / count;
+
+  // Thresholds tuned so dark editorial palettes (Bill-Fanter, WRKS
+  // Online) land in "dark", warm cream palettes (Tomorrow's Sunrise)
+  // land in "light-warm", clean corporate palettes (Claxton) land in
+  // "light-clean". These are heuristic and only used as a tiebreaker
+  // in the router.
+  if (avgL < 0.35) return "dark";
+
+  // For light palettes, use warmth (r > b) as the deciding signal.
+  let totalR = 0;
+  let totalB = 0;
+  for (const c of sample) {
+    const rgb = hexToRgb(c.hex);
+    if (rgb) {
+      totalR += rgb.r;
+      totalB += rgb.b;
+    }
+  }
+  return totalR > totalB * 1.05 ? "light-warm" : "light-clean";
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const cleaned = hex.replace("#", "");
+  if (cleaned.length !== 6) return null;
+  const r = parseInt(cleaned.slice(0, 2), 16);
+  const g = parseInt(cleaned.slice(2, 4), 16);
+  const b = parseInt(cleaned.slice(4, 6), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+  return { r, g, b };
+}
+
+function hexLuminance(hex: string): number | null {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  // Perceptual luminance (Rec. 601)
+  return (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
 }
 
 // ============================================================

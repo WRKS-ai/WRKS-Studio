@@ -70,12 +70,14 @@ export async function POST(req: Request) {
     differentiator: null,
     existingSiteUrl: null,
   };
+  let siteIntent: "has_site" | "no_site" | null = null;
   try {
-    const supabase = createServiceSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createServiceSupabaseClient() as any;
     const { data: profile } = await supabase
       .from("business_profiles")
       .select(
-        "brand_name, business_type, primary_goal, voice_descriptor, offer_summary, audience_description, differentiator, existing_site_url",
+        "brand_name, business_type, primary_goal, voice_descriptor, offer_summary, audience_description, differentiator, existing_site_url, site_intent",
       )
       .eq("user_id", userId)
       .eq("status", "active")
@@ -91,6 +93,14 @@ export async function POST(req: Request) {
       brand.audienceDescription = profile.audience_description ?? null;
       brand.differentiator = profile.differentiator ?? null;
       brand.existingSiteUrl = profile.existing_site_url ?? null;
+      // Prefer explicit site_intent flag; fall back to inferring from URL.
+      if (profile.site_intent === "has_site" || profile.site_intent === "no_site") {
+        siteIntent = profile.site_intent;
+      } else if (profile.existing_site_url && profile.existing_site_url.trim().length > 0) {
+        siteIntent = "has_site";
+      } else {
+        siteIntent = "no_site";
+      }
     }
   } catch (err) {
     console.warn("[api/sites/generate] brand_state fetch failed:", err);
@@ -120,7 +130,7 @@ export async function POST(req: Request) {
     // Node fire-and-forget. On Vercel this needs Inngest for reliable
     // completion (serverless kills the process after response); on dev
     // / long-lived Node this runs to completion.
-    void runGenerationJob({ jobId, brief: body.brief, brand });
+    void runGenerationJob({ jobId, brief: body.brief, brand, siteIntent });
   } else {
     console.warn(
       "[api/sites/generate] unexpected non-claimed status on fresh job:",
