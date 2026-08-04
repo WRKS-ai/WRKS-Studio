@@ -146,9 +146,9 @@ export function SitesComposer({
               }}
             >
               One sentence about your business.{" "}
-              {agentName ? `${agentName}` : "The agent"} will draft a full homepage
+              {agentName ? `${agentName}` : "The agent"} will draft your full site — home, about, services, contact
               {contextLoaded > 0 && brandName
-                ? ` using the voice, offer, and audience already loaded from ${brandName}.`
+                ? ` — using the voice, offer, and audience already loaded from ${brandName}.`
                 : "."}
             </p>
 
@@ -287,7 +287,7 @@ export function SitesComposer({
                 letterSpacing: "-0.003em",
               }}
             >
-              Full homepage in about 60 seconds. Multi-page sites and other page types coming soon.
+              Full multi-page site in about 5-8 minutes. Publish to your own subdomain when it&apos;s ready.
             </p>
           </div>
         </div>
