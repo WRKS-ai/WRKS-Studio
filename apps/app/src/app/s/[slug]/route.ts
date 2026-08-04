@@ -3,10 +3,10 @@ import { getReadyJobHtml } from "@/lib/site-generation/job-store";
 
 // Public renderer for wildcard-subdomain published sites.
 //
-// The middleware rewrites {slug}.wrksstudio.com → /_sites/{slug} and
-// bypasses Clerk. This handler resolves the slug to a job_id, fetches
-// the stored HTML from sites_generation_jobs, and returns it as the
-// whole page. No auth — that's the point of publishing.
+// The middleware rewrites {slug}.wrksstudio.com → /s/{slug} and bypasses
+// Clerk. This handler resolves the slug to a job_id, fetches the stored
+// HTML from sites_generation_jobs, and returns it as the whole page.
+// No auth — that's the point of publishing.
 //
 // 404 if the slug doesn't exist or the underlying job has expired.
 

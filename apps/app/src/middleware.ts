@@ -28,9 +28,11 @@ const isAuthEntryRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)"]);
 
 // Published-site host routing.
 // Any subdomain of wrksstudio.com other than `www` is a user's published
-// site (e.g. alex.wrksstudio.com). We rewrite internally to /_sites/{slug}
-// so the public renderer can serve the stored HTML, and we bypass Clerk
+// site (e.g. alex.wrksstudio.com). We rewrite internally to /s/{slug} so
+// the public renderer can serve the stored HTML, and we bypass Clerk
 // entirely for these requests.
+// (Route folder is /s/ not /_sites/ because underscore-prefixed folders
+// are private in the Next.js App Router and don't create routes.)
 const APP_HOST = "wrksstudio.com";
 function publishedSiteSlug(host: string | null): string | null {
   if (!host) return null;
@@ -48,7 +50,7 @@ export default clerkMiddleware(async (auth, req) => {
   if (slug) {
     const url = req.nextUrl.clone();
     const restOfPath = url.pathname === "/" ? "" : url.pathname;
-    url.pathname = `/_sites/${slug}${restOfPath}`;
+    url.pathname = `/s/${slug}${restOfPath}`;
     return NextResponse.rewrite(url);
   }
 
