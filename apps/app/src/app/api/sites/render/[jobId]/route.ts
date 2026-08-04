@@ -1,27 +1,25 @@
-import { getReadyJobHtml } from "@/lib/site-generation/job-store";
+import { getReadyJobHtml, getSitePageHtml } from "@/lib/site-generation/job-store";
 
 // Public HTML renderer for v3 generated sites.
 //
-// Serves the assembled HTML doc stored in sites_generation_jobs.html
-// with Content-Type text/html so the studio canvas iframe (or any
-// share link) renders it as a live document.
+// Serves the assembled HTML doc stored in sites_generation_jobs.
+// With no query params -> serves the home page (or the sole HTML for
+// legacy single-page jobs). With ?path=/about -> serves the specified
+// page from the multi-page pages array.
+//
+// Content-Type text/html so the studio canvas iframe (or any share
+// link) renders it as a live document.
 //
 // Unauthenticated intentionally — jobId is a UUID (unlisted-YouTube
-// pattern). Ready jobs expire after 6h per the table's expires_at.
-//
-// Returns 404 if:
-//   - Job doesn't exist
-//   - Job is still pending (no html yet)
-//   - Job expired
+// pattern). Published jobs never expire; unpublished/preview jobs
+// expire after 6h.
 
 export const runtime = "nodejs";
 // Small cache — if the same iframe reloads, don't hammer Postgres.
-// Value only matters for the duration of a session; jobs are immutable
-// once ready.
 export const revalidate = 60;
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
   const { jobId } = await params;
@@ -33,12 +31,27 @@ export async function GET(
     });
   }
 
-  const html = await getReadyJobHtml(jobId);
+  const url = new URL(req.url);
+  const path = url.searchParams.get("path");
+
+  // With ?path=: use the multi-page pages array lookup. Without ?path=:
+  // fall back to the legacy html column so existing iframes keep working.
+  const html = path
+    ? await getSitePageHtml(jobId, path)
+    : await getReadyJobHtml(jobId);
+
   if (!html) {
-    return new Response(notFoundHtml("This draft isn't ready yet or has expired."), {
-      status: 404,
-      headers: { "content-type": "text/html; charset=utf-8" },
-    });
+    return new Response(
+      notFoundHtml(
+        path
+          ? `The page ${path} doesn't exist on this site.`
+          : "This draft isn't ready yet or has expired.",
+      ),
+      {
+        status: 404,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      },
+    );
   }
 
   // Inject the auto-height reporter before </body>. This posts the

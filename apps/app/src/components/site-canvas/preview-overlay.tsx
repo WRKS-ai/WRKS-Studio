@@ -29,13 +29,39 @@ const DEVICE_HEIGHTS: Record<Device, number | "auto"> = {
   mobile: 844,
 };
 
+type PageSummary = { path: string; title: string };
+
 export function PreviewOverlay({ jobId, brandName, onClose }: Props) {
   const [device, setDevice] = useState<Device>("desktop");
   const [reloadKey, setReloadKey] = useState(0);
+  const [pages, setPages] = useState<PageSummary[]>([]);
+  const [currentPath, setCurrentPath] = useState<string>("/");
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const src = `/api/sites/render/${encodeURIComponent(jobId)}`;
+  // Build the iframe src — home page has no ?path=, other pages include it.
+  const src =
+    currentPath === "/"
+      ? `/api/sites/render/${encodeURIComponent(jobId)}`
+      : `/api/sites/render/${encodeURIComponent(jobId)}?path=${encodeURIComponent(currentPath)}`;
   const publicUrl = typeof window !== "undefined" ? `${window.location.origin}${src}` : src;
+
+  // Fetch the pages list on mount so we can show tabs for multi-page sites.
+  // Single-page sites (legacy or 1-page results) get an empty array and
+  // we hide the tab bar.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/sites/pages/${encodeURIComponent(jobId)}`)
+      .then((r) => r.json())
+      .then((d: { pages?: PageSummary[] }) => {
+        if (!cancelled && d.pages) setPages(d.pages);
+      })
+      .catch(() => {
+        /* silent — tab bar just stays hidden */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId]);
 
   // ESC to close
   useEffect(() => {
@@ -57,6 +83,7 @@ export function PreviewOverlay({ jobId, brandName, onClose }: Props) {
 
   const width = DEVICE_WIDTHS[device];
   const height = DEVICE_HEIGHTS[device];
+  const hasMultiplePages = pages.length > 1;
 
   return (
     <div
@@ -171,6 +198,63 @@ export function PreviewOverlay({ jobId, brandName, onClose }: Props) {
         </div>
       </div>
 
+      {/* Page tab bar — only when the site has multiple pages */}
+      {hasMultiplePages && (
+        <div
+          role="tablist"
+          aria-label="Site pages"
+          style={{
+            flexShrink: 0,
+            display: "flex",
+            gap: 4,
+            padding: "8px 20px",
+            background: "rgba(20,20,28,0.5)",
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
+            borderBottom: "1px solid rgba(255,255,255,0.04)",
+            overflowX: "auto",
+          }}
+        >
+          {pages.map((p) => {
+            const active = p.path === currentPath;
+            return (
+              <button
+                key={p.path}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setCurrentPath(p.path)}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 6,
+                  background: active ? "rgba(255,255,255,0.08)" : "transparent",
+                  color: active ? "rgba(245,240,230,0.95)" : "rgba(245,240,230,0.55)",
+                  border: "none",
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  letterSpacing: "-0.003em",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  transition: "background 150ms, color 150ms",
+                }}
+              >
+                {p.title}
+                <span
+                  style={{
+                    marginLeft: 8,
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 10.5,
+                    color: "rgba(245,240,230,0.35)",
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {p.path}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Preview area — iframe centered at device dims */}
       <div
         style={{
@@ -199,7 +283,7 @@ export function PreviewOverlay({ jobId, brandName, onClose }: Props) {
           }}
         >
           <iframe
-            key={reloadKey}
+            key={`${reloadKey}-${currentPath}`}
             ref={iframeRef}
             src={src}
             title="Site preview"
