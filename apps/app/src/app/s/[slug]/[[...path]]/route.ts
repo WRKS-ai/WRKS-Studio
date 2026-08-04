@@ -1,14 +1,18 @@
 import { getSiteBySlug } from "@/lib/published-sites/store";
-import { getReadyJobHtml } from "@/lib/site-generation/job-store";
+import { getSitePageHtml } from "@/lib/site-generation/job-store";
 
-// Public renderer for wildcard-subdomain published sites.
+// Public renderer for wildcard-subdomain published sites (multi-page).
 //
-// The middleware rewrites {slug}.wrksstudio.com → /s/{slug} and bypasses
-// Clerk. This handler resolves the slug to a job_id, fetches the stored
-// HTML from sites_generation_jobs, and returns it as the whole page.
-// No auth — that's the point of publishing.
+// Middleware rewrites {slug}.wrksstudio.com/<path> → /s/{slug}/<path>
+// and bypasses Clerk. This optional-catch-all handler matches:
+//   /s/{slug}            (empty path)  → home page
+//   /s/{slug}/about      (path=[about]) → /about page
+//   /s/{slug}/services   → /services page
+//   /s/{slug}/contact    → /contact page
 //
-// 404 if the slug doesn't exist or the underlying job has expired.
+// The job's pages jsonb column holds the array of {path, html, title}.
+// Legacy single-page jobs (pre-Ship-3) fall through to the html column
+// via getSitePageHtml — those still serve root only, deeper paths 404.
 
 export const runtime = "nodejs";
 export const revalidate = 60;
@@ -17,23 +21,28 @@ const SLUG_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ slug: string }> },
+  { params }: { params: Promise<{ slug: string; path?: string[] }> },
 ) {
-  const { slug } = await params;
-  const normalized = slug.toLowerCase();
+  const { slug, path } = await params;
+  const normalizedSlug = slug.toLowerCase();
+  const normalizedPath = "/" + (path?.join("/") ?? "");
 
-  if (!SLUG_RE.test(normalized)) {
+  if (!SLUG_RE.test(normalizedSlug)) {
     return htmlResponse(notFoundHtml("This address doesn't look right."), 404);
   }
 
-  const site = await getSiteBySlug(normalized);
+  const site = await getSiteBySlug(normalizedSlug);
   if (!site) {
     return htmlResponse(notFoundHtml("No site published at this address yet."), 404);
   }
 
-  const html = await getReadyJobHtml(site.jobId);
+  const html = await getSitePageHtml(site.jobId, normalizedPath);
   if (!html) {
-    return htmlResponse(notFoundHtml("This site's content is unavailable."), 404);
+    const message =
+      normalizedPath === "/"
+        ? "This site's content is unavailable."
+        : `The page ${normalizedPath} doesn't exist on this site.`;
+    return htmlResponse(notFoundHtml(message), 404);
   }
 
   return htmlResponse(html, 200, {
