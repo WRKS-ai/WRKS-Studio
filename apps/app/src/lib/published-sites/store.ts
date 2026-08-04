@@ -90,6 +90,20 @@ export async function getSitesByUser(userId: string): Promise<PublishedSite[]> {
   return (data as Row[]).map(fromRow);
 }
 
+// Once a job powers a published site, lift its 6h auto-cleanup TTL so
+// the published URL doesn't 404 the next day.
+async function makeJobPermanent(supabase: AnySupabase, jobId: string): Promise<void> {
+  const { error } = await supabase
+    .from("sites_generation_jobs")
+    .update({ expires_at: null })
+    .eq("id", jobId);
+  if (error) {
+    console.error("[published-sites] failed to lift job TTL:", error);
+    // Non-fatal — the publish succeeded, worst case is the job expires
+    // in 6h and we'll need to re-lift it manually.
+  }
+}
+
 export async function publishSite(input: {
   slug: string;
   userId: string;
@@ -112,6 +126,7 @@ export async function publishSite(input: {
   if (error || !data) {
     throw new Error(`Failed to publish site: ${error?.message ?? "unknown"}`);
   }
+  await makeJobPermanent(supabase, input.jobId);
   return fromRow(data as Row);
 }
 
@@ -131,6 +146,9 @@ export async function repointSite(input: {
   if (error) {
     console.error("[published-sites] repointSite failed:", error);
     return null;
+  }
+  if (data) {
+    await makeJobPermanent(supabase, input.jobId);
   }
   return data ? fromRow(data as Row) : null;
 }

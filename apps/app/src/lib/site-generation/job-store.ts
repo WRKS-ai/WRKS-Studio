@@ -51,7 +51,7 @@ type JobRow = {
   html: string | null;
   brand_ingest: IngestedBrand | null;
   created_at: string;
-  expires_at: string;
+  expires_at: string | null;
 };
 
 export async function createPendingJob(
@@ -94,7 +94,7 @@ export async function getJob(jobId: string): Promise<Job | null> {
   if (!data) return null;
   const row = data as JobRow;
 
-  if (new Date(row.expires_at).getTime() < Date.now()) return null;
+  if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) return null;
 
   const createdAt = new Date(row.created_at).getTime();
   const brand = row.brand ?? emptyBrand();
@@ -146,7 +146,7 @@ export async function claimForProcessing(jobId: string): Promise<
   if (readErr || !current) return { status: "not-found" };
   const row = current as JobRow & { processing_started_at: string | null };
 
-  if (new Date(row.expires_at).getTime() < Date.now()) {
+  if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) {
     return { status: "not-found" };
   }
   if (row.status === "ready") return { status: "already-ready" };
@@ -267,9 +267,9 @@ export async function getJobStatus(jobId: string): Promise<JobStatus | null> {
     error: string | null;
     html: string | null;
     updated_at: string;
-    expires_at: string;
+    expires_at: string | null;
   };
-  if (new Date(row.expires_at).getTime() < Date.now()) return null;
+  if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) return null;
 
   return {
     status: (row.error ? "error" : row.status) as JobStatus["status"],
@@ -319,7 +319,7 @@ export async function getReadyJobHtml(jobId: string): Promise<string | null> {
   if (error || !data) return null;
   const row = data as Pick<JobRow, "html" | "status" | "expires_at">;
   if (row.status !== "ready" || !row.html) return null;
-  if (new Date(row.expires_at).getTime() < Date.now()) return null;
+  if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) return null;
   return row.html;
 }
 

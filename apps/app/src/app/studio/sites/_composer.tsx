@@ -21,13 +21,17 @@ type Props = {
   agentName: string | null;
 };
 
+// Placeholder examples describe THE BUSINESS, not a page type — we
+// generate a full homepage regardless of what the user picks. The old
+// copy ("a lead-magnet page…", "a launch page…") implied page-type
+// control that doesn't exist yet, which set false expectations.
 const GOAL_HINT: Record<string, string> = {
-  book_calls: "a landing page for booking discovery calls with your ideal client",
-  sell_products: "a product page that converts browsers into buyers",
-  capture_leads: "a lead-magnet page that grows your list",
-  build_audience: "a personal-brand site that turns visitors into subscribers",
-  launch_new: "a launch page for your next release, with a clear waitlist CTA",
-  fix_conversions: "a rebuilt landing page with a sharper offer and cleaner CTA",
+  book_calls: "A leadership coach helping first-time founders find their footing",
+  sell_products: "Handmade ceramics from a two-person studio in Portland",
+  capture_leads: "A weekly newsletter on quiet finance for solo operators",
+  build_audience: "Essays on the craft of writing, published every Sunday",
+  launch_new: "A new AI scheduling tool built for solo therapists",
+  fix_conversions: "A consulting business for early-stage SaaS founders",
 };
 
 export function SitesComposer({
@@ -48,7 +52,7 @@ export function SitesComposer({
   const placeholder = useMemo(() => {
     const example =
       (primaryGoal && GOAL_HINT[primaryGoal]) ??
-      "a landing page for your primary offer";
+      "A wellness studio for busy parents in Austin";
     return `e.g. ${example}`;
   }, [primaryGoal]);
 
@@ -141,10 +145,10 @@ export function SitesComposer({
                 margin: "0 auto 40px",
               }}
             >
-              One sentence.{" "}
-              {agentName ? `${agentName} handles the rest` : "The agent handles the rest"}
+              One sentence about your business.{" "}
+              {agentName ? `${agentName}` : "The agent"} will draft a full homepage
               {contextLoaded > 0 && brandName
-                ? ` — voice, offer, and audience are already loaded from ${brandName}.`
+                ? ` using the voice, offer, and audience already loaded from ${brandName}.`
                 : "."}
             </p>
 
@@ -283,7 +287,7 @@ export function SitesComposer({
                 letterSpacing: "-0.003em",
               }}
             >
-              About 60 seconds. Sit back — the agent will walk you through it.
+              Full homepage in about 60 seconds. Multi-page sites and other page types coming soon.
             </p>
           </div>
         </div>
