@@ -1,49 +1,48 @@
-"use client";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { createServiceSupabaseClient } from "@/lib/supabase";
+import { BrandEditForm, type BrandProfile } from "./_brand-edit-form";
 
-import Link from "next/link";
-import { ComingSoon, StudioPageShell } from "@/components/studio-page-shell";
+// /studio/brand — the source of truth for the brand info the agent
+// reads before every generation and refinement. Users can edit these
+// fields any time without re-running onboarding.
+//
+// Server-fetches the user's active business_profile row, hydrates the
+// client form. Form PATCHes back to /api/onboarding/save (the same
+// endpoint the onboarding cards use — supports partial updates).
 
-export default function BrandPage() {
-  return (
-    <StudioPageShell
-      title="Brand"
-      subtitle="The source of truth for your tone, palette, and what makes your work feel like you."
-      maxWidth={1080}
-      actions={
-        <Link
-          href="/studio/settings"
-          className="h-10 px-4 rounded-lg text-[13.5px] font-medium transition-colors hover:bg-white/[0.05] inline-flex items-center gap-2"
-          style={{
-            color: "rgba(245,245,247,0.85)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          Open brand voice settings
-        </Link>
-      }
-    >
-      <ComingSoon
-        icon={
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M12 3l2.5 5.5L20 9.5l-4 4 1 6-5-2.7L7 19.5l1-6-4-4 5.5-1z"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinejoin="round"
-            />
-          </svg>
-        }
-        title="Brand workspace"
-        description="A dedicated home for your house style, logo marks, color tokens, and brand voice training data. Your agent reads from here before every refinement."
-        bullets={[
-          "Train your agent on past work",
-          "Define banned words and tone targets",
-          "Lock down primary + accent palette",
-          "Upload reference creative",
-          "Version history of brand voice changes",
-          "Style guide auto-generated",
-        ]}
-      />
-    </StudioPageShell>
-  );
+export const runtime = "nodejs";
+
+export default async function BrandPage() {
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = createServiceSupabaseClient() as any;
+  const { data: profile } = await supabase
+    .from("business_profiles")
+    .select(
+      "brand_name, business_type, primary_goal, voice_descriptor, offer_summary, audience_description, differentiator, existing_site_url, agent_name, onboarding_completed_at",
+    )
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!profile?.onboarding_completed_at) redirect("/onboarding/voice");
+
+  const initial: BrandProfile = {
+    brandName: profile.brand_name ?? "",
+    businessType: profile.business_type ?? null,
+    primaryGoal: profile.primary_goal ?? null,
+    voiceDescriptor: profile.voice_descriptor ?? null,
+    offerSummary: profile.offer_summary ?? "",
+    audienceDescription: profile.audience_description ?? "",
+    differentiator: profile.differentiator ?? "",
+    existingSiteUrl: profile.existing_site_url ?? "",
+    agentName: profile.agent_name ?? null,
+  };
+
+  return <BrandEditForm initial={initial} />;
 }
