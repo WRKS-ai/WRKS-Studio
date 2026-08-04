@@ -43,6 +43,100 @@ The corpus router (in the runner) picks 1-2 based on `voice_descriptor
 + business_type + site_intent`. Opus is told to *remix under this
 constitution*, not to copy.
 
+## Multi-page composition
+
+**Every WRKS site is multi-page.** Single-page sites are the exception,
+not the default. When a user submits a brief, we generate 3-5 pages
+(Home + supporting pages per their business type), publish them under
+one subdomain, and cross-link them via a shared nav.
+
+**Page-type specs live in `blueprints/pages/`** — one MD per page type,
+universal (not per-reference-bundle):
+
+- `pages/about.md` — the who-we-are page
+- `pages/services.md` — the what-we-offer page (also named /coaching,
+  /practice-areas, /features per domain)
+- `pages/contact.md` — the how-to-reach-us page
+- `pages/lead-magnet.md` — the email-capture page (also named
+  /newsletter, /guide, /watchlist per resource)
+
+Home stays as the reference-bundle-defined composition (each bundle's
+`sections.md` describes the home page).
+
+### Business-type → pages default mapping
+
+The runner generates these pages by default, per business_type:
+
+| business_type | Pages generated |
+|---|---|
+| `personal_brand` (sells) | Home + About + Services + Contact (4) |
+| `personal_brand` (builds audience) | Home + About + Lead-Magnet + Contact (4) |
+| `service` (any professional service) | Home + About + Services + Contact (4) |
+| `saas` | Home + About + Services + Contact (4) — Services page includes pricing tiers |
+| `agency` | Home + About + Services + Contact (4) |
+| `ecommerce` | Home + About + Contact (3) — product pages out of scope for launch |
+| `other` | Home + About + Contact (3) |
+
+Users can drop or add pages via the theater / dashboard (post-Ship-3
+refinement UI).
+
+### Cross-page consistency rules
+
+When we generate multiple pages per site, several things MUST match
+across every page:
+
+1. **Nav** — identical structure, links, and CTA on every page. Only
+   difference: the current page's nav item gets a visual current-state
+   marker (thin underline in accent OR bolder weight — never a background
+   pill). Nav links resolve to real routes (`/`, `/about`, `/services`,
+   `/contact`), never `#anchors`.
+
+2. **Footer** — identical on every page. Same brand mark, same nav
+   columns, same copyright year, same social row. This is repetition
+   as trust — visitors verify they're still on the same site.
+
+3. **Palette + typography** — inherit from the same brand palette /
+   type stack across pages. Never a "dark About page" if Home is
+   light-cream.
+
+4. **CTA vocabulary** — the primary CTA repeats across pages but with
+   contextual variation: "Book a call" on Home + "Book a discovery
+   call" on Services + "Send a message" on Contact. Never the same
+   copy verbatim in 4 places (DESIGN.md ban: repeated CTAs).
+
+5. **Voice tone** — one writer's voice through the site. If Home is
+   first-person warm, About is not third-person corporate. If Home
+   uses italics for accents (banned anyway), About doesn't.
+
+6. **Copyright year** — always current year, always identical.
+
+### Nav link naming
+
+Nav labels reflect THIS business, not the generic SaaS template.
+
+- Local service business (law, medical): `Home / About / Practice Areas / Contact`
+- SaaS: `Home / Features / Pricing / About / Contact` (if 5 pages)
+- Personal-brand creator: `Home / About / Coaching / Newsletter` (if 4 pages, no explicit Contact)
+- Agency: `Home / Work / About / Contact`
+- Ecommerce: `Home / About / Contact` (product pages linked from Home)
+
+Never: `Home / Product / Features / Pricing / Blog / Login / Get Started`
+across all sites. That's the AI-template default that reads as generic.
+
+### Page-slug URLs
+
+The subdomain is `{slug}.wrksstudio.com`. Additional pages live at:
+
+- `/` → Home
+- `/about` → About
+- `/services` OR `/coaching` OR `/practice-areas` OR `/features` → Services
+- `/contact` → Contact
+- `/newsletter` OR `/watchlist` OR `/guide` → Lead-Magnet
+
+The runner emits each page's HTML with the correct URL slug in nav
+links. Middleware routes any `{slug}.wrksstudio.com/<path>` to the
+correct stored page.
+
 ## Philosophy
 
 Editorial magazine restraint. Aesop / Mercury / Linear / Stripe Press
