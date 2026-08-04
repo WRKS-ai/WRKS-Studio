@@ -392,8 +392,19 @@ export default function GeneratingPage() {
         {/* Right icon toolbar */}
         <RightTools />
 
-        {/* Bottom composer */}
-        <BottomComposer disabled={!status.isDone} />
+        {/* Bottom composer — refinement enabled once generation is done */}
+        <BottomComposer
+          disabled={!status.isDone}
+          jobId={readyJobId}
+          onRefined={() => {
+            // Simplest reliable refresh: reload the page so the canvas
+            // re-fetches the updated HTML from the pages array. Losing
+            // client state (preview overlay position, etc.) is acceptable
+            // for launch v1 — page-level refresh will be replaced by a
+            // targeted iframe-key bump in a follow-up.
+            if (typeof window !== "undefined") window.location.reload();
+          }}
+        />
       </div>
 
       {/* Preview overlay (opens on top of everything when triggered) */}
@@ -765,8 +776,50 @@ const QUICK_ACTIONS: Array<{ id: string; label: string; prefill: string }> = [
   { id: "hero", label: "Change the hero headline", prefill: "Rewrite the hero headline to be shorter and punchier." },
 ];
 
-function BottomComposer({ disabled }: { disabled: boolean }) {
+function BottomComposer({
+  disabled,
+  jobId,
+  onRefined,
+}: {
+  disabled: boolean;
+  jobId: string | null;
+  onRefined: () => void;
+}) {
   const [prefill, setPrefill] = useState<string>("");
+  const [refining, setRefining] = useState(false);
+  const [refineError, setRefineError] = useState<string | null>(null);
+
+  const canRefine = !disabled && !refining && !!jobId && prefill.trim().length >= 3;
+
+  const submitRefinement = async () => {
+    if (!canRefine || !jobId) return;
+    setRefining(true);
+    setRefineError(null);
+    try {
+      const res = await fetch("/api/sites/refine", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jobId,
+          pagePath: "/", // Ship 4B v1: refine home only; page-selector coming later
+          instruction: prefill.trim(),
+        }),
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !data.success) {
+        setRefineError(data.error ?? "Refinement failed — try again.");
+        setRefining(false);
+        return;
+      }
+      setPrefill("");
+      setRefining(false);
+      onRefined();
+    } catch (err) {
+      setRefineError(err instanceof Error ? err.message : "Refinement failed.");
+      setRefining(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -782,7 +835,7 @@ function BottomComposer({ disabled }: { disabled: boolean }) {
         alignItems: "center",
       }}
     >
-      {!disabled && (
+      {!disabled && !refining && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
           {QUICK_ACTIONS.map((a, i) => (
             <button
@@ -826,6 +879,22 @@ function BottomComposer({ disabled }: { disabled: boolean }) {
         </div>
       )}
 
+      {refineError && (
+        <div
+          style={{
+            padding: "8px 14px",
+            borderRadius: 8,
+            background: "rgba(255,120,110,0.1)",
+            border: "1px solid rgba(255,120,110,0.2)",
+            color: "#ff9d98",
+            fontSize: 12,
+            letterSpacing: "-0.003em",
+          }}
+        >
+          {refineError}
+        </div>
+      )}
+
       <div
         style={{
           width: "100%",
@@ -845,8 +914,20 @@ function BottomComposer({ disabled }: { disabled: boolean }) {
           type="text"
           value={prefill}
           onChange={(e) => setPrefill(e.target.value)}
-          placeholder={disabled ? "Agent is drafting — hang on…" : "What would you like to change or create?"}
-          disabled={disabled}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && canRefine) {
+              e.preventDefault();
+              void submitRefinement();
+            }
+          }}
+          placeholder={
+            disabled
+              ? "Agent is drafting — hang on…"
+              : refining
+              ? "Refining your home page — this takes 60-90 seconds…"
+              : "Ask for a change — e.g. 'make the hero shorter'"
+          }
+          disabled={disabled || refining}
           className="w-full bg-transparent outline-none"
           style={{
             padding: "4px 6px",
@@ -923,22 +1004,29 @@ function BottomComposer({ disabled }: { disabled: boolean }) {
             </button>
             <button
               type="button"
-              aria-label="Send"
-              disabled={disabled}
+              aria-label={refining ? "Refining…" : "Send refinement"}
+              disabled={!canRefine}
+              onClick={submitRefinement}
               className="grid place-items-center"
               style={{
                 width: 28,
                 height: 28,
                 borderRadius: 8,
-                background: disabled ? "rgba(255,255,255,0.06)" : "#ffffff",
-                color: disabled ? "rgba(245,240,230,0.35)" : "#0a0a0f",
+                background: canRefine ? "#ffffff" : "rgba(255,255,255,0.06)",
+                color: canRefine ? "#0a0a0f" : "rgba(245,240,230,0.35)",
                 border: "none",
-                cursor: disabled ? "not-allowed" : "pointer",
+                cursor: canRefine ? "pointer" : "not-allowed",
               }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 19V5M5 12l7-7 7 7" />
-              </svg>
+              {refining ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "wrks-spin 800ms linear infinite" }}>
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
