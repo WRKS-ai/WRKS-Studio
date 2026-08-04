@@ -1,6 +1,20 @@
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getPostSignInDestination } from "@/lib/onboarding/destination";
 
-export default function AppHome() {
+// Root landing page.
+//
+// If the visitor is signed in, we route them onward: /studio when
+// onboarding is complete, otherwise back into the onboarding flow.
+// If they're signed out, we show the placeholder sign-in surface.
+
+export default async function AppHome() {
+  const { userId } = await auth();
+  if (userId) {
+    redirect(await getPostSignInDestination(userId));
+  }
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
       <div className="size-2.5 rounded-full mb-6" style={{

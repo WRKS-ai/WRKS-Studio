@@ -58,7 +58,9 @@ export function OAuthButton({
 
     const strategy = `oauth_${provider}` as "oauth_google" | "oauth_apple";
     const redirectUrl = `${window.location.origin}/sso-callback`;
-    const redirectUrlComplete = "/onboarding/personality";
+    // Land on / — the root page decides where to send the user based on
+    // whether they've completed onboarding (studio vs resume).
+    const redirectUrlComplete = "/";
 
     try {
       await helper.authenticateWithRedirect({

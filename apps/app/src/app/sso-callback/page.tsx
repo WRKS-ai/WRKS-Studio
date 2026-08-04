@@ -20,8 +20,8 @@ export default function SSOCallbackPage() {
           One sec while we finish the handshake.
         </p>
         <AuthenticateWithRedirectCallback
-          signInForceRedirectUrl="/onboarding/personality"
-          signUpForceRedirectUrl="/onboarding/personality"
+          signInForceRedirectUrl="/"
+          signUpForceRedirectUrl="/"
         />
       </div>
     </main>

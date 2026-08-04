@@ -56,8 +56,11 @@ export default clerkMiddleware(async (auth, req) => {
 
   const { userId } = await auth();
 
+  // Signed-in user hitting the auth entry pages? Bounce to root, which
+  // does the smart routing (studio vs resume onboarding) based on
+  // business_profiles.onboarding_completed_at.
   if (userId && isAuthEntryRoute(req)) {
-    return NextResponse.redirect(new URL("/onboarding/personality", req.url));
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   if (!isPublicRoute(req)) {

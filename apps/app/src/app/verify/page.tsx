@@ -24,8 +24,10 @@ export default function VerifyPage() {
     let cancelled = false;
 
     handleEmailLinkVerification({
-      redirectUrl: "/onboarding/personality",
-      redirectUrlComplete: "/onboarding/personality",
+      // Land on / — the root page decides where to send the user based
+      // on onboarding completion.
+      redirectUrl: "/",
+      redirectUrlComplete: "/",
     }).catch((err: unknown) => {
       if (cancelled) return;
       // Verified-on-other-device errors are non-fatal — the original tab
