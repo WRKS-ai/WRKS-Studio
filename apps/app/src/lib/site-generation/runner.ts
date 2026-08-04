@@ -2,6 +2,7 @@ import { ingestBrand, type IngestedBrand } from "./brand-ingest";
 import { generateHtmlDocument } from "./generate-html";
 import { curateImagePack } from "./image-curator";
 import type { BrandContext } from "./design-system";
+import { normalizeGenerationError } from "./error-normalize";
 import {
   markJobError,
   markJobReadyHtml,
@@ -118,10 +119,16 @@ export async function runGenerationJob(input: RunnerInput): Promise<void> {
       `[runner] job ${jobId} ready: ${result.html.length} bytes, ${result.modelUsage.inputTokens}/${result.modelUsage.outputTokens} tokens`,
     );
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[runner] job ${jobId} FAILED:`, msg);
+    // Raw error goes to server logs for debugging. Users only ever see
+    // the normalized user-facing message that we persist to the DB.
+    const rawMsg = err instanceof Error ? err.message : String(err);
+    const normalized = normalizeGenerationError(err);
+    console.error(
+      `[runner] job ${jobId} FAILED [${normalized.category}]:`,
+      rawMsg,
+    );
     try {
-      await markJobError(jobId, msg);
+      await markJobError(jobId, normalized.userMessage);
     } catch (persistErr) {
       console.error(`[runner] failed to persist error for ${jobId}:`, persistErr);
     }

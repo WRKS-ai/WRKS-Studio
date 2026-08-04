@@ -7,6 +7,7 @@ import type { DesignSystemArtboardData } from "@/components/site-canvas/design-s
 import { PreviewOverlay } from "@/components/site-canvas/preview-overlay";
 import { AnalogPanel } from "@/components/site-canvas/analog-panel";
 import { PublishModal } from "@/components/site-canvas/publish-modal";
+import { normalizeGenerationError } from "@/lib/site-generation/error-normalize";
 
 // /studio/sites/generating — the generation theater.
 //
@@ -261,8 +262,12 @@ export default function GeneratingPage() {
       try {
         const raw = (e as MessageEvent).data;
         if (raw) {
-          const data = JSON.parse(raw as string) as { stage: string; message: string };
-          setError(`${data.stage}: ${data.message}`);
+          const data = JSON.parse(raw as string) as { stage?: string; message?: string };
+          const source = data.message ?? "Something went wrong.";
+          // Belt-and-suspenders: runner already stores the friendly
+          // version, but re-run through the normalizer here so raw API
+          // JSON never reaches the panel even if the source changes.
+          setError(normalizeGenerationError(source).userMessage);
         }
       } catch {
         /* normal close */
