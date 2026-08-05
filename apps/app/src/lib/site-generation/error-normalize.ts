@@ -16,6 +16,7 @@ export type ErrorCategory =
   | "network"
   | "timeout"
   | "generation_incomplete"
+  | "missing_blueprint"
   | "unknown";
 
 export type NormalizedError = {
@@ -58,6 +59,8 @@ const MSG = {
     "The draft took longer than expected and timed out. Try again.",
   generation_incomplete:
     "The draft finished early. Try again — the agent will pick up where it left off.",
+  missing_blueprint:
+    "The agent's design library couldn't load. This is a server issue — please try again in a moment.",
   unknown:
     "The draft didn't finish. Try again — if it keeps happening, drop us a note.",
 } as const;
@@ -186,6 +189,22 @@ export function normalizeGenerationError(raw: unknown): NormalizedError {
     return {
       userMessage: MSG.generation_incomplete,
       category: "generation_incomplete",
+      canRetry: true,
+    };
+  }
+
+  // File-not-found — typically means the blueprint MDs weren't bundled
+  // into the serverless function deployment. Config bug, not a user
+  // problem.
+  if (
+    text.includes("enoent") ||
+    text.includes("no such file") ||
+    text.includes("failed to read blueprint") ||
+    text.includes("failed to read corpus file")
+  ) {
+    return {
+      userMessage: MSG.missing_blueprint,
+      category: "missing_blueprint",
       canRetry: true,
     };
   }
